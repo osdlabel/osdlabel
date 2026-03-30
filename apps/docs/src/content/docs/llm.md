@@ -44,12 +44,12 @@ Create an array of `ImageSource` objects. Each image needs a unique branded ID a
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
-    dziUrl: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
     label: 'Highsmith',
   },
   {
     id: createImageId('sample-2'),
-    dziUrl: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
     label: 'Duomo',
   },
 ];
@@ -1306,7 +1306,7 @@ A complete, minimal annotation setup with a single image and unrestricted tools.
 const images: ImageSource[] = [
   {
     id: createImageId('demo'),
-    dziUrl: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
     label: 'Demo Image',
   },
 ];
@@ -1357,12 +1357,12 @@ A setup with multiple annotation contexts for classifying different types of fea
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
-    dziUrl: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
     label: 'Region North',
   },
   {
     id: createImageId('sample-2'),
-    dziUrl: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
     label: 'Region South',
   },
 ];
@@ -1450,7 +1450,7 @@ Use `AnnotatorProvider` and `useAnnotator()` to build a fully custom annotation 
 const images: ImageSource[] = [
   {
     id: createImageId('sample'),
-    dziUrl: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
     label: 'Sample',
   },
 ];

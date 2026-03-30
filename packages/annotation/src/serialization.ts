@@ -83,7 +83,7 @@ export function serialize<E extends object = Record<string, never>>(
 
     return {
       imageId: image.id,
-      sourceUrl: image.dziUrl,
+      sourceUrl: image.tileSource,
       annotations,
     };
   });

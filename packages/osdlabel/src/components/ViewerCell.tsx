@@ -62,7 +62,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
   // Watch for image source changes
   createEffect(
     on(
-      () => props.imageSource?.dziUrl,
+      () => props.imageSource?.tileSource,
       (url, prevUrl) => {
         if (url !== prevUrl && viewer) {
           viewer.close();
@@ -166,7 +166,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
 };
 
 function openImage(viewer: OpenSeadragon.Viewer, source: ImageSource): void {
-  const url = source.dziUrl;
+  const url = source.tileSource;
   const isSimpleImage = /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(url);
 
   if (isSimpleImage) {

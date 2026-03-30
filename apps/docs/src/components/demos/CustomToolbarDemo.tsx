@@ -13,7 +13,7 @@ initFabricModule();
 const images: ImageSource[] = [
   {
     id: createImageId('sample'),
-    dziUrl: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
     label: 'Sample',
   },
 ];
