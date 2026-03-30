@@ -50,7 +50,7 @@ function ViewerCell(props) {
   // IMPORTANT: Do NOT destructure props — it breaks reactivity
   createEffect(
     on(
-      () => props.imageSource?.dziUrl, // tracked getter
+      () => props.imageSource?.tileSource, // tracked getter
       (url, prevUrl) => {
         if (url !== prevUrl && viewer) {
           viewer.close();

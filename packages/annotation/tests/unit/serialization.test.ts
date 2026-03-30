@@ -87,7 +87,7 @@ describe('Serialization', () => {
   };
 
   const imageSources: ImageSource[] = [
-    { id: imageId, dziUrl: 'https://example.com/image.dzi', label: 'Test Image' },
+    { id: imageId, tileSource: 'https://example.com/image.dzi', label: 'Test Image' },
   ];
 
   function createTestState(annotations: TestAnnotation[]): AnnotationState<TestExtFields> {
@@ -134,7 +134,7 @@ describe('Serialization', () => {
       const state = createTestState([annotation1, ann3]);
       const sources: ImageSource[] = [
         ...imageSources,
-        { id: imageId2, dziUrl: 'https://example.com/image2.dzi' },
+        { id: imageId2, tileSource: 'https://example.com/image2.dzi' },
       ];
       const doc = serialize(state, sources);
 

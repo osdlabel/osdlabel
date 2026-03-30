@@ -10,12 +10,12 @@ initFabricModule();
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
-    dziUrl: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
     label: 'Region North',
   },
   {
     id: createImageId('sample-2'),
-    dziUrl: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
     label: 'Region South',
   },
 ];

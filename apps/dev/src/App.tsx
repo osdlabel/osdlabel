@@ -21,22 +21,22 @@ initFabricModule();
 const IMAGES: ImageSource[] = [
   {
     id: createImageId('highsmith'),
-    dziUrl: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
     label: 'Highsmith',
   },
   {
     id: createImageId('duomo'),
-    dziUrl: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
     label: 'Duomo',
   },
   {
     id: createImageId('wide'),
-    dziUrl: 'https://openseadragon.github.io/example-images/pnp/pan/6a32000/6a32400/6a32487.dzi',
+    tileSource: 'https://openseadragon.github.io/example-images/pnp/pan/6a32000/6a32400/6a32487.dzi',
     label: 'Wide image',
   },
   {
     id: createImageId('jpg'),
-    dziUrl: './sample-data/test-image.jpg',
+    tileSource: './sample-data/test-image.jpg',
     label: 'JPG image',
   },
 ];

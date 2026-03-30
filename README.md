@@ -31,7 +31,7 @@ import type { ImageSource, AnnotationContext } from 'osdlabel';
 const images: ImageSource[] = [
   {
     id: createImageId('slide-1'),
-    dziUrl: 'https://example.com/slides/slide-1.dzi',
+    tileSource: 'https://example.com/slides/slide-1.dzi',
     label: 'Slide 1',
   },
 ];

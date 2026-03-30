@@ -95,7 +95,7 @@ export interface ImageAnnotations<E extends object = Record<string, never>> {
 /** Image source descriptor */
 export interface ImageSource {
   readonly id: ImageId;
-  readonly dziUrl: string;
+  readonly tileSource: string;
   readonly thumbnailUrl?: string | undefined;
   readonly label?: string | undefined;
 }
