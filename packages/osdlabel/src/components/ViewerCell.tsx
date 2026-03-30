@@ -19,7 +19,7 @@ export interface ViewerCellProps {
 }
 
 const ViewerCell: Component<ViewerCellProps> = (props) => {
-  const { uiState, annotationState, contextState } = useAnnotator();
+  const { uiState, annotationState, contextState, testMode } = useAnnotator();
   let containerRef: HTMLDivElement | undefined;
   let viewer: OpenSeadragon.Viewer | undefined;
   const [overlay, setOverlay] = createSignal<FabricOverlay>();
@@ -37,6 +37,16 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       visibilityRatio: 0.5,
       constrainDuringPan: true,
     });
+
+    // Suppress all OSD built-in keyboard shortcuts (arrows, WASD, +/-, f, r, etc.)
+    // The app handles keyboard input via its own useKeyboard hook.
+    viewer.addHandler('canvas-key', (event: { preventDefaultAction: boolean }) => {
+      event.preventDefaultAction = true;
+    });
+
+    if (testMode) {
+      (containerRef as unknown as Record<string, unknown>).__osdViewer = viewer;
+    }
 
     viewer.addHandler('open', () => {
       if (!viewer || overlay()) return;
