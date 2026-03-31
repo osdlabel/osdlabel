@@ -38,13 +38,9 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       constrainDuringPan: true,
     });
 
-    if (testMode) {
-      (containerRef as unknown as Record<string, unknown>).__osdViewer = viewer;
-    }
-
     viewer.addHandler('open', () => {
       if (!viewer || overlay()) return;
-      const ov = new FabricOverlay(viewer);
+      const ov = new FabricOverlay(viewer, { testMode });
       setOverlay(ov);
       props.onOverlayReady?.(ov);
     });

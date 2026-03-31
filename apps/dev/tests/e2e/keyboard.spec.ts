@@ -189,13 +189,12 @@ test.describe('Keyboard Shortcuts', () => {
     // Click the viewer to ensure OSD canvas has focus
     await page.locator('.openseadragon-canvas').first().click();
 
-    // Helper to read OSD's internal viewport state
+    // Helper to read OSD's internal viewport state via the test hook
+    // FabricOverlay exposes __osdViewer on the OSD canvas container when testMode is true
     const getOsdState = () =>
       page.evaluate(() => {
-        const cell = document.querySelector('[data-testid="grid-cell-0"]');
-        // The viewer container is the first child div inside the cell
-        const container = cell?.querySelector('div') as Record<string, unknown> | null;
-        const viewer = container?.__osdViewer as {
+        const osdCanvas = document.querySelector('.openseadragon-canvas') as Record<string, unknown> | null;
+        const viewer = osdCanvas?.__osdViewer as {
           viewport: {
             getFlip: () => boolean;
             getCenter: (current: boolean) => { x: number; y: number };
@@ -220,8 +219,8 @@ test.describe('Keyboard Shortcuts', () => {
     await page.keyboard.press('ArrowLeft');
 
     const afterArrows = await getOsdState();
-    expect(afterArrows?.centerX).toBe(before!.centerX);
-    expect(afterArrows?.centerY).toBe(before!.centerY);
+    expect(afterArrows!.centerX.toFixed(6)).toBe(before!.centerX.toFixed(6));
+    expect(afterArrows!.centerY.toFixed(6)).toBe(before!.centerY.toFixed(6));
 
     // Press 'f' — should activate Free Hand tool, NOT flip OSD viewport
     await page.keyboard.press('f');

@@ -23,6 +23,8 @@ export type OverlayMode = 'navigation' | 'annotation';
 export interface OverlayOptions {
   /** Initial interactive state (default: false) */
   readonly interactive?: boolean;
+  /** When true, exposes the OSD viewer on its container DOM element for E2E test access (default: false) */
+  readonly testMode?: boolean;
 }
 
 /**
@@ -211,6 +213,12 @@ export class FabricOverlay {
     // Apply initial mode (or interactive shortcut)
     if (options?.interactive) {
       this.setMode('annotation');
+    }
+
+    // Expose viewer on its container element for E2E test access
+    if (options?.testMode) {
+      const osdCanvas = viewer.canvas as unknown as Record<string, unknown>;
+      osdCanvas.__osdViewer = viewer;
     }
   }
 
