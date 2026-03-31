@@ -1,0 +1,42 @@
+{
+  "name": "@osdlabel/osd-helper",
+  "version": "0.0.1",
+  "description": "OpenSeaDragon utility functions for osdlabel.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*"
+  },
+  "peerDependencies": {
+    "openseadragon": "catalog:"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

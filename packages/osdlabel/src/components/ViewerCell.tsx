@@ -7,6 +7,7 @@ import type { OverlayMode } from '@osdlabel/fabric-osd';
 import type { ImageSource } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
+import { openImage } from '@osdlabel/osd-helper';
 import { useAnnotationTool } from '../hooks/useAnnotationTool.js';
 import { useAnnotator } from '../state/annotator-context.js';
 export interface ViewerCellProps {
@@ -164,19 +165,5 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     />
   );
 };
-
-function openImage(viewer: OpenSeadragon.Viewer, source: ImageSource): void {
-  const url = source.tileSource;
-  const supportedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
-  // Remove query string and hash, then check extension
-  const path = (url || '').split(/[?#]/)[0].toLowerCase();
-  const isSimpleImage = supportedExtensions.some((ext) => path.endsWith(ext));
-
-  if (isSimpleImage) {
-    viewer.open({ type: 'image', url });
-  } else {
-    viewer.open(url);
-  }
-}
 
 export default ViewerCell;

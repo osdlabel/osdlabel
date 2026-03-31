@@ -218,6 +218,25 @@ importers:
         specifier: 'catalog:'
         version: 3.0.5(@types/debug@4.1.12)(jsdom@26.1.0(canvas@3.2.1))(yaml@2.8.3)
 
+  packages/osd-helper:
+    dependencies:
+      '@osdlabel/annotation':
+        specifier: workspace:*
+        version: link:../annotation
+      openseadragon:
+        specifier: 'catalog:'
+        version: 5.0.1
+    devDependencies:
+      '@types/openseadragon':
+        specifier: 'catalog:'
+        version: 5.0.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.0.5(@types/debug@4.1.12)(jsdom@26.1.0(canvas@3.2.1))(yaml@2.8.3)
+
   packages/osdlabel:
     dependencies:
       '@osdlabel/annotation':
@@ -232,6 +251,9 @@ importers:
       '@osdlabel/fabric-osd':
         specifier: workspace:*
         version: link:../fabric-osd
+      '@osdlabel/osd-helper':
+        specifier: workspace:*
+        version: link:../osd-helper
       '@osdlabel/validation':
         specifier: workspace:*
         version: link:../validation
