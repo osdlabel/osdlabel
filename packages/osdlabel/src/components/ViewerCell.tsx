@@ -167,7 +167,10 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
 
 function openImage(viewer: OpenSeadragon.Viewer, source: ImageSource): void {
   const url = source.tileSource;
-  const isSimpleImage = /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(url);
+  const supportedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
+  // Remove query string and hash, then check extension
+  const path = (url || '').split(/[?#]/)[0].toLowerCase();
+  const isSimpleImage = supportedExtensions.some((ext) => path.endsWith(ext));
 
   if (isSimpleImage) {
     viewer.open({ type: 'image', url });
