@@ -28,6 +28,7 @@ interface AnnotatorContextValue {
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef;
   shortcuts: KeyboardShortcutMap;
   activeImageId: Accessor<ImageId | undefined>;
+  testMode: boolean;
 }
 
 const KeyboardHandler = (props: {
@@ -52,6 +53,8 @@ export interface AnnotatorProviderProps {
   readonly keyboardShortcuts?: Partial<KeyboardShortcutMap> | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
+  /** When true, exposes internal instances on DOM elements for E2E test access */
+  readonly testMode?: boolean | undefined;
 }
 
 export function AnnotatorProvider(props: AnnotatorProviderProps) {
@@ -120,6 +123,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     activeToolKeyHandlerRef,
     shortcuts: mergedShortcuts,
     activeImageId,
+    testMode: props.testMode ?? false,
   };
 
   return (

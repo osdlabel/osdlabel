@@ -178,4 +178,61 @@ test.describe('Keyboard Shortcuts', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('status-tool')).toContainText('Rectangle');
   });
+
+  test('OSD built-in keyboard shortcuts are suppressed', async ({ page }) => {
+    // Switch to 'General' context to enable all tools
+    await page.getByRole('combobox').selectOption({ label: 'General' });
+    // Wait for OSD canvas and FabricOverlay (which registers the canvas-key handler)
+    await page.waitForSelector('.openseadragon-canvas');
+    await page.waitForSelector('canvas.upper-canvas');
+
+    // Click the viewer to ensure OSD canvas has focus
+    await page.locator('.openseadragon-canvas').first().click();
+
+    // Helper to read OSD's internal viewport state via the test hook
+    // FabricOverlay exposes __osdViewer on the OSD canvas container when testMode is true
+    const getOsdState = () =>
+      page.evaluate(() => {
+        const osdCanvas = document.querySelector('.openseadragon-canvas') as Record<string, unknown> | null;
+        const viewer = osdCanvas?.__osdViewer as {
+          viewport: {
+            getFlip: () => boolean;
+            getCenter: (current: boolean) => { x: number; y: number };
+            getRotation: () => number;
+          };
+        } | undefined;
+        if (!viewer?.viewport) return null;
+        const center = viewer.viewport.getCenter(false);
+        return {
+          flipped: viewer.viewport.getFlip(),
+          centerX: center.x,
+          centerY: center.y,
+          rotation: viewer.viewport.getRotation(),
+        };
+      });
+
+    const before = await getOsdState();
+    expect(before).not.toBeNull();
+
+    // Press arrow keys — should NOT cause OSD to pan
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowLeft');
+
+    const afterArrows = await getOsdState();
+    expect(afterArrows!.centerX.toFixed(6)).toBe(before!.centerX.toFixed(6));
+    expect(afterArrows!.centerY.toFixed(6)).toBe(before!.centerY.toFixed(6));
+
+    // Press 'f' — should activate Free Hand tool, NOT flip OSD viewport
+    await page.keyboard.press('f');
+    await expect(page.getByTestId('status-tool')).toContainText('FreeHandPath');
+    const afterF = await getOsdState();
+    expect(afterF?.flipped).toBe(false);
+
+    // Press Escape to go back to navigate, then 'r' — should NOT rotate OSD
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('r');
+    await expect(page.getByTestId('status-tool')).toContainText('Rectangle');
+    const afterR = await getOsdState();
+    expect(afterR?.rotation).toBe(before!.rotation);
+  });
 });

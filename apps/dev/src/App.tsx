@@ -384,6 +384,7 @@ function App() {
     <AnnotatorProvider
       onAnnotationsChange={(anns) => console.log('Annotations changed:', anns.length, 'total')}
       onConstraintChange={(status) => console.log('Constraint status changed:', status)}
+      testMode={true}
     >
       <AppContent />
     </AnnotatorProvider>

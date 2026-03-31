@@ -19,7 +19,7 @@ export interface ViewerCellProps {
 }
 
 const ViewerCell: Component<ViewerCellProps> = (props) => {
-  const { uiState, annotationState, contextState } = useAnnotator();
+  const { uiState, annotationState, contextState, testMode } = useAnnotator();
   let containerRef: HTMLDivElement | undefined;
   let viewer: OpenSeadragon.Viewer | undefined;
   const [overlay, setOverlay] = createSignal<FabricOverlay>();
@@ -40,7 +40,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
 
     viewer.addHandler('open', () => {
       if (!viewer || overlay()) return;
-      const ov = new FabricOverlay(viewer);
+      const ov = new FabricOverlay(viewer, { testMode });
       setOverlay(ov);
       props.onOverlayReady?.(ov);
     });
