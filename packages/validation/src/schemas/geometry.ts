@@ -38,13 +38,18 @@ export const PointGeometrySchema = v.object({
   position: PointSchema,
 });
 
-const PathPointsSchema = v.pipe(v.array(PointSchema), v.minLength(2));
+const PolyPointsSchema = v.pipe(v.array(PointSchema), v.minLength(2));
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").PathGeometry}. */
-export const PathGeometrySchema = v.object({
-  type: v.literal('path'),
-  points: PathPointsSchema,
-  closed: v.boolean(),
+/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").PolylineGeometry}. */
+export const PolylineGeometrySchema = v.object({
+  type: v.literal('polyline'),
+  points: PolyPointsSchema,
+});
+
+/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").PolygonGeometry}. */
+export const PolygonGeometrySchema = v.object({
+  type: v.literal('polygon'),
+  points: PolyPointsSchema,
 });
 
 export const GeometrySchema = v.variant('type', [
@@ -52,5 +57,6 @@ export const GeometrySchema = v.variant('type', [
   CircleGeometrySchema,
   LineGeometrySchema,
   PointGeometrySchema,
-  PathGeometrySchema,
+  PolylineGeometrySchema,
+  PolygonGeometrySchema,
 ]);

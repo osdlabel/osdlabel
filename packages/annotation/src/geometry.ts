@@ -29,10 +29,14 @@ export interface PointGeometry {
   readonly position: Point;
 }
 
-export interface PathGeometry {
-  readonly type: 'path';
+export interface PolylineGeometry {
+  readonly type: 'polyline';
   readonly points: readonly Point[];
-  readonly closed: boolean;
+}
+
+export interface PolygonGeometry {
+  readonly type: 'polygon';
+  readonly points: readonly Point[];
 }
 
 /** Discriminated union of annotation geometries */
@@ -41,4 +45,5 @@ export type Geometry =
   | CircleGeometry
   | LineGeometry
   | PointGeometry
-  | PathGeometry;
+  | PolylineGeometry
+  | PolygonGeometry;

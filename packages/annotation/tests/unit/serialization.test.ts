@@ -278,7 +278,7 @@ describe('Serialization', () => {
     });
 
     it('should reject invalid geometry type', () => {
-      const badAnn = { ...baseAnn, geometry: { type: 'polygon' } };
+      const badAnn = { ...baseAnn, geometry: { type: 'unknown' } };
       expect(validateBaseAnnotation(badAnn)).toBe(false);
     });
 
@@ -304,10 +304,10 @@ describe('Serialization', () => {
       expect(validateBaseAnnotation(badAnn)).toBe(false);
     });
 
-    it('should reject path with less than 2 points', () => {
+    it('should reject polyline with less than 2 points', () => {
       const badAnn = {
         ...baseAnn,
-        geometry: { type: 'path', points: [{ x: 0, y: 0 }], closed: false },
+        geometry: { type: 'polyline', points: [{ x: 0, y: 0 }] },
       };
       expect(validateBaseAnnotation(badAnn)).toBe(false);
     });
@@ -328,20 +328,34 @@ describe('Serialization', () => {
       expect(validateBaseAnnotation(pointAnn)).toBe(true);
     });
 
-    it('should accept a valid path annotation', () => {
-      const pathAnn = {
+    it('should accept a valid polyline annotation', () => {
+      const polylineAnn = {
         ...baseAnn,
         geometry: {
-          type: 'path',
+          type: 'polyline',
           points: [
             { x: 0, y: 0 },
             { x: 10, y: 10 },
             { x: 20, y: 0 },
           ],
-          closed: true,
         },
       };
-      expect(validateBaseAnnotation(pathAnn)).toBe(true);
+      expect(validateBaseAnnotation(polylineAnn)).toBe(true);
+    });
+
+    it('should accept a valid polygon annotation', () => {
+      const polygonAnn = {
+        ...baseAnn,
+        geometry: {
+          type: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 10 },
+            { x: 20, y: 0 },
+          ],
+        },
+      };
+      expect(validateBaseAnnotation(polygonAnn)).toBe(true);
     });
   });
 

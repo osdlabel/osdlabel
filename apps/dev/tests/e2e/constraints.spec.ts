@@ -11,20 +11,20 @@ test.describe('Constraint System', () => {
     // Default context is "Fracture" with line (max 3) and rectangle (max 2)
     await expect(page.getByTestId('tool-line')).toBeVisible();
     await expect(page.getByTestId('tool-rectangle')).toBeVisible();
-    // Fracture context should NOT have circle, point, or path
+    // Fracture context should NOT have circle, point, or polyline
     await expect(page.getByTestId('tool-circle')).not.toBeVisible();
     await expect(page.getByTestId('tool-point')).not.toBeVisible();
-    await expect(page.getByTestId('tool-path')).not.toBeVisible();
+    await expect(page.getByTestId('tool-polyline')).not.toBeVisible();
     // Navigate and Select are always present
     await expect(page.getByTestId('tool-navigate')).toBeVisible();
     await expect(page.getByTestId('tool-select')).toBeVisible();
   });
 
   test('switching contexts updates the toolbar', async ({ page }) => {
-    // Switch to "Pneumothorax" context (has path and circle)
+    // Switch to "Pneumothorax" context (has polyline and circle)
     await page.selectOption('select', { index: 1 });
 
-    await expect(page.getByTestId('tool-path')).toBeVisible();
+    await expect(page.getByTestId('tool-polyline')).toBeVisible();
     await expect(page.getByTestId('tool-circle')).toBeVisible();
     // Pneumothorax does NOT have line, rectangle, or point
     await expect(page.getByTestId('tool-line')).not.toBeVisible();

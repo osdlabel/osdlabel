@@ -101,20 +101,33 @@ describe('Geometry discriminated union', () => {
     }
   });
 
-  it('narrows path geometry correctly', () => {
+  it('narrows polyline geometry correctly', () => {
     const geom: Geometry = {
-      type: 'path',
+      type: 'polyline',
       points: [
         { x: 0, y: 0 },
         { x: 50, y: 50 },
         { x: 100, y: 0 },
       ],
-      closed: true,
     };
 
-    if (geom.type === 'path') {
+    if (geom.type === 'polyline') {
       expect(geom.points).toHaveLength(3);
-      expect(geom.closed).toBe(true);
+    }
+  });
+
+  it('narrows polygon geometry correctly', () => {
+    const geom: Geometry = {
+      type: 'polygon',
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 50 },
+        { x: 100, y: 0 },
+      ],
+    };
+
+    if (geom.type === 'polygon') {
+      expect(geom.points).toHaveLength(3);
     }
   });
 
@@ -129,8 +142,10 @@ describe('Geometry discriminated union', () => {
           return 'line';
         case 'point':
           return 'point';
-        case 'path':
-          return 'path';
+        case 'polyline':
+          return 'polyline';
+        case 'polygon':
+          return 'polygon';
       }
     }
 

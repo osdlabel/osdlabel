@@ -13,8 +13,8 @@ import { getFabricOptions } from '../fabric-utils.js';
 /** Distance in screen pixels to snap-close to the first point */
 const CLOSE_THRESHOLD_SCREEN_PX = 10;
 
-export class PathTool extends BaseTool {
-  readonly type: ToolType = 'path';
+export class PolylineTool extends BaseTool {
+  readonly type: ToolType = 'polyline';
   private preview: Polyline | null = null;
   /** Committed vertices (does not include the live cursor point) */
   private vertices: Point[] = [];
@@ -93,15 +93,15 @@ export class PathTool extends BaseTool {
     const isDrawing = this.vertices.length > 0;
 
     if (isDrawing && shortcuts) {
-      if (event.key === shortcuts.pathFinish) {
+      if (event.key === shortcuts.polylineFinish) {
         this.finish(false);
         return true;
       }
-      if (event.key.toLowerCase() === shortcuts.pathClose.toLowerCase()) {
+      if (event.key.toLowerCase() === shortcuts.polylineClose.toLowerCase()) {
         if (this.vertices.length >= 3) this.finish(true);
         return true; // always consume 'c' during drawing (prevent CircleTool switch)
       }
-      if (event.key === shortcuts.pathCancel) {
+      if (event.key === shortcuts.polylineCancel) {
         this.cancel();
         return true; // prevent global Escape from also deactivating the tool
       }

@@ -10,7 +10,7 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   circleTool: 'c',
   lineTool: 'l',
   pointTool: 'p',
-  pathTool: 'd',
+  polylineTool: 'd',
   freeHandPathTool: 'f',
   cancel: 'Escape',
   delete: 'Delete',
@@ -28,9 +28,9 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   decreaseGridColumns: '-',
   increaseGridRows: ']',
   decreaseGridRows: '[',
-  pathFinish: 'Enter',
-  pathClose: 'c',
-  pathCancel: 'Escape',
+  polylineFinish: 'Enter',
+  polylineClose: 'c',
+  polylineCancel: 'Escape',
   rotateCW: 'R',
   rotateCCW: 'L',
   flipHorizontal: 'H',
@@ -99,8 +99,8 @@ export function useKeyboard(
       if (isToolEnabled('line')) actions.setActiveTool('line');
     } else if (!e.shiftKey && keyLower === shortcuts.pointTool.toLowerCase()) {
       if (isToolEnabled('point')) actions.setActiveTool('point');
-    } else if (!e.shiftKey && keyLower === shortcuts.pathTool.toLowerCase()) {
-      if (isToolEnabled('path')) actions.setActiveTool('path');
+    } else if (!e.shiftKey && keyLower === shortcuts.polylineTool.toLowerCase()) {
+      if (isToolEnabled('polyline')) actions.setActiveTool('polyline');
     } else if (!e.shiftKey && keyLower === shortcuts.freeHandPathTool.toLowerCase()) {
       if (isToolEnabled('freeHandPath')) actions.setActiveTool('freeHandPath');
     }

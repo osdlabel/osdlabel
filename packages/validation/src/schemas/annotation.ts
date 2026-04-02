@@ -7,7 +7,7 @@ export const ToolTypeSchema = v.union([
   v.literal('circle'),
   v.literal('line'),
   v.literal('point'),
-  v.literal('path'),
+  v.literal('polyline'),
   v.literal('freeHandPath'),
 ]);
 

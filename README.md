@@ -108,7 +108,7 @@ const context: AnnotationContext = {
   label: 'Tumor Detection',
   imageIds: [createImageId('slide-1')], // optional: scope to specific images
   tools: [
-    { type: 'path', maxCount: 3 }, // max 3 paths globally
+    { type: 'polyline', maxCount: 3 }, // max 3 polylines globally
     { type: 'rectangle', maxCount: 2, countScope: 'per-image' }, // max 2 per image
     { type: 'point' }, // unlimited
   ],

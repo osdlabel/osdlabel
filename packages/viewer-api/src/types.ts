@@ -45,7 +45,7 @@ export interface KeyboardShortcutMap {
   readonly circleTool: string;
   readonly lineTool: string;
   readonly pointTool: string;
-  readonly pathTool: string;
+  readonly polylineTool: string;
   readonly freeHandPathTool: string;
   readonly cancel: string;
   readonly delete: string;
@@ -63,9 +63,9 @@ export interface KeyboardShortcutMap {
   readonly decreaseGridColumns: string;
   readonly increaseGridRows: string;
   readonly decreaseGridRows: string;
-  readonly pathFinish: string;
-  readonly pathClose: string;
-  readonly pathCancel: string;
+  readonly polylineFinish: string;
+  readonly polylineClose: string;
+  readonly polylineCancel: string;
   readonly rotateCW: string;
   readonly rotateCCW: string;
   readonly flipHorizontal: string;

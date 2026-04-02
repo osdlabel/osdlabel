@@ -34,9 +34,9 @@ test.describe('Keyboard Shortcuts', () => {
     await page.keyboard.press('p');
     await expect(page.getByTestId('status-tool')).toContainText('Point');
 
-    // 'd' -> Path
+    // 'd' -> Polyline
     await page.keyboard.press('d');
-    await expect(page.getByTestId('status-tool')).toContainText('Path');
+    await expect(page.getByTestId('status-tool')).toContainText('Polyline');
   });
 
   test('Escape key cascades correctly', async ({ page }) => {

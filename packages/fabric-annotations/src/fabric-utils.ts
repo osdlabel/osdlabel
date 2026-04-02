@@ -138,7 +138,7 @@ export function getGeometryFromFabricObject(
     };
   }
 
-  if (type === 'path') {
+  if (type === 'polyline' || type === 'polygon') {
     // Polygon extends Polyline in Fabric, so instanceof Polyline matches both
     if (obj instanceof Polyline) {
       const matrix = obj.calcTransformMatrix();
@@ -148,10 +148,11 @@ export function getGeometryFromFabricObject(
         const tp = util.transformPoint(centeredP, matrix);
         return { x: tp.x, y: tp.y };
       });
+      // Determine actual geometry type from the Fabric object class
+      const geometryType = obj instanceof Polygon ? 'polygon' : 'polyline';
       return {
-        type: 'path',
+        type: geometryType,
         points: points,
-        closed: obj instanceof Polygon,
       };
     }
   }

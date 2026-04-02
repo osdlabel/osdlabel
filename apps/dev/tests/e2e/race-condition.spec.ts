@@ -6,7 +6,7 @@ test.describe('Race Condition: Cell Switching & Key Handling', () => {
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10000 });
   });
 
-  test('Tool shortcuts usually intercepted by tools (like "c" for Path closing) should work after switching cell 1->0', async ({
+  test('Tool shortcuts usually intercepted by tools (like "c" for Polyline closing) should work after switching cell 1->0', async ({
     page,
   }) => {
     // 1. Expand grid to 2x1 so we have Cell 0 and Cell 1
@@ -34,19 +34,19 @@ test.describe('Race Condition: Cell Switching & Key Handling', () => {
     await page.getByTestId('grid-cell-0').click();
     await expect(page.getByTestId('grid-cell-0')).toHaveAttribute('data-active', 'true');
 
-    // 4. Switch to 'General' context to ensure Path tool is enabled
+    // 4. Switch to 'General' context to ensure Polyline tool is enabled
     const contextSelector = page.getByRole('combobox');
     if (await contextSelector.isVisible()) {
       await contextSelector.selectOption({ label: 'General' });
     }
 
-    // 5. Select Path Tool ('d')
+    // 5. Select Polyline Tool ('d')
     // We can use the global shortcut 'd' to select it first.
     // This also verifies global shortcuts work.
     await page.keyboard.press('d');
-    await expect(page.getByTestId('status-tool')).toContainText('Path');
+    await expect(page.getByTestId('status-tool')).toContainText('Polyline');
 
-    // 6. Draw a path (3 points)
+    // 6. Draw a polyline (3 points)
     // We need to click on the canvas.
     const canvas = page.locator('canvas.upper-canvas').first();
     await canvas.waitFor({ state: 'attached', timeout: 15000 });
@@ -66,17 +66,17 @@ test.describe('Race Condition: Cell Switching & Key Handling', () => {
     await page.mouse.click(box.x + 200, box.y + 200);
     await page.waitForTimeout(100);
 
-    // 7. Press 'c' to close the path
-    // If the bug exists: The active tool's handler (PathTool.onKeyDown) is missing.
+    // 7. Press 'c' to close as polygon
+    // If the bug exists: The active tool's handler (PolylineTool.onKeyDown) is missing.
     // The event bubbles. Global handler sees 'c' -> Switches to Circle Tool.
-    // If fixed: PathTool.onKeyDown handles 'c' -> Closes path. Tool remains 'Path'.
+    // If fixed: PolylineTool.onKeyDown handles 'c' -> Closes as polygon. Tool remains 'Polyline'.
     await page.keyboard.press('c');
 
     // 8. Assertion
     // Check that we did NOT switch to Circle tool
     await expect(page.getByTestId('status-tool')).not.toContainText('Circle');
 
-    // Optionally consistency check: It should still be Path (since Path tool doesn't auto-deactivate on finish)
-    await expect(page.getByTestId('status-tool')).toContainText('Path');
+    // Consistency check: It should still be Polyline (since Polyline tool doesn't auto-deactivate on finish)
+    await expect(page.getByTestId('status-tool')).toContainText('Polyline');
   });
 });

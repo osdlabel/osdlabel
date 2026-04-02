@@ -160,8 +160,8 @@ describe('useKeyboard', () => {
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.pointTool);
       expect(mockActions.setActiveTool).toHaveBeenCalledWith('point');
 
-      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.pathTool);
-      expect(mockActions.setActiveTool).toHaveBeenCalledWith('path');
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.polylineTool);
+      expect(mockActions.setActiveTool).toHaveBeenCalledWith('polyline');
     });
 
     it('should handle uppercase tool shortcuts', () => {

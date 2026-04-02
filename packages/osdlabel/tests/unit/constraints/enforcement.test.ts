@@ -45,7 +45,7 @@ describe('Constraint Enforcement', () => {
     label: 'Context 2',
     tools: [
       { type: 'line', maxCount: 1 },
-      { type: 'path', maxCount: 3 },
+      { type: 'polyline', maxCount: 3 },
     ],
   };
 
@@ -147,7 +147,7 @@ describe('Constraint Enforcement', () => {
     expect(status.circle.enabled).toBe(true);
     // Context 1 does NOT have line or path
     expect(status.line.enabled).toBe(false);
-    expect(status.path.enabled).toBe(false);
+    expect(status.polyline.enabled).toBe(false);
 
     // Switch to context 2
     actions.setActiveContext(contextId2);
@@ -155,7 +155,7 @@ describe('Constraint Enforcement', () => {
     status = constraintStatus();
     // Context 2 has line and path
     expect(status.line.enabled).toBe(true);
-    expect(status.path.enabled).toBe(true);
+    expect(status.polyline.enabled).toBe(true);
     // Context 2 does NOT have rectangle or circle
     expect(status.rectangle.enabled).toBe(false);
     expect(status.circle.enabled).toBe(false);
@@ -204,7 +204,7 @@ describe('Constraint Enforcement', () => {
     expect(status.circle.enabled).toBe(false);
     expect(status.line.enabled).toBe(false);
     expect(status.point.enabled).toBe(false);
-    expect(status.path.enabled).toBe(false);
+    expect(status.polyline.enabled).toBe(false);
 
     dispose();
   });

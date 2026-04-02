@@ -48,17 +48,17 @@ While drawing or selecting, you can still navigate:
 
 These modifier-based gestures pass through to OpenSeaDragon while keeping Fabric in control of regular mouse events.
 
-## Path tool workflow
+## Polyline tool workflow
 
-The path tool is multi-click (not drag-based):
+The polyline tool is multi-click (not drag-based):
 
-1. Press `d` to activate the path tool
+1. Press `d` to activate the polyline tool
 2. Click to place each vertex — a preview line follows the cursor
-3. Press `Enter` to finish the path as an open polyline
-4. Press `c` to close the path as a polygon
-5. Press `Escape` to cancel the path in progress
+3. Press `Enter` to finish as an open polyline
+4. Press `c` to close as a polygon
+5. Press `Escape` to cancel the polyline in progress
 
-Paths require at least 2 points to be committed.
+Polylines require at least 2 points to be committed; polygons require at least 3.
 
 ## Free hand path tool workflow
 
@@ -67,10 +67,10 @@ The free hand path tool captures a continuous stroke as you drag:
 1. Press `f` to activate the free hand path tool
 2. Click and hold, then drag to draw — vertices are sampled automatically as you move
 3. **Release** the mouse button to commit the annotation
-4. By default the path is **closed** (a filled polygon); hold **Shift** while drawing to produce an **open** polyline instead
+4. By default the stroke is **closed** (a filled polygon); hold **Shift** while drawing to produce an **open** polyline instead
 5. Press `Escape` during a drag to cancel
 
-Closed paths require at least 3 sampled points; open paths require at least 2. If the stroke is too short the annotation is discarded automatically.
+Closed polygons require at least 3 sampled points; open polylines require at least 2. If the stroke is too short the annotation is discarded automatically.
 
 ## Programmatically selecting a tool
 

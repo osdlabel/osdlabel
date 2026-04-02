@@ -30,7 +30,7 @@ const contexts: AnnotationContext[] = [
       // Up to 10 building outlines per image
       { type: 'rectangle', maxCount: 10, countScope: 'per-image' },
       // Up to 5 freehand boundaries total for irregular shapes
-      { type: 'path', maxCount: 5 },
+      { type: 'polyline', maxCount: 5 },
     ],
   },
   {
@@ -51,7 +51,7 @@ const contexts: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'path' },
+      { type: 'polyline' },
       { type: 'freeHandPath' },
     ],
   },

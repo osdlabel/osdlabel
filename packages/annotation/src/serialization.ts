@@ -30,13 +30,13 @@ export class SerializationError extends Error {
 }
 
 const SUPPORTED_VERSION = '1.0.0';
-const GEOMETRY_TYPES: readonly string[] = ['rectangle', 'circle', 'line', 'point', 'path'];
+const GEOMETRY_TYPES: readonly string[] = ['rectangle', 'circle', 'line', 'point', 'polyline', 'polygon'];
 const TOOL_TYPES: readonly string[] = [
   'rectangle',
   'circle',
   'line',
   'point',
-  'path',
+  'polyline',
   'freeHandPath',
 ];
 
@@ -311,8 +311,8 @@ function validateGeometry(value: unknown): boolean {
     case 'point':
       return validatePointValue(g.position);
 
-    case 'path':
-      if (typeof g.closed !== 'boolean') return false;
+    case 'polyline':
+    case 'polygon':
       if (!Array.isArray(g.points)) return false;
       if (g.points.length < 2) return false;
       return g.points.every((p: unknown) => validatePointValue(p));

@@ -32,7 +32,7 @@ export function createConstraintStatus(
       'circle',
       'line',
       'point',
-      'path',
+      'polyline',
       'freeHandPath',
     ];
     const result: Partial<ConstraintStatus> = {};

@@ -32,7 +32,7 @@ export const MAX_STROKE_DASH_ARRAY_LENGTH = 20;
  * in Fabric v7.
  *
  * Note: 'Circle' covers our 'point' annotation type.
- * 'Polyline'/'Polygon' cover our 'path' annotation type.
+ * 'Polyline'/'Polygon' cover our polyline/polygon annotation types.
  */
 export type FabricTypeName = 'Rect' | 'Circle' | 'Line' | 'Polyline' | 'Polygon';
 

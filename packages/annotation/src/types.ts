@@ -3,14 +3,14 @@ import type { Geometry } from './geometry';
 // ── Tool & Geometry Type Aliases ────────────────────────────────────────
 
 /** Tool used to create an annotation. Multiple tools may produce the same geometry type. */
-export type ToolType = 'rectangle' | 'circle' | 'line' | 'point' | 'path' | 'freeHandPath';
+export type ToolType = 'rectangle' | 'circle' | 'line' | 'point' | 'polyline' | 'freeHandPath';
 
 /** Geometry discriminator values — derived from the Geometry union */
 export type GeometryType = Geometry['type'];
 
 /** Maps a ToolType to the GeometryType it produces */
 export function toolTypeToGeometryType(toolType: ToolType): GeometryType {
-  if (toolType === 'freeHandPath') return 'path';
+  if (toolType === 'freeHandPath') return 'polyline';
   return toolType as GeometryType;
 }
 

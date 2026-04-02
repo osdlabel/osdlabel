@@ -64,7 +64,7 @@ export {
   CircleTool,
   LineTool,
   PointTool,
-  PathTool,
+  PolylineTool,
   FreeHandPathTool,
   SelectTool,
   getFabricOptions,

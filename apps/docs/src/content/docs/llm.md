@@ -70,7 +70,7 @@ const contexts: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'path' },
+      { type: 'polyline' },
       { type: 'freeHandPath' },
     ],
   },
@@ -500,7 +500,7 @@ const contexts: AnnotationContext[] = [
       // Up to 10 building outlines per image
       { type: 'rectangle', maxCount: 10, countScope: 'per-image' },
       // Up to 5 freehand boundaries total for irregular shapes
-      { type: 'path', maxCount: 5 },
+      { type: 'polyline', maxCount: 5 },
     ],
   },
   {
@@ -521,7 +521,7 @@ const contexts: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'path' },
+      { type: 'polyline' },
       { type: 'freeHandPath' },
     ],
   },
@@ -534,7 +534,7 @@ Each tool in a context can have:
 
 | Property       | Type                       | Default       | Description                                                                          |
 | -------------- | -------------------------- | ------------- | ------------------------------------------------------------------------------------ |
-| `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'path'` \| `'freeHandPath'` |
+| `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'polyline'` \| `'freeHandPath'` |
 | `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                           |
 | `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                   |
 | `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                       |
@@ -797,7 +797,7 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 | `c`                    | Circle tool                               |
 | `l`                    | Line tool                                 |
 | `p`                    | Point tool                                |
-| `d`                    | Path (draw) tool                          |
+| `d`                    | Polyline (draw) tool                      |
 | `f`                    | Free hand path tool                       |
 | `Escape`               | Deselect annotation, then deactivate tool |
 | `Delete` / `Backspace` | Delete selected annotation                |
@@ -807,13 +807,13 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 | `]`                    | Add a grid row                            |
 | `[`                    | Remove a grid row                         |
 
-### Path tool shortcuts
+### Polyline tool shortcuts
 
-| Key      | Action                      |
-| -------- | --------------------------- |
-| `Enter`  | Finish path (open polyline) |
-| `c`      | Close path (polygon)        |
-| `Escape` | Cancel path in progress     |
+| Key      | Action                            |
+| -------- | --------------------------------- |
+| `Enter`  | Finish as open polyline           |
+| `c`      | Close as polygon                  |
+| `Escape` | Cancel polyline in progress       |
 
 ### Free hand path tool shortcuts
 
@@ -1320,7 +1320,7 @@ const contexts: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'path' },
+      { type: 'polyline' },
     ],
   },
 ];
@@ -1377,7 +1377,7 @@ const contexts: AnnotationContext[] = [
       // Up to 10 building outlines per image
       { type: 'rectangle', maxCount: 10, countScope: 'per-image' },
       // Up to 5 freehand boundaries total for irregular shapes
-      { type: 'path', maxCount: 5 },
+      { type: 'polyline', maxCount: 5 },
     ],
   },
   {
@@ -1398,7 +1398,7 @@ const contexts: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'path' },
+      { type: 'polyline' },
     ],
   },
 ];

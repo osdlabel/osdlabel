@@ -29,7 +29,7 @@ const contexts: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'path' },
+      { type: 'polyline' },
       { type: 'freeHandPath' },
     ],
   },

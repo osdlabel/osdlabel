@@ -7,7 +7,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
   circle: 'Circle',
   line: 'Line',
   point: 'Point',
-  path: 'Path',
+  polyline: 'Polyline',
   freeHandPath: 'Free Draw',
 };
 

@@ -11,7 +11,7 @@ import {
   CircleTool,
   LineTool,
   PointTool,
-  PathTool,
+  PolylineTool,
   FreeHandPathTool,
   SelectTool,
   getGeometryFromFabricObject,
@@ -115,8 +115,8 @@ export function useAnnotationTool(
       case 'point':
         tool = new PointTool();
         break;
-      case 'path':
-        tool = new PathTool();
+      case 'polyline':
+        tool = new PolylineTool();
         break;
       case 'freeHandPath':
         tool = new FreeHandPathTool();

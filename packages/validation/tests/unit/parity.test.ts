@@ -31,13 +31,20 @@ describe('Geometry schema parity', () => {
     { type: 'line', start: { x: 0, y: 0 }, end: { x: 10, y: 10 } },
     { type: 'point', position: { x: 5, y: 5 } },
     {
-      type: 'path',
+      type: 'polyline',
       points: [
         { x: 0, y: 0 },
         { x: 10, y: 10 },
         { x: 20, y: 0 },
       ],
-      closed: true,
+    },
+    {
+      type: 'polygon',
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+        { x: 20, y: 0 },
+      ],
     },
   ];
 
@@ -48,10 +55,10 @@ describe('Geometry schema parity', () => {
   }
 
   const invalidGeometries = [
-    { name: 'unknown type', value: { type: 'polygon' } },
+    { name: 'unknown type', value: { type: 'unknown' } },
     {
       name: 'freeHandPath (tool type, not a geometry type)',
-      value: { type: 'freeHandPath', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], closed: false },
+      value: { type: 'freeHandPath', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
     },
     {
       name: 'NaN coordinate',
@@ -62,8 +69,8 @@ describe('Geometry schema parity', () => {
       value: { type: 'circle', center: { x: Infinity, y: 0 }, radius: 10 },
     },
     {
-      name: 'path with <2 points',
-      value: { type: 'path', points: [{ x: 0, y: 0 }], closed: false },
+      name: 'polyline with <2 points',
+      value: { type: 'polyline', points: [{ x: 0, y: 0 }] },
     },
     {
       name: 'missing required field',
