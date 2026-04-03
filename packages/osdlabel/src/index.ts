@@ -44,7 +44,6 @@ export {
   createAnnotationContextId,
   isContextScopedToImage,
   getCountableImageIds,
-  validateContextFields,
 } from '@osdlabel/annotation-context';
 
 // Fabric annotations (re-exported from @osdlabel/fabric-annotations)
