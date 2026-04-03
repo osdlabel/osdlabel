@@ -2,7 +2,7 @@ import type { Annotation, AnnotationId, ImageId } from '@osdlabel/annotation';
 import { createImageId } from '@osdlabel/annotation';
 import type { AnnotationState } from '@osdlabel/viewer-api';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
-import { OsdAnnotationSchema } from './validator.js';
+import { OsdAnnotationSchema } from '@osdlabel/validation';
 import type { OsdFields } from './types.js';
 import * as v from 'valibot';
 

@@ -1,15 +1,7 @@
 import * as v from 'valibot';
 import { GeometrySchema } from './geometry.js';
-
-/** Schema for @see {@link import("@osdlabel/annotation/annotation-tools").ToolType} */
-export const ToolTypeSchema = v.union([
-  v.literal('rectangle'),
-  v.literal('circle'),
-  v.literal('line'),
-  v.literal('point'),
-  v.literal('polyline'),
-  v.literal('freeHandPath'),
-]);
+import { ToolTypeSchema } from './tool.js';
+import { FabricRawAnnotationDataSchema } from './fabric-data.js';
 
 /**
  * Schema for @see {@link import("@osdlabel/annotation/annotation").BaseAnnotation} — validates core annotation fields.
@@ -26,3 +18,11 @@ export const BaseAnnotationSchema = v.object({
   createdAt: v.string(),
   updatedAt: v.string(),
 });
+
+/** Schema for @see {@link import("osdlabel").OsdAnnotation} - validates fields added by the Annotator. */
+export const OsdFieldsSchema = v.object({
+  contextId: v.pipe(v.string(), v.minLength(1)),
+  rawAnnotationData: FabricRawAnnotationDataSchema,
+});
+
+export const OsdAnnotationSchema = v.intersect([BaseAnnotationSchema, OsdFieldsSchema]);

@@ -1,7 +1,7 @@
 {
   "name": "@osdlabel/validation",
   "version": "0.0.1",
-  "description": "Schema-based validation for osdlabel annotation types, built on Valibot with Standard Schema interface.",
+  "description": "Schema-based validation for osdlabel objects built on Valibot.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

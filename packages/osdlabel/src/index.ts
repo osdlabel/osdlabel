@@ -84,11 +84,11 @@ export {
   BaseAnnotationSchema,
   FabricRawAnnotationDataSchema,
   ToolTypeSchema,
+  
 } from '@osdlabel/validation';
 
 // Own types
 export type { OsdAnnotation, OsdFields } from './types.js';
-export { validateOsdAnnotation, validateOsdFields } from './validator.js';
 
 // Pre-configured serialization (uses OSD validators)
 export { serialize, deserialize, SerializationError } from './serialization-configured.js';
