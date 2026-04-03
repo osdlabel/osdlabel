@@ -9,7 +9,6 @@ export type {
   AnnotationStyle,
   BaseAnnotation,
   Annotation,
-  ImageSource,
   RawAnnotationData,
 } from '@osdlabel/annotation';
 
@@ -26,6 +25,7 @@ export type {
   KeyboardShortcutMap,
   CellTransform,
   AnnotationState,
+  ImageSource,
 } from '@osdlabel/viewer-api';
 export { DEFAULT_CELL_TRANSFORM, getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 

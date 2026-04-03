@@ -43,6 +43,16 @@ export interface AnnotationState<E extends object = Record<string, never>> {
   changeCounter: number;
 }
 
+// ── Image Source ─────────────────────────────────────────────────────────
+
+/** Image source descriptor */
+export interface ImageSource {
+  readonly id: ImageId;
+  readonly tileSource: string;
+  readonly thumbnailUrl?: string | undefined;
+  readonly label?: string | undefined;
+}
+
 // ── Keyboard Shortcuts ───────────────────────────────────────────────────
 
 /** Keyboard shortcut map */

@@ -1,5 +1,5 @@
 import type OpenSeadragon from 'openseadragon';
-import type { ImageSource } from '@osdlabel/annotation';
+import type { ImageSource } from '@osdlabel/viewer-api';
 
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
 

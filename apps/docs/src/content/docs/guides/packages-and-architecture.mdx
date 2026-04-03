@@ -89,7 +89,8 @@ import { useAnnotator } from 'osdlabel/state';
 For advanced usage, you can import types and core logic directly from the granular packages. This is particularly useful if you are building a custom UI layer instead of using the SolidJS components.
 
 ```ts
-import type { Annotation, ImageSource } from '@osdlabel/annotation';
+import type { Annotation } from '@osdlabel/annotation';
+import type { ImageSource } from '@osdlabel/viewer-api';
 import type { AnnotationContext } from '@osdlabel/annotation-context';
 import { serialize } from 'osdlabel';
 ```

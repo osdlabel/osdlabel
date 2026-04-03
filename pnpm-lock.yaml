@@ -223,6 +223,9 @@ importers:
       '@osdlabel/annotation':
         specifier: workspace:*
         version: link:../annotation
+      '@osdlabel/viewer-api':
+        specifier: workspace:*
+        version: link:../viewer-api
       openseadragon:
         specifier: 'catalog:'
         version: 5.0.1

@@ -1,6 +1,6 @@
 import { Annotator } from 'osdlabel/components';
 import { createImageId } from '@osdlabel/annotation';
-import type { ImageSource } from '@osdlabel/annotation';
+import type { ImageSource } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import type { AnnotationContext } from '@osdlabel/annotation-context';
 import { initFabricModule } from 'osdlabel';
