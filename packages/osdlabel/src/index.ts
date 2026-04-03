@@ -10,23 +10,19 @@ export type {
   BaseAnnotation,
   Annotation,
   ImageSource,
-  AnnotationState,
   RawAnnotationData,
-  DeserializeResult,
 } from '@osdlabel/annotation';
 
 export {
   createAnnotationId,
   createImageId,
   DEFAULT_ANNOTATION_STYLE,
-  getAllAnnotationsFlat,
-  SerializationError,
   toolTypeToGeometryType,
 } from '@osdlabel/annotation';
 
 // Viewer API (re-exported from @osdlabel/viewer-api)
-export type { UIState, KeyboardShortcutMap, CellTransform } from '@osdlabel/viewer-api';
-export { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
+export type { UIState, KeyboardShortcutMap, CellTransform, AnnotationState } from '@osdlabel/viewer-api';
+export { DEFAULT_CELL_TRANSFORM, getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 
 // Annotation context (re-exported from @osdlabel/annotation-context)
 export type {
@@ -92,7 +88,8 @@ export type { OsdAnnotation, OsdFields } from './types.js';
 export { validateOsdAnnotation, validateOsdFields } from './validator.js';
 
 // Pre-configured serialization (uses OSD validators)
-export { serialize, deserialize } from './serialization-configured.js';
+export { serialize, deserialize, SerializationError } from './serialization-configured.js';
+export type { DeserializeResult } from './serialization-configured.js';
 
 // State
 export {

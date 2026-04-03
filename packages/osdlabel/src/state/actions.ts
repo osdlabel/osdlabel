@@ -1,5 +1,6 @@
 import { type SetStoreFunction, produce } from 'solid-js/store';
-import type { AnnotationId, ImageId, ToolType, AnnotationState } from '@osdlabel/annotation';
+import type { AnnotationId, ImageId, ToolType } from '@osdlabel/annotation';
+import type { AnnotationState } from '@osdlabel/viewer-api';
 import type {
   AnnotationContext,
   AnnotationContextId,

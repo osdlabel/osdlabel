@@ -40,6 +40,7 @@ This guide walks you through setting up a minimal annotation interface with osdl
 Create an array of `ImageSource` objects. Each image needs a unique branded ID and a URL (DZI or standard image).
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
@@ -59,6 +60,7 @@ const images: ImageSource[] = [
 Contexts define which tools are available and their constraints. Each context represents a labelling task (e.g., marking a specific pathology).
 
 ```tsx
+
 const contexts: AnnotationContext[] = [
   {
     id: createAnnotationContextId('default'),
@@ -80,6 +82,7 @@ const contexts: AnnotationContext[] = [
 The `Annotator` component provides a complete annotation interface with toolbar, grid view, filmstrip, and status bar.
 
 ```tsx
+
 initFabricModule();
 
 function App() {
@@ -173,6 +176,7 @@ type AnnotationContextId = string & { readonly __brand: unique symbol };
 You cannot pass a plain `string` where a branded ID is expected. Use the factory functions:
 
 ```ts
+
 const imageId = createImageId('my-image');
 const annotationId = createAnnotationId('ann-1');
 const contextId = createAnnotationContextId('ctx-1');
@@ -323,13 +327,14 @@ osdlabel provides a set of SolidJS components that you can compose to build your
 The `Annotator` component is an all-in-one solution that includes a toolbar, grid view, filmstrip, and status bar. It's the quickest way to get started if you want a complete, out-of-the-box layout.
 
 ```tsx
+
 <Annotator
   images={images}
   contexts={contexts}
   showContextSwitcher={true}
   filmstripPosition="left"
   onAnnotationsChange={(anns) => console.log(anns.length)}
-/>
+/>;
 ```
 
 ### AnnotatorProvider
@@ -337,11 +342,12 @@ The `Annotator` component is an all-in-one solution that includes a toolbar, gri
 The `AnnotatorProvider` is the context provider that manages all state stores. Use this when you want to build a custom layout instead of using the default `Annotator`.
 
 ```tsx
+
 <AnnotatorProvider onAnnotationsChange={(anns) => saveAnnotations(anns)}>
   <Toolbar />
   <GridView columns={2} rows={1} maxColumns={4} maxRows={4} images={images} />
   <StatusBar imageId={activeImageId()} />
-</AnnotatorProvider>
+</AnnotatorProvider>;
 ```
 
 ## Viewers & Grid
@@ -359,7 +365,8 @@ A single OpenSeaDragon viewer with a Fabric.js overlay. This is the core renderi
 A configurable MxN grid layout of `ViewerCell` components.
 
 ```tsx
-<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />
+
+<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />;
 ```
 
 ## UI Controls
@@ -377,7 +384,8 @@ A tool selector that respects the active context's constraints and shows availab
 A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail assigns that image to the active cell.
 
 ```tsx
-<Filmstrip images={images} position="left" />
+
+<Filmstrip images={images} position="left" />;
 ```
 
 ### StatusBar
@@ -385,7 +393,8 @@ A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail ass
 Displays the active context, tool, and annotation count for the current image.
 
 ```tsx
-<StatusBar imageId={activeImageId()} />
+
+<StatusBar imageId={activeImageId()} />;
 ```
 
 ### ContextSwitcher
@@ -393,7 +402,8 @@ Displays the active context, tool, and annotation count for the current image.
 A dropdown for switching between available annotation contexts.
 
 ```tsx
-<ContextSwitcher label="Task:" />
+
+<ContextSwitcher label="Task:" />;
 ```
 
 ### GridControls
@@ -401,7 +411,8 @@ A dropdown for switching between available annotation contexts.
 UI controls for adjusting grid dimensions (columns and rows).
 
 ```tsx
-<GridControls maxColumns={4} maxRows={4} />
+
+<GridControls maxColumns={4} maxRows={4} />;
 ```
 
 ---
@@ -496,6 +507,7 @@ Only one context is active at a time.
 ## Defining contexts
 
 ```tsx
+
 const contexts: AnnotationContext[] = [
   {
     id: createAnnotationContextId('buildings'),
@@ -653,6 +665,7 @@ const status = constraintStatus();
 Or use the `useConstraints` hook for convenience:
 
 ```tsx
+
 const { isToolEnabled, canAddAnnotation } = useConstraints();
 
 if (isToolEnabled('rectangle')) {
@@ -701,6 +714,7 @@ osdlabel uses a flat JSON array format for persisting annotations:
 Use `serialize()` to create a flat array of annotations from the current state:
 
 ```tsx
+
 const { annotationState } = useAnnotator();
 
 const doc = serialize(annotationState);
@@ -714,6 +728,7 @@ const json = JSON.stringify(doc, null, 2);
 Use `deserialize()` to parse an array and load it into the store:
 
 ```tsx
+
 const { actions } = useAnnotator();
 
 const parsed = JSON.parse(jsonString);
@@ -728,6 +743,7 @@ actions.loadAnnotations(byImage);
 The library provides comprehensive Valibot schemas for annotation validation in the `@osdlabel/validation` package:
 
 ```tsx
+
 if (v.safeParse(BaseAnnotationSchema, unknownData).success) {
   // unknownData is basically valid BaseAnnotation
 }
@@ -760,6 +776,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 Use `getAllAnnotationsFlat()` to extract a flat array from the state at any time:
 
 ```tsx
+
 const { annotationState } = useAnnotator();
 const allAnnotations = getAllAnnotationsFlat(annotationState);
 ```
@@ -907,6 +924,7 @@ You generally don't interact with this directly. It's used internally by OSD for
 The overlay computes a 6-element affine matrix `[a, b, c, d, tx, ty]` that maps image-space to screen-space:
 
 ```ts
+
 // Called internally on every OSD animation frame
 const matrix = computeViewportTransform(viewer);
 fabricCanvas.setViewportTransform(matrix);
@@ -1285,6 +1303,7 @@ A complete, minimal annotation setup with a single image and unrestricted tools.
 <MinimalViewerDemoWrapper />
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('demo'),
@@ -1335,6 +1354,7 @@ A setup with multiple annotation contexts for classifying different types of fea
 <MultipleContextsDemoWrapper />
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
@@ -1427,6 +1447,7 @@ Use `AnnotatorProvider` and `useAnnotator()` to build a fully custom annotation 
 <CustomToolbarDemoWrapper />
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('sample'),

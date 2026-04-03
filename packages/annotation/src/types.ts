@@ -1,5 +1,3 @@
-import type { Annotation, AnnotationId } from './annotation';
-
 declare const imageIdBrand: unique symbol;
 /** Unique image identifier */
 export type ImageId = string & { readonly __brand: typeof imageIdBrand };
@@ -21,17 +19,4 @@ export interface ImageSource {
   readonly tileSource: string;
   readonly thumbnailUrl?: string | undefined;
   readonly label?: string | undefined;
-}
-
-// ── State Types ──────────────────────────────────────────────────────────
-// Note: State container types intentionally omit `readonly` — SolidJS store
-// proxies enforce immutability at runtime, and `readonly` here would conflict
-// with SolidJS's `SetStoreFunction` path-based API. Data model types above
-// (Annotation, Geometry, etc.) remain fully `readonly`.
-
-/** Root state for the annotation system */
-export interface AnnotationState<E extends object = Record<string, never>> {
-  byImage: Record<ImageId, Record<AnnotationId, Annotation<E>>>;
-  /** Monotonically increasing counter; incremented on every mutation for O(1) change detection */
-  changeCounter: number;
 }
