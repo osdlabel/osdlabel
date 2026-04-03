@@ -10,8 +10,6 @@ const FabricFieldsSchema = v.pipe(
 );
 
 /** Validates the Fabric extension fields (rawAnnotationData) */
-export const validateFabricFields = (
-  value: unknown,
-): value is FabricFields => {
+export const validateFabricFields = (value: unknown): value is FabricFields => {
   return v.safeParse(FabricFieldsSchema, value).success;
 };

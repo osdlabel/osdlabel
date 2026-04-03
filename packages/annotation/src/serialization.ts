@@ -1,10 +1,7 @@
-import type {
-  Annotation,
-  AnnotationId,
-  AnnotationState,
-  ImageId,
-} from './types.js';
-import { createImageId } from './types.js';
+import type { AnnotationState, ImageId } from './types.js';
+import type { AnnotationId } from './annotation.js';
+import type { Annotation } from './annotation.js';
+import { createImageId } from './util.js';
 
 /** Error type for serialization/deserialization failures */
 export class SerializationError extends Error {
@@ -58,11 +55,11 @@ export function deserialize<E extends object = Record<string, never>>(
     }
 
     const imageId = createImageId(entry.imageId);
-    
+
     if (!byImage[imageId]) {
       byImage[imageId] = {};
     }
-    
+
     byImage[imageId][entry.id as AnnotationId] = rawAnn as Annotation<E>;
   }
 

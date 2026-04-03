@@ -1,7 +1,7 @@
 import * as v from 'valibot';
 import { GeometrySchema } from './geometry.js';
 
-/** Schema for @see {@link import("@osdlabel/annotation/types").ToolType} */
+/** Schema for @see {@link import("@osdlabel/annotation/annotation-tools").ToolType} */
 export const ToolTypeSchema = v.union([
   v.literal('rectangle'),
   v.literal('circle'),
@@ -12,7 +12,7 @@ export const ToolTypeSchema = v.union([
 ]);
 
 /**
- * Schema for @see {@link import("@osdlabel/annotation/types").BaseAnnotation} — validates core annotation fields.
+ * Schema for @see {@link import("@osdlabel/annotation/annotation").BaseAnnotation} — validates core annotation fields.
  * Extension fields (contextId, rawAnnotationData, etc.) are not checked here;
  * they pass through via v.looseObject behavior inherited by intersections.
  */

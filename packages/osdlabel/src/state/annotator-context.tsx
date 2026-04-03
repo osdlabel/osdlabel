@@ -1,10 +1,6 @@
 import { createContext, useContext, createEffect, on, type JSX, type Accessor } from 'solid-js';
 import { produce } from 'solid-js/store';
-import type {
-  AnnotationState,
-  AnnotationId,
-  ImageId,
-} from '@osdlabel/annotation';
+import type { AnnotationState, AnnotationId, ImageId } from '@osdlabel/annotation';
 import type { KeyboardShortcutMap, UIState } from '@osdlabel/viewer-api';
 import { getAllAnnotationsFlat } from '@osdlabel/annotation';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';

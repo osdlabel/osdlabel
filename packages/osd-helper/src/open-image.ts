@@ -10,10 +10,7 @@ const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
  * `{ type: 'image', url }`. All other URLs are passed directly to
  * `viewer.open()` (assumed to be DZI or other tile sources).
  */
-export function openImage(
-  viewer: OpenSeadragon.Viewer,
-  source: ImageSource,
-): void {
+export function openImage(viewer: OpenSeadragon.Viewer, source: ImageSource): void {
   const url = source.tileSource;
   // Remove query string and hash, then check extension
   const path = ((url || '').split(/[?#]/)[0] ?? '').toLowerCase();

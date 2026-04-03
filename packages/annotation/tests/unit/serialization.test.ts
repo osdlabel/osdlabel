@@ -6,14 +6,14 @@ import {
   getAllAnnotationsFlat,
   SerializationError,
 } from '../../src/serialization.js';
-import { createAnnotationId, createImageId } from '../../src/types.js';
+import { createAnnotationId, createImageId } from '../../src';
 import type {
   Annotation,
   AnnotationState,
   AnnotationId,
   ImageId,
   RawAnnotationData,
-} from '../../src/types.js';
+} from '../../src';
 
 /** Extension fields for full annotation tests */
 interface TestExtFields {

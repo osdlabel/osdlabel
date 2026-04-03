@@ -1,49 +1,8 @@
-import type { Geometry } from './geometry';
+import type { Annotation, AnnotationId } from './annotation';
 
-// ── Tool & Geometry Type Aliases ────────────────────────────────────────
-
-/** Tool used to create an annotation. Multiple tools may produce the same geometry type. */
-export type ToolType = 'rectangle' | 'circle' | 'line' | 'point' | 'polyline' | 'freeHandPath';
-
-/** Geometry discriminator values — derived from the Geometry union */
-export type GeometryType = Geometry['type'];
-
-/** Maps a ToolType to the GeometryType it produces */
-export function toolTypeToGeometryType(toolType: ToolType): GeometryType {
-  if (toolType === 'freeHandPath') return 'polyline';
-  return toolType as GeometryType;
-}
-
-// ── Branded ID Types ────────────────────────────────────────────────────
-
-declare const annotationIdBrand: unique symbol;
 declare const imageIdBrand: unique symbol;
-/** Unique annotation identifier */
-export type AnnotationId = string & { readonly __brand: typeof annotationIdBrand };
-
 /** Unique image identifier */
 export type ImageId = string & { readonly __brand: typeof imageIdBrand };
-
-// ── ID Factory Functions ─────────────────────────────────────────────────
-
-export function createAnnotationId(value: string): AnnotationId {
-  return value as AnnotationId;
-}
-
-export function createImageId(value: string): ImageId {
-  return value as ImageId;
-}
-
-/** Visual styling for an annotation */
-export interface AnnotationStyle {
-  readonly strokeColor: string;
-  /** Stroke width in screen pixels */
-  readonly strokeWidth: number;
-  readonly strokeDashArray?: readonly number[];
-  readonly fillColor: string;
-  readonly fillOpacity: number;
-  readonly opacity: number;
-}
 
 // ── Raw Annotation Data ──────────────────────────────────────────────────
 
@@ -53,26 +12,6 @@ export type RawAnnotationData = {
   readonly fabricVersion: string;
   readonly data: Record<string, unknown>;
 };
-
-// ── Annotation Entity ────────────────────────────────────────────────────
-
-/** Base annotation without extension fields */
-export interface BaseAnnotation {
-  readonly id: AnnotationId;
-  readonly imageId: ImageId;
-  readonly geometry: Geometry;
-  readonly toolType: ToolType;
-  readonly label?: string | undefined;
-  readonly metadata?: Readonly<Record<string, unknown>> | undefined;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-
-/**
- * Generic annotation type. Extensions add fields via intersection.
- * Default: `Record<string, never>` (no extensions — bare BaseAnnotation).
- */
-export type Annotation<E extends object = Record<string, never>> = BaseAnnotation & E;
 
 // ── Image Source ──────────────────────────────────────────────────────────
 

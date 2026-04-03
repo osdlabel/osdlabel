@@ -11,15 +11,11 @@ export const OsdFieldsSchema = v.object({
 export const OsdAnnotationSchema = v.intersect([BaseAnnotationSchema, OsdFieldsSchema]);
 
 /** Validates both context and Fabric extension fields */
-export const validateOsdFields = (
-  value: unknown,
-): value is OsdFields => {
+export const validateOsdFields = (value: unknown): value is OsdFields => {
   return v.safeParse(OsdFieldsSchema, value).success;
 };
 
 /** Pre-configured validator for OsdAnnotation */
-export const validateOsdAnnotation = (
-  value: unknown,
-): value is Annotation<OsdFields> => {
+export const validateOsdAnnotation = (value: unknown): value is Annotation<OsdFields> => {
   return v.safeParse(OsdAnnotationSchema, value).success;
 };

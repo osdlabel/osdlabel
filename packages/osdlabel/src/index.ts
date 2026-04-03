@@ -19,8 +19,6 @@ export {
   createAnnotationId,
   createImageId,
   DEFAULT_ANNOTATION_STYLE,
-  DEFAULT_GRID_CONFIG,
-  MAX_GRID_SIZE,
   getAllAnnotationsFlat,
   SerializationError,
   toolTypeToGeometryType,
