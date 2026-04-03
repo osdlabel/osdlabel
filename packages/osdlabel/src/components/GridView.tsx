@@ -2,7 +2,7 @@ import { For } from 'solid-js';
 import type { Component } from 'solid-js';
 import ViewerCell from './ViewerCell.js';
 import { useAnnotator } from '../state/annotator-context.js';
-import type { ImageSource } from '@osdlabel/annotation';
+import type { ImageSource } from '@osdlabel/viewer-api';
 
 export interface GridViewProps {
   readonly columns: number;

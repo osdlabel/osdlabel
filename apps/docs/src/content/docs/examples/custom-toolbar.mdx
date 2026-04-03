@@ -16,7 +16,8 @@ import { createImageId } from '@osdlabel/annotation';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { useConstraints } from 'osdlabel/hooks';
 import { AnnotatorProvider, useAnnotator } from 'osdlabel/state';
-import type { ImageSource, ToolType } from '@osdlabel/annotation';
+import type { ToolType } from '@osdlabel/annotation';
+import type { ImageSource } from '@osdlabel/viewer-api';
 import type { AnnotationContext } from '@osdlabel/annotation-context';
 
 const images: ImageSource[] = [

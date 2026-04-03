@@ -31,7 +31,8 @@ const IMAGES: ImageSource[] = [
   },
   {
     id: createImageId('wide'),
-    tileSource: 'https://openseadragon.github.io/example-images/pnp/pan/6a32000/6a32400/6a32487.dzi',
+    tileSource:
+      'https://openseadragon.github.io/example-images/pnp/pan/6a32000/6a32400/6a32487.dzi',
     label: 'Wide image',
   },
   {
@@ -109,7 +110,7 @@ function AppContent() {
   };
 
   const handleExportJson = () => {
-    const doc = serialize(annotationState, IMAGES);
+    const doc = serialize(annotationState);
     const json = JSON.stringify(doc, null, 2);
     setExportedJson(json);
   };

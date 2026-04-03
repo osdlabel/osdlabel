@@ -47,3 +47,6 @@ export type Geometry =
   | PointGeometry
   | PolylineGeometry
   | PolygonGeometry;
+/** Geometry discriminator values — derived from the Geometry union */
+
+export type GeometryType = Geometry['type'];

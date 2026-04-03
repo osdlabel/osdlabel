@@ -63,12 +63,12 @@ const contexts: AnnotationContext[] = [
 
 Each tool in a context can have:
 
-| Property       | Type                       | Default       | Description                                                                          |
-| -------------- | -------------------------- | ------------- | ------------------------------------------------------------------------------------ |
+| Property       | Type                       | Default       | Description                                                                              |
+| -------------- | -------------------------- | ------------- | ---------------------------------------------------------------------------------------- |
 | `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'polyline'` \| `'freeHandPath'` |
-| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                           |
-| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                   |
-| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                       |
+| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                               |
+| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                       |
+| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                           |
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
 

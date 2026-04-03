@@ -13,7 +13,7 @@ The main `osdlabel` package includes the complete SolidJS UI and re-exports all 
 
 <PackageManagers pkg="osdlabel" pkgManagers={['npm', 'pnpm', 'yarn', 'bun', 'deno']} />
 
-*Note: `osdlabel` is built as a modular monorepo. If you are building a custom UI or using a different framework, you can install the underlying packages individually (e.g., `@osdlabel/annotation`, `@osdlabel/fabric-osd`). See [Packages & Architecture](/osdlabel/guides/packages-and-architecture/) for details.*
+_Note: `osdlabel` is built as a modular monorepo. If you are building a custom UI or using a different framework, you can install the underlying packages individually (e.g., `@osdlabel/annotation`, `@osdlabel/fabric-osd`). See [Packages & Architecture](/osdlabel/guides/packages-and-architecture/) for details._
 
 ## Bundler setup
 
@@ -231,41 +231,55 @@ SolidJS components run **once** to set up the view. Updates happen through signa
 ## The 7 Packages
 
 ### `@osdlabel/annotation`
+
 Pure annotation data model with **zero framework dependencies**.
+
 - Contains branded ID types (`AnnotationId`, `ImageId`), geometry discriminated unions, the generic `Annotation<E>` type, and basic sanitization utilities.
 - Pluggable serialization system (`createAnnotationValidator`, `ExtensionValidator<E>`).
 - Depends only on `@standard-schema/spec` (types-only).
 
 ### `@osdlabel/viewer-api`
+
 Viewer state types with **zero framework dependencies**.
+
 - Contains types like `CellTransform`, `UIState`, and `KeyboardShortcutMap`.
 - Depends only on `@osdlabel/annotation`.
 
 ### `@osdlabel/annotation-context`
+
 Annotation context, constraints, and scoping logic.
+
 - Defines `AnnotationContext`, `ToolConstraint`, and the `ContextFields` extension interface.
 - Contains validation and scoping utilities.
 - Depends only on `@osdlabel/annotation`.
 
 ### `@osdlabel/validation`
+
 Valibot schema implementations for rigorous data validation.
+
 - Implements the Standard Schema interface for annotation types (`GeometrySchema`, `PointSchema`, `BaseAnnotationSchema`).
 - Depends on `@osdlabel/annotation` and `valibot`.
 
 ### `@osdlabel/fabric-annotations`
+
 Fabric.js annotation tools and utilities, completely **SolidJS-agnostic and OSD-agnostic**.
+
 - Contains all tool implementations (`RectangleTool`, `CircleTool`, `FreeHandPathTool`, etc.).
 - Defines the `ToolOverlay` interface and `FabricFields` extension interface.
 - Depends on `@osdlabel/annotation`, `@osdlabel/annotation-context`, `@osdlabel/viewer-api`, and `fabric`.
 
 ### `@osdlabel/fabric-osd`
+
 The overlay bridge connecting Fabric.js and OpenSeaDragon.
+
 - Implements the `FabricOverlay` class, handling coordinate transformations and pointer event routing.
 - **SolidJS-agnostic**.
 - Depends on the core packages, `fabric`, and `openseadragon`.
 
 ### `osdlabel`
+
 The final SolidJS annotator UI layer.
+
 - Re-exports and composes all the above packages.
 - Contains the reactive state stores, hooks (`useAnnotator`, `useConstraints`), and components (`Annotator`, `ViewerCell`, `Toolbar`, etc.).
 - The `OsdAnnotation` type is composed here by intersecting `BaseAnnotation` with `ContextFields` and `FabricFields`.
@@ -277,6 +291,7 @@ The final SolidJS annotator UI layer.
 For most applications, importing directly from the main `osdlabel` package is the quickest and easiest way to get started. `osdlabel` provides ESM-friendly sub-path exports.
 
 ### 1. Main barrel
+
 Recommended for quick starts. Re-exports the primary components and functions.
 
 ```ts
@@ -284,6 +299,7 @@ Recommended for quick starts. Re-exports the primary components and functions.
 ```
 
 ### 2. Sub-path barrels
+
 Preferred for better build performance and tree-shaking in production apps.
 
 ```ts
@@ -291,6 +307,7 @@ Preferred for better build performance and tree-shaking in production apps.
 ```
 
 ### 3. Direct Package Imports
+
 For advanced usage, you can import types and core logic directly from the granular packages. This is particularly useful if you are building a custom UI layer instead of using the SolidJS components.
 
 ```ts
@@ -317,7 +334,7 @@ The `Annotator` component is an all-in-one solution that includes a toolbar, gri
   showContextSwitcher={true}
   filmstripPosition="left"
   onAnnotationsChange={(anns) => console.log(anns.length)}
-/>
+/>;
 ```
 
 ### AnnotatorProvider
@@ -330,7 +347,7 @@ The `AnnotatorProvider` is the context provider that manages all state stores. U
   <Toolbar />
   <GridView columns={2} rows={1} maxColumns={4} maxRows={4} images={images} />
   <StatusBar imageId={activeImageId()} />
-</AnnotatorProvider>
+</AnnotatorProvider>;
 ```
 
 ## Viewers & Grid
@@ -349,7 +366,7 @@ A configurable MxN grid layout of `ViewerCell` components.
 
 ```tsx
 
-<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />
+<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />;
 ```
 
 ## UI Controls
@@ -368,7 +385,7 @@ A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail ass
 
 ```tsx
 
-<Filmstrip images={images} position="left" />
+<Filmstrip images={images} position="left" />;
 ```
 
 ### StatusBar
@@ -377,7 +394,7 @@ Displays the active context, tool, and annotation count for the current image.
 
 ```tsx
 
-<StatusBar imageId={activeImageId()} />
+<StatusBar imageId={activeImageId()} />;
 ```
 
 ### ContextSwitcher
@@ -386,7 +403,7 @@ A dropdown for switching between available annotation contexts.
 
 ```tsx
 
-<ContextSwitcher label="Task:" />
+<ContextSwitcher label="Task:" />;
 ```
 
 ### GridControls
@@ -395,7 +412,7 @@ UI controls for adjusting grid dimensions (columns and rows).
 
 ```tsx
 
-<GridControls maxColumns={4} maxRows={4} />
+<GridControls maxColumns={4} maxRows={4} />;
 ```
 
 ---
@@ -442,6 +459,7 @@ function MyComponent() {
 You **must never** modify the stores directly. All mutations must go through the provided `actions` object returned by `useAnnotator()`.
 
 The `actions` object provides methods for:
+
 - **Annotations**: `addAnnotation`, `updateAnnotation`, `deleteAnnotation`, `loadAnnotations`
 - **UI**: `setActiveTool`, `setActiveCell`, `setSelectedAnnotation`, `assignImageToCell`, `setGridDimensions`
 - **Contexts**: `setContexts`, `setActiveContext`, `setDisplayedContexts`
@@ -532,12 +550,12 @@ const contexts: AnnotationContext[] = [
 
 Each tool in a context can have:
 
-| Property       | Type                       | Default       | Description                                                                          |
-| -------------- | -------------------------- | ------------- | ------------------------------------------------------------------------------------ |
+| Property       | Type                       | Default       | Description                                                                              |
+| -------------- | -------------------------- | ------------- | ---------------------------------------------------------------------------------------- |
 | `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'polyline'` \| `'freeHandPath'` |
-| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                           |
-| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                   |
-| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                       |
+| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                               |
+| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                       |
+| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                           |
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
 
@@ -665,51 +683,41 @@ osdlabel provides built-in functions for serializing its internal state into a s
 
 ## Document format
 
-osdlabel uses a JSON document format for persisting annotations:
+osdlabel uses a flat JSON array format for persisting annotations:
 
 ```json
-{
-  "version": "1.0.0",
-  "exportedAt": "2026-03-06T12:00:00.000Z",
-  "images": [
-    {
-      "imageId": "sample-1",
-      "sourceUrl": "https://example.com/image.dzi",
-      "annotations": [
-        {
-          "id": "ann-1",
-          "imageId": "sample-1",
-          "contextId": "general",
-          "geometry": {
-            "type": "rectangle",
-            "origin": { "x": 100, "y": 200 },
-            "width": 300,
-            "height": 150,
-            "rotation": 0
-          },
-          "rawAnnotationData": {
-            "format": "fabric",
-            "fabricVersion": "7.2.0",
-            "data": { ... }
-          },
-          "createdAt": "2026-03-06T12:00:00.000Z",
-          "updatedAt": "2026-03-06T12:00:00.000Z"
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "id": "ann-1",
+    "imageId": "sample-1",
+    "contextId": "general",
+    "geometry": {
+      "type": "rectangle",
+      "origin": { "x": 100, "y": 200 },
+      "width": 300,
+      "height": 150,
+      "rotation": 0
+    },
+    "rawAnnotationData": {
+      "format": "fabric",
+      "fabricVersion": "7.2.0",
+      "data": { ... }
+    },
+    "createdAt": "2026-03-06T12:00:00.000Z",
+    "updatedAt": "2026-03-06T12:00:00.000Z"
+  }
+]
 ```
 
 ## Exporting annotations
 
-Use `serialize()` to create an `AnnotationDocument` from the current state:
+Use `serialize()` to create a flat array of annotations from the current state:
 
 ```tsx
 
 const { annotationState } = useAnnotator();
 
-const doc = serialize(annotationState, images);
+const doc = serialize(annotationState);
 const json = JSON.stringify(doc, null, 2);
 
 // Save to file, send to API, etc.
@@ -717,43 +725,36 @@ const json = JSON.stringify(doc, null, 2);
 
 ## Importing annotations
 
-Use `deserialize()` to parse a document and load it into the store:
+Use `deserialize()` to parse an array and load it into the store:
 
 ```tsx
 
 const { actions } = useAnnotator();
 
 const parsed = JSON.parse(jsonString);
-const byImage = deserialize(parsed);
+const { byImage } = deserialize(parsed);
 actions.loadAnnotations(byImage);
 ```
 
-`deserialize()` validates the document structure and throws `SerializationError` on invalid input.
+`deserialize()` validates the basic structure of the array and throws `SerializationError` on invalid input. For deep validation, the library integrates with Valibot in `@osdlabel/validation`.
 
 ## Validation
 
-The `validateBaseAnnotation()` function is a type guard that checks if a value has valid base annotation fields:
+The library provides comprehensive Valibot schemas for annotation validation in the `@osdlabel/validation` package:
 
 ```tsx
 
-if (validateBaseAnnotation(unknownData)) {
-  // unknownData is BaseAnnotation
+if (v.safeParse(BaseAnnotationSchema, unknownData).success) {
+  // unknownData is basically valid BaseAnnotation
 }
-```
-
-For full annotation validation including extension fields, use `createAnnotationValidator()` with either a type guard function or a Standard Schema:
-
-```tsx
-
-const validate = createAnnotationValidator(myExtensionValidator);
 ```
 
 Validation checks include:
 
 - Required string fields (`id`, `imageId`, timestamps)
 - Geometry type and shape validation
-- Extension fields (when using a composed validator)
 - Numeric bounds checking (coordinates, dimensions)
+- Extension fields (when composed into a custom schema)
 
 ## Listening to changes
 
@@ -809,18 +810,18 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 
 ### Polyline tool shortcuts
 
-| Key      | Action                            |
-| -------- | --------------------------------- |
-| `Enter`  | Finish as open polyline           |
-| `c`      | Close as polygon                  |
-| `Escape` | Cancel polyline in progress       |
+| Key      | Action                      |
+| -------- | --------------------------- |
+| `Enter`  | Finish as open polyline     |
+| `c`      | Close as polygon            |
+| `Escape` | Cancel polyline in progress |
 
 ### Free hand path tool shortcuts
 
-| Key      | Action                                          |
-| -------- | ----------------------------------------------- |
-| `Shift`  | Hold while drawing to produce an open polyline  |
-| `Escape` | Cancel stroke in progress                       |
+| Key      | Action                                         |
+| -------- | ---------------------------------------------- |
+| `Shift`  | Hold while drawing to produce an open polyline |
+| `Escape` | Cancel stroke in progress                      |
 
 ## Customizing shortcuts
 

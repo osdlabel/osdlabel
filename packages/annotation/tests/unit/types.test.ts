@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createAnnotationId, createImageId } from '../../src/types.js';
-import type { AnnotationId, ImageId, Geometry } from '../../src/types.js';
+import { createAnnotationId, createImageId } from '../../src/util.js';
+import type { AnnotationId, ImageId, Geometry } from '../../src';
 
 describe('Branded ID types', () => {
   it('createAnnotationId produces a branded value', () => {

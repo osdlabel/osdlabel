@@ -1,14 +1,12 @@
 /**
- * Bounds constants matching @osdlabel/annotation/data-sanitizer.
- * Re-exported from @osdlabel/annotation for consistency.
+ * Bounds constants for validation schemas.
  */
-export {
-  MAX_COORDINATE,
-  MAX_DIMENSION,
-  MAX_SCALE,
-  MAX_ANGLE,
-  MAX_STROKE_WIDTH,
-  MAX_STRING_LENGTH,
-  MAX_POINTS_COUNT,
-  MAX_STROKE_DASH_ARRAY_LENGTH,
-} from '@osdlabel/annotation';
+
+export const MAX_COORDINATE = 1_000_000;
+export const MAX_DIMENSION = 1_000_000;
+export const MAX_SCALE = 1_000;
+export const MAX_ANGLE = 360;
+export const MAX_STROKE_WIDTH = 10_000;
+export const MAX_STRING_LENGTH = 256;
+export const MAX_POINTS_COUNT = 10_000;
+export const MAX_STROKE_DASH_ARRAY_LENGTH = 20;

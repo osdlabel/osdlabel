@@ -20,7 +20,7 @@ import { Annotator } from 'osdlabel/components';
   showContextSwitcher={true}
   filmstripPosition="left"
   onAnnotationsChange={(anns) => console.log(anns.length)}
-/>
+/>;
 ```
 
 ### AnnotatorProvider
@@ -34,7 +34,7 @@ import { AnnotatorProvider } from 'osdlabel/state';
   <Toolbar />
   <GridView columns={2} rows={1} maxColumns={4} maxRows={4} images={images} />
   <StatusBar imageId={activeImageId()} />
-</AnnotatorProvider>
+</AnnotatorProvider>;
 ```
 
 ## Viewers & Grid
@@ -54,7 +54,7 @@ A configurable MxN grid layout of `ViewerCell` components.
 ```tsx
 import { GridView } from 'osdlabel/components';
 
-<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />
+<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />;
 ```
 
 ## UI Controls
@@ -74,7 +74,7 @@ A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail ass
 ```tsx
 import { Filmstrip } from 'osdlabel/components';
 
-<Filmstrip images={images} position="left" />
+<Filmstrip images={images} position="left" />;
 ```
 
 ### StatusBar
@@ -84,7 +84,7 @@ Displays the active context, tool, and annotation count for the current image.
 ```tsx
 import { StatusBar } from 'osdlabel/components';
 
-<StatusBar imageId={activeImageId()} />
+<StatusBar imageId={activeImageId()} />;
 ```
 
 ### ContextSwitcher
@@ -94,7 +94,7 @@ A dropdown for switching between available annotation contexts.
 ```tsx
 import { ContextSwitcher } from 'osdlabel/components';
 
-<ContextSwitcher label="Task:" />
+<ContextSwitcher label="Task:" />;
 ```
 
 ### GridControls
@@ -104,7 +104,5 @@ UI controls for adjusting grid dimensions (columns and rows).
 ```tsx
 import { GridControls } from 'osdlabel/components';
 
-<GridControls maxColumns={4} maxRows={4} />
+<GridControls maxColumns={4} maxRows={4} />;
 ```
-
-

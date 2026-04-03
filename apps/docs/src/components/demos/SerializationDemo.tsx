@@ -1,9 +1,9 @@
 import { createMemo, onMount } from 'solid-js';
-import { initFabricModule } from 'osdlabel';
+import { initFabricModule, serialize } from 'osdlabel';
 import { Annotator } from 'osdlabel/components';
 import { AnnotatorProvider, useAnnotator } from 'osdlabel/state';
-import { serialize, createImageId } from '@osdlabel/annotation';
-import type { ImageSource } from '@osdlabel/annotation';
+import { createImageId } from '@osdlabel/annotation';
+import type { ImageSource } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import type { AnnotationContext } from '@osdlabel/annotation-context';
 
@@ -36,7 +36,7 @@ function SerializedJson() {
   const { annotationState } = useAnnotator();
 
   const json = createMemo(() => {
-    const doc = serialize(annotationState, images);
+    const doc = serialize(annotationState);
     return JSON.stringify(doc, null, 2);
   });
 

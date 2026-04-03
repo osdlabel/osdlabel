@@ -1,7 +1,7 @@
 {
   "name": "@osdlabel/annotation",
   "version": "0.0.1",
-  "description": "Annotation data model for osdlabel — types, geometry, serialization, and constraints.",
+  "description": "Annotation data model for osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

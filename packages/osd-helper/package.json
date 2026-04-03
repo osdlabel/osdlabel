@@ -29,7 +29,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@osdlabel/annotation": "workspace:*"
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*"
   },
   "peerDependencies": {
     "openseadragon": "catalog:"

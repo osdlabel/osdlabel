@@ -1,4 +1,4 @@
-import type { ToolType, ImageId, AnnotationId } from '@osdlabel/annotation';
+import type { Annotation, AnnotationId, ToolType, ImageId } from '@osdlabel/annotation';
 
 // ── Cell Transform ───────────────────────────────────────────────────────
 
@@ -34,6 +34,23 @@ export interface UIState {
   gridAssignments: Record<number, ImageId>;
   selectedAnnotationId: AnnotationId | null;
   cellTransforms: Record<number, CellTransform>;
+}
+
+/** Root state for the annotation system */
+export interface AnnotationState<E extends object = Record<string, never>> {
+  byImage: Record<ImageId, Record<AnnotationId, Annotation<E>>>;
+  /** Monotonically increasing counter; incremented on every mutation for O(1) change detection */
+  changeCounter: number;
+}
+
+// ── Image Source ─────────────────────────────────────────────────────────
+
+/** Image source descriptor */
+export interface ImageSource {
+  readonly id: ImageId;
+  readonly tileSource: string;
+  readonly thumbnailUrl?: string | undefined;
+  readonly label?: string | undefined;
 }
 
 // ── Keyboard Shortcuts ───────────────────────────────────────────────────

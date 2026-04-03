@@ -11,52 +11,42 @@ osdlabel provides built-in functions for serializing its internal state into a s
 
 ## Document format
 
-osdlabel uses a JSON document format for persisting annotations:
+osdlabel uses a flat JSON array format for persisting annotations:
 
 ```json
-{
-  "version": "1.0.0",
-  "exportedAt": "2026-03-06T12:00:00.000Z",
-  "images": [
-    {
-      "imageId": "sample-1",
-      "sourceUrl": "https://example.com/image.dzi",
-      "annotations": [
-        {
-          "id": "ann-1",
-          "imageId": "sample-1",
-          "contextId": "general",
-          "geometry": {
-            "type": "rectangle",
-            "origin": { "x": 100, "y": 200 },
-            "width": 300,
-            "height": 150,
-            "rotation": 0
-          },
-          "rawAnnotationData": {
-            "format": "fabric",
-            "fabricVersion": "7.2.0",
-            "data": { ... }
-          },
-          "createdAt": "2026-03-06T12:00:00.000Z",
-          "updatedAt": "2026-03-06T12:00:00.000Z"
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "id": "ann-1",
+    "imageId": "sample-1",
+    "contextId": "general",
+    "geometry": {
+      "type": "rectangle",
+      "origin": { "x": 100, "y": 200 },
+      "width": 300,
+      "height": 150,
+      "rotation": 0
+    },
+    "rawAnnotationData": {
+      "format": "fabric",
+      "fabricVersion": "7.2.0",
+      "data": { ... }
+    },
+    "createdAt": "2026-03-06T12:00:00.000Z",
+    "updatedAt": "2026-03-06T12:00:00.000Z"
+  }
+]
 ```
 
 ## Exporting annotations
 
-Use `serialize()` to create an `AnnotationDocument` from the current state:
+Use `serialize()` to create a flat array of annotations from the current state:
 
 ```tsx
-import { serialize } from '@osdlabel/annotation';
+import { serialize } from 'osdlabel';
 
 const { annotationState } = useAnnotator();
 
-const doc = serialize(annotationState, images);
+const doc = serialize(annotationState);
 const json = JSON.stringify(doc, null, 2);
 
 // Save to file, send to API, etc.
@@ -64,46 +54,39 @@ const json = JSON.stringify(doc, null, 2);
 
 ## Importing annotations
 
-Use `deserialize()` to parse a document and load it into the store:
+Use `deserialize()` to parse an array and load it into the store:
 
 ```tsx
-import { deserialize } from '@osdlabel/annotation';
+import { deserialize } from 'osdlabel';
 
 const { actions } = useAnnotator();
 
 const parsed = JSON.parse(jsonString);
-const byImage = deserialize(parsed);
+const { byImage } = deserialize(parsed);
 actions.loadAnnotations(byImage);
 ```
 
-`deserialize()` validates the document structure and throws `SerializationError` on invalid input.
+`deserialize()` validates the basic structure of the array and throws `SerializationError` on invalid input. For deep validation, the library integrates with Valibot in `@osdlabel/validation`.
 
 ## Validation
 
-The `validateBaseAnnotation()` function is a type guard that checks if a value has valid base annotation fields:
+The library provides comprehensive Valibot schemas for annotation validation in the `@osdlabel/validation` package:
 
 ```tsx
-import { validateBaseAnnotation } from '@osdlabel/annotation';
+import * as v from 'valibot';
+import { BaseAnnotationSchema } from '@osdlabel/validation';
 
-if (validateBaseAnnotation(unknownData)) {
-  // unknownData is BaseAnnotation
+if (v.safeParse(BaseAnnotationSchema, unknownData).success) {
+  // unknownData is basically valid BaseAnnotation
 }
-```
-
-For full annotation validation including extension fields, use `createAnnotationValidator()` with either a type guard function or a Standard Schema:
-
-```tsx
-import { createAnnotationValidator } from '@osdlabel/annotation';
-
-const validate = createAnnotationValidator(myExtensionValidator);
 ```
 
 Validation checks include:
 
 - Required string fields (`id`, `imageId`, timestamps)
 - Geometry type and shape validation
-- Extension fields (when using a composed validator)
 - Numeric bounds checking (coordinates, dimensions)
+- Extension fields (when composed into a custom schema)
 
 ## Listening to changes
 
@@ -125,7 +108,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 Use `getAllAnnotationsFlat()` to extract a flat array from the state at any time:
 
 ```tsx
-import { getAllAnnotationsFlat } from '@osdlabel/annotation';
+import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 
 const { annotationState } = useAnnotator();
 const allAnnotations = getAllAnnotationsFlat(annotationState);

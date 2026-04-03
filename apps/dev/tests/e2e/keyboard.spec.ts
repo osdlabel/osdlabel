@@ -193,14 +193,19 @@ test.describe('Keyboard Shortcuts', () => {
     // FabricOverlay exposes __osdViewer on the OSD canvas container when testMode is true
     const getOsdState = () =>
       page.evaluate(() => {
-        const osdCanvas = document.querySelector('.openseadragon-canvas') as Record<string, unknown> | null;
-        const viewer = osdCanvas?.__osdViewer as {
-          viewport: {
-            getFlip: () => boolean;
-            getCenter: (current: boolean) => { x: number; y: number };
-            getRotation: () => number;
-          };
-        } | undefined;
+        const osdCanvas = document.querySelector('.openseadragon-canvas') as Record<
+          string,
+          unknown
+        > | null;
+        const viewer = osdCanvas?.__osdViewer as
+          | {
+              viewport: {
+                getFlip: () => boolean;
+                getCenter: (current: boolean) => { x: number; y: number };
+                getRotation: () => number;
+              };
+            }
+          | undefined;
         if (!viewer?.viewport) return null;
         const center = viewer.viewport.getCenter(false);
         return {

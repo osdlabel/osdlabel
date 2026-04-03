@@ -2,7 +2,6 @@ import { onMount, onCleanup } from 'solid-js';
 import { useAnnotator, type ActiveToolKeyHandlerRef } from '../state/annotator-context.js';
 import { useConstraints } from './useConstraints.js';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
-import { MAX_GRID_SIZE } from '@osdlabel/annotation';
 
 export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   selectTool: 'v',
@@ -39,6 +38,12 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   toggleNegative: 'N',
   increaseExposure: 'E',
   decreaseExposure: 'D',
+} as const;
+
+/** Maximum grid size */
+export const MAX_GRID_SIZE = {
+  columns: 4,
+  rows: 4,
 } as const;
 
 export function useKeyboard(

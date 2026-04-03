@@ -9,33 +9,25 @@ export type {
   AnnotationStyle,
   BaseAnnotation,
   Annotation,
-  AnnotationDocument,
-  ImageAnnotations,
-  ImageSource,
-  AnnotationState,
   RawAnnotationData,
-  ExtensionValidator,
-  ExtensionValidatorFn,
-  DeserializeResult,
 } from '@osdlabel/annotation';
 
 export {
   createAnnotationId,
   createImageId,
   DEFAULT_ANNOTATION_STYLE,
-  DEFAULT_GRID_CONFIG,
-  MAX_GRID_SIZE,
-  validateBaseAnnotation,
-  validateRawAnnotationData,
-  createAnnotationValidator,
-  getAllAnnotationsFlat,
-  SerializationError,
   toolTypeToGeometryType,
 } from '@osdlabel/annotation';
 
 // Viewer API (re-exported from @osdlabel/viewer-api)
-export type { UIState, KeyboardShortcutMap, CellTransform } from '@osdlabel/viewer-api';
-export { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
+export type {
+  UIState,
+  KeyboardShortcutMap,
+  CellTransform,
+  AnnotationState,
+  ImageSource,
+} from '@osdlabel/viewer-api';
+export { DEFAULT_CELL_TRANSFORM, getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 
 // Annotation context (re-exported from @osdlabel/annotation-context)
 export type {
@@ -52,7 +44,6 @@ export {
   createAnnotationContextId,
   isContextScopedToImage,
   getCountableImageIds,
-  validateContextFields,
 } from '@osdlabel/annotation-context';
 
 // Fabric annotations (re-exported from @osdlabel/fabric-annotations)
@@ -85,23 +76,23 @@ export type {
 // Fabric-OSD overlay (re-exported from @osdlabel/fabric-osd)
 export { FabricOverlay, computeViewportTransform } from '@osdlabel/fabric-osd';
 export type { OverlayOptions, OverlayMode } from '@osdlabel/fabric-osd';
-export { validateFabricFields } from '@osdlabel/fabric-osd';
 
 // Validation schemas (re-exported from @osdlabel/validation)
 export {
   GeometrySchema,
   PointSchema,
   BaseAnnotationSchema,
-  RawAnnotationDataSchema,
+  FabricRawAnnotationDataSchema,
   ToolTypeSchema,
+  
 } from '@osdlabel/validation';
 
 // Own types
 export type { OsdAnnotation, OsdFields } from './types.js';
-export { validateOsdAnnotation, validateOsdFields } from './validator.js';
 
 // Pre-configured serialization (uses OSD validators)
-export { serialize, deserialize } from './serialization-configured.js';
+export { serialize, deserialize, SerializationError } from './serialization-configured.js';
+export type { DeserializeResult } from './serialization-configured.js';
 
 // State
 export {
