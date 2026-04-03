@@ -7,7 +7,11 @@ export interface ToolOverlay {
   imageToScreen(point: Point): Point;
 }
 
+export interface FabricRawAnnotationData extends RawAnnotationData<'fabric'> {
+  fabricVersion: string;
+}
+
 /** Extension fields added by the Fabric rendering layer. */
 export interface FabricFields {
-  readonly rawAnnotationData: RawAnnotationData;
+  readonly rawAnnotationData: FabricRawAnnotationData;
 }

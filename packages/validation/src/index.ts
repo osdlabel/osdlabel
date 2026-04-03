@@ -1,3 +1,3 @@
 export { GeometrySchema, PointSchema } from './schemas/geometry.js';
 export { BaseAnnotationSchema, ToolTypeSchema } from './schemas/annotation.js';
-export { RawAnnotationDataSchema } from './schemas/fabric-data.js';
+export { FabricRawAnnotationDataSchema } from './schemas/fabric-data.js';

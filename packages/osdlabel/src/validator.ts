@@ -1,11 +1,11 @@
 import * as v from 'valibot';
-import { BaseAnnotationSchema, RawAnnotationDataSchema } from '@osdlabel/validation';
+import { BaseAnnotationSchema, FabricRawAnnotationDataSchema } from '@osdlabel/validation';
 import type { OsdFields } from './types.js';
 import type { Annotation } from '@osdlabel/annotation';
 
 export const OsdFieldsSchema = v.object({
   contextId: v.pipe(v.string(), v.minLength(1)),
-  rawAnnotationData: RawAnnotationDataSchema,
+  rawAnnotationData: FabricRawAnnotationDataSchema,
 });
 
 export const OsdAnnotationSchema = v.intersect([BaseAnnotationSchema, OsdFieldsSchema]);

@@ -9,14 +9,8 @@ import {
   Color,
   version as FABRIC_VERSION,
 } from 'fabric';
-import type {
-  Annotation,
-  AnnotationStyle,
-  Geometry,
-  GeometryType,
-  RawAnnotationData,
-} from '@osdlabel/annotation';
-import type { FabricFields } from './types.js';
+import type { Annotation, AnnotationStyle, Geometry, GeometryType } from '@osdlabel/annotation';
+import type { FabricFields, FabricRawAnnotationData } from './types.js';
 
 export function getFabricOptions(style: AnnotationStyle, id: string) {
   const fill = new Color(style.fillColor);
@@ -36,10 +30,10 @@ export function getFabricOptions(style: AnnotationStyle, id: string) {
 }
 
 /**
- * Serialize a Fabric object into a RawAnnotationData envelope.
+ * Serialize a Fabric object into a FabricRawAnnotationData envelope.
  * The `id` property is included automatically via FabricObject.customProperties.
  */
-export function serializeFabricObject(obj: FabricObject): RawAnnotationData {
+export function serializeFabricObject(obj: FabricObject): FabricRawAnnotationData {
   return {
     format: 'fabric',
     fabricVersion: FABRIC_VERSION,
@@ -51,7 +45,7 @@ export function serializeFabricObject(obj: FabricObject): RawAnnotationData {
  * Deserialize a RawAnnotationData envelope back into a Fabric object.
  */
 export async function deserializeFabricObject(
-  raw: RawAnnotationData,
+  raw: FabricRawAnnotationData,
 ): Promise<FabricObject | null> {
   if (raw.format !== 'fabric') return null;
 

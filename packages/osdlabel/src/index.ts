@@ -21,7 +21,12 @@ export {
 } from '@osdlabel/annotation';
 
 // Viewer API (re-exported from @osdlabel/viewer-api)
-export type { UIState, KeyboardShortcutMap, CellTransform, AnnotationState } from '@osdlabel/viewer-api';
+export type {
+  UIState,
+  KeyboardShortcutMap,
+  CellTransform,
+  AnnotationState,
+} from '@osdlabel/viewer-api';
 export { DEFAULT_CELL_TRANSFORM, getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 
 // Annotation context (re-exported from @osdlabel/annotation-context)
@@ -72,14 +77,13 @@ export type {
 // Fabric-OSD overlay (re-exported from @osdlabel/fabric-osd)
 export { FabricOverlay, computeViewportTransform } from '@osdlabel/fabric-osd';
 export type { OverlayOptions, OverlayMode } from '@osdlabel/fabric-osd';
-export { validateFabricFields } from '@osdlabel/fabric-osd';
 
 // Validation schemas (re-exported from @osdlabel/validation)
 export {
   GeometrySchema,
   PointSchema,
   BaseAnnotationSchema,
-  RawAnnotationDataSchema,
+  FabricRawAnnotationDataSchema,
   ToolTypeSchema,
 } from '@osdlabel/validation';
 

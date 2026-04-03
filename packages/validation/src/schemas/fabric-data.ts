@@ -1,5 +1,5 @@
 /**
- * Valibot schema for RawAnnotationData validation.
+ * Valibot schema for Fabric raw annotation data validation.
  */
 import * as v from 'valibot';
 import { MAX_COORDINATE, MAX_STRING_LENGTH, MAX_POINTS_COUNT } from './constants.js';
@@ -114,9 +114,8 @@ const FabricDataObjectSchema = v.pipe(
   v.check(validatePolylineRequirements),
 );
 
-// ── RawAnnotationData schema ────────────────────────────────────────────
-
-export const RawAnnotationDataSchema = v.object({
+/** A schema for FabricRawAnnotationData. */
+export const FabricRawAnnotationDataSchema = v.object({
   format: v.literal('fabric'),
   fabricVersion: v.string(),
   data: FabricDataObjectSchema,

@@ -3,7 +3,7 @@ import * as v from 'valibot';
 import {
   GeometrySchema,
   BaseAnnotationSchema,
-  RawAnnotationDataSchema,
+  FabricRawAnnotationDataSchema,
 } from '../../src/index.js';
 
 describe('Validation Schemas', () => {
@@ -14,17 +14,54 @@ describe('Validation Schemas', () => {
 
   describe('GeometrySchema', () => {
     it('accepts valid geometries of all types', () => {
-      expect(isValid(GeometrySchema, { type: 'rectangle', origin: { x: 0, y: 0 }, width: 100, height: 50, rotation: 0 })).toBe(true);
-      expect(isValid(GeometrySchema, { type: 'circle', center: { x: 10, y: 10 }, radius: 5 })).toBe(true);
-      expect(isValid(GeometrySchema, { type: 'line', start: { x: 0, y: 0 }, end: { x: 10, y: 10 } })).toBe(true);
+      expect(
+        isValid(GeometrySchema, {
+          type: 'rectangle',
+          origin: { x: 0, y: 0 },
+          width: 100,
+          height: 50,
+          rotation: 0,
+        }),
+      ).toBe(true);
+      expect(isValid(GeometrySchema, { type: 'circle', center: { x: 10, y: 10 }, radius: 5 })).toBe(
+        true,
+      );
+      expect(
+        isValid(GeometrySchema, { type: 'line', start: { x: 0, y: 0 }, end: { x: 10, y: 10 } }),
+      ).toBe(true);
       expect(isValid(GeometrySchema, { type: 'point', position: { x: 5, y: 5 } })).toBe(true);
-      expect(isValid(GeometrySchema, { type: 'polyline', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] })).toBe(true);
-      expect(isValid(GeometrySchema, { type: 'polygon', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }] })).toBe(true);
+      expect(
+        isValid(GeometrySchema, {
+          type: 'polyline',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 10 },
+          ],
+        }),
+      ).toBe(true);
+      expect(
+        isValid(GeometrySchema, {
+          type: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 10 },
+            { x: 0, y: 10 },
+          ],
+        }),
+      ).toBe(true);
     });
 
     it('rejects invalid or incomplete geometries', () => {
       expect(isValid(GeometrySchema, { type: 'unknown' })).toBe(false);
-      expect(isValid(GeometrySchema, { type: 'rectangle', origin: { x: NaN, y: 0 }, width: 100, height: 50, rotation: 0 })).toBe(false); // NaN coordinate
+      expect(
+        isValid(GeometrySchema, {
+          type: 'rectangle',
+          origin: { x: NaN, y: 0 },
+          width: 100,
+          height: 50,
+          rotation: 0,
+        }),
+      ).toBe(false); // NaN coordinate
       expect(isValid(GeometrySchema, { type: 'circle', center: { x: 0, y: 0 } })).toBe(false); // Missing radius
       expect(isValid(GeometrySchema, { type: 'polyline', points: [{ x: 0, y: 0 }] })).toBe(false); // < 2 points
     });
@@ -65,28 +102,36 @@ describe('Validation Schemas', () => {
         left: 0,
         top: 0,
         fill: 'red',
-      }
+      },
     };
 
     it('accepts valid fabric data', () => {
-      expect(isValid(RawAnnotationDataSchema, validRaw)).toBe(true);
+      expect(isValid(FabricRawAnnotationDataSchema, validRaw)).toBe(true);
     });
 
     it('rejects unsupported formats or unknown types', () => {
-      expect(isValid(RawAnnotationDataSchema, { ...validRaw, format: 'unknown' })).toBe(false);
-      expect(isValid(RawAnnotationDataSchema, { ...validRaw, data: { type: 'unknown' } })).toBe(false);
+      expect(isValid(FabricRawAnnotationDataSchema, { ...validRaw, format: 'unknown' })).toBe(
+        false,
+      );
+      expect(
+        isValid(FabricRawAnnotationDataSchema, { ...validRaw, data: { type: 'unknown' } }),
+      ).toBe(false);
     });
 
     it('rejects out of bounds or invalid numeric props', () => {
-      expect(isValid(RawAnnotationDataSchema, {
-        ...validRaw,
-        data: { ...validRaw.data, left: Infinity } // Rejects Infinity
-      })).toBe(false);
-      
-      expect(isValid(RawAnnotationDataSchema, {
-        ...validRaw,
-        data: { ...validRaw.data, width: -10 } // Rect width must be >= 0
-      })).toBe(false);
+      expect(
+        isValid(FabricRawAnnotationDataSchema, {
+          ...validRaw,
+          data: { ...validRaw.data, left: Infinity }, // Rejects Infinity
+        }),
+      ).toBe(false);
+
+      expect(
+        isValid(FabricRawAnnotationDataSchema, {
+          ...validRaw,
+          data: { ...validRaw.data, width: -10 }, // Rect width must be >= 0
+        }),
+      ).toBe(false);
     });
   });
 });

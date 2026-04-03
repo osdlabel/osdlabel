@@ -4,7 +4,7 @@ import type { TMat2D } from 'fabric';
 import type { Point } from '@osdlabel/annotation';
 import type { CellTransform } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
-
+import '@osdlabel/fabric-annotations';
 import {
   POINTER_DOWN,
   POINTER_MOVE,
