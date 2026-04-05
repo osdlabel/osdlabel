@@ -9,7 +9,6 @@ export interface BaseAnnotation {
   readonly geometry: Geometry;
   readonly toolType: ToolType;
   readonly label?: string | undefined;
-  readonly metadata?: Readonly<Record<string, unknown>> | undefined;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

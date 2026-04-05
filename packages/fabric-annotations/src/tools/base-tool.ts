@@ -11,7 +11,6 @@ export interface AddAnnotationParams {
   readonly contextId: AnnotationContextId;
   readonly type: ToolType;
   readonly label?: string;
-  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 /** Framework-agnostic callbacks that tools use to interact with application state */

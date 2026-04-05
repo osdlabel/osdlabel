@@ -147,14 +147,7 @@ export function useAnnotationTool(
         return status[toolType].enabled;
       },
       addAnnotation: (params: AddAnnotationParams) => {
-        const {
-          fabricObject,
-          imageId: imgIdParam,
-          contextId,
-          type: annType,
-          label,
-          metadata,
-        } = params;
+        const { fabricObject, imageId: imgIdParam, contextId, type: annType, label } = params;
 
         // Read the annotation ID set by the tool via module augmentation
         const id = fabricObject.id as AnnotationId;
@@ -177,7 +170,6 @@ export function useAnnotationTool(
           toolType: annType,
           rawAnnotationData,
           label,
-          metadata,
         });
       },
       updateAnnotation: (id: AnnotationId, imageIdArg: ImageId, fabricObject: FabricObject) => {
