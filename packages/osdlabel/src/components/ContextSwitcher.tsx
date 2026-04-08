@@ -1,5 +1,6 @@
 import { type Component, For } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
+import type { AnnotationContextId } from '../core/types.js';
 
 export interface ContextSwitcherProps {
   /** Optional custom label for the switcher */
@@ -17,7 +18,7 @@ const ContextSwitcher: Component<ContextSwitcherProps> = (props) => {
       {props.label && <span style={{ color: '#fff', 'font-size': '13px' }}>{props.label}</span>}
       <select
         value={contextState.activeContextId ?? ''}
-        onChange={(e) => actions.setActiveContext(e.currentTarget.value as any)}
+        onChange={(e) => actions.setActiveContext(e.currentTarget.value as AnnotationContextId)}
         style={{
           padding: '2px 4px',
           background: '#333',
