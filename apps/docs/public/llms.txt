@@ -507,6 +507,195 @@ Sets up keyboard shortcut handling. This is called automatically by `AnnotatorPr
 
 ---
 
+# Basic Controls
+
+## Drawing tools
+
+osdlabel provides six geometric annotation tools:
+
+<MinimalViewerDemoWrapper />
+
+| Tool               | Shortcut | Geometry                        | Drawing action                                         |
+| ------------------ | -------- | ------------------------------- | ------------------------------------------------------ |
+| **Rectangle**      | `r`      | Origin, width, height, rotation | Click and drag to define opposite corners              |
+| **Circle**         | `c`      | Center, radius                  | Click and drag from center outward                     |
+| **Line**           | `l`      | Start point, end point          | Click and drag between endpoints                       |
+| **Point**          | `p`      | Single position                 | Single click to place                                  |
+| **Path**           | `d`      | Array of points, open/closed    | Click to add vertices, `Enter` to finish, `c` to close |
+| **Free Hand Path** | `f`      | Array of sampled points         | Click and drag to draw; release to commit              |
+
+## Drawing workflow
+
+1. Select a drawing tool (toolbar click or keyboard shortcut)
+2. The active cell switches to **annotation mode** — OSD navigation is disabled
+3. Click/drag on the image to draw the annotation
+4. The annotation is created in **image-space** coordinates and stored in the annotation state
+5. The `onAnnotationsChange` callback fires with the updated annotation list
+
+## Selecting and editing
+
+Press `v` (or click the select tool) to enter selection mode:
+
+- **Click** an annotation to select it — shows resize handles and rotation control
+- **Drag** a selected annotation to move it
+- **Drag handles** to resize
+- **Drag rotation control** (circle above the annotation) to rotate
+- **Escape** deselects the current annotation
+- **Delete** / **Backspace** deletes the selected annotation
+
+## Pan and zoom in annotation mode
+
+While drawing or selecting, you can still navigate:
+
+- **Ctrl/Cmd + drag** — Pan the image
+- **Ctrl/Cmd + scroll** — Zoom in/out
+
+These modifier-based gestures pass through to OpenSeaDragon while keeping Fabric in control of regular mouse events.
+
+## Polyline tool workflow
+
+The polyline tool is multi-click (not drag-based):
+
+1. Press `d` to activate the polyline tool
+2. Click to place each vertex — a preview line follows the cursor
+3. Press `Enter` to finish as an open polyline
+4. Press `c` to close as a polygon
+5. Press `Escape` to cancel the polyline in progress
+
+Polylines require at least 2 points to be committed; polygons require at least 3.
+
+## Free hand path tool workflow
+
+The free hand path tool captures a continuous stroke as you drag:
+
+1. Press `f` to activate the free hand path tool
+2. Click and hold, then drag to draw — vertices are sampled automatically as you move
+3. **Release** the mouse button to commit the annotation
+4. By default the stroke is **closed** (a filled polygon); hold **Shift** while drawing to produce an **open** polyline instead
+5. Press `Escape` during a drag to cancel
+
+Closed polygons require at least 3 sampled points; open polylines require at least 2. If the stroke is too short the annotation is discarded automatically.
+
+## Programmatically selecting a tool
+
+Activate a tool through the toolbar UI or keyboard shortcuts. Tools are only available if enabled by the active [annotation context](/osdlabel/guides/annotation-contexts/).
+
+```tsx
+const { actions } = useAnnotator();
+
+// Programmatically set the active tool
+actions.setActiveTool('rectangle');
+
+// Switch to selection mode
+actions.setActiveTool('select');
+
+// Deactivate all tools (navigation mode)
+actions.setActiveTool(null);
+```
+
+---
+
+# Viewer Grid
+
+## Grid view
+
+The `GridView` component displays images in an MxN grid. Each cell is an independent OpenSeaDragon viewer with its own Fabric.js overlay.
+
+```tsx
+
+<GridView
+  columns={uiState.gridColumns}
+  rows={uiState.gridRows}
+  maxColumns={4}
+  maxRows={4}
+  images={images}
+/>;
+```
+
+## Grid dimensions
+
+Resize the grid using keyboard shortcuts or the `GridControls` component (which provides a visual "Table Selector" UI):
+
+- `=` / `+` — Add a column (up to `maxColumns`)
+- `-` — Remove a column (minimum 1)
+
+```tsx
+
+<GridControls maxColumns={4} maxRows={4} />;
+```
+
+#### Programmatic control:
+
+```tsx
+const { actions } = useAnnotator();
+actions.setGridDimensions(2, 2); // 2x2 grid
+```
+
+## Active cell
+
+Only one cell can be in annotation mode at a time. Click a cell to activate it, or use number keys `1`-`9` to select cells by position.
+
+```tsx
+const { actions, uiState } = useAnnotator();
+
+// Get the active cell index
+const activeCell = uiState.activeCellIndex;
+
+// Set the active cell programmatically
+actions.setActiveCell(0);
+```
+
+The active cell is highlighted visually and receives all drawing/selection input. Other cells display annotations in read-only mode (navigation only).
+
+## Filmstrip
+
+The `Filmstrip` component shows thumbnails of all available images and allows drag-to-assign interaction:
+
+```tsx
+
+<Filmstrip images={images} position="left" />;
+```
+
+The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
+
+Click an image in the filmstrip to assign it to the currently active grid cell. Images already assigned to cells are highlighted with a blue border.
+
+## Assigning images to cells
+
+```tsx
+const { actions } = useAnnotator();
+
+// Assign an image to cell 0
+actions.assignImageToCell(0, createImageId('my-image'));
+```
+
+Each cell can display one image at a time. Multiple cells can show the same image, but annotations are shared (stored by image ID, not by cell).
+
+## Using the all-in-one Annotator
+
+The `Annotator` component bundles the grid, filmstrip, toolbar, and status bar into a single layout:
+
+<MinimalViewerDemoWrapper />
+
+```tsx
+
+<Annotator
+  images={images}
+  contexts={contexts}
+  filmstripPosition="left"
+  maxGridSize={{ columns: 4, rows: 4 }}
+  showGridControls
+  showFilmstrip
+  showViewControls
+  showFps
+/>;
+```
+
+- Set `showFilmstrip={false}` to hide the filmstrip sidebar.
+- Set `showGridControls={true}` to show the grid dimension selector in the toolbar.
+
+---
+
 # Annotation Contexts
 
 ## What is a context?
