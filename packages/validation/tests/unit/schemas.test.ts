@@ -99,7 +99,11 @@ describe('Validation Schemas', () => {
       toolType: 'rectangle',
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z',
-      rawAnnotationData: { format: 'fabric', fabricVersion: '7.0.0', data: { type: 'rect', width: 100, height: 50, left: 0, top: 0 } },
+      rawAnnotationData: {
+        format: 'fabric',
+        fabricVersion: '7.0.0',
+        data: { type: 'rect', width: 100, height: 50, left: 0, top: 0 },
+      },
     };
 
     it('accepts a valid OSD annotation', () => {

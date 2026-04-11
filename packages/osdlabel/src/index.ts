@@ -84,7 +84,6 @@ export {
   BaseAnnotationSchema,
   FabricRawAnnotationDataSchema,
   ToolTypeSchema,
-  
 } from '@osdlabel/validation';
 
 // Own types
@@ -127,4 +126,3 @@ export {
   processToolUpdateAnnotation,
 } from './tool-factory.js';
 export type { ToolCallbackAccessors, ToolCallbackDispatchers } from './tool-factory.js';
-

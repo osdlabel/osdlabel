@@ -54,12 +54,12 @@ function AnnotatorSetup({
     if (contexts.length > 0) {
       actions.setActiveContext(contexts[0]!.id);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount-only: contexts are initial config, not reactive props
 
   // Sync displayed context IDs
   useEffect(() => {
     actions.setDisplayedContexts(displayedContextIds ? [...displayedContextIds] : []);
-  }, [displayedContextIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [displayedContextIds]); // eslint-disable-line react-hooks/exhaustive-deps -- actions is stable (useMemo with [])
 
   return null;
 }

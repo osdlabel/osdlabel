@@ -49,8 +49,7 @@
   "peerDependencies": {
     "fabric": "catalog:",
     "openseadragon": "catalog:",
-    "solid-js": "catalog:",
-    "valibot": "catalog:"
+    "solid-js": "catalog:"
   },
   "dependencies": {
     "osdlabel": "workspace:*",

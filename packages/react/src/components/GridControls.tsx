@@ -48,10 +48,22 @@ function TableSelector({
         }}
         title="Change Grid Layout"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1 1h14v14H1V1zm2 2v4h4V3H3zm6 0v4h4V3H9zM3 9v4h4V9H3zm6 0v4h4V9H9z" fillRule="evenodd" clipRule="evenodd" />
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M1 1h14v14H1V1zm2 2v4h4V3H3zm6 0v4h4V3H9zM3 9v4h4V9H3zm6 0v4h4V9H9z"
+            fillRule="evenodd"
+            clipRule="evenodd"
+          />
         </svg>
-        <span data-testid="grid-size">{currentColumns}x{currentRows}</span>
+        <span data-testid="grid-size">
+          {currentColumns}x{currentRows}
+        </span>
       </button>
 
       {isOpen && (
@@ -66,7 +78,10 @@ function TableSelector({
             minWidth: '100px',
             zIndex: 9999,
           }}
-          onMouseLeave={() => { setHoverCols(null); setHoverRows(null); }}
+          onMouseLeave={() => {
+            setHoverCols(null);
+            setHoverRows(null);
+          }}
         >
           <div
             style={{
@@ -77,7 +92,9 @@ function TableSelector({
               boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
             }}
           >
-            <div style={{ marginBottom: '6px', fontSize: '11px', color: '#aaa', textAlign: 'center' }}>
+            <div
+              style={{ marginBottom: '6px', fontSize: '11px', color: '#aaa', textAlign: 'center' }}
+            >
               {hoverCols ?? currentColumns} x {hoverRows ?? currentRows}
             </div>
             <div
@@ -92,8 +109,14 @@ function TableSelector({
                   <div
                     key={`${c}-${r}`}
                     data-testid={`grid-cell-${c}-${r}`}
-                    onMouseEnter={() => { setHoverCols(c); setHoverRows(r); }}
-                    onClick={() => { onSelect(c, r); setIsOpen(false); }}
+                    onMouseEnter={() => {
+                      setHoverCols(c);
+                      setHoverRows(r);
+                    }}
+                    onClick={() => {
+                      onSelect(c, r);
+                      setIsOpen(false);
+                    }}
                     style={{
                       width: '18px',
                       height: '18px',

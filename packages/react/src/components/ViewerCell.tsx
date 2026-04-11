@@ -137,7 +137,14 @@ export default function ViewerCell({
       }
       overlay.canvas.requestRenderAll();
     })();
-  }, [overlay, imageSource?.id, annotationState, contextState.activeContextId, contextState.displayedContextIds, isActive]);
+  }, [
+    overlay,
+    imageSource?.id,
+    annotationState,
+    contextState.activeContextId,
+    contextState.displayedContextIds,
+    isActive,
+  ]);
 
   return (
     <div

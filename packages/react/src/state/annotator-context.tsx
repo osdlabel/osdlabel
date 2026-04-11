@@ -61,24 +61,24 @@ export function AnnotatorProvider({
   shouldSkipKeyboardShortcutPredicate,
   testMode = false,
 }: AnnotatorProviderProps) {
-  const [annotationState, dispatchAnnotation] = useReducer(
-    annotationReducer,
-    undefined,
-    () => {
-      const initial = createInitialAnnotationState();
-      if (initialAnnotations) {
-        return produce(initial, (draft) => {
-          for (const [imageId, annMap] of Object.entries(initialAnnotations)) {
-            draft.byImage[imageId as ImageId] = castDraft({ ...annMap });
-          }
-          draft.changeCounter += 1;
-        });
-      }
-      return initial;
-    },
-  );
+  const [annotationState, dispatchAnnotation] = useReducer(annotationReducer, undefined, () => {
+    const initial = createInitialAnnotationState();
+    if (initialAnnotations) {
+      return produce(initial, (draft) => {
+        for (const [imageId, annMap] of Object.entries(initialAnnotations)) {
+          draft.byImage[imageId as ImageId] = castDraft({ ...annMap });
+        }
+        draft.changeCounter += 1;
+      });
+    }
+    return initial;
+  });
   const [uiState, dispatchUI] = useReducer(uiReducer, undefined, createInitialUIState);
-  const [contextState, dispatchContext] = useReducer(contextReducer, undefined, createInitialContextState);
+  const [contextState, dispatchContext] = useReducer(
+    contextReducer,
+    undefined,
+    createInitialContextState,
+  );
 
   // Refs for current state (needed to avoid stale closures in actions)
   const contextStateRef = useRef(contextState);

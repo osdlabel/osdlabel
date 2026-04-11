@@ -53,7 +53,15 @@ export function useKeyboard(
         dispatchAction(actions, action);
       }
     },
-    [shortcuts, activeToolKeyHandlerRef, actions, uiState, activeImageId, constraintStatus, shouldSkipTargetPredicate],
+    [
+      shortcuts,
+      activeToolKeyHandlerRef,
+      actions,
+      uiState,
+      activeImageId,
+      constraintStatus,
+      shouldSkipTargetPredicate,
+    ],
   );
 
   useEffect(() => {

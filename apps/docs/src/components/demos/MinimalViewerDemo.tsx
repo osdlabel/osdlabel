@@ -1,4 +1,9 @@
-import { Annotator, initFabricModule, createImageId, createAnnotationContextId } from '@osdlabel/solid';
+import {
+  Annotator,
+  initFabricModule,
+  createImageId,
+  createAnnotationContextId,
+} from '@osdlabel/solid';
 import type { ImageSource, AnnotationContext } from '@osdlabel/solid';
 
 initFabricModule();

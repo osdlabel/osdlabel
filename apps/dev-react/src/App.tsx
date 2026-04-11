@@ -180,7 +180,9 @@ function AppContent() {
           }}
         >
           {CONTEXTS.map((ctx, i) => (
-            <option key={ctx.id} value={i}>{ctx.label}</option>
+            <option key={ctx.id} value={i}>
+              {ctx.label}
+            </option>
           ))}
         </select>
 
@@ -271,9 +273,7 @@ function AppContent() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>
-              Import JSON
-            </span>
+            <span style={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Import JSON</span>
             <button
               type="button"
               onClick={() => setShowImportPanel(false)}

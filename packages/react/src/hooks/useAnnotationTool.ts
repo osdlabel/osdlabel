@@ -108,7 +108,12 @@ export function useAnnotationTool(
         actions.addAnnotation(processed);
       },
       updateAnnotation: (id: AnnotationId, imageIdArg: ImageId, fabricObject: FabricObject) => {
-        const patch = processToolUpdateAnnotation(id, imageIdArg, fabricObject, annotationStateRef.current);
+        const patch = processToolUpdateAnnotation(
+          id,
+          imageIdArg,
+          fabricObject,
+          annotationStateRef.current,
+        );
         if (!patch) return;
         actions.updateAnnotation(id, imageIdArg, patch);
       },

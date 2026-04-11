@@ -2,11 +2,7 @@ import { produce } from 'immer';
 import type { AnnotationState, UIState } from '@osdlabel/viewer-api';
 import type { ContextState } from '@osdlabel/annotation-context';
 import type { OsdFields } from 'osdlabel';
-import {
-  applyAnnotationAction,
-  applyUIAction,
-  applyContextAction,
-} from 'osdlabel';
+import { applyAnnotationAction, applyUIAction, applyContextAction } from 'osdlabel';
 import type { AnnotationAction, UIAction, ContextAction } from 'osdlabel';
 
 export function annotationReducer(

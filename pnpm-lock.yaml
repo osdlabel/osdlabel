@@ -157,6 +157,9 @@ importers:
       '@osdlabel/annotation-context':
         specifier: workspace:*
         version: link:../../packages/annotation-context
+      '@osdlabel/react':
+        specifier: workspace:*
+        version: link:../../packages/react
       '@osdlabel/solid':
         specifier: workspace:*
         version: link:../../packages/solid
@@ -315,9 +318,6 @@ importers:
       '@osdlabel/fabric-osd':
         specifier: workspace:*
         version: link:../fabric-osd
-      '@osdlabel/osd-helper':
-        specifier: workspace:*
-        version: link:../osd-helper
       '@osdlabel/validation':
         specifier: workspace:*
         version: link:../validation
@@ -455,9 +455,6 @@ importers:
       solid-js:
         specifier: 'catalog:'
         version: 1.9.11
-      valibot:
-        specifier: 'catalog:'
-        version: 1.3.1(typescript@5.9.3)
     devDependencies:
       '@types/openseadragon':
         specifier: 'catalog:'

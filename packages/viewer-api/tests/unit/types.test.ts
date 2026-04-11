@@ -12,7 +12,6 @@ describe('viewer-api types', () => {
       inverted: false,
     });
   });
-
 });
 
 describe('ImageId branded type', () => {

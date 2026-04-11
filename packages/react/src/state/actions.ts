@@ -1,7 +1,11 @@
 import type { Dispatch } from 'react';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
-import type { AnnotationContext, AnnotationContextId, ContextState } from '@osdlabel/annotation-context';
+import type {
+  AnnotationContext,
+  AnnotationContextId,
+  ContextState,
+} from '@osdlabel/annotation-context';
 import type { OsdAnnotation, AnnotationAction, UIAction, ContextAction } from 'osdlabel';
 import { validateAddAnnotation } from 'osdlabel';
 
@@ -94,7 +98,10 @@ export function createActions(
   }
 
   function setActiveImageExposure(value: number): void {
-    dispatchUI({ type: 'SET_EXPOSURE', payload: { cellIndex: getUIState().activeCellIndex, value } });
+    dispatchUI({
+      type: 'SET_EXPOSURE',
+      payload: { cellIndex: getUIState().activeCellIndex, value },
+    });
   }
 
   function resetActiveImageView(): void {

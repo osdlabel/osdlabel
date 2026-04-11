@@ -2,18 +2,9 @@
 export * from 'osdlabel';
 
 // State
-export {
-  annotationReducer,
-  uiReducer,
-  contextReducer,
-} from './state/reducer.js';
-export {
-  createActions,
-} from './state/actions.js';
-export {
-  AnnotatorProvider,
-  useAnnotator,
-} from './state/annotator-context.js';
+export { annotationReducer, uiReducer, contextReducer } from './state/reducer.js';
+export { createActions } from './state/actions.js';
+export { AnnotatorProvider, useAnnotator } from './state/annotator-context.js';
 export type { AnnotatorProviderProps, ActiveToolKeyHandlerRef } from './state/annotator-context.js';
 
 // Components

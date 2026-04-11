@@ -14,7 +14,10 @@ import type { OsdAnnotation, OsdFields } from './types.js';
 // ---------------------------------------------------------------------------
 
 export type AnnotationAction =
-  | { readonly type: 'ADD_ANNOTATION'; readonly payload: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'> }
+  | {
+      readonly type: 'ADD_ANNOTATION';
+      readonly payload: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'>;
+    }
   | {
       readonly type: 'UPDATE_ANNOTATION';
       readonly payload: {
@@ -23,15 +26,27 @@ export type AnnotationAction =
         readonly patch: Partial<Omit<OsdAnnotation, 'id' | 'imageId' | 'createdAt' | 'updatedAt'>>;
       };
     }
-  | { readonly type: 'DELETE_ANNOTATION'; readonly payload: { readonly id: AnnotationId; readonly imageId: ImageId } }
-  | { readonly type: 'LOAD_ANNOTATIONS'; readonly payload: Record<ImageId, Record<AnnotationId, OsdAnnotation>> };
+  | {
+      readonly type: 'DELETE_ANNOTATION';
+      readonly payload: { readonly id: AnnotationId; readonly imageId: ImageId };
+    }
+  | {
+      readonly type: 'LOAD_ANNOTATIONS';
+      readonly payload: Record<ImageId, Record<AnnotationId, OsdAnnotation>>;
+    };
 
 export type UIAction =
   | { readonly type: 'SET_ACTIVE_TOOL'; readonly payload: ToolType | 'select' | null }
   | { readonly type: 'SET_ACTIVE_CELL'; readonly payload: number }
   | { readonly type: 'SET_SELECTED_ANNOTATION'; readonly payload: AnnotationId | null }
-  | { readonly type: 'ASSIGN_IMAGE_TO_CELL'; readonly payload: { readonly cellIndex: number; readonly imageId: ImageId } }
-  | { readonly type: 'SET_GRID_DIMENSIONS'; readonly payload: { readonly columns: number; readonly rows: number } }
+  | {
+      readonly type: 'ASSIGN_IMAGE_TO_CELL';
+      readonly payload: { readonly cellIndex: number; readonly imageId: ImageId };
+    }
+  | {
+      readonly type: 'SET_GRID_DIMENSIONS';
+      readonly payload: { readonly columns: number; readonly rows: number };
+    }
   | { readonly type: 'ROTATE_CW'; readonly payload: { readonly cellIndex: number } }
   | { readonly type: 'ROTATE_CCW'; readonly payload: { readonly cellIndex: number } }
   | { readonly type: 'FLIP_H'; readonly payload: { readonly cellIndex: number } }
@@ -39,7 +54,10 @@ export type UIAction =
   | { readonly type: 'TOGGLE_NEGATIVE'; readonly payload: { readonly cellIndex: number } }
   | { readonly type: 'INCREASE_EXPOSURE'; readonly payload: { readonly cellIndex: number } }
   | { readonly type: 'DECREASE_EXPOSURE'; readonly payload: { readonly cellIndex: number } }
-  | { readonly type: 'SET_EXPOSURE'; readonly payload: { readonly cellIndex: number; readonly value: number } }
+  | {
+      readonly type: 'SET_EXPOSURE';
+      readonly payload: { readonly cellIndex: number; readonly value: number };
+    }
   | { readonly type: 'RESET_VIEW'; readonly payload: { readonly cellIndex: number } };
 
 export type ContextAction =
@@ -151,46 +169,77 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       break;
     }
     case 'ROTATE_CW': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
-      draft.cellTransforms[action.payload.cellIndex] = { ...current, rotation: (current.rotation + 90) % 360 };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        rotation: (current.rotation + 90) % 360,
+      };
       break;
     }
     case 'ROTATE_CCW': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
-      draft.cellTransforms[action.payload.cellIndex] = { ...current, rotation: (current.rotation + 270) % 360 };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        rotation: (current.rotation + 270) % 360,
+      };
       break;
     }
     case 'FLIP_H': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
       draft.cellTransforms[action.payload.cellIndex] = { ...current, flippedH: !current.flippedH };
       break;
     }
     case 'FLIP_V': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
       draft.cellTransforms[action.payload.cellIndex] = { ...current, flippedV: !current.flippedV };
       break;
     }
     case 'TOGGLE_NEGATIVE': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
       draft.cellTransforms[action.payload.cellIndex] = { ...current, inverted: !current.inverted };
       break;
     }
     case 'INCREASE_EXPOSURE': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
       const exposure = Math.min(current.exposure + 0.1, 1);
-      draft.cellTransforms[action.payload.cellIndex] = { ...current, exposure: Math.round(exposure * 10) / 10 };
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        exposure: Math.round(exposure * 10) / 10,
+      };
       break;
     }
     case 'DECREASE_EXPOSURE': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
       const exposure = Math.max(current.exposure - 0.1, -1);
-      draft.cellTransforms[action.payload.cellIndex] = { ...current, exposure: Math.round(exposure * 10) / 10 };
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        exposure: Math.round(exposure * 10) / 10,
+      };
       break;
     }
     case 'SET_EXPOSURE': {
-      const current = draft.cellTransforms[action.payload.cellIndex] ?? { ...DEFAULT_CELL_TRANSFORM };
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
       const exposure = Math.max(Math.min(action.payload.value, 1), -1);
-      draft.cellTransforms[action.payload.cellIndex] = { ...current, exposure: Math.round(exposure * 10) / 10 };
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        exposure: Math.round(exposure * 10) / 10,
+      };
       break;
     }
     case 'RESET_VIEW': {

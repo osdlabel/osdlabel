@@ -40,7 +40,6 @@
     "@osdlabel/annotation-context": "workspace:*",
     "@osdlabel/fabric-annotations": "workspace:*",
     "@osdlabel/fabric-osd": "workspace:*",
-    "@osdlabel/osd-helper": "workspace:*",
     "@osdlabel/validation": "workspace:*",
     "@osdlabel/viewer-api": "workspace:*"
   },

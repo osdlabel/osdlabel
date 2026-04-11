@@ -1,7 +1,11 @@
 import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
 import { toolTypeToGeometryType } from '@osdlabel/annotation';
 import type { ImageId, AnnotationState } from '@osdlabel/viewer-api';
-import type { AnnotationContextId, ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
+import type {
+  AnnotationContextId,
+  ConstraintStatus,
+  ContextState,
+} from '@osdlabel/annotation-context';
 import type {
   AnnotationTool,
   ToolCallbacks,
@@ -61,7 +65,11 @@ export interface ToolCallbackAccessors {
  */
 export interface ToolCallbackDispatchers {
   readonly addAnnotation: (annotation: Parameters<ToolCallbacks['addAnnotation']>[0]) => void;
-  readonly updateAnnotation: (id: AnnotationId, imageId: ImageId, fabricObject: FabricObject) => void;
+  readonly updateAnnotation: (
+    id: AnnotationId,
+    imageId: ImageId,
+    fabricObject: FabricObject,
+  ) => void;
   readonly deleteAnnotation: (id: AnnotationId, imageId: ImageId) => void;
   readonly setSelectedAnnotation: (id: AnnotationId | null) => void;
 }
@@ -132,7 +140,11 @@ export function processObjectModified(
   fabricObject: FabricObject,
   annotationState: AnnotationState<OsdFields>,
   imageId: ImageId,
-): { readonly id: AnnotationId; readonly geometry: ReturnType<typeof getGeometryFromFabricObject>; readonly rawAnnotationData: ReturnType<typeof serializeFabricObject> } | null {
+): {
+  readonly id: AnnotationId;
+  readonly geometry: ReturnType<typeof getGeometryFromFabricObject>;
+  readonly rawAnnotationData: ReturnType<typeof serializeFabricObject>;
+} | null {
   if (!fabricObject.id) return null;
   const annotationId = fabricObject.id as AnnotationId;
   const currentAnnotation = annotationState.byImage[imageId]?.[annotationId];
@@ -149,9 +161,7 @@ export function processObjectModified(
  * Processes an addAnnotation call from a tool, extracting geometry and serializing.
  * Returns the fields needed to create the annotation, or null on failure.
  */
-export function processToolAddAnnotation(
-  params: AddAnnotationParams,
-): {
+export function processToolAddAnnotation(params: AddAnnotationParams): {
   readonly id: AnnotationId;
   readonly imageId: ImageId;
   readonly contextId: AnnotationContextId;
@@ -171,7 +181,15 @@ export function processToolAddAnnotation(
 
   const rawAnnotationData = serializeFabricObject(fabricObject);
 
-  return { id, imageId, contextId, toolType: annType, geometry, rawAnnotationData, ...(label !== undefined ? { label } : {}) };
+  return {
+    id,
+    imageId,
+    contextId,
+    toolType: annType,
+    geometry,
+    rawAnnotationData,
+    ...(label !== undefined ? { label } : {}),
+  };
 }
 
 /**
@@ -183,7 +201,10 @@ export function processToolUpdateAnnotation(
   imageId: ImageId,
   fabricObject: FabricObject,
   annotationState: AnnotationState<OsdFields>,
-): { readonly geometry: NonNullable<ReturnType<typeof getGeometryFromFabricObject>>; readonly rawAnnotationData: ReturnType<typeof serializeFabricObject> } | null {
+): {
+  readonly geometry: NonNullable<ReturnType<typeof getGeometryFromFabricObject>>;
+  readonly rawAnnotationData: ReturnType<typeof serializeFabricObject>;
+} | null {
   const currentAnnotation = annotationState.byImage[imageId]?.[id];
   if (!currentAnnotation) return null;
 

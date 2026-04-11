@@ -101,17 +101,21 @@ export function mapKeyEventToActions(
   else if (!shiftKey && keyLower === shortcuts.selectTool.toLowerCase()) {
     actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'select' });
   } else if (!shiftKey && keyLower === shortcuts.rectangleTool.toLowerCase()) {
-    if (constraintStatus.rectangle.enabled) actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'rectangle' });
+    if (constraintStatus.rectangle.enabled)
+      actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'rectangle' });
   } else if (!shiftKey && keyLower === shortcuts.circleTool.toLowerCase()) {
-    if (constraintStatus.circle.enabled) actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'circle' });
+    if (constraintStatus.circle.enabled)
+      actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'circle' });
   } else if (!shiftKey && keyLower === shortcuts.lineTool.toLowerCase()) {
     if (constraintStatus.line.enabled) actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'line' });
   } else if (!shiftKey && keyLower === shortcuts.pointTool.toLowerCase()) {
     if (constraintStatus.point.enabled) actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'point' });
   } else if (!shiftKey && keyLower === shortcuts.polylineTool.toLowerCase()) {
-    if (constraintStatus.polyline.enabled) actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'polyline' });
+    if (constraintStatus.polyline.enabled)
+      actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'polyline' });
   } else if (!shiftKey && keyLower === shortcuts.freeHandPathTool.toLowerCase()) {
-    if (constraintStatus.freeHandPath.enabled) actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'freeHandPath' });
+    if (constraintStatus.freeHandPath.enabled)
+      actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'freeHandPath' });
   }
 
   // Cancel / Escape
@@ -144,7 +148,6 @@ export function mapKeyEventToActions(
   else if (key === shortcuts.gridCell7) actions.push({ type: 'SET_ACTIVE_CELL', payload: 6 });
   else if (key === shortcuts.gridCell8) actions.push({ type: 'SET_ACTIVE_CELL', payload: 7 });
   else if (key === shortcuts.gridCell9) actions.push({ type: 'SET_ACTIVE_CELL', payload: 8 });
-
   // Grid Columns
   else if (
     key === shortcuts.increaseGridColumns ||
