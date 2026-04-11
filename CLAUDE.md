@@ -23,6 +23,12 @@ This is `osdlabel`, a DZI image annotation library built with SolidJS, Fabric.js
 - **Do not destructure props.** In Solid, destructuring props breaks reactivity. Access props with `props.myProp` inside JSX or effects.
 - **Use `createStore` with `produce` for nested state updates.** This is Solid's equivalent of Immer — it provides immutable-style update semantics with fine-grained tracking.
 
+### React
+
+- **`useRef` requires an initial value in React 19.** `useRef<T>()` with zero arguments is a type error. Use `useRef<T | undefined>(undefined)`.
+- **Use `castDraft` from Immer** when spreading objects with `readonly` array fields (e.g., geometry) into draft state. Immer's `WritableDraft` is incompatible with `readonly` arrays.
+- **Mount-only `useEffect` closures are stale.** Use `useRef` to hold mutable values that OSD event handlers need across re-renders (e.g., `overlayRef` to guard against duplicate `FabricOverlay` creation on each OSD `'open'` event).
+
 ### Fabric.js v7
 
 - **Import from `'fabric'` directly.** v7 uses named exports: `import { Canvas, Rect, Circle } from 'fabric'`. There is no `fabric.` namespace.
@@ -213,7 +219,7 @@ pnpm build        # generates LLM page + astro build
 - **Use `legacy: { collections: true }` in `astro.config.mjs`.** The `docsLoader()` content layer API has issues with build-time content resolution in this monorepo setup. Legacy collections with `src/content/config.ts` (no loader, schema only) work reliably.
 - **Branded ID types in docs examples:** Use `createAnnotationContextId()` factory functions instead of `as AnnotationContextId` casts — keeps examples consistent with the library's public API.
 - **Adding new docs pages:** Create `.md` in `apps/docs/src/content/docs/` and add a sidebar entry in `apps/docs/astro.config.mjs`. Use `.md` for reference/prose, `.mdx` for guides needing interactive components.
-- **LLM page:** Generated at build time by `scripts/generate-llm-page.js`. Also produces `public/llms.txt` for the llms.txt convention.
+- **LLM page:** Generated at build time by `scripts/generate-llm-page.js`. Also produces `public/llms.txt` for the llms.txt convention. Do not hand-edit `llm.md` or `llms.txt` — they are overwritten on each docs build.
 
 ### Incremental Verification
 
