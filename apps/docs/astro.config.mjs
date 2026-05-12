@@ -86,6 +86,7 @@ export default defineConfig({
             { label: 'Minimal Viewer', slug: 'examples/minimal-viewer' },
             { label: 'Multiple Annotation Contexts', slug: 'examples/multiple-contexts' },
             { label: 'Custom Toolbar', slug: 'examples/custom-toolbar' },
+            { label: 'Interactive Demo', link: '/demo/' },
           ],
         },
       ],
