@@ -108,7 +108,7 @@ describe('DecorationLayer', () => {
     ]);
     const el = hostParent.querySelector('[data-decoration-id="x"]') as HTMLElement;
     // imageToScreen doubles the coords (mock) → (10, 14). Plus offset → (13, 13).
-    expect(el.style.transform).toContain('translate(13px, 13px)');
+    expect(el.style.transform).toContain('translate3d(13px, 13px, 0)');
     layer.destroy();
   });
 
@@ -126,13 +126,13 @@ describe('DecorationLayer', () => {
     ]);
     const el = hostParent.querySelector('[data-decoration-id="x"]') as HTMLElement;
     // Initial position: imageToScreen mock doubles → (2,2)
-    expect(el.style.transform).toContain('translate(2px, 2px)');
+    expect(el.style.transform).toContain('translate3d(2px, 2px, 0)');
     // Change the mock to triple, then fire sync
     (overlay.imageToScreen as ReturnType<typeof vi.fn>).mockImplementation(
       (p: { x: number; y: number }) => ({ x: p.x * 3, y: p.y * 3 }),
     );
     for (const cb of syncSubscribers) cb();
-    expect(el.style.transform).toContain('translate(3px, 3px)');
+    expect(el.style.transform).toContain('translate3d(3px, 3px, 0)');
     layer.destroy();
   });
 
@@ -150,7 +150,7 @@ describe('DecorationLayer', () => {
       },
     ]);
     const el = hostParent.querySelector('[data-decoration-id="centered"]') as HTMLElement;
-    expect(el.style.transform).toContain('translate(-50%, -50%)');
+    expect(el.style.transform).toContain('translate3d(-50%, -50%, 0)');
     layer.destroy();
   });
 

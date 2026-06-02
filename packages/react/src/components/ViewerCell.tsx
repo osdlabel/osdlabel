@@ -107,25 +107,24 @@ export default function ViewerCell({
   // Annotation tool hook
   useAnnotationTool(overlay, imageSource?.id, isActive);
 
+  // Track only the annotation dictionary for this cell's image. Immer keeps
+  // structural sharing, so this reference only changes when annotations on
+  // THIS image mutate — drawing in another cell does not refire the memo
+  // or effects below.
+  const currentImageAnns = imageSource?.id ? annotationState.byImage[imageSource.id] : undefined;
+
   // Visible annotations for the current cell — shared by the annotation
   // sync effect (Fabric objects) and the decoration sync effect.
   const visibleAnnotations: readonly Annotation<OsdFields>[] = useMemo(() => {
-    const imageId = imageSource?.id;
-    if (!imageId) return [];
+    if (!currentImageAnns) return [];
     const activeContextId = contextState.activeContextId;
     const displayedIds = contextState.displayedContextIds;
     const visibleSet = new Set<AnnotationContextId>(displayedIds);
     if (activeContextId) visibleSet.add(activeContextId);
-    const imageAnns = annotationState.byImage[imageId] || {};
     return visibleSet.size > 0
-      ? Object.values(imageAnns).filter((a) => visibleSet.has(a.contextId))
-      : Object.values(imageAnns);
-  }, [
-    imageSource?.id,
-    annotationState,
-    contextState.activeContextId,
-    contextState.displayedContextIds,
-  ]);
+      ? Object.values(currentImageAnns).filter((a) => visibleSet.has(a.contextId))
+      : Object.values(currentImageAnns);
+  }, [currentImageAnns, contextState.activeContextId, contextState.displayedContextIds]);
 
   // Sync annotations to canvas
   useEffect(() => {
@@ -168,7 +167,6 @@ export default function ViewerCell({
   }, [
     overlay,
     imageSource?.id,
-    annotationState,
     contextState.activeContextId,
     contextState.displayedContextIds,
     isActive,
