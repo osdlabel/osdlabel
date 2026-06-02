@@ -118,7 +118,7 @@ export class DecorationLayer {
       const offsetX = d.offset?.x ?? 0;
       const offsetY = d.offset?.y ?? 0;
       const align = placementTranslate(d.placement);
-      el.style.transform = `translate(${screen.x + offsetX}px, ${screen.y + offsetY}px) translate(${align.x}, ${align.y})`;
+      el.style.transform = `translate3d(${screen.x + offsetX}px, ${screen.y + offsetY}px, 0) translate3d(${align.x}, ${align.y}, 0)`;
     }
   }
 
@@ -180,7 +180,9 @@ export class DecorationLayer {
 }
 
 function applyTextStyle(el: HTMLDivElement, decoration: TextDecoration): void {
-  el.textContent = decoration.text;
+  if (el.textContent !== decoration.text) {
+    el.textContent = decoration.text;
+  }
   el.dataset.decorationId = decoration.id;
   const style = decoration.style;
   el.style.color = style?.color ?? DEFAULT_TEXT_COLOR;
@@ -192,7 +194,10 @@ function applyTextStyle(el: HTMLDivElement, decoration: TextDecoration): void {
   el.style.borderRadius = style?.borderRadius ?? DEFAULT_TEXT_BORDER_RADIUS;
   el.style.whiteSpace = 'pre';
   el.style.userSelect = 'none';
-  el.className = style?.className ?? '';
+  const nextClassName = style?.className ?? '';
+  if (el.className !== nextClassName) {
+    el.className = nextClassName;
+  }
 }
 
 function placementTranslate(placement: TextPlacement | undefined): {

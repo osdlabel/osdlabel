@@ -163,6 +163,10 @@ function polylineLength(points: readonly Point[]): number {
   return total;
 }
 
+// Vertex-average centroid: fast and accurate for regular polygons. For highly
+// irregular polygons it skews toward dense vertex clusters; the area-weighted
+// shoelace centroid (which also requires a degenerate-polygon fallback) would
+// be the upgrade if label placement becomes a real problem.
 function pointsCentroid(points: readonly Point[]): Point {
   if (points.length === 0) return { x: 0, y: 0 };
   let sx = 0;
