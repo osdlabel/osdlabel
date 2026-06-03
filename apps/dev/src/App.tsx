@@ -13,6 +13,9 @@ import {
   serialize,
   deserialize,
   initFabricModule,
+  createMeasurementProvider,
+  createLabelProvider,
+  createDistanceProvider,
 } from '@osdlabel/solid';
 import type { AnnotationContextId, AnnotationContext, ImageSource } from '@osdlabel/solid';
 
@@ -386,6 +389,23 @@ function App() {
       onAnnotationsChange={(anns) => console.log('Annotations changed:', anns.length, 'total')}
       onConstraintChange={(status) => console.log('Constraint status changed:', status)}
       testMode={true}
+      decorationProviders={[
+        createMeasurementProvider({ area: true, perimeter: true, length: true, radius: true }),
+        createDistanceProvider({
+          pair: (anns) => {
+            const points = anns.filter((a) => a.toolType === 'point');
+            const pairs = [];
+            for (let i = 0; i < points.length - 1; i += 2) {
+              pairs.push({ a: points[i]!, b: points[i + 1]! });
+            }
+            return pairs;
+          },
+          dashed: true,
+          formatLine: (m, fmt) => `Distance: ${fmt(m)}`,
+        }),
+        createLabelProvider(),
+      ]}
+      defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}
     >
       <AppContent />
     </AnnotatorProvider>
