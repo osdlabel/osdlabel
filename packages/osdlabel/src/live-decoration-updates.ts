@@ -75,6 +75,9 @@ export function enableLiveDecorationUpdates<E extends object = Record<string, ne
 
   const handler = (e: { target?: FabricObject }): void => {
     if (disposed) return;
+    // Fast exit when no providers are configured — drag events fire up to
+    // 60×/sec; skipping rAF scheduling avoids per-frame allocations entirely.
+    if (getProviders().length === 0) return;
     pendingTarget = e.target;
     if (scheduled) return;
     scheduled = true;
@@ -100,22 +103,55 @@ export function enableLiveDecorationUpdates<E extends object = Record<string, ne
 }
 
 /**
- * Replace the moving annotation's geometry in `annotations` with the live
- * geometry extracted from the Fabric object. Returns the input list
- * unchanged when there's no target, when the target carries no annotation
- * id, when the annotation isn't in the visible list, or when geometry
- * extraction fails.
+ * Replace the moving annotation(s) geometry in `annotations` with live
+ * geometry extracted from the Fabric target. Allocates at most one shallow
+ * array copy (and only when at least one override is applied); non-target
+ * items keep their identity for downstream memo-stability.
+ *
+ * Handles multi-select drag: when Fabric fires `object:moving` with an
+ * `ActiveSelection` target (which carries no `.id`), we iterate its
+ * children and override each one that has an annotation id.
+ *
+ * Caveat for `ActiveSelection`: child objects' `left/top` are reported
+ * relative to the parent group, not the canvas. `getGeometryFromFabricObject`
+ * is matrix-based for line/polyline/polygon (exact under groups) but reads
+ * `left/top` / `getCenterPoint()` directly for rectangle/circle/point — those
+ * may be slightly off during a multi-select drag. The commit on mouse-up
+ * (via `object:modified`) is always correct because Fabric dissolves the
+ * ActiveSelection before firing it.
  */
 function applyLiveOverride<E extends object>(
   annotations: readonly Annotation<E>[],
   target: FabricObject | undefined,
 ): readonly Annotation<E>[] {
   if (!target) return annotations;
-  const targetId = target.id as AnnotationId | undefined;
-  if (!targetId) return annotations;
-  const original = annotations.find((a) => a.id === targetId);
-  if (!original) return annotations;
-  const geometry = getGeometryFromFabricObject(target, toolTypeToGeometryType(original.toolType));
-  if (!geometry) return annotations;
-  return annotations.map((a) => (a.id === targetId ? { ...a, geometry } : a));
+  const targets = childrenOfDragTarget(target);
+  let next: Annotation<E>[] | undefined;
+  for (const t of targets) {
+    const targetId = t.id as AnnotationId | undefined;
+    if (!targetId) continue;
+    const source = next ?? annotations;
+    const idx = source.findIndex((a) => a.id === targetId);
+    if (idx === -1) continue;
+    const original = source[idx]!;
+    const geometry = getGeometryFromFabricObject(t, toolTypeToGeometryType(original.toolType));
+    if (!geometry) continue;
+    if (!next) next = [...annotations];
+    next[idx] = { ...original, geometry };
+  }
+  return next ?? annotations;
+}
+
+/**
+ * Returns the Fabric objects to apply live geometry overrides to. For a
+ * normal drag this is just `[target]`. For an `ActiveSelection` (multi-drag)
+ * it's the group's children. Detected via duck-typing on `getObjects()` to
+ * avoid coupling to Fabric's `type` string casing.
+ */
+function childrenOfDragTarget(target: FabricObject): readonly FabricObject[] {
+  const maybeGroup = target as FabricObject & { getObjects?: () => FabricObject[] };
+  if (target.id === undefined && typeof maybeGroup.getObjects === 'function') {
+    return maybeGroup.getObjects();
+  }
+  return [target];
 }

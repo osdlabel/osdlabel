@@ -90,6 +90,14 @@ function fakeFabricTarget(id: string, geometry: Annotation['geometry']): FabricO
   return { id, __mockGeometry: geometry } as unknown as FabricObject;
 }
 
+/** Mock ActiveSelection wrapping the given child targets. No `id` (groups carry none). */
+function fakeActiveSelection(children: readonly FabricObject[]): FabricObject {
+  return {
+    type: 'activeselection',
+    getObjects: () => [...children],
+  } as unknown as FabricObject;
+}
+
 describe('enableLiveDecorationUpdates', () => {
   it('subscribes to object:moving, object:scaling, and object:rotating', () => {
     const rig = createRig();
@@ -188,10 +196,13 @@ describe('enableLiveDecorationUpdates', () => {
     expect(providerSpacing).toEqual(spacing);
   });
 
-  it('calls onDecorations with [] and skips providers entirely when none are registered', () => {
+  it('skips providers and onDecorations entirely when none are registered', () => {
+    // No-providers case is fast-exited at the event handler; the rAF queue
+    // stays empty and onDecorations is never invoked. Host frameworks call
+    // setDecorations([]) themselves when providers go empty, so cleanup is
+    // not this helper's responsibility.
     const rig = createRig();
     const onDecorations = vi.fn();
-    const provider = vi.fn();
     enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
@@ -201,8 +212,7 @@ describe('enableLiveDecorationUpdates', () => {
     });
     rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     rig.flushRAF();
-    expect(onDecorations).toHaveBeenCalledWith([]);
-    expect(provider).not.toHaveBeenCalled();
+    expect(onDecorations).not.toHaveBeenCalled();
   });
 
   it('falls back to the state-derived geometry when the target carries no id', () => {
@@ -245,6 +255,99 @@ describe('enableLiveDecorationUpdates', () => {
     rig.fire('object:moving', { id: 'a' } as unknown as FabricObject);
     rig.flushRAF();
     expect(seen).toEqual([a.geometry]);
+  });
+
+  it('preserves identity of non-target items (no per-item realloc)', () => {
+    const rig = createRig();
+    const a = rectAnnotation('a', 0, 0);
+    const b = rectAnnotation('b', 5, 5);
+    const c = rectAnnotation('c', 10, 10);
+    let seen: readonly Annotation[] | undefined;
+    const provider: DecorationProvider = ({ annotations }) => {
+      seen = annotations;
+      return [];
+    };
+    enableLiveDecorationUpdates({
+      overlay: rig.overlay,
+      getVisibleAnnotations: () => [a, b, c],
+      getPixelSpacing: () => undefined,
+      getProviders: () => [provider],
+      onDecorations: vi.fn(),
+    });
+    rig.fire(
+      'object:moving',
+      fakeFabricTarget('b', {
+        type: 'rectangle',
+        origin: { x: 99, y: 99 },
+        width: 1,
+        height: 1,
+        rotation: 0,
+      }),
+    );
+    rig.flushRAF();
+    // Target item is replaced; siblings keep their identity for memo stability.
+    expect(seen![0]).toBe(a);
+    expect(seen![2]).toBe(c);
+    expect(seen![1]).not.toBe(b);
+    expect(seen![1]!.id).toBe('b');
+  });
+
+  it('overrides geometry for every id-bearing child of an ActiveSelection drag', () => {
+    const rig = createRig();
+    const a = rectAnnotation('a', 0, 0);
+    const b = rectAnnotation('b', 10, 10);
+    const c = rectAnnotation('c', 20, 20);
+    const seenGeoms: Record<string, Annotation['geometry']> = {};
+    const provider: DecorationProvider = ({ annotations }) => {
+      for (const ann of annotations) seenGeoms[ann.id] = ann.geometry;
+      return [];
+    };
+    enableLiveDecorationUpdates({
+      overlay: rig.overlay,
+      getVisibleAnnotations: () => [a, b, c],
+      getPixelSpacing: () => undefined,
+      getProviders: () => [provider],
+      onDecorations: vi.fn(),
+    });
+    const liveA: Annotation['geometry'] = {
+      type: 'rectangle',
+      origin: { x: 50, y: 50 },
+      width: 1,
+      height: 1,
+      rotation: 0,
+    };
+    const liveB: Annotation['geometry'] = {
+      type: 'rectangle',
+      origin: { x: 60, y: 60 },
+      width: 1,
+      height: 1,
+      rotation: 0,
+    };
+    const selection = fakeActiveSelection([
+      fakeFabricTarget('a', liveA),
+      fakeFabricTarget('b', liveB),
+    ]);
+    rig.fire('object:moving', selection);
+    rig.flushRAF();
+    expect(seenGeoms['a']).toEqual(liveA);
+    expect(seenGeoms['b']).toEqual(liveB);
+    // Unselected annotation untouched.
+    expect(seenGeoms['c']).toEqual(c.geometry);
+  });
+
+  it('does not schedule a rAF when providers are empty (fast-exit)', () => {
+    const rig = createRig();
+    enableLiveDecorationUpdates({
+      overlay: rig.overlay,
+      getVisibleAnnotations: () => [],
+      getPixelSpacing: () => undefined,
+      getProviders: () => [],
+      onDecorations: vi.fn(),
+    });
+    rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
+    rig.fire('object:scaling', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
+    rig.fire('object:rotating', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
+    expect(rafQueue).toHaveLength(0);
   });
 
   it('teardown unsubscribes from all events and cancels a pending rAF', () => {

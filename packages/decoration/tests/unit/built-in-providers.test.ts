@@ -198,7 +198,8 @@ describe('createDistanceProvider', () => {
     expect(provider({ annotations: [a] })).toEqual([]);
   });
 
-  it('honors dashed:false and custom formatLine', () => {
+  it('honors dashed:false and a one-arg custom formatLine', () => {
+    // The defaultFormatter second arg is optional; consumers can ignore it.
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
     const provider = createDistanceProvider({
@@ -211,5 +212,19 @@ describe('createDistanceProvider', () => {
     const label = decorations.find((d) => d.type === 'text') as TextDecoration;
     expect(line.dashed).toBe(false);
     expect(label.text).toBe('d=5px');
+  });
+
+  it('passes a defaultFormatter to formatLine so consumers can wrap the standard output', () => {
+    const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
+    const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
+    const provider = createDistanceProvider({
+      pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
+      format: { precision: 1 },
+      formatLine: (m, fmt) => `Distance: ${fmt(m)}`,
+    });
+    const decorations = provider({ annotations: [a, b] });
+    const label = decorations.find((d) => d.type === 'text') as TextDecoration;
+    // defaultFormatter uses options.format → precision 1 → "5.0 px"
+    expect(label.text).toBe('Distance: 5.0 px');
   });
 });

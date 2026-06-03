@@ -204,8 +204,15 @@ export interface DistanceProviderOptions<E extends object = Record<string, never
   readonly lineStyle?: LineDecorationStyle | undefined;
   readonly textStyle?: TextDecorationStyle | undefined;
   readonly format?: FormatMeasurementOptions | undefined;
-  /** Custom formatter for the distance label; receives the value + unit. */
-  readonly formatLine?: ((measurement: Measurement) => string) | undefined;
+  /**
+   * Custom formatter for the distance label. Receives the value + unit and
+   * a `defaultFormatter` that applies `format` via `formatMeasurement`, so
+   * callers can wrap the standard rendering — e.g.
+   * `formatLine: (m, fmt) => 'Distance: ' + fmt(m)`.
+   */
+  readonly formatLine?:
+    | ((measurement: Measurement, defaultFormatter: (m: Measurement) => string) => string)
+    | undefined;
 }
 
 /**
@@ -218,6 +225,7 @@ export function createDistanceProvider<E extends object = Record<string, never>>
   options: DistanceProviderOptions<E>,
 ): DecorationProvider<E> {
   const dashed = options.dashed ?? true;
+  const defaultFormatter = (m: Measurement): string => formatMeasurement(m, options.format);
   return ({ annotations, pixelSpacing }) => {
     const pairs = options.pair(annotations);
     const decorations: Decoration[] = [];
@@ -227,8 +235,8 @@ export function createDistanceProvider<E extends object = Record<string, never>>
       const pxDistance = geom.distance(pA, pB);
       const measurement = toPhysicalLength(pxDistance, pixelSpacing, 'mean');
       const text = options.formatLine
-        ? options.formatLine(measurement)
-        : formatMeasurement(measurement, options.format);
+        ? options.formatLine(measurement, defaultFormatter)
+        : defaultFormatter(measurement);
       const pairId = pair.id ?? `${pair.a.id}-${pair.b.id}`;
       const relatedIds = [pair.a.id, pair.b.id] as const;
 
