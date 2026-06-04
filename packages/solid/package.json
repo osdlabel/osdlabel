@@ -71,5 +71,12 @@
     "vite": "catalog:",
     "vite-plugin-solid": "catalog:",
     "vitest": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/osdlabel/osdlabel.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

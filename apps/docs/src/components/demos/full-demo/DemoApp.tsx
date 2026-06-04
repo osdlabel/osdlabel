@@ -35,11 +35,7 @@ export default function DemoApp() {
         />
       }
     >
-      <AnnotateView
-        images={images()}
-        contexts={contexts()}
-        onReconfigure={handleReconfigure}
-      />
+      <AnnotateView images={images()} contexts={contexts()} onReconfigure={handleReconfigure} />
     </Show>
   );
 }

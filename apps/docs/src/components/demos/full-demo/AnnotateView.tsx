@@ -11,11 +11,7 @@ import {
   serialize,
   deserialize,
 } from '@osdlabel/solid';
-import type {
-  AnnotationContextId,
-  AnnotationContext,
-  ImageSource,
-} from '@osdlabel/solid';
+import type { AnnotationContextId, AnnotationContext, ImageSource } from '@osdlabel/solid';
 
 export interface AnnotateViewProps {
   images: readonly ImageSource[];
@@ -130,9 +126,7 @@ function AppContent(props: AnnotateViewProps) {
             'font-size': '13px',
           }}
         >
-          <For each={props.contexts}>
-            {(ctx, i) => <option value={i()}>{ctx.label}</option>}
-          </For>
+          <For each={props.contexts}>{(ctx, i) => <option value={i()}>{ctx.label}</option>}</For>
         </select>
 
         <div style={{ display: 'flex', gap: '8px', 'align-items': 'center' }}>

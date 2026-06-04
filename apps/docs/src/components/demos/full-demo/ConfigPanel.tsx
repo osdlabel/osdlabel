@@ -1,12 +1,7 @@
 import { createStore } from 'solid-js/store';
 import { For, Show, createMemo } from 'solid-js';
 import { createImageId, createAnnotationContextId } from '@osdlabel/solid';
-import type {
-  ImageSource,
-  AnnotationContext,
-  ToolConstraint,
-  ToolType,
-} from '@osdlabel/solid';
+import type { ImageSource, AnnotationContext, ToolConstraint, ToolType } from '@osdlabel/solid';
 import { TOOL_TYPES } from './defaults.js';
 
 interface DraftImage {
@@ -133,14 +128,12 @@ export default function ConfigPanel(props: ConfigPanelProps) {
     if (draft.images.some((i) => i.tileSource.trim() === ''))
       errs.push('All images need a tile source URL.');
     const nonEmptyImg = imgIds.filter(Boolean);
-    if (new Set(nonEmptyImg).size !== nonEmptyImg.length)
-      errs.push('Image IDs must be unique.');
+    if (new Set(nonEmptyImg).size !== nonEmptyImg.length) errs.push('Image IDs must be unique.');
 
     const ctxIds = draft.contexts.map((c) => c.id.trim());
     if (ctxIds.some((id) => id === '')) errs.push('All context IDs must be non-empty.');
     const nonEmptyCtx = ctxIds.filter(Boolean);
-    if (new Set(nonEmptyCtx).size !== nonEmptyCtx.length)
-      errs.push('Context IDs must be unique.');
+    if (new Set(nonEmptyCtx).size !== nonEmptyCtx.length) errs.push('Context IDs must be unique.');
 
     for (const ctx of draft.contexts) {
       const name = ctx.label || ctx.id || '(unnamed)';
@@ -172,7 +165,11 @@ export default function ConfigPanel(props: ConfigPanelProps) {
     });
     const contexts: AnnotationContext[] = draft.contexts.map((d) => {
       const tools: ToolConstraint[] = d.tools.map((t) => {
-        const constraint: { type: ToolType; maxCount?: number; countScope?: 'per-image' | 'per-context' } = {
+        const constraint: {
+          type: ToolType;
+          maxCount?: number;
+          countScope?: 'per-image' | 'per-context';
+        } = {
           type: t.type,
         };
         const trimmed = t.maxCount.trim();
@@ -227,18 +224,28 @@ export default function ConfigPanel(props: ConfigPanelProps) {
         padding: '20px',
       }}
     >
-      <div style={{ 'max-width': '900px', margin: '0 auto', display: 'flex', 'flex-direction': 'column', gap: '20px' }}>
+      <div
+        style={{
+          'max-width': '900px',
+          margin: '0 auto',
+          display: 'flex',
+          'flex-direction': 'column',
+          gap: '20px',
+        }}
+      >
         <header>
           <h1 style={{ margin: '0 0 4px 0', 'font-size': '24px' }}>osdlabel demo</h1>
           <p style={{ margin: '0', color: '#aaa', 'font-size': '13px' }}>
-            Configure your images and annotation contexts, then launch the annotator. The form
-            is pre-filled with sample data &mdash; click Launch to use the defaults.
+            Configure your images and annotation contexts, then launch the annotator. The form is
+            pre-filled with sample data &mdash; click Launch to use the defaults.
           </p>
         </header>
 
         {/* Images section */}
         <section style={cardStyle}>
-          <div style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between' }}>
+          <div
+            style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between' }}
+          >
             <h2 style={{ margin: '0', 'font-size': '16px' }}>Images</h2>
             <button type="button" onClick={addImage} style={buttonStyle}>
               + Add image
@@ -309,7 +316,9 @@ export default function ConfigPanel(props: ConfigPanelProps) {
 
         {/* Contexts section */}
         <section style={cardStyle}>
-          <div style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between' }}>
+          <div
+            style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between' }}
+          >
             <h2 style={{ margin: '0', 'font-size': '16px' }}>Annotation contexts</h2>
             <button type="button" onClick={addContext} style={buttonStyle}>
               + Add context
@@ -355,7 +364,9 @@ export default function ConfigPanel(props: ConfigPanelProps) {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setDraft('contexts', (cs) => cs.filter((_, idx) => idx !== ci()))}
+                    onClick={() =>
+                      setDraft('contexts', (cs) => cs.filter((_, idx) => idx !== ci()))
+                    }
                     style={dangerButtonStyle}
                   >
                     Remove context
@@ -369,7 +380,9 @@ export default function ConfigPanel(props: ConfigPanelProps) {
                   <div style={{ display: 'flex', gap: '10px', 'flex-wrap': 'wrap' }}>
                     <Show
                       when={draft.images.length > 0}
-                      fallback={<span style={{ color: '#777', 'font-size': '11px' }}>Add images first</span>}
+                      fallback={
+                        <span style={{ color: '#777', 'font-size': '11px' }}>Add images first</span>
+                      }
                     >
                       <For each={draft.images}>
                         {(img) => (
@@ -450,9 +463,7 @@ export default function ConfigPanel(props: ConfigPanelProps) {
                               }
                               style={inputStyle}
                             >
-                              <For each={TOOL_TYPES}>
-                                {(t) => <option value={t}>{t}</option>}
-                              </For>
+                              <For each={TOOL_TYPES}>{(t) => <option value={t}>{t}</option>}</For>
                             </select>
                           </label>
                           <label style={labelStyle}>
@@ -462,7 +473,14 @@ export default function ConfigPanel(props: ConfigPanelProps) {
                               min="1"
                               value={tool.maxCount}
                               onInput={(e) =>
-                                setDraft('contexts', ci(), 'tools', ti(), 'maxCount', e.currentTarget.value)
+                                setDraft(
+                                  'contexts',
+                                  ci(),
+                                  'tools',
+                                  ti(),
+                                  'maxCount',
+                                  e.currentTarget.value,
+                                )
                               }
                               style={inputStyle}
                             />

@@ -47,7 +47,14 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<string, n
 export function enableLiveDecorationUpdates<E extends object = Record<string, never>>(
   options: LiveDecorationUpdateOptions<E>,
 ): () => void {
-  const { overlay, getVisibleAnnotations, getPixelSpacing, getProviders, onDecorations, getSelectedAnnotationId } = options;
+  const {
+    overlay,
+    getVisibleAnnotations,
+    getPixelSpacing,
+    getProviders,
+    onDecorations,
+    getSelectedAnnotationId,
+  } = options;
   const canvas = overlay.canvas;
 
   let scheduled = false;

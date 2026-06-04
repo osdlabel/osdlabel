@@ -169,7 +169,7 @@ describe('DecorationLayer', () => {
     ]);
     const el = hostParent.querySelector('[data-decoration-id="z-index-test"]') as HTMLElement;
     expect(el.style.zIndex).toBe('42');
-    
+
     // Update to remove zIndex
     layer.setDecorations([
       {
@@ -181,7 +181,7 @@ describe('DecorationLayer', () => {
       },
     ]);
     expect(el.style.zIndex).toBe('');
-    
+
     layer.destroy();
   });
 

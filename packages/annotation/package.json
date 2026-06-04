@@ -33,5 +33,12 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@standard-schema/spec": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/osdlabel/osdlabel.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
