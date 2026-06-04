@@ -439,10 +439,10 @@ importers:
         specifier: 'catalog:'
         version: 10.4.1
       react:
-        specifier: ^19.2.7
+        specifier: 'catalog:'
         version: 19.2.7
       react-dom:
-        specifier: ^19.2.7
+        specifier: 'catalog:'
         version: 19.2.7(react@19.2.7)
       typescript:
         specifier: 'catalog:'
