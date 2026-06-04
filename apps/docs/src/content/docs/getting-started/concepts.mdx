@@ -70,6 +70,12 @@ Each grid cell contains an OpenSeaDragon viewer with a `FabricOverlay` on top. T
 
 The active cell is in annotation mode; all other cells are in navigation mode.
 
+## Decorations
+
+**Decorations** are derived, read-only visuals — labels, computed measurements (area, perimeter, length, radius), and connector lines — that osdlabel renders on top of your annotations. They are not part of state and are not serialized; they are recomputed from current annotations on every relevant change by _providers_, pure functions you supply via the `decorationProviders` prop on `<Annotator>`. Built-in providers cover the common cases (per-annotation labels, measurements, distance between pairs), and you can compose multiple providers or write your own. Pair decorations with `defaultPixelSpacing` (or per-image `ImageSource.pixelSpacing`) to render measurements in physical units like millimeters instead of pixels.
+
+See the [Decorations guide](/osdlabel/guides/decorations/) for the full mental model and the [Measurements guide](/osdlabel/guides/measurements/) for pixel-spacing calibration.
+
 ## State management
 
 osdlabel uses three state slices, managed by framework-agnostic pure reducers in the `osdlabel` core package:

@@ -35,6 +35,8 @@ const geometry = {
 };
 ```
 
+Decoration anchor points (`TextDecoration.anchor`, `LineDecoration.start` / `end`) are also stored in image-space. `TextDecoration.offset` is a screen-space pixel offset applied after the transform, so text labels remain a fixed distance from their anchor regardless of zoom. See the [Decorations guide](/osdlabel/guides/decorations/) for details.
+
 ## OSD Viewport-space
 
 - **Origin:** Top-left of the viewport

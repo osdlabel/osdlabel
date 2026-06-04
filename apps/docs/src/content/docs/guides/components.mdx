@@ -37,6 +37,8 @@ import { AnnotatorProvider } from '@osdlabel/solid';
 </AnnotatorProvider>;
 ```
 
+Both `Annotator` and `AnnotatorProvider` accept two decoration-related props: `decorationProviders` (a `readonly DecorationProvider<OsdFields>[]` composed in array order) and `defaultPixelSpacing` (a fallback `PixelSpacing` used when an `ImageSource` does not specify its own). See the [Decorations](/osdlabel/guides/decorations/) and [Measurements](/osdlabel/guides/measurements/) guides for usage.
+
 ## Viewers & Grid
 
 ### ViewerCell

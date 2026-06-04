@@ -20,10 +20,13 @@ const pageOrder = [
   'guides/serialization.mdx',
   'guides/keyboard-shortcuts.mdx',
   'guides/coordinate-systems.mdx',
+  'guides/decorations.mdx',
+  'guides/measurements.mdx',
   'guides/osd-fabric-integration.md',
   'examples/minimal-viewer.mdx',
   'examples/multiple-contexts.mdx',
   'examples/custom-toolbar.mdx',
+  'examples/decorations.mdx',
 ];
 
 function stripFrontmatter(content) {

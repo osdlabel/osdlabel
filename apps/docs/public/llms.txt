@@ -216,6 +216,12 @@ Each grid cell contains an OpenSeaDragon viewer with a `FabricOverlay` on top. T
 
 The active cell is in annotation mode; all other cells are in navigation mode.
 
+## Decorations
+
+**Decorations** are derived, read-only visuals — labels, computed measurements (area, perimeter, length, radius), and connector lines — that osdlabel renders on top of your annotations. They are not part of state and are not serialized; they are recomputed from current annotations on every relevant change by _providers_, pure functions you supply via the `decorationProviders` prop on `<Annotator>`. Built-in providers cover the common cases (per-annotation labels, measurements, distance between pairs), and you can compose multiple providers or write your own. Pair decorations with `defaultPixelSpacing` (or per-image `ImageSource.pixelSpacing`) to render measurements in physical units like millimeters instead of pixels.
+
+See the [Decorations guide](/osdlabel/guides/decorations/) for the full mental model and the [Measurements guide](/osdlabel/guides/measurements/) for pixel-spacing calibration.
+
 ## State management
 
 osdlabel uses three state slices, managed by framework-agnostic pure reducers in the `osdlabel` core package:
@@ -276,6 +282,15 @@ Fabric.js annotation tools and utilities, completely **SolidJS-agnostic and OSD-
 - Contains all tool implementations (`RectangleTool`, `CircleTool`, `FreeHandPathTool`, etc.).
 - Defines the `ToolOverlay` interface and `FabricFields` extension interface.
 - Depends on `@osdlabel/annotation`, `@osdlabel/annotation-context`, `@osdlabel/viewer-api`, and `fabric`.
+
+### `@osdlabel/decoration`
+
+Declarative annotation decorations and calibrated geometry math, with **zero framework dependencies**.
+
+- Decoration data model (`TextDecoration`, `LineDecoration`), provider contract (`DecorationProvider<E>`), and `composeProviders`.
+- Built-in providers (`createMeasurementProvider`, `createLabelProvider`, `createDistanceProvider`) plus the `withSelectionEmphasis` wrapper.
+- Geometry math (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`) and physical-unit utilities (`toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`).
+- Depends only on `@osdlabel/annotation` and `@osdlabel/viewer-api` (for `PixelSpacing`). Re-exported in full by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`. See the [Decorations guide](/osdlabel/guides/decorations/).
 
 ### `@osdlabel/fabric-osd`
 
@@ -364,6 +379,8 @@ The `AnnotatorProvider` is the context provider that manages all state stores. U
   <StatusBar imageId={activeImageId()} />
 </AnnotatorProvider>;
 ```
+
+Both `Annotator` and `AnnotatorProvider` accept two decoration-related props: `decorationProviders` (a `readonly DecorationProvider<OsdFields>[]` composed in array order) and `defaultPixelSpacing` (a fallback `PixelSpacing` used when an `ImageSource` does not specify its own). See the [Decorations](/osdlabel/guides/decorations/) and [Measurements](/osdlabel/guides/measurements/) guides for usage.
 
 ## Viewers & Grid
 
@@ -1104,6 +1121,8 @@ const geometry = {
 };
 ```
 
+Decoration anchor points (`TextDecoration.anchor`, `LineDecoration.start` / `end`) are also stored in image-space. `TextDecoration.offset` is a screen-space pixel offset applied after the transform, so text labels remain a fixed distance from their anchor regardless of zoom. See the [Decorations guide](/osdlabel/guides/decorations/) for details.
+
 ## OSD Viewport-space
 
 - **Origin:** Top-left of the viewport
@@ -1159,6 +1178,554 @@ Annotations are always stored in image-space pixels. The overlay's `viewportTran
 - Annotations are resolution-independent
 - No coordinate recalculation needed on zoom/pan
 - Serialized data is always in the same coordinate system regardless of viewport state
+
+---
+
+# Decorations
+
+**Decorations** are derived, read-only visuals that osdlabel renders on top of your annotations: per-annotation text labels, computed measurements (area, perimeter, length, radius), and connector lines between annotation pairs. They are not part of annotation state and are never serialized — they are recomputed from current state on every relevant change.
+
+You drive them by passing one or more **providers** (pure functions) to `<Annotator>` via the `decorationProviders` prop. The library ships built-in providers for the common cases and lets you compose them or write your own.
+
+This guide is framework-agnostic — examples use `@osdlabel/solid` but the API is identical in `@osdlabel/react`.
+
+## Mental model
+
+### Derived, not stored
+
+A provider is a pure function of the form:
+
+```ts
+type DecorationProvider<E> = (ctx: DecorationContext<E>) => readonly Decoration[];
+
+interface DecorationContext<E> {
+  readonly annotations: readonly Annotation<E>[];
+  readonly pixelSpacing?: PixelSpacing;
+  readonly selectedAnnotationId: AnnotationId | null;
+}
+```
+
+The library calls your providers on every relevant change — annotation added/edited/deleted, selection changed, drag tick — and reconciles the result into the DOM and the Fabric canvas. Providers must be deterministic and side-effect-free; nothing they return is persisted.
+
+### Two render targets
+
+A `Decoration` is a discriminated union:
+
+- **`TextDecoration`** renders as an absolutely-positioned `<div>` in a host layer over the Fabric canvas. Text stays upright, crisp, and constant screen-size at any zoom / rotation / flip — there is no counter-transform math because the host layer is in screen-space, not image-space. Position is `imageToScreen(anchor) + offset` recomputed on every frame.
+- **`LineDecoration`** renders as a non-interactive Fabric `Line` on the overlay canvas, in image-space. It follows pan / zoom / rotate / flip via the existing viewport transform at zero per-frame cost. Stroke width is `strokeUniform` so dashed patterns look the same at all zooms.
+
+You don't choose the render target by hand — picking `type: 'text'` vs `type: 'line'` does it for you.
+
+### Composition order
+
+`decorationProviders` is an ordered array. The library composes providers left-to-right and concatenates their outputs. Order matters in two ways:
+
+- **Paint order on the Fabric canvas** — later providers' line decorations are added later, so they paint on top.
+- **DOM order in the text layer** — later text decorations are appended later. Within a stacking tie, `zIndex` on `TextDecorationStyle` breaks it.
+
+## Quick start
+
+Drop a single built-in provider on `<Annotator>` to render each annotation's `label` field at its centroid:
+
+```tsx
+
+<Annotator images={images} contexts={contexts} decorationProviders={[createLabelProvider()]} />;
+```
+
+To also display a circle's area and radius next to each circle:
+
+```tsx
+
+<Annotator
+  images={images}
+  contexts={contexts}
+  decorationProviders={[
+    createLabelProvider(),
+    createMeasurementProvider({ area: true, radius: true }),
+  ]}
+/>;
+```
+
+You can see all three built-in providers wired up live on the [Interactive Demo](/osdlabel/demo/) page.
+
+## Built-in providers
+
+### createLabelProvider
+
+Renders each annotation's `label` field as a text decoration. Annotations without a label are skipped.
+
+```tsx
+
+const labels = createLabelProvider({
+  // Optional style applied to every label.
+  style: { color: '#fff', background: 'rgba(0,0,0,0.6)' },
+  // Optional custom text extractor; default reads `annotation.label`.
+  extract: (annotation) => annotation.label?.toUpperCase(),
+});
+```
+
+| Option    | Type                                  | Default          | Description                                                      |
+| --------- | ------------------------------------- | ---------------- | ---------------------------------------------------------------- |
+| `style`   | `TextDecorationStyle`                 | library defaults | Style applied to every emitted label.                            |
+| `extract` | `(annotation) => string \| undefined` | `(a) => a.label` | Custom text extractor. Return `undefined` to skip an annotation. |
+
+Labels are anchored at the annotation's geometric centroid with `placement: 'center'`.
+
+### createMeasurementProvider
+
+Renders one text label per annotation containing the requested metrics, formatted with `pixelSpacing` when available. Each flag toggles which geometry types contribute:
+
+| Flag        | Applies to                 | Output unit                                 |
+| ----------- | -------------------------- | ------------------------------------------- |
+| `area`      | rectangle, circle, polygon | `px²` or `<unit>²` if `pixelSpacing` is set |
+| `perimeter` | rectangle, circle, polygon | `px` or `<unit>`                            |
+| `length`    | line, polyline             | `px` or `<unit>`                            |
+| `radius`    | circle                     | `px` or `<unit>`                            |
+
+```tsx
+
+const measurements = createMeasurementProvider({
+  area: true,
+  perimeter: true,
+  radius: true,
+  // Optional: format options forwarded to formatMeasurement.
+  format: { precision: 1 },
+  // Optional: full control over each rendered line.
+  formatLine: (label, m) => `${label} = ${m.value.toFixed(2)} ${m.unit}`,
+  style: { fontSize: 11 },
+});
+```
+
+A measurement label is anchored at the annotation's centroid by default. See the [Measurements guide](/osdlabel/guides/measurements/) for how to render values in mm / µm / other physical units.
+
+### createDistanceProvider
+
+Emits a dashed connector line and a midpoint distance label for each caller-supplied pair of annotations. The library does not invent pairing semantics — you supply a `pair: (annotations) => AnnotationPair[]` function and the provider produces one line + one label per pair.
+
+```tsx
+
+const distances = createDistanceProvider({
+  // Pair every two consecutive point annotations.
+  pair: (annotations) => {
+    const points = annotations.filter((a) => a.geometry.type === 'point');
+    const pairs = [];
+    for (let i = 0; i < points.length - 1; i += 2) {
+      pairs.push({ a: points[i]!, b: points[i + 1]! });
+    }
+    return pairs;
+  },
+  dashed: true, // default
+  lineStyle: { stroke: '#ffd700', strokeWidth: 1.5 },
+  textStyle: { background: 'rgba(0,0,0,0.7)' },
+  // Optional formatter; the second arg is the library's default formatter,
+  // so you can prefix without re-implementing precision/unit handling.
+  formatLine: (m, defaultFormatter) => `d = ${defaultFormatter(m)}`,
+});
+```
+
+| Option       | Type                                | Default               | Description                                            |
+| ------------ | ----------------------------------- | --------------------- | ------------------------------------------------------ |
+| `pair`       | `(annotations) => AnnotationPair[]` | (required)            | Produces the pairs to connect.                         |
+| `dashed`     | `boolean`                           | `true`                | Whether the connector is dashed.                       |
+| `lineStyle`  | `LineDecorationStyle`               | library defaults      | Stroke / width / opacity for the connector.            |
+| `textStyle`  | `TextDecorationStyle`               | library defaults      | Style for the midpoint distance label.                 |
+| `format`     | `FormatMeasurementOptions`          | `{ precision: 2 }`    | Forwarded to `formatMeasurement` for the default text. |
+| `formatLine` | `(m, defaultFormatter) => string`   | `defaultFormatter(m)` | Wrap or replace the default text.                      |
+
+Distances are computed between each annotation's geometric centroid and rendered via [`distance`](/osdlabel/api/reference/osdlabel/functions/distance/), so they respect `pixelSpacing` automatically.
+
+## Composing providers
+
+Most consumers compose providers with the `decorationProviders` array — the library treats it as ordered left-to-right:
+
+```tsx
+<Annotator
+  decorationProviders={[
+    createLabelProvider(),
+    createMeasurementProvider({ area: true, perimeter: true }),
+    createDistanceProvider({ pair: pairConsecutivePoints }),
+  ]}
+/>
+```
+
+For custom shells that bypass `<Annotator>` (e.g. integrations into a non-standard host), use `composeProviders` to fold an array into a single provider you can pass to `enableLiveDecorationUpdates` or invoke directly:
+
+```ts
+
+const all = composeProviders([labels, measurements, distances]);
+const decorations = all(ctx);
+```
+
+## Selection emphasis
+
+When a scene has many overlapping labels, the user's currently-selected annotation can be hard to read. `withSelectionEmphasis` wraps any provider and merges style overrides onto decorations whose `relatedAnnotationIds` includes the current `selectedAnnotationId`:
+
+```tsx
+
+const emphasized = withSelectionEmphasis(createMeasurementProvider({ area: true, radius: true }), {
+  selectedTextStyle: {
+    zIndex: 10,
+    background: 'rgba(33, 150, 243, 0.9)',
+    color: '#fff',
+  },
+  selectedLineStyle: { stroke: '#2196f3', strokeWidth: 3 },
+});
+```
+
+Wrap each provider you want emphasized — the wrapper is cheap, identity-preserving (decorations not related to the selection keep their original reference), and falls back to the base output when no annotation is selected.
+
+This is deliberately a small, deterministic mechanism — a CSS `z-index` lift plus style merge — instead of expensive layout-based collision avoidance. For very dense scenes where this isn't enough, write your own provider that filters or repositions labels by priority.
+
+## Physical units
+
+If your image carries calibration metadata (DICOM `PixelSpacing`, microscopy scale, satellite GSD), the measurement providers can render mm, µm, or whatever physical unit you set:
+
+```tsx
+const images = [
+  {
+    id: createImageId('ct-slice-42'),
+    tileSource: '...',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' }, // DICOM-style
+  },
+];
+
+<Annotator
+  images={images}
+  contexts={contexts}
+  defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }} // fallback for uncalibrated images
+  decorationProviders={[createMeasurementProvider({ area: true, perimeter: true, length: true })]}
+/>;
+```
+
+The full unit story — anisotropic spacing (x ≠ y), `SpacingAxis`, custom formatting, DICOM patterns — lives in the [Measurements guide](/osdlabel/guides/measurements/).
+
+## Writing a custom provider
+
+The provider signature is:
+
+```ts
+type DecorationProvider<E extends object = Record<string, never>> = (
+  ctx: DecorationContext<E>,
+) => readonly Decoration[];
+```
+
+You return an array of `TextDecoration` and / or `LineDecoration` values. Three rules:
+
+1. **Be pure.** No `setState`, no DOM, no network. The library may call your provider many times per second during a drag.
+2. **Use stable IDs.** Return the same `Decoration.id` across recomputations for the same logical decoration (e.g. `` `bbox:${ann.id}` ``). The renderer diffs by id — stable ids let it update DOM/Fabric in place instead of recreating nodes.
+3. **Set `relatedAnnotationIds`.** This drives lifecycle (so decorations are cleaned up when their annotations are deleted) and powers `withSelectionEmphasis`. For per-annotation decorations, it's `[ann.id]`; for relational decorations it's the participating annotation ids.
+
+The decoration package also exports pure geometry utilities you can use to build anchors and derived values: `area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`. See [`@osdlabel/decoration`](/osdlabel/api/reference/osdlabel/) for full signatures.
+
+### Example: bounding-box dimensions
+
+Render `W × H` at the top-right corner of each rectangle / polygon:
+
+```ts
+
+export const bboxDimensions: DecorationProvider = ({ annotations }) => {
+  const out: TextDecoration[] = [];
+  for (const ann of annotations) {
+    if (ann.geometry.type !== 'rectangle' && ann.geometry.type !== 'polygon') {
+      continue;
+    }
+    const { min, max } = boundingBox(ann.geometry);
+    out.push({
+      id: `bbox:${ann.id}`,
+      type: 'text',
+      relatedAnnotationIds: [ann.id],
+      text: `${Math.round(max.x - min.x)} × ${Math.round(max.y - min.y)}`,
+      anchor: { x: max.x, y: min.y },
+      offset: { x: 4, y: -4 },
+      placement: 'left',
+      style: { fontSize: 10, background: 'rgba(0,0,0,0.6)' },
+    });
+  }
+  return out;
+};
+```
+
+### Example: connectors between rectangle centroids
+
+Draw a dashed line from each rectangle's centroid to the next, in document order:
+
+```ts
+
+export const rectanglePath: DecorationProvider = ({ annotations }) => {
+  const rects = annotations.filter((a) => a.geometry.type === 'rectangle');
+  const out: LineDecoration[] = [];
+  for (let i = 0; i < rects.length - 1; i++) {
+    const a = rects[i]!;
+    const b = rects[i + 1]!;
+    out.push({
+      id: `rect-path:${a.id}-${b.id}`,
+      type: 'line',
+      relatedAnnotationIds: [a.id, b.id],
+      start: centroid(a.geometry),
+      end: centroid(b.geometry),
+      dashed: true,
+      style: { stroke: '#888', strokeWidth: 1, opacity: 0.7 },
+    });
+  }
+  return out;
+};
+```
+
+## TextDecoration anatomy
+
+| Field                  | Type                       | Notes                                                                                          |
+| ---------------------- | -------------------------- | ---------------------------------------------------------------------------------------------- |
+| `id`                   | `string`                   | Stable across recomputations.                                                                  |
+| `type`                 | `'text'`                   | Discriminator.                                                                                 |
+| `text`                 | `string`                   | Newlines (`\n`) are honored (`white-space: pre`).                                              |
+| `anchor`               | `Point`                    | **Image-space**. Transformed by `imageToScreen` on every frame.                                |
+| `offset`               | `{ x: number; y: number }` | **Screen-space pixels** added to the anchor's screen position.                                 |
+| `placement`            | `TextPlacement`            | How the element sits relative to its anchor: `'top-left'` (default), `'center'`, `'top'`, etc. |
+| `style`                | `TextDecorationStyle`      | See style fields below.                                                                        |
+| `relatedAnnotationIds` | `readonly AnnotationId[]`  | Drives lifecycle and selection emphasis.                                                       |
+
+**`offset` vs. `placement`:** placement is the _semantic_ anchor (where on the element's box the anchor point lands); offset is a pixel-precise _nudge_ applied after that. Use `placement: 'center'` to drop a label in the middle of a shape; use `offset: { x: 8, y: 0 }` to push a label 8 px right of its anchor.
+
+**Style fields:** `color`, `fontSize` (in CSS px — text never shrinks with zoom), `fontFamily`, `fontWeight`, `background`, `padding`, `borderRadius`, `className` (escape hatch for fully-custom CSS), `zIndex` (breaks stacking ties within the text layer).
+
+## LineDecoration anatomy
+
+| Field                  | Type                      | Notes                                                                    |
+| ---------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `id`                   | `string`                  | Stable across recomputations.                                            |
+| `type`                 | `'line'`                  | Discriminator.                                                           |
+| `start`, `end`         | `Point`                   | **Image-space**. The line pans / zooms / rotates / flips with the image. |
+| `dashed`               | `boolean`                 | Fixed screen-space dash pattern; identical at all zooms.                 |
+| `style`                | `LineDecorationStyle`     | `stroke`, `strokeWidth` (screen-px, `strokeUniform`), `opacity`.         |
+| `relatedAnnotationIds` | `readonly AnnotationId[]` | Drives lifecycle and selection emphasis.                                 |
+
+A `LineDecoration` is rendered as a non-interactive Fabric `Line` on the overlay canvas. If you want users to be able to select / move / edit the line, draw a line **annotation** instead (annotations are state and serialize; decorations don't).
+
+## Live updates during drag
+
+When the user moves, scales, or rotates an annotation, providers are re-run against the live Fabric geometry on every frame (throttled to `requestAnimationFrame`, capped at 60 fps). Labels and connector lines track the shape smoothly instead of snapping only on commit.
+
+This wiring is handled automatically inside `Annotator` / `ViewerCell` — there's nothing you need to do.
+
+For custom shells that bypass the built-in `ViewerCell`, [`enableLiveDecorationUpdates`](/osdlabel/api/reference/osdlabel/functions/enableLiveDecorationUpdates/) is the same helper the framework integrations use.
+
+## Performance notes
+
+- **Providers run on every relevant change** — annotation list mutations, selection changes, drag ticks. Keep them cheap; precompute O(n²) data outside the provider and memoize by annotation identity.
+- **Stable IDs unlock in-place DOM and Fabric updates.** Diff-by-id is the renderer's only mechanism for reusing nodes; an unstable id (e.g. `Math.random()`) forces a recreate every frame.
+- **Identity-preserving transforms.** When you wrap a provider (like `withSelectionEmphasis` does), preserve identity of unchanged items. The library uses a `findIndex` + lazy-copy pattern; if you write similar wrappers, follow the same shape so downstream memos don't bust unnecessarily.
+- **`withSelectionEmphasis` beats parallel selected/unselected providers.** A wrapper has one allocation when needed; two providers compute their full output sets every frame.
+
+## See also
+
+- [Measurements](/osdlabel/guides/measurements/) — pixel-spacing calibration and physical-unit rendering
+- [Decorations example](/osdlabel/examples/decorations/) — full wiring excerpted from the dev app
+- [Coordinate Systems](/osdlabel/guides/coordinate-systems/) — refresher on image-space vs. screen-space
+- [Components](/osdlabel/guides/components/) — `Annotator` / `AnnotatorProvider` prop reference
+- [Interactive Demo](/osdlabel/demo/) — see all three built-in providers running live
+- [`@osdlabel/decoration` API reference](/osdlabel/api/reference/osdlabel/) — full TypeDoc for every symbol
+
+---
+
+# Measurements
+
+When your images carry calibration metadata — DICOM `PixelSpacing`, microscopy scale bars, satellite ground-sample distance — the [decoration system](/osdlabel/guides/decorations/) can render measurements in physical units instead of pixels. This guide covers where to set calibration, how anisotropic spacing is handled, and the conversion / formatting functions you can call from custom providers.
+
+Examples use `@osdlabel/solid`; the API is identical in `@osdlabel/react`.
+
+## Overview
+
+A `PixelSpacing` is a per-axis, unit-tagged conversion factor:
+
+```ts
+interface PixelSpacing {
+  readonly x: number; // physical units per horizontal pixel
+  readonly y: number; // physical units per vertical pixel
+  readonly unit: string; // e.g. 'mm', 'µm', 'cm'
+}
+```
+
+The built-in [`createMeasurementProvider`](/osdlabel/guides/decorations/#createmeasurementprovider) and [`createDistanceProvider`](/osdlabel/guides/decorations/#createdistanceprovider) automatically convert their outputs using whichever spacing applies to the current image; you only need to supply the spacing somewhere.
+
+The result of a conversion is a `Measurement`:
+
+```ts
+interface Measurement {
+  readonly value: number;
+  readonly unit: string;
+}
+```
+
+## Setting pixel spacing
+
+### Per-image (preferred)
+
+`ImageSource.pixelSpacing` is the source of truth for a single image. This is the right place to put data extracted from DICOM headers or other per-image calibration:
+
+```ts
+
+const images: ImageSource[] = [
+  {
+    id: createImageId('ct-slice-42'),
+    tileSource: 'https://example.com/ct-slice-42.dzi',
+    label: 'CT slice 42',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' },
+  },
+  {
+    id: createImageId('ct-slice-43'),
+    tileSource: 'https://example.com/ct-slice-43.dzi',
+    label: 'CT slice 43',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' },
+  },
+];
+```
+
+### Annotator-level fallback
+
+`defaultPixelSpacing` on `<Annotator>` (or `<AnnotatorProvider>`) covers images that don't specify their own. It's useful for homogeneous datasets where one calibration applies to everything, or for dev / demo setups:
+
+```tsx
+<Annotator
+  images={images}
+  contexts={contexts}
+  defaultPixelSpacing={{ x: 0.5, y: 0.5, unit: 'mm' }}
+  decorationProviders={[createMeasurementProvider({ area: true, perimeter: true })]}
+/>
+```
+
+### Resolution order
+
+For any given annotation on any given image, the spacing resolves like this:
+
+1. `imageSource.pixelSpacing` if set on the image the annotation belongs to.
+2. Otherwise, `defaultPixelSpacing` if passed to `<Annotator>`.
+3. Otherwise, no conversion — measurements are reported in raw pixels with unit `'px'` (`'px²'` for area).
+
+This means you can mix calibrated and uncalibrated images in the same grid without crashes; uncalibrated cells fall back to pixel units.
+
+## Anisotropic spacing
+
+Real-world images often have `x ≠ y` — anisotropic scans, oblique microscopy, satellite imagery with different along-track and cross-track resolution. `PixelSpacing` carries both axes explicitly. How they're consumed depends on the measurement:
+
+- **Lengths** along a known axis use that axis's factor.
+- **Lengths** at arbitrary angles use the mean of the two factors (a reasonable approximation; for high-precision angle-aware work, write a custom provider that decomposes the segment).
+- **Areas** always use `x · y` — physically correct regardless of anisotropy.
+
+The `SpacingAxis` type makes the choice explicit when you call the conversion functions directly:
+
+```ts
+type SpacingAxis = 'x' | 'y' | 'mean';
+```
+
+## Conversion functions
+
+### `toPhysicalLength(pixels, spacing, axis?)`
+
+Returns a `Measurement`. `axis` defaults to `'mean'`. If `spacing` is `undefined`, returns `{ value: pixels, unit: 'px' }`.
+
+```ts
+
+const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
+
+toPhysicalLength(200, spacing); // { value: 90,  unit: 'mm' }   — mean of x and y
+toPhysicalLength(200, spacing, 'x'); // { value: 100, unit: 'mm' }
+toPhysicalLength(200, spacing, 'y'); // { value: 80,  unit: 'mm' }
+toPhysicalLength(200, undefined); // { value: 200, unit: 'px' }
+```
+
+### `toPhysicalArea(pixelsSquared, spacing)`
+
+Always uses `x · y`. If `spacing` is `undefined`, returns `{ value: pixelsSquared, unit: 'px²' }`.
+
+```ts
+
+const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
+
+toPhysicalArea(20000, spacing); // { value: 4000, unit: 'mm²' }   — 20000 · 0.5 · 0.4
+toPhysicalArea(20000, undefined); // { value: 20000, unit: 'px²' }
+```
+
+## Formatting
+
+`formatMeasurement` renders a `Measurement` to a string. Defaults are sensible (2 decimal places, single-space separator); both knobs are tunable:
+
+```ts
+
+formatMeasurement({ value: 12.34567, unit: 'mm' });
+// '12.35 mm'
+
+formatMeasurement({ value: 12.34567, unit: 'mm' }, { precision: 1 });
+// '12.3 mm'
+
+formatMeasurement({ value: 5, unit: 'px' }, { unitSeparator: '' });
+// '5.00px'
+```
+
+Both built-in providers accept a `format` option that is forwarded to `formatMeasurement`, and a `formatLine` callback for full control. See [`createMeasurementProvider`](/osdlabel/guides/decorations/#createmeasurementprovider) and [`createDistanceProvider`](/osdlabel/guides/decorations/#createdistanceprovider) for the per-provider options.
+
+## Worked example: end-to-end DICOM calibration
+
+A complete setup for a CT-style image with isotropic 0.488 mm spacing, rendering area / perimeter / radius / length at 1-decimal precision:
+
+```tsx
+
+  Annotator,
+  createAnnotationContextId,
+  createImageId,
+  createMeasurementProvider,
+} from '@osdlabel/solid';
+
+const images: ImageSource[] = [
+  {
+    id: createImageId('ct-slice-42'),
+    tileSource: 'https://example.com/ct-slice-42.dzi',
+    label: 'CT slice 42 (0.488 mm)',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' },
+  },
+];
+
+const contexts: AnnotationContext[] = [
+  {
+    id: createAnnotationContextId('findings'),
+    label: 'Findings',
+    tools: [{ type: 'circle' }, { type: 'rectangle' }, { type: 'polyline' }, { type: 'line' }],
+  },
+];
+
+const measurements = createMeasurementProvider({
+  area: true,
+  perimeter: true,
+  radius: true,
+  length: true,
+  format: { precision: 1 },
+});
+
+function App() {
+  return (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <Annotator images={images} contexts={contexts} decorationProviders={[measurements]} />
+    </div>
+  );
+}
+
+render(() => <App />, document.getElementById('app')!);
+```
+
+A circle of radius 50 px drawn on this image renders as something like:
+
+```
+r: 24.4 mm
+A: 1869.8 mm²
+P: 153.3 mm
+```
+
+If you later open a second image that lacks `pixelSpacing`, decorations on that image fall back to `px` / `px²` without any code change.
+
+## See also
+
+- [Decorations](/osdlabel/guides/decorations/) — provider model, composition, selection emphasis
+- [Decorations example](/osdlabel/examples/decorations/) — full wiring with measurements
+- [`PixelSpacing` API reference](/osdlabel/api/reference/osdlabel/) — full TypeDoc for `PixelSpacing`, `Measurement`, `SpacingAxis`, `toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`
 
 ---
 
@@ -1760,3 +2327,132 @@ render(() => <App />, document.getElementById('app')!);
 - Access state via `useAnnotator()` and `useConstraints()`
 - The `constraintStatus()` accessor provides reactive count information
 - Set contexts and assign images in the content component (inside the provider)
+
+---
+
+# Decorations & Measurements
+
+A full real-world wiring of the decoration system: three built-in providers (measurements, labels, distance lines), each wrapped with `withSelectionEmphasis` so the selected annotation's labels lift visually above the rest. This is exactly what the dev app uses; you can see it running on the [Interactive Demo](/osdlabel/demo/) page.
+
+Examples use `@osdlabel/solid`; the React equivalents (`@osdlabel/react`) have identical APIs.
+
+## Full wiring
+
+```tsx
+
+  AnnotatorProvider,
+  createDistanceProvider,
+  createLabelProvider,
+  createMeasurementProvider,
+  withSelectionEmphasis,
+} from '@osdlabel/solid';
+
+const selectedTextStyle = {
+  zIndex: 10,
+  background: 'rgba(33, 150, 243, 0.9)',
+  color: '#fff',
+};
+const selectedLineStyle = { stroke: '#2196f3', strokeWidth: 3 };
+
+function App() {
+  return (
+    <AnnotatorProvider
+      defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}
+      decorationProviders={[
+        withSelectionEmphasis(
+          createMeasurementProvider({
+            area: true,
+            perimeter: true,
+            length: true,
+            radius: true,
+          }),
+          { selectedTextStyle, selectedLineStyle },
+        ),
+        withSelectionEmphasis(createLabelProvider(), { selectedTextStyle }),
+        withSelectionEmphasis(
+          createDistanceProvider({
+            // Pair every two consecutive point annotations.
+            pair: (annotations) => {
+              const points = annotations.filter((a) => a.geometry.type === 'point');
+              const pairs = [];
+              for (let i = 0; i < points.length - 1; i += 2) {
+                pairs.push({ a: points[i]!, b: points[i + 1]! });
+              }
+              return pairs;
+            },
+          }),
+          { selectedTextStyle, selectedLineStyle },
+        ),
+      ]}
+    >
+      <AppContent />
+    </AnnotatorProvider>
+  );
+}
+```
+
+### What this produces
+
+- Every rectangle / circle / polygon gets an area + perimeter label at its centroid; every circle also gets a radius.
+- Every line / polyline gets a length label.
+- Every annotation with a non-empty `label` field gets that text rendered at its centroid.
+- Every consecutive pair of point annotations gets a dashed connector line plus a midpoint distance label.
+- The currently-selected annotation's labels and connectors are tinted blue, thickened, and lifted (`zIndex: 10`) above the crowd.
+
+`defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}` is the dev-app default: report measurements in pixels. Swap it for mm to render physical units instead — see the next variant.
+
+## Variant: render in millimetres
+
+Two ways to switch units, used together or separately:
+
+**Per-image** (preferred when calibration varies across the dataset):
+
+```tsx
+const images = [
+  {
+    id: createImageId('ct-slice-42'),
+    tileSource: 'https://example.com/ct-slice-42.dzi',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' }, // DICOM-style
+  },
+];
+
+<AnnotatorProvider
+  images={images}
+  // ...
+>
+```
+
+**Annotator-level fallback** (homogeneous datasets):
+
+```tsx
+<AnnotatorProvider
+  defaultPixelSpacing={{ x: 0.5, y: 0.5, unit: 'mm' }}
+  // ...
+>
+```
+
+Per-image always wins over the default. Images with no `pixelSpacing` and no default fall back to raw pixels — `px` for lengths and `px²` for areas — so you can mix calibrated and uncalibrated images in one grid without crashes.
+
+See the [Measurements guide](/osdlabel/guides/measurements/) for anisotropic spacing (`x ≠ y`), `SpacingAxis`, and `formatMeasurement` precision controls.
+
+## Variant: pair by annotation label
+
+The dev app pairs consecutive points by document order. For a more semantic pairing — e.g. pair an annotation labelled `"start"` with one labelled `"end"` — replace the `pair` function:
+
+```tsx
+createDistanceProvider({
+  pair: (annotations) => {
+    const start = annotations.find((a) => a.label === 'start');
+    const end = annotations.find((a) => a.label === 'end');
+    return start && end ? [{ a: start, b: end, id: 'start-end' }] : [];
+  },
+});
+```
+
+The optional `id` on `AnnotationPair` gives the resulting line + label decorations a stable pair id (`distance-line:start-end`, `distance-text:start-end`). Use it when the default `${a.id}-${b.id}` would change across runs (e.g. when annotation ids are regenerated on reload).
+
+## See also
+
+- [Decorations](/osdlabel/guides/decorations/) — the full mental model and provider contract
+- [Measurements](/osdlabel/guides/measurements/) — pixel-spacing calibration and physical-unit rendering
+- [Interactive Demo](/osdlabel/demo/) — this wiring running live

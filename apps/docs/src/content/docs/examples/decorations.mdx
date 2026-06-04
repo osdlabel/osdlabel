@@ -1,0 +1,129 @@
+---
+title: Decorations & Measurements
+description: Wiring built-in decoration providers with selection emphasis and pixel-spacing calibration
+---
+
+A full real-world wiring of the decoration system: three built-in providers (measurements, labels, distance lines), each wrapped with `withSelectionEmphasis` so the selected annotation's labels lift visually above the rest. This is exactly what the dev app uses; you can see it running on the [Interactive Demo](/osdlabel/demo/) page.
+
+Examples use `@osdlabel/solid`; the React equivalents (`@osdlabel/react`) have identical APIs.
+
+## Full wiring
+
+```tsx
+import {
+  AnnotatorProvider,
+  createDistanceProvider,
+  createLabelProvider,
+  createMeasurementProvider,
+  withSelectionEmphasis,
+} from '@osdlabel/solid';
+
+const selectedTextStyle = {
+  zIndex: 10,
+  background: 'rgba(33, 150, 243, 0.9)',
+  color: '#fff',
+};
+const selectedLineStyle = { stroke: '#2196f3', strokeWidth: 3 };
+
+function App() {
+  return (
+    <AnnotatorProvider
+      defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}
+      decorationProviders={[
+        withSelectionEmphasis(
+          createMeasurementProvider({
+            area: true,
+            perimeter: true,
+            length: true,
+            radius: true,
+          }),
+          { selectedTextStyle, selectedLineStyle },
+        ),
+        withSelectionEmphasis(createLabelProvider(), { selectedTextStyle }),
+        withSelectionEmphasis(
+          createDistanceProvider({
+            // Pair every two consecutive point annotations.
+            pair: (annotations) => {
+              const points = annotations.filter((a) => a.geometry.type === 'point');
+              const pairs = [];
+              for (let i = 0; i < points.length - 1; i += 2) {
+                pairs.push({ a: points[i]!, b: points[i + 1]! });
+              }
+              return pairs;
+            },
+          }),
+          { selectedTextStyle, selectedLineStyle },
+        ),
+      ]}
+    >
+      <AppContent />
+    </AnnotatorProvider>
+  );
+}
+```
+
+### What this produces
+
+- Every rectangle / circle / polygon gets an area + perimeter label at its centroid; every circle also gets a radius.
+- Every line / polyline gets a length label.
+- Every annotation with a non-empty `label` field gets that text rendered at its centroid.
+- Every consecutive pair of point annotations gets a dashed connector line plus a midpoint distance label.
+- The currently-selected annotation's labels and connectors are tinted blue, thickened, and lifted (`zIndex: 10`) above the crowd.
+
+`defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}` is the dev-app default: report measurements in pixels. Swap it for mm to render physical units instead — see the next variant.
+
+## Variant: render in millimetres
+
+Two ways to switch units, used together or separately:
+
+**Per-image** (preferred when calibration varies across the dataset):
+
+```tsx
+const images = [
+  {
+    id: createImageId('ct-slice-42'),
+    tileSource: 'https://example.com/ct-slice-42.dzi',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' }, // DICOM-style
+  },
+];
+
+<AnnotatorProvider
+  images={images}
+  // ...
+>
+```
+
+**Annotator-level fallback** (homogeneous datasets):
+
+```tsx
+<AnnotatorProvider
+  defaultPixelSpacing={{ x: 0.5, y: 0.5, unit: 'mm' }}
+  // ...
+>
+```
+
+Per-image always wins over the default. Images with no `pixelSpacing` and no default fall back to raw pixels — `px` for lengths and `px²` for areas — so you can mix calibrated and uncalibrated images in one grid without crashes.
+
+See the [Measurements guide](/osdlabel/guides/measurements/) for anisotropic spacing (`x ≠ y`), `SpacingAxis`, and `formatMeasurement` precision controls.
+
+## Variant: pair by annotation label
+
+The dev app pairs consecutive points by document order. For a more semantic pairing — e.g. pair an annotation labelled `"start"` with one labelled `"end"` — replace the `pair` function:
+
+```tsx
+createDistanceProvider({
+  pair: (annotations) => {
+    const start = annotations.find((a) => a.label === 'start');
+    const end = annotations.find((a) => a.label === 'end');
+    return start && end ? [{ a: start, b: end, id: 'start-end' }] : [];
+  },
+});
+```
+
+The optional `id` on `AnnotationPair` gives the resulting line + label decorations a stable pair id (`distance-line:start-end`, `distance-text:start-end`). Use it when the default `${a.id}-${b.id}` would change across runs (e.g. when annotation ids are regenerated on reload).
+
+## See also
+
+- [Decorations](/osdlabel/guides/decorations/) — the full mental model and provider contract
+- [Measurements](/osdlabel/guides/measurements/) — pixel-spacing calibration and physical-unit rendering
+- [Interactive Demo](/osdlabel/demo/) — this wiring running live

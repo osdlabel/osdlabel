@@ -45,6 +45,15 @@ Fabric.js annotation tools and utilities, completely **SolidJS-agnostic and OSD-
 - Defines the `ToolOverlay` interface and `FabricFields` extension interface.
 - Depends on `@osdlabel/annotation`, `@osdlabel/annotation-context`, `@osdlabel/viewer-api`, and `fabric`.
 
+### `@osdlabel/decoration`
+
+Declarative annotation decorations and calibrated geometry math, with **zero framework dependencies**.
+
+- Decoration data model (`TextDecoration`, `LineDecoration`), provider contract (`DecorationProvider<E>`), and `composeProviders`.
+- Built-in providers (`createMeasurementProvider`, `createLabelProvider`, `createDistanceProvider`) plus the `withSelectionEmphasis` wrapper.
+- Geometry math (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`) and physical-unit utilities (`toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`).
+- Depends only on `@osdlabel/annotation` and `@osdlabel/viewer-api` (for `PixelSpacing`). Re-exported in full by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`. See the [Decorations guide](/osdlabel/guides/decorations/).
+
 ### `@osdlabel/fabric-osd`
 
 The overlay bridge connecting Fabric.js and OpenSeaDragon.
@@ -98,5 +107,6 @@ For advanced usage or building a custom UI layer, import from the granular packa
 import type { Annotation } from '@osdlabel/annotation';
 import type { ImageSource } from '@osdlabel/viewer-api';
 import type { AnnotationContext } from '@osdlabel/annotation-context';
+import { createMeasurementProvider } from '@osdlabel/decoration';
 import { serialize, applyAnnotationAction } from 'osdlabel';
 ```

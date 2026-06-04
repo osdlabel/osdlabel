@@ -1,0 +1,209 @@
+---
+title: Measurements
+description: Render annotation measurements in physical units (mm, µm) instead of pixels
+---
+
+When your images carry calibration metadata — DICOM `PixelSpacing`, microscopy scale bars, satellite ground-sample distance — the [decoration system](/osdlabel/guides/decorations/) can render measurements in physical units instead of pixels. This guide covers where to set calibration, how anisotropic spacing is handled, and the conversion / formatting functions you can call from custom providers.
+
+Examples use `@osdlabel/solid`; the API is identical in `@osdlabel/react`.
+
+## Overview
+
+A `PixelSpacing` is a per-axis, unit-tagged conversion factor:
+
+```ts
+interface PixelSpacing {
+  readonly x: number; // physical units per horizontal pixel
+  readonly y: number; // physical units per vertical pixel
+  readonly unit: string; // e.g. 'mm', 'µm', 'cm'
+}
+```
+
+The built-in [`createMeasurementProvider`](/osdlabel/guides/decorations/#createmeasurementprovider) and [`createDistanceProvider`](/osdlabel/guides/decorations/#createdistanceprovider) automatically convert their outputs using whichever spacing applies to the current image; you only need to supply the spacing somewhere.
+
+The result of a conversion is a `Measurement`:
+
+```ts
+interface Measurement {
+  readonly value: number;
+  readonly unit: string;
+}
+```
+
+## Setting pixel spacing
+
+### Per-image (preferred)
+
+`ImageSource.pixelSpacing` is the source of truth for a single image. This is the right place to put data extracted from DICOM headers or other per-image calibration:
+
+```ts
+import { createImageId } from '@osdlabel/solid';
+import type { ImageSource } from '@osdlabel/solid';
+
+const images: ImageSource[] = [
+  {
+    id: createImageId('ct-slice-42'),
+    tileSource: 'https://example.com/ct-slice-42.dzi',
+    label: 'CT slice 42',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' },
+  },
+  {
+    id: createImageId('ct-slice-43'),
+    tileSource: 'https://example.com/ct-slice-43.dzi',
+    label: 'CT slice 43',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' },
+  },
+];
+```
+
+### Annotator-level fallback
+
+`defaultPixelSpacing` on `<Annotator>` (or `<AnnotatorProvider>`) covers images that don't specify their own. It's useful for homogeneous datasets where one calibration applies to everything, or for dev / demo setups:
+
+```tsx
+<Annotator
+  images={images}
+  contexts={contexts}
+  defaultPixelSpacing={{ x: 0.5, y: 0.5, unit: 'mm' }}
+  decorationProviders={[createMeasurementProvider({ area: true, perimeter: true })]}
+/>
+```
+
+### Resolution order
+
+For any given annotation on any given image, the spacing resolves like this:
+
+1. `imageSource.pixelSpacing` if set on the image the annotation belongs to.
+2. Otherwise, `defaultPixelSpacing` if passed to `<Annotator>`.
+3. Otherwise, no conversion — measurements are reported in raw pixels with unit `'px'` (`'px²'` for area).
+
+This means you can mix calibrated and uncalibrated images in the same grid without crashes; uncalibrated cells fall back to pixel units.
+
+## Anisotropic spacing
+
+Real-world images often have `x ≠ y` — anisotropic scans, oblique microscopy, satellite imagery with different along-track and cross-track resolution. `PixelSpacing` carries both axes explicitly. How they're consumed depends on the measurement:
+
+- **Lengths** along a known axis use that axis's factor.
+- **Lengths** at arbitrary angles use the mean of the two factors (a reasonable approximation; for high-precision angle-aware work, write a custom provider that decomposes the segment).
+- **Areas** always use `x · y` — physically correct regardless of anisotropy.
+
+The `SpacingAxis` type makes the choice explicit when you call the conversion functions directly:
+
+```ts
+type SpacingAxis = 'x' | 'y' | 'mean';
+```
+
+## Conversion functions
+
+### `toPhysicalLength(pixels, spacing, axis?)`
+
+Returns a `Measurement`. `axis` defaults to `'mean'`. If `spacing` is `undefined`, returns `{ value: pixels, unit: 'px' }`.
+
+```ts
+import { toPhysicalLength } from '@osdlabel/solid';
+
+const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
+
+toPhysicalLength(200, spacing); // { value: 90,  unit: 'mm' }   — mean of x and y
+toPhysicalLength(200, spacing, 'x'); // { value: 100, unit: 'mm' }
+toPhysicalLength(200, spacing, 'y'); // { value: 80,  unit: 'mm' }
+toPhysicalLength(200, undefined); // { value: 200, unit: 'px' }
+```
+
+### `toPhysicalArea(pixelsSquared, spacing)`
+
+Always uses `x · y`. If `spacing` is `undefined`, returns `{ value: pixelsSquared, unit: 'px²' }`.
+
+```ts
+import { toPhysicalArea } from '@osdlabel/solid';
+
+const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
+
+toPhysicalArea(20000, spacing); // { value: 4000, unit: 'mm²' }   — 20000 · 0.5 · 0.4
+toPhysicalArea(20000, undefined); // { value: 20000, unit: 'px²' }
+```
+
+## Formatting
+
+`formatMeasurement` renders a `Measurement` to a string. Defaults are sensible (2 decimal places, single-space separator); both knobs are tunable:
+
+```ts
+import { formatMeasurement } from '@osdlabel/solid';
+
+formatMeasurement({ value: 12.34567, unit: 'mm' });
+// '12.35 mm'
+
+formatMeasurement({ value: 12.34567, unit: 'mm' }, { precision: 1 });
+// '12.3 mm'
+
+formatMeasurement({ value: 5, unit: 'px' }, { unitSeparator: '' });
+// '5.00px'
+```
+
+Both built-in providers accept a `format` option that is forwarded to `formatMeasurement`, and a `formatLine` callback for full control. See [`createMeasurementProvider`](/osdlabel/guides/decorations/#createmeasurementprovider) and [`createDistanceProvider`](/osdlabel/guides/decorations/#createdistanceprovider) for the per-provider options.
+
+## Worked example: end-to-end DICOM calibration
+
+A complete setup for a CT-style image with isotropic 0.488 mm spacing, rendering area / perimeter / radius / length at 1-decimal precision:
+
+```tsx
+import { render } from 'solid-js/web';
+import {
+  Annotator,
+  createAnnotationContextId,
+  createImageId,
+  createMeasurementProvider,
+} from '@osdlabel/solid';
+import type { AnnotationContext, ImageSource } from '@osdlabel/solid';
+
+const images: ImageSource[] = [
+  {
+    id: createImageId('ct-slice-42'),
+    tileSource: 'https://example.com/ct-slice-42.dzi',
+    label: 'CT slice 42 (0.488 mm)',
+    pixelSpacing: { x: 0.488, y: 0.488, unit: 'mm' },
+  },
+];
+
+const contexts: AnnotationContext[] = [
+  {
+    id: createAnnotationContextId('findings'),
+    label: 'Findings',
+    tools: [{ type: 'circle' }, { type: 'rectangle' }, { type: 'polyline' }, { type: 'line' }],
+  },
+];
+
+const measurements = createMeasurementProvider({
+  area: true,
+  perimeter: true,
+  radius: true,
+  length: true,
+  format: { precision: 1 },
+});
+
+function App() {
+  return (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <Annotator images={images} contexts={contexts} decorationProviders={[measurements]} />
+    </div>
+  );
+}
+
+render(() => <App />, document.getElementById('app')!);
+```
+
+A circle of radius 50 px drawn on this image renders as something like:
+
+```
+r: 24.4 mm
+A: 1869.8 mm²
+P: 153.3 mm
+```
+
+If you later open a second image that lacks `pixelSpacing`, decorations on that image fall back to `px` / `px²` without any code change.
+
+## See also
+
+- [Decorations](/osdlabel/guides/decorations/) — provider model, composition, selection emphasis
+- [Decorations example](/osdlabel/examples/decorations/) — full wiring with measurements
+- [`PixelSpacing` API reference](/osdlabel/api/reference/osdlabel/) — full TypeDoc for `PixelSpacing`, `Measurement`, `SpacingAxis`, `toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`
