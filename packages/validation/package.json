@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/validation",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Schema-based validation for osdlabel objects built on Valibot.",
   "type": "module",
   "main": "./dist/index.js",
