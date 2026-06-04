@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For } from 'solid-js';
+import { createSignal, createEffect, For, type Accessor, type Setter } from 'solid-js';
 import {
   Toolbar,
   StatusBar,
@@ -10,8 +10,46 @@ import {
   useAnnotator,
   serialize,
   deserialize,
+  createMeasurementProvider,
+  createLabelProvider,
+  createDistanceProvider,
+  withSelectionEmphasis,
 } from '@osdlabel/solid';
-import type { AnnotationContextId, AnnotationContext, ImageSource } from '@osdlabel/solid';
+import type {
+  AnnotationContextId,
+  AnnotationContext,
+  ImageSource,
+  DecorationProvider,
+  OsdFields,
+} from '@osdlabel/solid';
+
+const selectedTextStyle = {
+  zIndex: 10,
+  background: 'rgba(33, 150, 243, 0.9)',
+  color: '#fff',
+};
+const selectedLineStyle = { stroke: '#2196f3', strokeWidth: 3 };
+
+// Gate a provider behind a reactive toggle. The returned provider reads the
+// signal at call time; because ViewerCell invokes providers inside its
+// decoration `createEffect`, Solid tracks the signal and re-runs the effect
+// (and `setDecorations`) whenever the toggle flips — live, without remounting.
+const gate =
+  (
+    enabled: Accessor<boolean>,
+    provider: DecorationProvider<OsdFields>,
+  ): DecorationProvider<OsdFields> =>
+  (ctx) =>
+    enabled() ? provider(ctx) : [];
+
+interface DecorationToggles {
+  showMeasurements: Accessor<boolean>;
+  setShowMeasurements: Setter<boolean>;
+  showLabels: Accessor<boolean>;
+  setShowLabels: Setter<boolean>;
+  showDistance: Accessor<boolean>;
+  setShowDistance: Setter<boolean>;
+}
 
 export interface AnnotateViewProps {
   images: readonly ImageSource[];
@@ -19,7 +57,7 @@ export interface AnnotateViewProps {
   onReconfigure: () => void;
 }
 
-function AppContent(props: AnnotateViewProps) {
+function AppContent(props: AnnotateViewProps & { toggles: DecorationToggles }) {
   const { uiState, annotationState, actions, activeImageId } = useAnnotator();
   const [copyLabel, setCopyLabel] = createSignal('Copy JSON');
   const [activeCtxIdx, setActiveCtxIdx] = createSignal(0);
@@ -153,6 +191,38 @@ function AppContent(props: AnnotateViewProps) {
                   }}
                 />
                 {ctx.label}
+              </label>
+            )}
+          </For>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', 'align-items': 'center' }}>
+          <span style={{ 'font-size': '12px', color: '#aaa' }}>Decorations:</span>
+          <For
+            each={
+              [
+                ['Measurements', props.toggles.showMeasurements, props.toggles.setShowMeasurements],
+                ['Labels', props.toggles.showLabels, props.toggles.setShowLabels],
+                ['Distance', props.toggles.showDistance, props.toggles.setShowDistance],
+              ] as const
+            }
+          >
+            {([label, get, set]) => (
+              <label
+                style={{
+                  display: 'flex',
+                  gap: '4px',
+                  'align-items': 'center',
+                  'font-size': '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={get()}
+                  onChange={(e) => set(e.currentTarget.checked)}
+                />
+                {label}
               </label>
             )}
           </For>
@@ -323,9 +393,53 @@ function AppContent(props: AnnotateViewProps) {
 }
 
 export default function AnnotateView(props: AnnotateViewProps) {
+  const [showMeasurements, setShowMeasurements] = createSignal(true);
+  const [showLabels, setShowLabels] = createSignal(true);
+  const [showDistance, setShowDistance] = createSignal(true);
+
+  const decorationProviders: readonly DecorationProvider<OsdFields>[] = [
+    gate(
+      showMeasurements,
+      withSelectionEmphasis(
+        createMeasurementProvider({ area: true, perimeter: true, length: true, radius: true }),
+        { selectedTextStyle, selectedLineStyle },
+      ),
+    ),
+    gate(showLabels, withSelectionEmphasis(createLabelProvider(), { selectedTextStyle })),
+    gate(
+      showDistance,
+      withSelectionEmphasis(
+        createDistanceProvider({
+          // Pair every two consecutive point annotations.
+          pair: (annotations) => {
+            const points = annotations.filter((a) => a.geometry.type === 'point');
+            const pairs: { a: (typeof points)[number]; b: (typeof points)[number] }[] = [];
+            for (let i = 0; i < points.length - 1; i += 2) {
+              pairs.push({ a: points[i]!, b: points[i + 1]! });
+            }
+            return pairs;
+          },
+        }),
+        { selectedTextStyle, selectedLineStyle },
+      ),
+    ),
+  ];
+
+  const toggles: DecorationToggles = {
+    showMeasurements,
+    setShowMeasurements,
+    showLabels,
+    setShowLabels,
+    showDistance,
+    setShowDistance,
+  };
+
   return (
-    <AnnotatorProvider>
-      <AppContent {...props} />
+    <AnnotatorProvider
+      decorationProviders={decorationProviders}
+      defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}
+    >
+      <AppContent {...props} toggles={toggles} />
     </AnnotatorProvider>
   );
 }
