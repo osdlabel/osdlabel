@@ -53,8 +53,6 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "osdlabel": "workspace:*",
-    "immer": "catalog:",
     "@osdlabel/annotation": "workspace:*",
     "@osdlabel/annotation-context": "workspace:*",
     "@osdlabel/decoration": "workspace:*",
@@ -62,7 +60,9 @@
     "@osdlabel/fabric-osd": "workspace:*",
     "@osdlabel/osd-helper": "workspace:*",
     "@osdlabel/validation": "workspace:*",
-    "@osdlabel/viewer-api": "workspace:*"
+    "@osdlabel/viewer-api": "workspace:*",
+    "immer": "catalog:",
+    "osdlabel": "workspace:*"
   },
   "devDependencies": {
     "@types/openseadragon": "catalog:",
@@ -71,8 +71,8 @@
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "eslint": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
