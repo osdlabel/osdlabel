@@ -8,8 +8,10 @@ Powered by [OpenSeaDragon](https://openseadragon.github.io/) for deep zoom tiled
 
 - **Deep Zoom support** — annotate gigapixel images served as DZI tiles, or plain image files
 - **Multi-image grid** — view and annotate up to 16 images simultaneously in a configurable grid layout
-- **Annotation tools** — rectangle, circle, line, point, and freehand path drawing
+- **Annotation tools** — rectangle, circle, line, point, polyline/polygon, and freehand path drawing
 - **Context system** — define multiple annotation contexts with per-tool constraints (max count, count scope)
+- **Decorations & measurements** — derived text labels, calibrated area/length/perimeter measurements, and connector lines via composable `DecorationProvider` functions, recomputed at render time (never serialized)
+- **View controls** — rotate and flip the viewport horizontally/vertically with overlay annotations following in lockstep
 - **Serialization** — export and import annotations as JSON with a versioned document format
 - **Keyboard shortcuts** — fully configurable hotkeys for tools, grid navigation, and drawing actions
 - **Framework-agnostic core** — annotation model, serialization, and constraint logic have zero UI framework dependencies
@@ -203,6 +205,26 @@ Default shortcuts (configurable via `keyboardShortcuts` prop):
 | Close path            | `c`                    |
 | Cancel path           | `Escape`               |
 
+## Decorations & Measurements
+
+Decorations are a pure derivation of annotation state — text labels, computed
+measurements, and connector lines produced by `DecorationProvider` functions and
+recomputed at render time. They are never part of `serialize()` output. Pass
+providers to the `Annotator` via `decorationProviders`, and supply
+`defaultPixelSpacing` (or per-image `pixelSpacing` on the `ImageSource`) to render
+calibrated physical measurements:
+
+```ts
+import { createMeasurementProvider, createLabelProvider, composeProviders } from '@osdlabel/solid'; // or '@osdlabel/react'
+
+const providers = composeProviders(
+  createLabelProvider(),
+  createMeasurementProvider(), // area / perimeter / length / radius
+);
+
+// <Annotator decorationProviders={providers} defaultPixelSpacing={{ x: 0.25, y: 0.25, unit: 'um' }} ... />
+```
+
 ## Serialization
 
 ```ts
@@ -220,16 +242,28 @@ actions.loadAnnotations(byImage);
 
 ## Development
 
-This is a pnpm workspace monorepo using Turborepo:
+This is a pnpm workspace monorepo using Turborepo. The library is split into
+focused packages with strict dependency boundaries:
 
 ```
-packages/osdlabel/   # framework-agnostic core (types, serialization, reducers, constraints)
-packages/solid/      # SolidJS bindings (@osdlabel/solid)
-packages/react/      # React bindings (@osdlabel/react)
-apps/dev/            # SolidJS development app with HMR
-apps/dev-react/      # React development app with HMR
-apps/docs/           # documentation site (Astro + Starlight)
+packages/annotation/          # @osdlabel/annotation — pure data model (zero deps)
+packages/viewer-api/          # @osdlabel/viewer-api — viewer state types, PixelSpacing
+packages/annotation-context/  # @osdlabel/annotation-context — contexts, constraints, scoping
+packages/decoration/          # @osdlabel/decoration — decorations, geometry math, providers
+packages/validation/          # @osdlabel/validation — Valibot schemas (Standard Schema)
+packages/osd-helper/          # @osdlabel/osd-helper — OpenSeaDragon utilities
+packages/fabric-annotations/  # @osdlabel/fabric-annotations — Fabric.js tools & serialization
+packages/fabric-osd/          # @osdlabel/fabric-osd — Fabric.js + OSD overlay bridge
+packages/osdlabel/            # osdlabel — framework-agnostic core (serialization, reducers, constraints)
+packages/solid/               # @osdlabel/solid — SolidJS bindings
+packages/react/               # @osdlabel/react — React bindings
+apps/dev/                     # SolidJS development app with HMR
+apps/dev-react/               # React development app with HMR
+apps/docs/                    # documentation site (Astro + Starlight)
 ```
+
+Most apps import from `@osdlabel/solid` or `@osdlabel/react` — the granular
+packages are available for custom UI layers and advanced integrations.
 
 ### Prerequisites
 
