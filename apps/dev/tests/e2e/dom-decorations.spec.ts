@@ -59,16 +59,20 @@ test.describe('DOM decorations', () => {
     await page.mouse.up();
     await page.waitForTimeout(400);
 
-    const badge = page.locator('[data-osdlabel-test="dom-badge"]');
-    await expect(badge).toBeVisible();
-    const before = await badge.evaluate((el) => (el.parentElement as HTMLElement).style.transform);
+    // The decoration root (positioned by the layer) carries the transform — not
+    // the badge's immediate parent, which is the framework portal's wrapper.
+    const root = page.locator('[data-osdlabel="decoration-dom"]').first();
+    await expect(root).toBeVisible();
+    const before = await root.evaluate((el) => (el as HTMLElement).style.transform);
+    expect(before).toContain('translate3d');
 
-    // Zoom via the canvas; the decoration root repositions on OSD sync.
-    await page.mouse.move(box.x + 220, box.y + 140);
+    // Zoom with the focal point away from the badge's anchor so its screen
+    // position genuinely shifts; the root repositions on OSD sync.
+    await page.mouse.move(box.x + 450, box.y + 320);
     await page.mouse.wheel(0, -600);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(600);
 
-    const after = await badge.evaluate((el) => (el.parentElement as HTMLElement).style.transform);
+    const after = await root.evaluate((el) => (el as HTMLElement).style.transform);
     expect(after).not.toBe(before);
   });
 });
