@@ -43,7 +43,7 @@ test.describe('DOM decorations', () => {
     await expect(page.locator('[data-osdlabel-test="dom-badge"]')).toHaveCount(1);
   });
 
-  test('badge follows the image on zoom', async ({ page }) => {
+  test('badge follows the image when the viewport pans', async ({ page }) => {
     const canvas = page.locator('canvas.upper-canvas');
     await canvas.waitFor({ state: 'attached', timeout: 15000 });
     await page.waitForTimeout(1000);
@@ -66,10 +66,14 @@ test.describe('DOM decorations', () => {
     const before = await root.evaluate((el) => (el as HTMLElement).style.transform);
     expect(before).toContain('translate3d');
 
-    // Zoom with the focal point away from the badge's anchor so its screen
-    // position genuinely shifts; the root repositions on OSD sync.
-    await page.mouse.move(box.x + 450, box.y + 320);
-    await page.mouse.wheel(0, -600);
+    // Switch to navigate and pan the image; OSD fires its 'animation' sync,
+    // which repositions the decoration root. Panning is deterministic (every
+    // point shifts by the drag delta), unlike wheel-zoom against OSD.
+    await page.getByTestId('tool-navigate').click();
+    await page.mouse.move(box.x + 400, box.y + 320);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 250, box.y + 220, { steps: 10 });
+    await page.mouse.up();
     await page.waitForTimeout(600);
 
     const after = await root.evaluate((el) => (el as HTMLElement).style.transform);
