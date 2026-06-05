@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "React implementation of the osdlabel image annotation library — components, hooks, and state management using React Context and Immer.",
   "type": "module",
   "main": "./dist/index.js",

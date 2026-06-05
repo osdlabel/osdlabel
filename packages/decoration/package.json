@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/decoration",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Declarative annotation decorations (labels, measurements, connector lines) and calibrated geometry math for osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
