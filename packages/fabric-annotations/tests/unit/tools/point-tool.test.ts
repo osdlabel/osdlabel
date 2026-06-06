@@ -132,6 +132,27 @@ describe('PointTool', () => {
     expect(mockCanvas.add).not.toHaveBeenCalled();
   });
 
+  it('should have hasControls false on preview (not resizable)', () => {
+    tool = new PointTool();
+    tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
+
+    const preview = mockCanvas.add.mock.calls[0][0] as Circle;
+    expect(preview.hasControls).toBe(false);
+  });
+
+  it('should have hasControls false on committed fabricObject (not resizable)', () => {
+    tool = new PointTool();
+    tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
+    tool.onPointerUp({ type: 'pointerup' } as PointerEvent, { x: 30, y: 30 });
+
+    const fabricObject = addedParams[0]!.fabricObject as Circle;
+    expect(fabricObject.hasControls).toBe(false);
+  });
+
   it('should cancel and remove preview on cancel()', () => {
     tool = new PointTool();
     tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
