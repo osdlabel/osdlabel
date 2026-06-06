@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/viewer-api",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Viewer state types for osdlabel — cell transforms, UI state, and keyboard shortcut mappings.",
   "type": "module",
   "main": "./dist/index.js",

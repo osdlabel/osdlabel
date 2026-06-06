@@ -1,5 +1,16 @@
 # @osdlabel/docs
 
+## 0.1.3
+
+### Patch Changes
+
+- osdlabel@0.2.2
+- @osdlabel/react@0.2.2
+- @osdlabel/solid@0.2.2
+- @osdlabel/annotation@0.2.2
+- @osdlabel/annotation-context@0.2.2
+- @osdlabel/viewer-api@0.2.2
+
 ## 0.1.2
 
 ### Patch Changes

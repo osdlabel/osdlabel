@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/fabric-osd",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Fabric.js and OpenSeaDragon integration layer for osdlabel — canvas overlay and viewport transform.",
   "type": "module",
   "main": "./dist/index.js",
