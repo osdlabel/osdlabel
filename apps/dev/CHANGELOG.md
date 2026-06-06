@@ -1,5 +1,12 @@
 # @osdlabel/dev
 
+## 0.0.4
+
+### Patch Changes
+
+- osdlabel@0.2.2
+- @osdlabel/solid@0.2.2
+
 ## 0.0.3
 
 ### Patch Changes

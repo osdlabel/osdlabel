@@ -1,5 +1,14 @@
 # @osdlabel/fabric-annotations
 
+## 0.2.2
+
+### Patch Changes
+
+- 54f4f59: Fix point annotations being incorrectly resizable. Point annotations now have `hasControls: false` set both when first drawn and when loaded from serialized state, so they can only be moved, not scaled.
+  - @osdlabel/annotation@0.2.2
+  - @osdlabel/annotation-context@0.2.2
+  - @osdlabel/viewer-api@0.2.2
+
 ## 0.2.1
 
 ### Patch Changes
