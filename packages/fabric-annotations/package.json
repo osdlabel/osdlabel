@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/fabric-annotations",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Fabric.js annotation tools and utilities for osdlabel — drawing tools, serialization, and module augmentation.",
   "type": "module",
   "main": "./dist/index.js",
