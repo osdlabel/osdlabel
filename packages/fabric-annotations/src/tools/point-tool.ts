@@ -16,6 +16,7 @@ export class PointTool extends ShapeTool<Circle> {
       originY: 'center',
       selectable: false,
       evented: false,
+      hasControls: false,
     });
   }
 
