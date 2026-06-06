@@ -68,6 +68,7 @@ export async function createFabricObjectFromRawData(
   obj.set({
     selectable: true,
     evented: true,
+    ...(annotation.geometry.type === 'point' ? { hasControls: false } : {}),
   });
 
   return obj;
