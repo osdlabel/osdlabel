@@ -1,5 +1,26 @@
 # osdlabel
 
+## 0.2.1
+
+### Patch Changes
+
+- df01e5a: Add and expand per-package README files so each package shows relevant
+  documentation on its npm page, and refresh the root README to cover decorations,
+  measurements, view controls, and the full package layout.
+
+  Also drop the unused `@osdlabel/validation` dependency and `valibot` peer
+  dependency from `@osdlabel/fabric-osd` — neither is referenced by the package,
+  so consumers no longer need to install `valibot` to use it.
+
+- Updated dependencies [df01e5a]
+  - @osdlabel/annotation@0.2.1
+  - @osdlabel/viewer-api@0.2.1
+  - @osdlabel/annotation-context@0.2.1
+  - @osdlabel/decoration@0.2.1
+  - @osdlabel/validation@0.2.1
+  - @osdlabel/fabric-annotations@0.2.1
+  - @osdlabel/fabric-osd@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
