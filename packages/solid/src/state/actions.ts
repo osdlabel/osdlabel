@@ -1,6 +1,6 @@
 import { type SetStoreFunction, produce } from 'solid-js/store';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
-import type { AnnotationState, ImageId, UIState } from '@osdlabel/viewer-api';
+import type { AnnotationState, ImageId, UIState, ViewerControlId } from '@osdlabel/viewer-api';
 import type {
   AnnotationContext,
   AnnotationContextId,
@@ -56,6 +56,14 @@ export function createActions(
   function setActiveTool(tool: ToolType | 'select' | null): void {
     setUIState(
       produce((draft) => applyUIAction(draft, { type: 'SET_ACTIVE_TOOL', payload: tool })),
+    );
+  }
+
+  function setActiveViewerControl(control: ViewerControlId | null): void {
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: control }),
+      ),
     );
   }
 
@@ -191,6 +199,7 @@ export function createActions(
     updateAnnotation,
     deleteAnnotation,
     setActiveTool,
+    setActiveViewerControl,
     setActiveCell,
     setSelectedAnnotation,
     assignImageToCell,

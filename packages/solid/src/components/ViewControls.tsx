@@ -307,6 +307,50 @@ export const ViewControls: Component = () => {
         </svg>
       </button>
 
+      <button
+        type="button"
+        title="Drag to adjust exposure"
+        aria-label="Drag to adjust exposure"
+        aria-pressed={uiState.activeViewerControl === 'exposure'}
+        data-testid="view-exposure-drag"
+        disabled={!isActive()}
+        onClick={() =>
+          actions.setActiveViewerControl(
+            uiState.activeViewerControl === 'exposure' ? null : 'exposure',
+          )
+        }
+        style={{
+          width: '32px',
+          height: '32px',
+          'background-color': uiState.activeViewerControl === 'exposure' ? '#2196F3' : '#333',
+          border: 'none',
+          'border-radius': '4px',
+          color: 'white',
+          cursor: isActive() ? 'pointer' : 'default',
+          opacity: isActive() ? '1' : '0.5',
+          display: 'flex',
+          'align-items': 'center',
+          'justify-content': 'center',
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path d="M3 12h4" />
+          <path d="M17 12h4" />
+          <path d="m7 9-3 3 3 3" />
+          <path d="m17 9 3 3-3 3" />
+        </svg>
+      </button>
+
       <Show
         when={
           cellTransform().rotation !== 0 ||

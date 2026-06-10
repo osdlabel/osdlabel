@@ -40,9 +40,21 @@ export const DEFAULT_CELL_TRANSFORM: CellTransform = {
 // with SolidJS's `SetStoreFunction` path-based API. Data model types above
 // (Annotation, Geometry, etc.) remain fully `readonly`.
 
+/**
+ * Identifies a drag-driven viewer control. When one is active the overlay
+ * enters `customControl` mode and forwards pointer events to that control's
+ * handler instead of to OSD or the Fabric annotation layer.
+ */
+export type ViewerControlId = 'exposure';
+
 /** UI state */
 export interface UIState {
   activeTool: ToolType | 'select' | null;
+  /**
+   * The active drag-driven viewer control, if any. Mutually exclusive with
+   * `activeTool`: at most one interaction owns the pointer at a time.
+   */
+  activeViewerControl: ViewerControlId | null;
   activeCellIndex: number;
   gridColumns: number;
   gridRows: number;

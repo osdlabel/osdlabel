@@ -60,6 +60,16 @@ function createMockOverlay(): { overlay: MockOverlay; state: MockState } {
         state.objectsEvented = true;
         state.osdMouseNavEnabled = false;
         break;
+
+      case 'customControl':
+        // Tracker intercepts so events reach the custom handler, but Fabric is
+        // fully inert and OSD mouse nav is disabled.
+        state.overlayTrackerTracking = true;
+        state.fabricSelection = false;
+        state.objectsSelectable = false;
+        state.objectsEvented = false;
+        state.osdMouseNavEnabled = false;
+        break;
     }
   }
 
@@ -133,6 +143,30 @@ describe('Input routing — setMode', () => {
     it('reports correct mode', () => {
       overlay.setMode('annotation');
       expect(overlay.getMode()).toBe('annotation');
+    });
+  });
+
+  describe('customControl mode', () => {
+    it('enables overlay tracker so events reach the custom handler', () => {
+      overlay.setMode('customControl');
+      expect(state.overlayTrackerTracking).toBe(true);
+    });
+
+    it('keeps Fabric inert (no selection, objects non-interactive)', () => {
+      overlay.setMode('customControl');
+      expect(state.fabricSelection).toBe(false);
+      expect(state.objectsSelectable).toBe(false);
+      expect(state.objectsEvented).toBe(false);
+    });
+
+    it('disables OSD mouse navigation', () => {
+      overlay.setMode('customControl');
+      expect(state.osdMouseNavEnabled).toBe(false);
+    });
+
+    it('reports correct mode', () => {
+      overlay.setMode('customControl');
+      expect(overlay.getMode()).toBe('customControl');
     });
   });
 

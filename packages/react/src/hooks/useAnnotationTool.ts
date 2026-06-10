@@ -4,8 +4,10 @@ import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
 import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
+import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
   createAnnotationTool,
+  createDragValueControl,
   getScenePointFromEvent,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
@@ -53,6 +55,8 @@ export function useAnnotationTool(
   contextStateRef.current = contextState;
   const constraintStatusRef = useRef(constraintStatus);
   constraintStatusRef.current = constraintStatus;
+  const uiStateRef = useRef(uiState);
+  uiStateRef.current = uiState;
 
   // Handle object:modified events
   useEffect(() => {
@@ -77,6 +81,32 @@ export function useAnnotationTool(
   // Main tool lifecycle effect
   useEffect(() => {
     if (!overlay || !imageId) return;
+
+    // A drag-driven viewer control takes precedence over annotation tools: the
+    // overlay enters customControl mode and forwards pointer events to the
+    // control's handler. This effect is the single authority over setMode, so
+    // no second effect can race it. getValue reads through a ref to avoid a
+    // stale closure across renders.
+    if (isActive && uiState.activeViewerControl === 'exposure') {
+      overlay.setCustomControlHandler(
+        createDragValueControl({
+          getValue: () =>
+            (
+              uiStateRef.current.cellTransforms[uiStateRef.current.activeCellIndex] ??
+              DEFAULT_CELL_TRANSFORM
+            ).exposure,
+          setValue: (value) => actions.setActiveImageExposure(value),
+          axis: 'x',
+          sensitivity: 0.01,
+          min: -1,
+          max: 1,
+        }),
+      );
+      overlay.setMode('customControl');
+      return () => {
+        overlay.setCustomControlHandler(null);
+      };
+    }
 
     if (!isActive || !uiState.activeTool) {
       overlay.setMode('navigation');
@@ -172,5 +202,14 @@ export function useAnnotationTool(
       overlay.canvas.off('mouse:up', handleUp);
       tool.deactivate();
     };
-  }, [overlay, imageId, isActive, uiState.activeTool, shortcuts, actions, activeToolKeyHandlerRef]);
+  }, [
+    overlay,
+    imageId,
+    isActive,
+    uiState.activeTool,
+    uiState.activeViewerControl,
+    shortcuts,
+    actions,
+    activeToolKeyHandlerRef,
+  ]);
 }

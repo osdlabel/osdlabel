@@ -12,6 +12,7 @@ export function createInitialAnnotationState(): AnnotationState<OsdFields> {
 export function createInitialUIState(): UIState {
   return {
     activeTool: null,
+    activeViewerControl: null,
     activeCellIndex: 0,
     gridColumns: 1,
     gridRows: 1,

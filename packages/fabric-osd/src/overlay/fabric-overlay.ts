@@ -17,7 +17,36 @@ import {
 } from './constants.js';
 
 /** Overlay interaction modes */
-export type OverlayMode = 'navigation' | 'annotation';
+export type OverlayMode = 'navigation' | 'annotation' | 'customControl';
+
+/**
+ * A pointer event delivered to a {@link CustomControlHandler} while the
+ * overlay is in `customControl` mode.
+ */
+export interface CustomControlEvent {
+  /** The raw DOM pointer event. */
+  readonly originalEvent: PointerEvent;
+  /** Pointer position in CSS pixels relative to the viewer element. */
+  readonly screenPoint: Point;
+  /** Pointer position in image-space (flip-aware). */
+  readonly imagePoint: Point;
+}
+
+/**
+ * Receives pointer events while the overlay is in `customControl` mode. In
+ * this mode neither OpenSeadragon nor the Fabric annotation layer reacts to
+ * the mouse — every pointer event is forwarded here instead, letting the host
+ * drive a custom viewer function (e.g. drag-to-adjust exposure).
+ *
+ * Handlers manage their own gesture state: `onPointerMove` fires on every
+ * pointer move regardless of button state, so a drag-based handler must track
+ * whether a press is in progress.
+ */
+export interface CustomControlHandler {
+  onPointerDown?(event: CustomControlEvent): void;
+  onPointerMove?(event: CustomControlEvent): void;
+  onPointerUp?(event: CustomControlEvent): void;
+}
 
 /** Options for creating a FabricOverlay */
 export interface OverlayOptions {
@@ -125,10 +154,13 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  * as synthetic PointerEvents with a re-entrancy guard to prevent infinite
  * recursion (dispatched events bubble back to the tracker's element).
  *
- * Two interaction modes:
+ * Three interaction modes:
  * - **navigation**: OSD handles all input, Fabric is display-only.
  * - **annotation**: Fabric handles all input (select, move, draw).
  *   Ctrl+drag or Command+drag pans OSD within annotation mode.
+ * - **customControl**: neither OSD nor Fabric reacts; pointer events are
+ *   forwarded to a registered {@link CustomControlHandler} (e.g. drag-to-adjust
+ *   exposure). Ctrl/Cmd+scroll still zooms OSD.
  */
 export class FabricOverlay {
   // ── Core references ──────────────────────────────────────────────
@@ -140,6 +172,9 @@ export class FabricOverlay {
 
   // ── State ────────────────────────────────────────────────────────
   private _mode: OverlayMode = 'navigation';
+
+  /** Handler invoked for pointer events while in `customControl` mode. */
+  private _customControlHandler: CustomControlHandler | null = null;
 
   /**
    * Re-entrancy guard for forwardToFabric. When true, the synthetic
@@ -357,8 +392,21 @@ export class FabricOverlay {
     }
   }
 
+  /**
+   * Register (or clear with `null`) the handler that receives pointer events
+   * while the overlay is in `customControl` mode.
+   */
+  setCustomControlHandler(handler: CustomControlHandler | null): void {
+    this._customControlHandler = handler;
+  }
+
   /** Set the overlay interaction mode */
   setMode(mode: OverlayMode): void {
+    // No-op guard: re-applying the current mode would needlessly
+    // discardActiveObject() and re-walk every object, which can clobber an
+    // in-progress gesture (e.g. a selection or an active custom-control drag).
+    if (mode === this._mode) return;
+
     this._mode = mode;
     this._panGestureActive = false;
 
@@ -389,6 +437,20 @@ export class FabricOverlay {
         });
         this._viewer.setMouseNavEnabled(false);
         break;
+
+      case 'customControl':
+        // Neither OSD nor Fabric reacts: the tracker intercepts events and
+        // forwards them to the registered CustomControlHandler. Fabric is fully
+        // inert and OSD mouse nav is disabled.
+        this._overlayTracker.setTracking(true);
+        this._fabricCanvas.selection = false;
+        this._fabricCanvas.forEachObject((obj) => {
+          obj.selectable = false;
+          obj.evented = false;
+        });
+        this._fabricCanvas.discardActiveObject();
+        this._viewer.setMouseNavEnabled(false);
+        break;
     }
 
     this._fabricCanvas.renderAll();
@@ -411,6 +473,7 @@ export class FabricOverlay {
 
   /** Clean up all event listeners and DOM elements */
   destroy(): void {
+    this._customControlHandler = null;
     this._syncSubscribers.clear();
     this._overlayTracker.destroy();
     this._viewer.removeHandler(OSD_ANIMATION, this._onAnimation);
@@ -478,6 +541,21 @@ export class FabricOverlay {
     return false;
   }
 
+  /**
+   * Build the {@link CustomControlEvent} payload from a raw DOM pointer event:
+   * the screen point is element-relative CSS pixels and the image point is the
+   * flip-aware image-space conversion.
+   */
+  private _buildCustomControlEvent(originalEvent: PointerEvent): CustomControlEvent {
+    const rect = this._fabricContainer.getBoundingClientRect();
+    const screenPoint: Point = {
+      x: originalEvent.clientX - rect.left,
+      y: originalEvent.clientY - rect.top,
+    };
+    const imagePoint = this.screenToImage(screenPoint);
+    return { originalEvent, screenPoint, imagePoint };
+  }
+
   // ── Private: MouseTracker factory ──────────────────────────────
 
   /**
@@ -504,6 +582,14 @@ export class FabricOverlay {
 
         if (this._mode === 'navigation') {
           // Should not happen (tracker is disabled), but just in case
+          return;
+        }
+
+        if (this._mode === 'customControl') {
+          // Block OSD and the page from every pointer event; the press/move/
+          // release handlers forward them to the custom control handler.
+          eventInfo.stopPropagation = true;
+          eventInfo.preventDefault = true;
           return;
         }
 
@@ -553,30 +639,48 @@ export class FabricOverlay {
 
       pressHandler: (event: OpenSeadragon.MouseTrackerEvent) => {
         if (this._forwarding || this._mode === 'navigation') return;
-        if (this._panGestureActive) return;
 
         const originalEvent = event.originalEvent as PointerEvent;
+        if (this._mode === 'customControl') {
+          this._customControlHandler?.onPointerDown?.(this._buildCustomControlEvent(originalEvent));
+          return;
+        }
+
+        if (this._panGestureActive) return;
         this._forwardToFabric(POINTER_DOWN, originalEvent);
       },
 
       moveHandler: (event: OpenSeadragon.MouseTrackerEvent) => {
         if (this._forwarding || this._mode === 'navigation') return;
-        if (this._panGestureActive) return;
 
         const originalEvent = event.originalEvent as PointerEvent;
+        if (this._mode === 'customControl') {
+          this._customControlHandler?.onPointerMove?.(this._buildCustomControlEvent(originalEvent));
+          return;
+        }
+
+        if (this._panGestureActive) return;
         this._forwardToFabric(POINTER_MOVE, originalEvent);
       },
 
       releaseHandler: (event: OpenSeadragon.MouseTrackerEvent) => {
         if (this._forwarding || this._mode === 'navigation') return;
-        if (this._panGestureActive) return;
 
         const originalEvent = event.originalEvent as PointerEvent;
+        if (this._mode === 'customControl') {
+          this._customControlHandler?.onPointerUp?.(this._buildCustomControlEvent(originalEvent));
+          return;
+        }
+
+        if (this._panGestureActive) return;
         this._forwardToFabric(POINTER_UP, originalEvent);
       },
 
       scrollHandler: (event: OpenSeadragon.MouseTrackerEvent) => {
-        if (this._mode !== 'annotation') return;
+        // Navigation mode lets OSD handle the wheel natively.
+        // Annotation and customControl both swallow page scroll and keep
+        // Ctrl/Cmd+scroll as a manual OSD zoom so users never lose zoom.
+        if (this._mode === 'navigation') return;
 
         const domEvent = event.originalEvent as WheelEvent;
 

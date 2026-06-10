@@ -1,5 +1,5 @@
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
-import type { AnnotationState, ImageId, UIState } from '@osdlabel/viewer-api';
+import type { AnnotationState, ImageId, UIState, ViewerControlId } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import type {
   AnnotationContext,
@@ -37,6 +37,7 @@ export type AnnotationAction =
 
 export type UIAction =
   | { readonly type: 'SET_ACTIVE_TOOL'; readonly payload: ToolType | 'select' | null }
+  | { readonly type: 'SET_ACTIVE_VIEWER_CONTROL'; readonly payload: ViewerControlId | null }
   | { readonly type: 'SET_ACTIVE_CELL'; readonly payload: number }
   | { readonly type: 'SET_SELECTED_ANNOTATION'; readonly payload: AnnotationId | null }
   | {
@@ -142,6 +143,18 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
   switch (action.type) {
     case 'SET_ACTIVE_TOOL':
       draft.activeTool = action.payload;
+      // One interaction owns the pointer at a time: selecting a tool exits any
+      // active viewer control.
+      if (action.payload !== null) {
+        draft.activeViewerControl = null;
+      }
+      break;
+    case 'SET_ACTIVE_VIEWER_CONTROL':
+      draft.activeViewerControl = action.payload;
+      // Activating a viewer control exits any active annotation tool.
+      if (action.payload !== null) {
+        draft.activeTool = null;
+      }
       break;
     case 'SET_ACTIVE_CELL':
       draft.activeCellIndex = action.payload;

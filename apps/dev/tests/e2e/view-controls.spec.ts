@@ -117,6 +117,43 @@ test.describe('View Controls', () => {
     await expect(drawerCanvas).toHaveCSS('filter', 'brightness(0)');
   });
 
+  test('Exposure drag mode adjusts brightness continuously', async ({ page }) => {
+    const dragBtn = page.locator('[data-testid="view-exposure-drag"]');
+    const resetBtn = page.locator('[data-testid="view-reset"]');
+    const drawerCanvas = page.locator('.openseadragon-canvas canvas').nth(0);
+    const viewer = page.locator('.openseadragon-canvas');
+
+    // Enter drag-exposure (customControl) mode — button shows active state.
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
+    await dragBtn.click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(33, 150, 243)');
+
+    const box = await viewer.boundingBox();
+    if (!box) throw new Error('viewer canvas not found');
+    const startX = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+
+    // Drag right by 50px → +0.5 exposure (sensitivity 0.01/px) → brightness(1.5).
+    await page.mouse.move(startX, y);
+    await page.mouse.down();
+    await page.mouse.move(startX + 50, y, { steps: 10 });
+    await page.mouse.up();
+
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(1.5)');
+    await expect(resetBtn).toBeVisible();
+
+    // Exiting the mode restores the inactive button styling; exposure persists.
+    await dragBtn.click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(1.5)');
+
+    // Selecting a tool also exits the control (mutual exclusivity).
+    await dragBtn.click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(33, 150, 243)');
+    await page.locator('[data-testid="tool-rectangle"]').click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
+  });
+
   test('Reset clears rotation and flip', async ({ page }) => {
     const rotateCwBtn = page.locator('[data-testid="view-rotate-cw"]');
     const flipVBtn = page.locator('[data-testid="view-flip-v"]');
