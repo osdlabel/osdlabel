@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@osdlabel/solid": "workspace:*",
+    "fabric": "catalog:",
     "osdlabel": "workspace:*",
     "solid-js": "catalog:"
   },

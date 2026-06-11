@@ -91,8 +91,6 @@ The `Annotator` component provides a complete annotation interface with toolbar,
 
 ```tsx
 
-initFabricModule();
-
 function App() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -115,6 +113,8 @@ function App() {
 
 render(() => <App />, document.getElementById('app')!);
 ```
+
+The `Annotator` registers the Fabric `id` custom property automatically when its viewer mounts, so there's no setup call to remember. (`initFabricModule()` is still exported and idempotent if you build Fabric objects yourself before any viewer exists — see [Serialization](/osdlabel/guides/serialization/).)
 
 ## 4. What you get
 

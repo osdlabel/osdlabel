@@ -12,7 +12,6 @@ import {
   useAnnotator,
   serialize,
   deserialize,
-  initFabricModule,
   createMeasurementProvider,
   createLabelProvider,
   createDistanceProvider,
@@ -27,8 +26,12 @@ import type {
   DomDecoration,
   OsdFields,
 } from '@osdlabel/solid';
+import { FabricObject } from 'fabric';
 
-initFabricModule();
+// NOTE: initFabricModule() is intentionally NOT called here. The library
+// registers the Fabric `id` custom property automatically when a FabricOverlay
+// mounts, so this dev harness dogfoods that auto-registration. The E2E test
+// `auto-init-fabric.spec.ts` relies on this.
 
 const IMAGES: ImageSource[] = [
   {
@@ -106,6 +109,21 @@ function AppContent() {
 
   // Auto-assign first image to cell 0
   actions.assignImageToCell(0, IMAGES[0]!.id);
+
+  // Test-only hooks consumed by E2E (auto-init-fabric.spec.ts). Exposes the
+  // current serialized document and the live Fabric `customProperties` array so
+  // the test can assert the `id` registration is correct and idempotent.
+  (
+    window as unknown as {
+      __osdTest?: {
+        serialize: () => ReturnType<typeof serialize>;
+        fabricCustomProperties: () => string[];
+      };
+    }
+  ).__osdTest = {
+    serialize: () => serialize(annotationState),
+    fabricCustomProperties: () => [...(FabricObject.customProperties ?? [])],
+  };
 
   const copyAnnotationsToClipboard = () => {
     const json = JSON.stringify(annotationState.byImage, null, 2);

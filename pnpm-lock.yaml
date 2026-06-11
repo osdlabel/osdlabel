@@ -98,6 +98,9 @@ importers:
       '@osdlabel/solid':
         specifier: workspace:*
         version: link:../../packages/solid
+      fabric:
+        specifier: 'catalog:'
+        version: 7.4.0
       osdlabel:
         specifier: workspace:*
         version: link:../../packages/osdlabel

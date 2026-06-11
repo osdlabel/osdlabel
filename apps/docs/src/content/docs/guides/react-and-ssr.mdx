@@ -3,7 +3,7 @@ title: React & SSR
 description: Using @osdlabel/react, and mounting the annotator client-only under Next.js / Remix
 ---
 
-Most guides on this site use `@osdlabel/solid` because the API is identical across bindings. This guide collects the parts that are **React-specific** or that bite when you render on a server: where to call `initFabricModule()`, `Annotator` vs `AnnotatorProvider`, the `renderDomDecoration` prop, and how to mount client-only under SSR frameworks.
+Most guides on this site use `@osdlabel/solid` because the API is identical across bindings. This guide collects the parts that are **React-specific** or that bite when you render on a server: `Annotator` vs `AnnotatorProvider`, the `renderDomDecoration` prop, and how to mount client-only under SSR frameworks.
 
 ## React parity
 
@@ -29,13 +29,9 @@ The end-to-end shape (the React counterpart of the [Quick Start](/osdlabel/getti
 
 ```tsx
 import { createRoot } from 'react-dom/client';
-import { Annotator, initFabricModule } from '@osdlabel/react';
+import { Annotator } from '@osdlabel/react';
 import { createImageId, createAnnotationContextId } from '@osdlabel/react';
 import type { ImageSource, AnnotationContext } from '@osdlabel/react';
-
-// Call once, before the first Annotator mounts. Registers the Fabric `id`
-// custom property so annotations serialize correctly. Idempotent.
-initFabricModule();
 
 const images: ImageSource[] = [
   {
@@ -106,8 +102,9 @@ osdlabel is **ESM-only** and touches `window`, Fabric, and OpenSeadragon **at im
 The rules:
 
 1. **Never import `@osdlabel/react` into a module that runs on the server.** Isolate it behind a dynamic, client-only boundary.
-2. **Call `initFabricModule()` on the client only** — at the top of the client-only module, or in a mount effect. Never at the top of a file the server imports.
-3. Treat the annotator as a leaf you load lazily after hydration.
+2. Treat the annotator as a leaf you load lazily after hydration.
+
+(Fabric `id` registration is automatic — the `Annotator` handles it on mount, on the client, so there's no setup call to place carefully.)
 
 ### Next.js (App Router)
 
@@ -117,10 +114,8 @@ Put the annotator in its own Client Component and load it with `next/dynamic` + 
 // AnnotatorClient.tsx
 'use client';
 
-import { Annotator, initFabricModule } from '@osdlabel/react';
+import { Annotator } from '@osdlabel/react';
 import type { ImageSource, AnnotationContext } from '@osdlabel/react';
-
-initFabricModule(); // runs only on the client because this module is never server-imported
 
 export default function AnnotatorClient(props: {
   images: ImageSource[];

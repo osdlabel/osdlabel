@@ -4,7 +4,7 @@ import type { TMat2D } from 'fabric';
 import type { Point } from '@osdlabel/annotation';
 import type { CellTransform } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
-import '@osdlabel/fabric-annotations';
+import { initFabricModule } from '@osdlabel/fabric-annotations';
 import {
   POINTER_DOWN,
   POINTER_MOVE,
@@ -219,6 +219,11 @@ export class FabricOverlay {
 
   constructor(viewer: OpenSeadragon.Viewer, options?: OverlayOptions) {
     this._viewer = viewer;
+
+    // Ensure the `id` custom property is registered so annotation objects
+    // serialize their id (and the clear filter `obj => obj.id` works). Idempotent
+    // and merge-safe, so an explicit consumer call remains harmless.
+    initFabricModule();
 
     // ── Create canvas DOM element ────────────────────────────────
     this._canvasEl = document.createElement('canvas');
