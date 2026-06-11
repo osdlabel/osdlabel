@@ -123,6 +123,17 @@ test.describe('View Controls', () => {
     const drawerCanvas = page.locator('.openseadragon-canvas canvas').nth(0);
     const viewer = page.locator('.openseadragon-canvas');
 
+    // The FabricOverlay (and thus the customControl handler) is created on OSD's
+    // 'open' event. Wait for the viewer to be open before dragging so the drag
+    // isn't lost to a not-yet-registered handler. testMode exposes the viewer on
+    // its container element.
+    await page.waitForFunction(() => {
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & { __osdViewer?: { isOpen?: () => boolean } })
+        | null;
+      return el?.__osdViewer?.isOpen?.() === true;
+    });
+
     // Enter drag-exposure (customControl) mode — button shows active state.
     await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
     await dragBtn.click();
@@ -136,10 +147,14 @@ test.describe('View Controls', () => {
     // Drag up well past the range so exposure saturates at its max (1) →
     // brightness(2). Asserting the clamped value keeps this deterministic
     // regardless of exact pixel distance and the 0.025 step resolution (a
-    // mid-range target would be sensitive to subpixel mouse jitter).
+    // mid-range target would be sensitive to subpixel mouse jitter). Use several
+    // held moves so the gesture reliably registers and the cumulative distance
+    // clears the clamp even if an intermediate move is dropped.
     await page.mouse.move(x, startY);
     await page.mouse.down();
-    await page.mouse.move(x, box.y + 10, { steps: 12 });
+    await page.mouse.move(x, startY - 80, { steps: 4 });
+    await page.mouse.move(x, startY - 160, { steps: 4 });
+    await page.mouse.move(x, box.y + 10, { steps: 4 });
     await page.mouse.up();
 
     await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
