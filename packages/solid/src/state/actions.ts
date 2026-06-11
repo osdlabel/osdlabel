@@ -12,6 +12,8 @@ import {
   applyUIAction,
   applyContextAction,
   validateAddAnnotation,
+  computeConstraintStatus,
+  processConvertCircleToRectangle,
 } from 'osdlabel';
 
 export function createActions(
@@ -20,6 +22,7 @@ export function createActions(
   setContextState: SetStoreFunction<ContextState>,
   contextState: ContextState,
   uiState: UIState,
+  annotationState: AnnotationState<OsdFields>,
 ) {
   function addAnnotation(annotation: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'>): void {
     if (!validateAddAnnotation(annotation, contextState)) return;
@@ -43,6 +46,21 @@ export function createActions(
         }),
       ),
     );
+  }
+
+  /**
+   * Converts a circle annotation to its bounding-box rectangle in place.
+   * No-ops when the annotation is missing, is not a circle, or the active
+   * context cannot hold another rectangle (constraint guard).
+   */
+  function convertAnnotation(id: AnnotationId, imageId: ImageId): void {
+    const annotation = annotationState.byImage[imageId]?.[id];
+    if (!annotation) return;
+    const status = computeConstraintStatus(contextState, annotationState, imageId);
+    if (!status.rectangle.enabled) return;
+    const patch = processConvertCircleToRectangle(annotation);
+    if (!patch) return;
+    updateAnnotation(id, imageId, patch);
   }
 
   function deleteAnnotation(id: AnnotationId, imageId: ImageId): void {
@@ -197,6 +215,7 @@ export function createActions(
   return {
     addAnnotation,
     updateAnnotation,
+    convertAnnotation,
     deleteAnnotation,
     setActiveTool,
     setActiveViewerControl,

@@ -22,7 +22,12 @@ describe('SelectTool', () => {
     remove: ReturnType<typeof vi.fn>;
   };
   let mockCallbacks: ToolCallbacks;
-  let capturedHandlers: Record<string, (...args: unknown[]) => void>;
+  // Fabric supports multiple handlers per event, so capture arrays and fire all
+  // (the SelectTool and its PolyVertexEditor both subscribe to some events).
+  let capturedHandlers: Record<string, Array<(...args: unknown[]) => void>>;
+  const fire = (eventName: string, arg: unknown) => {
+    for (const handler of capturedHandlers[eventName] ?? []) handler(arg);
+  };
   const imageId = createImageId('test-image-select');
   const contextId = createAnnotationContextId('test-context');
   const mockShortcuts: KeyboardShortcutMap = createTestKeyboardShortcuts();
@@ -33,7 +38,7 @@ describe('SelectTool', () => {
 
     mockCanvas = {
       on: vi.fn().mockImplementation((eventName: string, handler: (...args: unknown[]) => void) => {
-        capturedHandlers[eventName] = handler;
+        (capturedHandlers[eventName] ??= []).push(handler);
       }),
       off: vi.fn(),
       discardActiveObject: vi.fn(),
@@ -81,7 +86,7 @@ describe('SelectTool', () => {
     const annId = createAnnotationId('ann-1');
     const mockObj = { id: annId } as unknown as FabricObject;
 
-    capturedHandlers['selection:created']({ selected: [mockObj] });
+    fire('selection:created', { selected: [mockObj] });
 
     expect(mockCallbacks.setSelectedAnnotation).toHaveBeenCalledWith(annId);
   });
@@ -92,7 +97,7 @@ describe('SelectTool', () => {
     const mockObj1 = { id: createAnnotationId('ann-1') } as unknown as FabricObject;
     const mockObj2 = { id: createAnnotationId('ann-2') } as unknown as FabricObject;
 
-    capturedHandlers['selection:created']({ selected: [mockObj1, mockObj2] });
+    fire('selection:created', { selected: [mockObj1, mockObj2] });
 
     expect(mockCallbacks.setSelectedAnnotation).toHaveBeenCalledWith(null);
   });
@@ -100,7 +105,7 @@ describe('SelectTool', () => {
   it('should trigger setSelectedAnnotation(null) on selection:cleared', () => {
     tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
 
-    capturedHandlers['selection:cleared']({ deselected: [] });
+    fire('selection:cleared', { deselected: [] });
 
     expect(mockCallbacks.setSelectedAnnotation).toHaveBeenCalledWith(null);
   });

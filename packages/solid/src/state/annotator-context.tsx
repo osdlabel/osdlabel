@@ -6,8 +6,12 @@ import type { AnnotationState, KeyboardShortcutMap, UIState } from '@osdlabel/vi
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields } from 'osdlabel';
-import { DEFAULT_KEYBOARD_SHORTCUTS } from 'osdlabel';
+import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
+import {
+  DEFAULT_KEYBOARD_SHORTCUTS,
+  DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+  DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+} from 'osdlabel';
 import { createAnnotationStore } from './annotation-store.js';
 import { createUIStore } from './ui-store.js';
 import { createContextStore, createConstraintStatus } from './context-store.js';
@@ -26,6 +30,7 @@ interface AnnotatorContextValue {
   actions: ReturnType<typeof createActions>;
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef;
   shortcuts: KeyboardShortcutMap;
+  vertexEditConfig: VertexEditConfig;
   activeImageId: Accessor<ImageId | undefined>;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -53,6 +58,16 @@ export interface AnnotatorProviderProps {
   /** Called when constraint status changes (after initial mount) */
   readonly onConstraintChange?: ((status: ConstraintStatus) => void) | undefined;
   readonly keyboardShortcuts?: Partial<KeyboardShortcutMap> | undefined;
+  /**
+   * Long-press duration (ms) to enter polygon/polyline vertex-edit mode.
+   * Defaults to {@link DEFAULT_VERTEX_EDIT_LONG_PRESS_MS}.
+   */
+  readonly vertexEditLongPressMs?: number | undefined;
+  /**
+   * Pointer travel (screen px) that cancels the vertex-edit long-press.
+   * Defaults to {@link DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX}.
+   */
+  readonly vertexEditMoveTolerancePx?: number | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /** When true, exposes internal instances on DOM elements for E2E test access */
@@ -85,12 +100,17 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     setContextState,
     contextState,
     uiState,
+    annotationState,
   );
   const activeImageId = () => uiState.gridAssignments[uiState.activeCellIndex];
   const constraintStatus = createConstraintStatus(contextState, annotationState, activeImageId);
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };
   const mergedShortcuts = { ...DEFAULT_KEYBOARD_SHORTCUTS, ...props.keyboardShortcuts };
+  const vertexEditConfig: VertexEditConfig = {
+    longPressMs: props.vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+    moveTolerancePx: props.vertexEditMoveTolerancePx ?? DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+  };
 
   // Load initial annotations if provided
   if (props.initialAnnotations) {
@@ -139,6 +159,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     actions,
     activeToolKeyHandlerRef,
     shortcuts: mergedShortcuts,
+    vertexEditConfig,
     activeImageId,
     testMode: props.testMode ?? false,
     decorationProviders: props.decorationProviders ?? [],

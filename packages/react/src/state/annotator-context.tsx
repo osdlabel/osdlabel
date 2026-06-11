@@ -19,9 +19,11 @@ import type {
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields } from 'osdlabel';
+import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
+  DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+  DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
   createInitialAnnotationState,
   createInitialUIState,
   createInitialContextState,
@@ -43,6 +45,7 @@ interface AnnotatorContextValue {
   actions: ReturnType<typeof createActions>;
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef;
   shortcuts: KeyboardShortcutMap;
+  vertexEditConfig: VertexEditConfig;
   activeImageId: ImageId | undefined;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -58,6 +61,16 @@ export interface AnnotatorProviderProps {
   readonly onAnnotationsChange?: ((annotations: OsdAnnotation[]) => void) | undefined;
   readonly onConstraintChange?: ((status: ConstraintStatus) => void) | undefined;
   readonly keyboardShortcuts?: Partial<KeyboardShortcutMap> | undefined;
+  /**
+   * Long-press duration (ms) to enter polygon/polyline vertex-edit mode.
+   * Defaults to {@link DEFAULT_VERTEX_EDIT_LONG_PRESS_MS}.
+   */
+  readonly vertexEditLongPressMs?: number | undefined;
+  /**
+   * Pointer travel (screen px) that cancels the vertex-edit long-press.
+   * Defaults to {@link DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX}.
+   */
+  readonly vertexEditMoveTolerancePx?: number | undefined;
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   readonly testMode?: boolean | undefined;
   /**
@@ -83,6 +96,8 @@ export function AnnotatorProvider({
   onAnnotationsChange,
   onConstraintChange,
   keyboardShortcuts,
+  vertexEditLongPressMs,
+  vertexEditMoveTolerancePx,
   shouldSkipKeyboardShortcutPredicate,
   testMode = false,
   decorationProviders,
@@ -113,6 +128,8 @@ export function AnnotatorProvider({
   contextStateRef.current = contextState;
   const uiStateRef = useRef(uiState);
   uiStateRef.current = uiState;
+  const annotationStateRef = useRef(annotationState);
+  annotationStateRef.current = annotationState;
 
   const actions = useMemo(
     () =>
@@ -122,6 +139,7 @@ export function AnnotatorProvider({
         dispatchContext,
         () => contextStateRef.current,
         () => uiStateRef.current,
+        () => annotationStateRef.current,
       ),
     [],
   );
@@ -140,6 +158,13 @@ export function AnnotatorProvider({
   const mergedShortcuts = useMemo(
     () => ({ ...DEFAULT_KEYBOARD_SHORTCUTS, ...keyboardShortcuts }),
     [keyboardShortcuts],
+  );
+  const vertexEditConfig = useMemo<VertexEditConfig>(
+    () => ({
+      longPressMs: vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+      moveTolerancePx: vertexEditMoveTolerancePx ?? DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+    }),
+    [vertexEditLongPressMs, vertexEditMoveTolerancePx],
   );
 
   // Fire onAnnotationsChange when annotations change (skip initial render)
@@ -184,6 +209,7 @@ export function AnnotatorProvider({
       actions,
       activeToolKeyHandlerRef,
       shortcuts: mergedShortcuts,
+      vertexEditConfig,
       activeImageId,
       testMode,
       decorationProviders: stableDecorationProviders,
@@ -198,6 +224,7 @@ export function AnnotatorProvider({
       actions,
       activeToolKeyHandlerRef,
       mergedShortcuts,
+      vertexEditConfig,
       activeImageId,
       testMode,
       stableDecorationProviders,

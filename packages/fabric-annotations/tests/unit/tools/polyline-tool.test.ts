@@ -16,6 +16,8 @@ describe('PolylineTool', () => {
     remove: ReturnType<typeof vi.fn>;
     requestRenderAll: ReturnType<typeof vi.fn>;
     getZoom: ReturnType<typeof vi.fn>;
+    on: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
   };
   let mockCallbacks: ToolCallbacks;
   let addedParams: AddAnnotationParams[];
@@ -32,6 +34,8 @@ describe('PolylineTool', () => {
       remove: vi.fn(),
       requestRenderAll: vi.fn(),
       getZoom: vi.fn().mockReturnValue(1),
+      on: vi.fn(),
+      off: vi.fn(),
     };
 
     mockOverlay = {

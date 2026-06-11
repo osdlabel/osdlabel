@@ -1,7 +1,7 @@
 {
-  "name": "@osdlabel/decoration",
+  "name": "@osdlabel/geometry",
   "version": "0.4.0",
-  "description": "Declarative annotation decorations (labels, measurements, connector lines) and calibrated geometry math for osdlabel.",
+  "description": "Pure geometry math and geometry-type conversions for osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -29,9 +29,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@osdlabel/annotation": "workspace:*",
-    "@osdlabel/geometry": "workspace:*",
-    "@osdlabel/viewer-api": "workspace:*"
+    "@osdlabel/annotation": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:",

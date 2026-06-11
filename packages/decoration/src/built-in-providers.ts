@@ -9,7 +9,7 @@ import type {
   TextPlacement,
 } from './decoration.js';
 import type { DecorationProvider } from './provider.js';
-import * as geom from './geometry-math.js';
+import * as geom from '@osdlabel/geometry';
 import {
   formatMeasurement,
   toPhysicalArea,
