@@ -4,8 +4,10 @@ import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
 import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
+import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
   createAnnotationTool,
+  createDragValueControl,
   getScenePointFromEvent,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
@@ -73,10 +75,35 @@ export function useAnnotationTool(
   createEffect(() => {
     const ov = overlay();
     const active = isActive();
+    const viewerControl = uiState.activeViewerControl;
     const type = uiState.activeTool;
     const imgId = imageId();
 
     if (!ov || !imgId) {
+      return;
+    }
+
+    // A drag-driven viewer control takes precedence over annotation tools:
+    // the overlay enters customControl mode and forwards pointer events to the
+    // control's handler. This is the single authority over setMode, so there is
+    // no second effect that could race it.
+    if (active && viewerControl === 'exposure') {
+      ov.setCustomControlHandler(
+        createDragValueControl({
+          getValue: () =>
+            (uiState.cellTransforms[uiState.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM).exposure,
+          setValue: (value) => actions.setActiveImageExposure(value),
+          axis: 'y',
+          sensitivity: 0.01,
+          step: 0.025,
+          min: -1,
+          max: 1,
+        }),
+      );
+      ov.setMode('customControl');
+      onCleanup(() => {
+        ov.setCustomControlHandler(null);
+      });
       return;
     }
 

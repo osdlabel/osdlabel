@@ -22,6 +22,7 @@ export type {
   ImageId,
   ImageIdFields,
   UIState,
+  ViewerControlId,
   KeyboardShortcutMap,
   CellTransform,
   AnnotationState,
@@ -75,8 +76,20 @@ export type {
 } from '@osdlabel/fabric-annotations';
 
 // Fabric-OSD overlay (re-exported from @osdlabel/fabric-osd)
-export { FabricOverlay, computeViewportTransform, DecorationLayer } from '@osdlabel/fabric-osd';
-export type { OverlayOptions, OverlayMode, DomDecorationEntry } from '@osdlabel/fabric-osd';
+export {
+  FabricOverlay,
+  computeViewportTransform,
+  DecorationLayer,
+  createDragValueControl,
+} from '@osdlabel/fabric-osd';
+export type {
+  OverlayOptions,
+  OverlayMode,
+  DomDecorationEntry,
+  CustomControlEvent,
+  CustomControlHandler,
+  DragValueControlConfig,
+} from '@osdlabel/fabric-osd';
 
 // Decorations (re-exported from @osdlabel/decoration)
 export type {

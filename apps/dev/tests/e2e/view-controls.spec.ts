@@ -117,6 +117,61 @@ test.describe('View Controls', () => {
     await expect(drawerCanvas).toHaveCSS('filter', 'brightness(0)');
   });
 
+  test('Exposure drag mode adjusts brightness continuously', async ({ page }) => {
+    const dragBtn = page.locator('[data-testid="view-exposure-drag"]');
+    const resetBtn = page.locator('[data-testid="view-reset"]');
+    const drawerCanvas = page.locator('.openseadragon-canvas canvas').nth(0);
+    const viewer = page.locator('.openseadragon-canvas');
+
+    // The FabricOverlay (and thus the customControl handler) is created on OSD's
+    // 'open' event. Wait for the viewer to be open before dragging so the drag
+    // isn't lost to a not-yet-registered handler. testMode exposes the viewer on
+    // its container element.
+    await page.waitForFunction(() => {
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & { __osdViewer?: { isOpen?: () => boolean } })
+        | null;
+      return el?.__osdViewer?.isOpen?.() === true;
+    });
+
+    // Enter drag-exposure (customControl) mode — button shows active state.
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
+    await dragBtn.click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(33, 150, 243)');
+
+    const box = await viewer.boundingBox();
+    if (!box) throw new Error('viewer canvas not found');
+    const x = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
+
+    // Drag up well past the range so exposure saturates at its max (1) →
+    // brightness(2). Asserting the clamped value keeps this deterministic
+    // regardless of exact pixel distance and the 0.025 step resolution (a
+    // mid-range target would be sensitive to subpixel mouse jitter). Use several
+    // held moves so the gesture reliably registers and the cumulative distance
+    // clears the clamp even if an intermediate move is dropped.
+    await page.mouse.move(x, startY);
+    await page.mouse.down();
+    await page.mouse.move(x, startY - 80, { steps: 4 });
+    await page.mouse.move(x, startY - 160, { steps: 4 });
+    await page.mouse.move(x, box.y + 10, { steps: 4 });
+    await page.mouse.up();
+
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
+    await expect(resetBtn).toBeVisible();
+
+    // Exiting the mode restores the inactive button styling; exposure persists.
+    await dragBtn.click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
+
+    // Selecting a tool also exits the control (mutual exclusivity).
+    await dragBtn.click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(33, 150, 243)');
+    await page.locator('[data-testid="tool-rectangle"]').click();
+    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
+  });
+
   test('Reset clears rotation and flip', async ({ page }) => {
     const rotateCwBtn = page.locator('[data-testid="view-rotate-cw"]');
     const flipVBtn = page.locator('[data-testid="view-flip-v"]');

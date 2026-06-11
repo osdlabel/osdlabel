@@ -1,6 +1,6 @@
 import type { Dispatch } from 'react';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
-import type { ImageId } from '@osdlabel/viewer-api';
+import type { ImageId, ViewerControlId } from '@osdlabel/viewer-api';
 import type {
   AnnotationContext,
   AnnotationContextId,
@@ -35,6 +35,10 @@ export function createActions(
 
   function setActiveTool(tool: ToolType | 'select' | null): void {
     dispatchUI({ type: 'SET_ACTIVE_TOOL', payload: tool });
+  }
+
+  function setActiveViewerControl(control: ViewerControlId | null): void {
+    dispatchUI({ type: 'SET_ACTIVE_VIEWER_CONTROL', payload: control });
   }
 
   function setActiveCell(cellIndex: number): void {
@@ -113,6 +117,7 @@ export function createActions(
     updateAnnotation,
     deleteAnnotation,
     setActiveTool,
+    setActiveViewerControl,
     setActiveCell,
     setSelectedAnnotation,
     assignImageToCell,
