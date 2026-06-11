@@ -133,19 +133,22 @@ test.describe('View Controls', () => {
     const x = box.x + box.width / 2;
     const startY = box.y + box.height / 2;
 
-    // Drag up by 50px → +0.5 exposure (y-axis, sensitivity 0.01/px) → brightness(1.5).
+    // Drag up well past the range so exposure saturates at its max (1) →
+    // brightness(2). Asserting the clamped value keeps this deterministic
+    // regardless of exact pixel distance and the 0.025 step resolution (a
+    // mid-range target would be sensitive to subpixel mouse jitter).
     await page.mouse.move(x, startY);
     await page.mouse.down();
-    await page.mouse.move(x, startY - 50, { steps: 10 });
+    await page.mouse.move(x, box.y + 10, { steps: 12 });
     await page.mouse.up();
 
-    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(1.5)');
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
     await expect(resetBtn).toBeVisible();
 
     // Exiting the mode restores the inactive button styling; exposure persists.
     await dragBtn.click();
     await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
-    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(1.5)');
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
 
     // Selecting a tool also exits the control (mutual exclusivity).
     await dragBtn.click();
