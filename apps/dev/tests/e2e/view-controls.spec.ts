@@ -130,13 +130,13 @@ test.describe('View Controls', () => {
 
     const box = await viewer.boundingBox();
     if (!box) throw new Error('viewer canvas not found');
-    const startX = box.x + box.width / 2;
-    const y = box.y + box.height / 2;
+    const x = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
 
-    // Drag right by 50px → +0.5 exposure (sensitivity 0.01/px) → brightness(1.5).
-    await page.mouse.move(startX, y);
+    // Drag up by 50px → +0.5 exposure (y-axis, sensitivity 0.01/px) → brightness(1.5).
+    await page.mouse.move(x, startY);
     await page.mouse.down();
-    await page.mouse.move(startX + 50, y, { steps: 10 });
+    await page.mouse.move(x, startY - 50, { steps: 10 });
     await page.mouse.up();
 
     await expect(drawerCanvas).toHaveCSS('filter', 'brightness(1.5)');

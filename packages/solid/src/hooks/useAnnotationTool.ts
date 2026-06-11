@@ -93,7 +93,7 @@ export function useAnnotationTool(
           getValue: () =>
             (uiState.cellTransforms[uiState.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM).exposure,
           setValue: (value) => actions.setActiveImageExposure(value),
-          axis: 'x',
+          axis: 'y',
           sensitivity: 0.01,
           min: -1,
           max: 1,
