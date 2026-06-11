@@ -38,6 +38,7 @@ export function createDragValueControl(config: DragValueControlConfig): CustomCo
   let dragging = false;
   let startScreen = 0;
   let startValue = 0;
+  let lastValue = 0;
 
   const coord = (event: CustomControlEvent): number =>
     axis === 'x' ? event.screenPoint.x : event.screenPoint.y;
@@ -47,14 +48,25 @@ export function createDragValueControl(config: DragValueControlConfig): CustomCo
       dragging = true;
       startScreen = coord(event);
       startValue = config.getValue();
+      lastValue = startValue;
     },
     onPointerMove(event: CustomControlEvent): void {
       if (!dragging) return;
+      // Defensive: if no button is held the drag is over even though we never
+      // saw a pointerup (e.g. a lost pointercancel). Disarm so hovering does
+      // not keep mutating the value.
+      if (event.originalEvent.buttons === 0) {
+        dragging = false;
+        return;
+      }
       // For the y-axis, dragging up (smaller screen y) should increase the
       // value, matching the convention that "up" means "more".
       const rawDelta = coord(event) - startScreen;
       const delta = axis === 'y' ? -rawDelta : rawDelta;
       const next = Math.min(Math.max(startValue + delta * sensitivity, min), max);
+      // Skip redundant writes — notably while clamped at min/max during a drag.
+      if (next === lastValue) return;
+      lastValue = next;
       config.setValue(next);
     },
     onPointerUp(): void {

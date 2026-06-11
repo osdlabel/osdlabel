@@ -7,9 +7,9 @@ import type { CustomControlEvent } from '../../../src/overlay/fabric-overlay.js'
  * The originalEvent / imagePoint are unused by createDragValueControl, so we
  * supply minimal stand-ins.
  */
-function evt(x: number, y: number): CustomControlEvent {
+function evt(x: number, y: number, buttons = 1): CustomControlEvent {
   return {
-    originalEvent: { clientX: x, clientY: y } as unknown as PointerEvent,
+    originalEvent: { clientX: x, clientY: y, buttons } as unknown as PointerEvent,
     screenPoint: { x, y },
     imagePoint: { x, y },
   };
@@ -98,6 +98,47 @@ describe('createDragValueControl', () => {
 
     control.onPointerMove?.(evt(1000, 0));
     expect(value).toBeCloseTo(0.1); // unchanged
+  });
+
+  it('disarms when a move arrives with no button held (lost pointerup/cancel)', () => {
+    let value = 0;
+    const control = createDragValueControl({
+      getValue: () => value,
+      setValue: (v) => {
+        value = v;
+      },
+      sensitivity: 0.01,
+    });
+
+    control.onPointerDown?.(evt(0, 0));
+    control.onPointerMove?.(evt(10, 0)); // dragging, button held
+    expect(value).toBeCloseTo(0.1);
+
+    // A move with buttons === 0 means the press ended without a pointerup.
+    control.onPointerMove?.(evt(500, 0, 0));
+    expect(value).toBeCloseTo(0.1); // unchanged — disarmed
+
+    // Subsequent hover moves must not mutate the value either.
+    control.onPointerMove?.(evt(1000, 0, 1));
+    expect(value).toBeCloseTo(0.1);
+  });
+
+  it('skips redundant setValue calls while clamped at a boundary', () => {
+    let calls = 0;
+    const control = createDragValueControl({
+      getValue: () => 0,
+      setValue: () => {
+        calls += 1;
+      },
+      sensitivity: 0.01,
+      max: 1,
+    });
+
+    control.onPointerDown?.(evt(0, 0));
+    control.onPointerMove?.(evt(10000, 0)); // clamps to 1 → 1 write
+    control.onPointerMove?.(evt(20000, 0)); // still 1 → no write
+    control.onPointerMove?.(evt(30000, 0)); // still 1 → no write
+    expect(calls).toBe(1);
   });
 
   it('treats upward drag as increasing on the y-axis', () => {

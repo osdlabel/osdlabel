@@ -23,6 +23,8 @@ interface MockState {
   objectsSelectable: boolean;
   /** Whether Fabric objects receive pointer events */
   objectsEvented: boolean;
+  /** Count of discardActiveObject() calls (a setMode side effect) */
+  discardActiveObjectCalls: number;
 }
 
 interface MockOverlay {
@@ -37,11 +39,16 @@ function createMockOverlay(): { overlay: MockOverlay; state: MockState } {
     osdMouseNavEnabled: true,
     objectsSelectable: false,
     objectsEvented: false,
+    discardActiveObjectCalls: 0,
   };
 
   let currentMode: OverlayMode = 'navigation';
 
   function setMode(mode: OverlayMode): void {
+    // Mirrors the real FabricOverlay.setMode no-op guard: re-applying the
+    // current mode must not re-run side effects (discardActiveObject, object
+    // walks) that could clobber an in-progress gesture.
+    if (mode === currentMode) return;
     currentMode = mode;
 
     switch (mode) {
@@ -51,6 +58,7 @@ function createMockOverlay(): { overlay: MockOverlay; state: MockState } {
         state.objectsSelectable = false;
         state.objectsEvented = false;
         state.osdMouseNavEnabled = true;
+        state.discardActiveObjectCalls += 1;
         break;
 
       case 'annotation':
@@ -69,6 +77,7 @@ function createMockOverlay(): { overlay: MockOverlay; state: MockState } {
         state.objectsSelectable = false;
         state.objectsEvented = false;
         state.osdMouseNavEnabled = false;
+        state.discardActiveObjectCalls += 1;
         break;
     }
   }
@@ -194,6 +203,17 @@ describe('Input routing — setMode', () => {
       expect(state.fabricSelection).toBe(true);
       expect(state.objectsSelectable).toBe(true);
       expect(state.objectsEvented).toBe(true);
+    });
+
+    it('does not re-run discardActiveObject side effect on redundant setMode', () => {
+      overlay.setMode('customControl');
+      const after = state.discardActiveObjectCalls;
+      expect(after).toBeGreaterThan(0);
+
+      // Re-applying the same mode must be a true no-op (guards an in-progress
+      // custom-control drag from being clobbered).
+      overlay.setMode('customControl');
+      expect(state.discardActiveObjectCalls).toBe(after);
     });
 
     it('handles repeated same-mode calls idempotently', () => {

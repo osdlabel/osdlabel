@@ -67,6 +67,7 @@ export default defineConfig({
           items: [
             { label: 'Packages & Architecture', slug: 'guides/packages-and-architecture' },
             { label: 'Basic Controls', slug: 'guides/basic-controls' },
+            { label: 'Custom Drag Controls', slug: 'guides/custom-controls' },
             { label: 'Keyboard Shortcuts', slug: 'guides/keyboard-shortcuts' },
             { label: 'Viewer Grid', slug: 'guides/viewer-grid' },
             { label: 'Annotation Contexts', slug: 'guides/annotation-contexts' },
