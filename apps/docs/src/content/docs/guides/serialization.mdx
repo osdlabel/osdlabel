@@ -111,24 +111,7 @@ It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `
 
 The static `toolTypeToGeometryType('freeHandPath')` helper returns `polyline`, but the freehand **tool** produces a closed `polygon` by default at runtime (open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
 
-### Importing SVG paths and other shapes
-
-Because `createAnnotationFromGeometry` accepts any of the six geometry types, importing almost always reduces to mapping your source into one of them — no manual Fabric work:
-
-- **Straight-segment SVG paths** (`M` / `L` commands) → read the vertices and pass `{ type: 'polyline', points }` (open) or `{ type: 'polygon', points }` (closed).
-- **Curved SVG paths** (`C` / `Q` / `A` commands) → the geometry model has no lossless curve type, so sample the curve into points and pass them as a polygon / polyline. (`getGeometryFromFabricObject` likewise does not read Fabric `Path` objects — sampling is the supported route for curves.)
-
-```ts
-import { createAnnotationFromGeometry } from '@osdlabel/solid';
-
-// points: { x: number; y: number }[] read or sampled from your SVG path's `d`
-const annotation = createAnnotationFromGeometry(
-  { type: 'polygon', points },
-  { imageId, contextId, toolType: 'freeHandPath' },
-);
-```
-
-Annotations drawn with the built-in freehand tool are already plain `polygon` (closed) or `polyline` (open) geometry — there is nothing special to handle when importing them.
+Multi-point shapes import the same way: pass `{ type: 'polyline', points }` (open) or `{ type: 'polygon', points }` (closed), where `points` is an array of image-space `{ x, y }` coordinates. Annotations drawn with the built-in freehand tool are already plain `polygon` / `polyline` geometry, so there is nothing special to handle when importing them either.
 
 ### Lower-level escape hatch
 
