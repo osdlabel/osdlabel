@@ -58,6 +58,12 @@ export class PolyVertexEditor {
   /** The object currently in edit mode, and its annotation id (for re-attach). */
   private editingObject: Polyline | null = null;
   private editingId: string | null = null;
+  /**
+   * The vertex control last pressed (e.g. `'p2'`), used as the Delete/Backspace
+   * target. Tracked here because Fabric clears `obj.__corner` on mouse up, so by
+   * the time a key is pressed the hovered-corner state is already gone.
+   */
+  private activeVertexKey: string | null = null;
 
   /** Long-press bookkeeping. */
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -130,14 +136,21 @@ export class PolyVertexEditor {
     this.clearPress();
     const target = e.target;
 
-    // A click on the object already being edited is left to Fabric's control
-    // pipeline (vertex / insert handles). A click elsewhere exits edit mode.
-    if (this.editingObject && target !== this.editingObject) {
+    if (this.editingObject) {
+      if (target === this.editingObject) {
+        // Pressing a vertex control records it as the deletion target; pressing
+        // the body or an insert handle clears it. Fabric has already set
+        // `__corner` for this mouse:down (cleared again on the matching mouse:up).
+        const corner = this.editingObject.__corner;
+        this.activeVertexKey = corner && corner.startsWith('p') ? corner : null;
+        return; // let Fabric's control pipeline handle the interaction
+      }
+      // Clicked away from the edited shape — leave edit mode.
       this.exitEditMode();
     }
 
     const poly = this.editablePoly(target);
-    if (!poly || poly === this.editingObject) return;
+    if (!poly) return;
     if (this.isDrawing?.()) return;
 
     this.pressTarget = poly;
@@ -172,6 +185,7 @@ export class PolyVertexEditor {
     if (!this.canvas || poly === this.editingObject) return;
     this.editingObject = poly;
     this.editingId = poly.id ?? null;
+    this.activeVertexKey = null;
     this.applyEditControls(poly);
   }
 
@@ -179,6 +193,7 @@ export class PolyVertexEditor {
     const poly = this.editingObject;
     this.editingObject = null;
     this.editingId = null;
+    this.activeVertexKey = null;
     if (!poly) return;
     poly.controls = controlsUtils.createObjectDefaultControls();
     // Refresh oCoords so hit-testing matches the restored default control keys.
@@ -225,7 +240,9 @@ export class PolyVertexEditor {
   private deleteActiveVertex(): boolean {
     const poly = this.editingObject;
     if (!poly || !this.canvas) return false;
-    const corner = poly.__corner;
+    // Prefer the last vertex the user pressed; fall back to a currently-hovered
+    // corner so hover-then-delete still works.
+    const corner = this.activeVertexKey ?? poly.__corner;
     if (!corner || !corner.startsWith('p')) return false;
     const index = Number.parseInt(corner.slice(1), 10);
     if (!Number.isInteger(index) || index < 0 || index >= poly.points.length) return false;
@@ -237,6 +254,7 @@ export class PolyVertexEditor {
     poly.setDimensions();
     poly.controls = buildEditControls(poly);
     poly.setCoords();
+    this.activeVertexKey = null;
     delete poly.__corner;
     poly.set('dirty', true);
     // Commit through the host's object:modified → state path.

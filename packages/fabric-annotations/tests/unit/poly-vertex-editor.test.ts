@@ -162,6 +162,24 @@ describe('PolyVertexEditor', () => {
     expect(canvas.fire).toHaveBeenCalledWith('object:modified', { target: poly });
   });
 
+  it('targets the vertex pressed on mouse:down, even after __corner is cleared', () => {
+    const poly = makePolygon('poly-1');
+    fire('mouse:down', downEvent(poly, 100, 100));
+    vi.advanceTimersByTime(500);
+
+    // User presses the p2 vertex control...
+    poly.__corner = 'p2';
+    fire('mouse:down', { target: poly, viewportPoint: { x: 10, y: 10 } });
+    // ...and Fabric clears __corner on the matching mouse:up.
+    poly.__corner = undefined;
+
+    const before = poly.points.length;
+    const consumed = editor.onKeyDown({ key: 'Backspace' } as KeyboardEvent);
+
+    expect(consumed).toBe(true);
+    expect(poly.points.length).toBe(before - 1);
+  });
+
   it('refuses to delete below the polygon minimum of three points', () => {
     const tri = new Polygon(
       [
