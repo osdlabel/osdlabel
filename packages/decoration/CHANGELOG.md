@@ -1,5 +1,14 @@
 # @osdlabel/decoration
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [c77c661]
+  - @osdlabel/geometry@0.5.0
+  - @osdlabel/annotation@0.5.0
+  - @osdlabel/viewer-api@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

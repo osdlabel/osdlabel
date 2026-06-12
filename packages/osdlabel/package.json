@@ -1,6 +1,6 @@
 {
   "name": "osdlabel",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Framework-agnostic core for the osdlabel image annotation library — types, serialization, pure reducers, constraint computation, and keyboard mapping.",
   "type": "module",
   "main": "./dist/index.js",

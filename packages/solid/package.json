@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/solid",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "SolidJS implementation of the osdlabel image annotation library — reactive components, hooks, and state management.",
   "type": "module",
   "main": "./dist/index.js",

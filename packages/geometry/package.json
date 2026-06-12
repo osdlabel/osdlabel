@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/geometry",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Pure geometry math and geometry-type conversions for osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
