@@ -74,9 +74,6 @@ const CONTEXTS: AnnotationContext[] = [
       { type: 'polyline', maxCount: 3 },
       { type: 'freeHandPath', maxCount: 3 },
       { type: 'circle', maxCount: 2 },
-      // Allow rectangles so a circle can be converted to its bounding box here
-      // (the "Convert to Rect" toolbar action is gated on the rectangle limit).
-      { type: 'rectangle', maxCount: 2 },
     ],
   },
   {
