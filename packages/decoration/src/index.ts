@@ -22,7 +22,8 @@ export {
   centroid,
   midpoint,
   boundingBox,
-} from './geometry-math.js';
+  circleToBoundingRectangle,
+} from '@osdlabel/geometry';
 export {
   createMeasurementProvider,
   createLabelProvider,

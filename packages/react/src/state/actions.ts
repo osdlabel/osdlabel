@@ -1,13 +1,17 @@
 import type { Dispatch } from 'react';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
-import type { ImageId, ViewerControlId } from '@osdlabel/viewer-api';
+import type { AnnotationState, ImageId, ViewerControlId } from '@osdlabel/viewer-api';
 import type {
   AnnotationContext,
   AnnotationContextId,
   ContextState,
 } from '@osdlabel/annotation-context';
-import type { OsdAnnotation, AnnotationAction, UIAction, ContextAction } from 'osdlabel';
-import { validateAddAnnotation } from 'osdlabel';
+import type { OsdAnnotation, OsdFields, AnnotationAction, UIAction, ContextAction } from 'osdlabel';
+import {
+  validateAddAnnotation,
+  computeConstraintStatus,
+  processConvertCircleToRectangle,
+} from 'osdlabel';
 
 export function createActions(
   dispatchAnnotation: Dispatch<AnnotationAction>,
@@ -15,6 +19,7 @@ export function createActions(
   dispatchContext: Dispatch<ContextAction>,
   getContextState: () => ContextState,
   getUIState: () => { activeCellIndex: number },
+  getAnnotationState: () => AnnotationState<OsdFields>,
 ) {
   function addAnnotation(annotation: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'>): void {
     if (!validateAddAnnotation(annotation, getContextState())) return;
@@ -27,6 +32,22 @@ export function createActions(
     patch: Partial<Omit<OsdAnnotation, 'id' | 'imageId' | 'createdAt' | 'updatedAt'>>,
   ): void {
     dispatchAnnotation({ type: 'UPDATE_ANNOTATION', payload: { id, imageId, patch } });
+  }
+
+  /**
+   * Converts a circle annotation to its bounding-box rectangle in place.
+   * No-ops when the annotation is missing, is not a circle, or the active
+   * context cannot hold another rectangle (constraint guard).
+   */
+  function convertAnnotation(id: AnnotationId, imageId: ImageId): void {
+    const annotationState = getAnnotationState();
+    const annotation = annotationState.byImage[imageId]?.[id];
+    if (!annotation) return;
+    const status = computeConstraintStatus(getContextState(), annotationState, imageId);
+    if (!status.rectangle.enabled) return;
+    const patch = processConvertCircleToRectangle(annotation);
+    if (!patch) return;
+    updateAnnotation(id, imageId, patch);
   }
 
   function deleteAnnotation(id: AnnotationId, imageId: ImageId): void {
@@ -115,6 +136,7 @@ export function createActions(
   return {
     addAnnotation,
     updateAnnotation,
+    convertAnnotation,
     deleteAnnotation,
     setActiveTool,
     setActiveViewerControl,

@@ -1,5 +1,6 @@
-import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
+import type { AnnotationId, Point, RectangleGeometry, ToolType } from '@osdlabel/annotation';
 import { toolTypeToGeometryType } from '@osdlabel/annotation';
+import { circleToBoundingRectangle } from '@osdlabel/geometry';
 import type { ImageId, AnnotationState } from '@osdlabel/viewer-api';
 import type {
   AnnotationContextId,
@@ -10,6 +11,8 @@ import type {
   AnnotationTool,
   ToolCallbacks,
   AddAnnotationParams,
+  FabricShapeOptions,
+  FabricRawAnnotationData,
 } from '@osdlabel/fabric-annotations';
 import {
   RectangleTool,
@@ -19,17 +22,37 @@ import {
   PolylineTool,
   FreeHandPathTool,
   SelectTool,
+  buildFabricObjectFromGeometry,
   getGeometryFromFabricObject,
   serializeFabricObject,
+  DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+  DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+  type VertexEditConfig,
 } from '@osdlabel/fabric-annotations';
 import type { FabricObject } from 'fabric';
-import type { OsdFields } from './types.js';
+import type { OsdAnnotation, OsdFields } from './types.js';
+
+/** Options for {@link createAnnotationTool}. */
+export interface CreateAnnotationToolOptions {
+  /**
+   * Long-press tuning for the polygon/polyline vertex editor that the select,
+   * polyline, and free-draw tools expose. Defaults are applied when omitted.
+   */
+  readonly vertexEdit?: VertexEditConfig | undefined;
+}
 
 /**
  * Creates an annotation tool instance for the given tool type.
  * Returns null for unrecognized types.
  */
-export function createAnnotationTool(type: ToolType | 'select'): AnnotationTool | null {
+export function createAnnotationTool(
+  type: ToolType | 'select',
+  options?: CreateAnnotationToolOptions,
+): AnnotationTool | null {
+  const vertexEdit: VertexEditConfig = options?.vertexEdit ?? {
+    longPressMs: DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+    moveTolerancePx: DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+  };
   switch (type) {
     case 'rectangle':
       return new RectangleTool();
@@ -40,11 +63,11 @@ export function createAnnotationTool(type: ToolType | 'select'): AnnotationTool 
     case 'point':
       return new PointTool();
     case 'polyline':
-      return new PolylineTool();
+      return new PolylineTool(vertexEdit);
     case 'freeHandPath':
-      return new FreeHandPathTool();
+      return new FreeHandPathTool(undefined, vertexEdit);
     case 'select':
-      return new SelectTool();
+      return new SelectTool(vertexEdit);
     default:
       return null;
   }
@@ -213,4 +236,51 @@ export function processToolUpdateAnnotation(
 
   const rawAnnotationData = serializeFabricObject(fabricObject);
   return { geometry, rawAnnotationData };
+}
+
+/**
+ * Extracts the visual style fields from an existing annotation's serialized
+ * Fabric data so a converted shape keeps the original styling. Annotation
+ * style is not stored separately — it lives in the serialized Fabric object.
+ */
+function styleOptionsFromRawData(raw: FabricRawAnnotationData, id: string): FabricShapeOptions {
+  const d = raw.data;
+  const asString = (value: unknown, fallback: string): string =>
+    typeof value === 'string' ? value : fallback;
+  const asNumber = (value: unknown, fallback: number): number =>
+    typeof value === 'number' ? value : fallback;
+  return {
+    fill: asString(d.fill, 'transparent'),
+    stroke: asString(d.stroke, '#000000'),
+    strokeWidth: asNumber(d.strokeWidth, 1),
+    strokeDashArray: Array.isArray(d.strokeDashArray)
+      ? d.strokeDashArray.filter((n: unknown): n is number => typeof n === 'number')
+      : null,
+    opacity: asNumber(d.opacity, 1),
+    id,
+    strokeUniform: typeof d.strokeUniform === 'boolean' ? d.strokeUniform : true,
+  };
+}
+
+/**
+ * Converts a circle annotation into its axis-aligned bounding-box rectangle.
+ * Returns the UPDATE_ANNOTATION patch fields (geometry, toolType, rawAnnotationData),
+ * preserving the original visual style. Returns null if the annotation is not a circle.
+ *
+ * Callers should enforce constraints (e.g. the active context's rectangle limit)
+ * before applying the returned patch.
+ */
+export function processConvertCircleToRectangle(annotation: OsdAnnotation): {
+  readonly geometry: RectangleGeometry;
+  readonly toolType: 'rectangle';
+  readonly rawAnnotationData: FabricRawAnnotationData;
+} | null {
+  if (annotation.geometry.type !== 'circle') return null;
+
+  const geometry = circleToBoundingRectangle(annotation.geometry);
+  const options = styleOptionsFromRawData(annotation.rawAnnotationData, annotation.id);
+  const rect = buildFabricObjectFromGeometry(geometry, options);
+  const rawAnnotationData = serializeFabricObject(rect);
+
+  return { geometry, toolType: 'rectangle', rawAnnotationData };
 }

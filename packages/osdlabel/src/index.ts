@@ -66,6 +66,9 @@ export {
   createFabricObjectFromRawData,
   getGeometryFromFabricObject,
   buildFabricObjectFromGeometry,
+  PolyVertexEditor,
+  DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+  DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
 } from '@osdlabel/fabric-annotations';
 export type {
   ToolOverlay,
@@ -74,6 +77,8 @@ export type {
   AnnotationTool,
   ToolCallbacks,
   AddAnnotationParams,
+  PolyVertexEditorOptions,
+  VertexEditConfig,
 } from '@osdlabel/fabric-annotations';
 
 // Fabric-OSD overlay (re-exported from @osdlabel/fabric-osd)
@@ -129,6 +134,7 @@ export {
   centroid,
   midpoint,
   boundingBox,
+  circleToBoundingRectangle,
   withSelectionEmphasis,
 } from '@osdlabel/decoration';
 
@@ -183,8 +189,13 @@ export {
   processObjectModified,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
+  processConvertCircleToRectangle,
 } from './tool-factory.js';
-export type { ToolCallbackAccessors, ToolCallbackDispatchers } from './tool-factory.js';
+export type {
+  ToolCallbackAccessors,
+  ToolCallbackDispatchers,
+  CreateAnnotationToolOptions,
+} from './tool-factory.js';
 
 // Live decoration update wiring
 export { enableLiveDecorationUpdates } from './live-decoration-updates.js';

@@ -56,12 +56,13 @@ This is `osdlabel`, a DZI image annotation library built with SolidJS, Fabric.js
 
 ### Architecture
 
-The project is split into eight packages with clear dependency boundaries:
+The project is split into ten packages with clear dependency boundaries:
 
 - **`@osdlabel/annotation`** (`packages/annotation/`) — Pure annotation data model. Zero dependencies. Types are split into dedicated modules: `annotation.ts` (`BaseAnnotation`, `Annotation<E>`, `AnnotationStyle`, `AnnotationId`), `annotation-tool.ts` (`ToolType`), `geometry.ts` (geometry discriminated unions), `raw-annotation.ts` (generic `RawAnnotationData<TFormat, TData>`), `util.ts` (`createAnnotationId`, `toolTypeToGeometryType`), `id.ts`, `constants.ts`.
 - **`@osdlabel/viewer-api`** (`packages/viewer-api/`) — Viewer state types and utilities. Contains: `ImageId` branded type, `createImageId`, `ImageIdFields` extension interface, `ImageSource`, `PixelSpacing`, `AnnotationState<E>`, `getAllAnnotationsFlat`, `CellTransform`, `DEFAULT_CELL_TRANSFORM`, `UIState`, `KeyboardShortcutMap`. Depends on `@osdlabel/annotation`.
+- **`@osdlabel/geometry`** (`packages/geometry/`) — Pure geometry math and geometry-type conversions. Zero framework deps. Contains the geometry math utilities (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox` in `geometry-math.ts`) and conversions (`circleToBoundingRectangle` in `geometry-conversion.ts`). Depends only on `@osdlabel/annotation`. (`@osdlabel/decoration` re-exports the math, so the public `osdlabel` / `@osdlabel/decoration` surface is unchanged.)
 - **`@osdlabel/annotation-context`** (`packages/annotation-context/`) — Annotation context, constraints, and scoping. Contains: `AnnotationContextId` branded type, `AnnotationContext`, `ToolConstraint`, `ConstraintStatus`, `ContextState`, `ContextFields` extension interface, context scoping functions (`isContextScopedToImage`, `getCountableImageIds`). Depends on `@osdlabel/annotation` and `@osdlabel/viewer-api` (for `ImageId`).
-- **`@osdlabel/decoration`** (`packages/decoration/`) — Declarative annotation decorations and geometry math. Zero framework deps. Contains: `Decoration` discriminated union (`TextDecoration` — supports `zIndex`; `LineDecoration`), `DecorationProvider` contract + `composeProviders`, `DecorationContext` (annotations + pixelSpacing + mandatory `selectedAnnotationId`), geometry math utilities (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`), `Measurement` + unit conversion (`toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`), built-in providers (`createMeasurementProvider`, `createLabelProvider`, `createDistanceProvider`), and the `withSelectionEmphasis` opt-in style-elevation wrapper. Depends on `@osdlabel/annotation` and `@osdlabel/viewer-api` (for `PixelSpacing`).
+- **`@osdlabel/decoration`** (`packages/decoration/`) — Declarative annotation decorations. Zero framework deps. Contains: `Decoration` discriminated union (`TextDecoration` — supports `zIndex`; `LineDecoration`), `DecorationProvider` contract + `composeProviders`, `DecorationContext` (annotations + pixelSpacing + mandatory `selectedAnnotationId`), `Measurement` + unit conversion (`toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`), built-in providers (`createMeasurementProvider`, `createLabelProvider`, `createDistanceProvider`), and the `withSelectionEmphasis` opt-in style-elevation wrapper. **Geometry math now lives in `@osdlabel/geometry`** and is re-exported here for backward compatibility. Depends on `@osdlabel/annotation`, `@osdlabel/geometry`, and `@osdlabel/viewer-api` (for `PixelSpacing`).
 - **`@osdlabel/validation`** (`packages/validation/`) — Valibot schema implementations (Standard Schema compatible). Contains: `GeometrySchema`, `PointSchema`, `ToolTypeSchema` (in `tool.ts`), `BaseAnnotationSchema`, `OsdFieldsSchema`, `OsdAnnotationSchema` (in `annotation.ts`), `FabricRawAnnotationDataSchema` (in `fabric-data.ts`). Depends on `@osdlabel/annotation` and `valibot`.
 - **`@osdlabel/fabric-annotations`** (`packages/fabric-annotations/`) — Fabric.js annotation tools and utilities, SolidJS-agnostic. Contains: all annotation tools (`BaseTool`, `ShapeTool`, `RectangleTool`, etc.), `ToolOverlay` interface, `FabricRawAnnotationData` (extends `RawAnnotationData<'fabric'>`), `FabricFields` extension interface, Fabric object serialization utilities (`serializeFabricObject`, `deserializeFabricObject`, `createFabricObjectFromRawData`, `getGeometryFromFabricObject`, `getFabricOptions`), `initFabricModule`. Depends on `@osdlabel/annotation`, `@osdlabel/annotation-context`, `@osdlabel/viewer-api` (for `KeyboardShortcutMap`), and `fabric`.
 - **`@osdlabel/fabric-osd`** (`packages/fabric-osd/`) — Fabric.js + OpenSeaDragon overlay bridge & decoration renderer, SolidJS-agnostic. Contains: `FabricOverlay` (canvas overlay + viewport transform; exposes `onSync` and `overlayElement` for companion layers; flip-aware `imageToScreen` / `screenToImage`), pure helpers `computeViewportTransform`, `imageToScreenFlipAware`, `screenToImageFlipAware`, and `DecorationLayer` (renders text decorations as DOM elements positioned via `imageToScreen` and connector-line decorations as non-interactive Fabric objects). Depends on `@osdlabel/annotation`, `@osdlabel/viewer-api` (for `CellTransform`), `@osdlabel/decoration`, `@osdlabel/fabric-annotations`, `fabric`, and `openseadragon`.
@@ -118,8 +119,9 @@ This is a pnpm workspace monorepo with Turborepo for task orchestration:
 
 - `packages/annotation/` — `@osdlabel/annotation` (annotation data model)
 - `packages/viewer-api/` — `@osdlabel/viewer-api` (viewer state types; also owns `PixelSpacing`)
+- `packages/geometry/` — `@osdlabel/geometry` (pure geometry math + conversions)
 - `packages/annotation-context/` — `@osdlabel/annotation-context` (context, constraints, scoping)
-- `packages/decoration/` — `@osdlabel/decoration` (declarative decorations, geometry math, built-in providers)
+- `packages/decoration/` — `@osdlabel/decoration` (declarative decorations, built-in providers; re-exports geometry math)
 - `packages/validation/` — `@osdlabel/validation` (Valibot schemas, Standard Schema compatible)
 - `packages/fabric-annotations/` — `@osdlabel/fabric-annotations` (Fabric.js annotation tools & utilities)
 - `packages/fabric-osd/` — `@osdlabel/fabric-osd` (Fabric.js + OSD overlay bridge; also owns `DecorationLayer`)
@@ -137,7 +139,7 @@ The library is split across multiple npm packages:
 1. **`@osdlabel/annotation`** — Pure data model. `import { type Annotation, type BaseAnnotation, type RawAnnotationData, createAnnotationId } from '@osdlabel/annotation'`
 2. **`@osdlabel/viewer-api`** — Viewer state types and utilities. `import { type ImageId, type ImageIdFields, type ImageSource, type AnnotationState, type UIState, type CellTransform, type KeyboardShortcutMap, createImageId, DEFAULT_CELL_TRANSFORM, getAllAnnotationsFlat } from '@osdlabel/viewer-api'`
 3. **`@osdlabel/annotation-context`** — Context & constraints. `import { type AnnotationContext, isContextScopedToImage, getCountableImageIds } from '@osdlabel/annotation-context'`
-4. **`@osdlabel/decoration`** — Declarative annotation decorations (text labels, computed measurements, connector lines), geometry math, and built-in providers. Zero framework deps. `import { createMeasurementProvider, createLabelProvider, type DecorationProvider, area, perimeter } from '@osdlabel/decoration'`
+4. **`@osdlabel/decoration`** — Declarative annotation decorations (text labels, computed measurements, connector lines) and built-in providers. Zero framework deps. Re-exports the geometry math from `@osdlabel/geometry` (`area`, `perimeter`, … plus `circleToBoundingRectangle`) for backward compatibility. `import { createMeasurementProvider, createLabelProvider, type DecorationProvider, area, perimeter } from '@osdlabel/decoration'`
 5. **`@osdlabel/validation`** — Validation schemas. `import { BaseAnnotationSchema, OsdAnnotationSchema, OsdFieldsSchema, GeometrySchema, ToolTypeSchema, FabricRawAnnotationDataSchema } from '@osdlabel/validation'`
 6. **`@osdlabel/fabric-annotations`** — Fabric annotation tools & utilities. `import { initFabricModule, RectangleTool, type ToolOverlay, type FabricFields, type FabricRawAnnotationData } from '@osdlabel/fabric-annotations'`
 7. **`@osdlabel/fabric-osd`** — OSD overlay bridge & decoration renderer. `import { FabricOverlay, computeViewportTransform, DecorationLayer } from '@osdlabel/fabric-osd'`
@@ -158,7 +160,7 @@ Run from the workspace root — Turbo fans out to the correct packages:
 
 ```bash
 pnpm dev            # Start Vite dev server (apps/dev) with HMR into library source
-pnpm build          # Build all packages (annotation → viewer-api → annotation-context, decoration → validation → fabric-annotations → fabric-osd → osdlabel)
+pnpm build          # Build all packages (annotation → viewer-api → geometry → annotation-context, decoration → validation → fabric-annotations → fabric-osd → osdlabel)
 pnpm typecheck      # Type-check all packages
 pnpm test           # Run Vitest unit tests across all packages
 pnpm test:e2e       # Run Playwright E2E tests in apps/dev/
@@ -183,6 +185,11 @@ pnpm typecheck    # tsc --noEmit
 pnpm test         # vitest run
 
 # packages/annotation-context/
+pnpm build        # tsc -p tsconfig.build.json
+pnpm typecheck    # tsc --noEmit
+pnpm test         # vitest run
+
+# packages/geometry/
 pnpm build        # tsc -p tsconfig.build.json
 pnpm typecheck    # tsc --noEmit
 pnpm test         # vitest run

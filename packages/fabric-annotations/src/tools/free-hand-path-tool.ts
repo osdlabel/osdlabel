@@ -8,7 +8,16 @@ import {
   DEFAULT_ANNOTATION_STYLE,
   generateId,
 } from '@osdlabel/annotation';
+import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { getFabricOptions } from '../fabric-utils.js';
+import type { ToolOverlay } from '../types.js';
+import type { ToolCallbacks } from './base-tool.js';
+import {
+  PolyVertexEditor,
+  DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+  DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+  type VertexEditConfig,
+} from '../poly-vertex-editor.js';
 
 /** Default minimum distance in screen pixels between consecutive sampled points */
 const DEFAULT_MIN_SAMPLE_DISTANCE_SCREEN_PX = 3;
@@ -20,11 +29,34 @@ export class FreeHandPathTool extends BaseTool {
   private isDrawing = false;
   private shiftHeld = false;
   private readonly minSampleDistancePx: number;
+  private readonly editor: PolyVertexEditor;
 
-  constructor(options?: { minSampleDistancePx?: number }) {
+  constructor(
+    options?: { minSampleDistancePx?: number },
+    config: VertexEditConfig = {
+      longPressMs: DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+      moveTolerancePx: DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+    },
+  ) {
     super();
     this.minSampleDistancePx =
       options?.minSampleDistancePx ?? DEFAULT_MIN_SAMPLE_DISTANCE_SCREEN_PX;
+    this.editor = new PolyVertexEditor({ ...config, isDrawing: () => this.isDrawing });
+  }
+
+  activate(
+    overlay: ToolOverlay,
+    imageId: ImageId,
+    callbacks: ToolCallbacks,
+    shortcuts: KeyboardShortcutMap,
+  ): void {
+    super.activate(overlay, imageId, callbacks, shortcuts);
+    if (this.overlay) this.editor.activate(this.overlay);
+  }
+
+  deactivate(): void {
+    this.editor.deactivate();
+    super.deactivate();
   }
 
   onPointerDown(event: PointerEvent, imagePoint: Point): void {
@@ -92,6 +124,7 @@ export class FreeHandPathTool extends BaseTool {
   }
 
   onKeyDown(event: KeyboardEvent): boolean {
+    if (this.editor.onKeyDown(event)) return true;
     if (this.isDrawing && event.key === this.shortcuts?.cancel) {
       this.cancel();
       return true;

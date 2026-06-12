@@ -36,6 +36,7 @@ export function useAnnotationTool(
     actions,
     activeToolKeyHandlerRef,
     shortcuts,
+    vertexEditConfig,
   } = useAnnotator();
 
   // Auto-switch to select tool when active drawing tool becomes disabled (limit reached)
@@ -112,7 +113,9 @@ export function useAnnotationTool(
       return;
     }
 
-    const tool: AnnotationTool | null = createAnnotationTool(type);
+    const tool: AnnotationTool | null = createAnnotationTool(type, {
+      vertexEdit: vertexEditConfig,
+    });
 
     if (!tool) {
       ov.setMode('navigation');

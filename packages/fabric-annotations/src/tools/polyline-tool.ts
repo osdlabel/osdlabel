@@ -8,7 +8,16 @@ import {
   DEFAULT_ANNOTATION_STYLE,
   generateId,
 } from '@osdlabel/annotation';
+import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { getFabricOptions } from '../fabric-utils.js';
+import type { ToolOverlay } from '../types.js';
+import type { ToolCallbacks } from './base-tool.js';
+import {
+  PolyVertexEditor,
+  DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+  DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+  type VertexEditConfig,
+} from '../poly-vertex-editor.js';
 
 /** Distance in screen pixels to snap-close to the first point */
 const CLOSE_THRESHOLD_SCREEN_PX = 10;
@@ -18,6 +27,32 @@ export class PolylineTool extends BaseTool {
   private preview: Polyline | null = null;
   /** Committed vertices (does not include the live cursor point) */
   private vertices: Point[] = [];
+  private readonly editor: PolyVertexEditor;
+
+  constructor(
+    config: VertexEditConfig = {
+      longPressMs: DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+      moveTolerancePx: DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+    },
+  ) {
+    super();
+    this.editor = new PolyVertexEditor({ ...config, isDrawing: () => this.vertices.length > 0 });
+  }
+
+  activate(
+    overlay: ToolOverlay,
+    imageId: ImageId,
+    callbacks: ToolCallbacks,
+    shortcuts: KeyboardShortcutMap,
+  ): void {
+    super.activate(overlay, imageId, callbacks, shortcuts);
+    if (this.overlay) this.editor.activate(this.overlay);
+  }
+
+  deactivate(): void {
+    this.editor.deactivate();
+    super.deactivate();
+  }
 
   onPointerDown(event: PointerEvent, imagePoint: Point): void {
     if (!this.overlay) return;
@@ -89,6 +124,7 @@ export class PolylineTool extends BaseTool {
   }
 
   onKeyDown(event: KeyboardEvent): boolean {
+    if (this.editor.onKeyDown(event)) return true;
     const shortcuts = this.shortcuts;
     const isDrawing = this.vertices.length > 0;
 

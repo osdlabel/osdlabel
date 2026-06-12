@@ -11,7 +11,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
 };
 
 export default function Toolbar() {
-  const { uiState, contextState, constraintStatus, actions } = useAnnotator();
+  const { uiState, contextState, annotationState, constraintStatus, actions } = useAnnotator();
 
   const activeContext = (() => {
     if (!contextState.activeContextId) return undefined;
@@ -19,6 +19,18 @@ export default function Toolbar() {
   })();
 
   const allowedTools: ToolType[] = activeContext ? activeContext.tools.map((t) => t.type) : [];
+
+  // The currently selected annotation, looked up across the active image's
+  // annotations. Drives the contextual "Convert to Rect" action.
+  const selectedAnnotation = (() => {
+    const id = uiState.selectedAnnotationId;
+    if (!id) return undefined;
+    const imageId = uiState.gridAssignments[uiState.activeCellIndex];
+    if (!imageId) return undefined;
+    return annotationState.byImage[imageId]?.[id];
+  })();
+  const showConvertToRect = selectedAnnotation?.geometry.type === 'circle';
+  const canConvertToRect = showConvertToRect && constraintStatus.rectangle.enabled;
 
   return (
     <div
@@ -98,6 +110,31 @@ export default function Toolbar() {
           </button>
         );
       })}
+
+      {/* Contextual action: convert the selected circle to its bounding rectangle */}
+      {showConvertToRect && (
+        <button
+          data-testid="convert-to-rect"
+          disabled={!canConvertToRect}
+          onClick={() => {
+            if (selectedAnnotation && canConvertToRect) {
+              actions.convertAnnotation(selectedAnnotation.id, selectedAnnotation.imageId);
+            }
+          }}
+          style={{
+            padding: '4px 10px',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: canConvertToRect ? 'pointer' : 'not-allowed',
+            background: canConvertToRect ? '#333' : '#1a1a1a',
+            color: canConvertToRect ? '#fff' : '#666',
+            fontSize: '13px',
+            opacity: canConvertToRect ? 1 : 0.5,
+          }}
+        >
+          Convert to Rect
+        </button>
+      )}
     </div>
   );
 }

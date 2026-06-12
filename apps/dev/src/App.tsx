@@ -282,6 +282,12 @@ function AppContent() {
       {/* Status bar */}
       <StatusBar imageId={activeImageId()} showFps={true} />
 
+      {/* Hidden, reactive serialization of all annotations — a stable hook for
+          E2E assertions on geometry (type/point counts) without clipboard. */}
+      <div data-testid="annotations-json" style={{ display: 'none' }}>
+        {JSON.stringify(annotationState.byImage)}
+      </div>
+
       {/* JSON import panel */}
       {showImportPanel() && (
         <div

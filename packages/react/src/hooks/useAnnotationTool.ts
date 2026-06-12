@@ -36,6 +36,7 @@ export function useAnnotationTool(
     actions,
     activeToolKeyHandlerRef,
     shortcuts,
+    vertexEditConfig,
   } = useAnnotator();
 
   // Auto-switch to select tool when active drawing tool becomes disabled
@@ -114,7 +115,9 @@ export function useAnnotationTool(
       return;
     }
 
-    const tool: AnnotationTool | null = createAnnotationTool(uiState.activeTool);
+    const tool: AnnotationTool | null = createAnnotationTool(uiState.activeTool, {
+      vertexEdit: vertexEditConfig,
+    });
 
     if (!tool) {
       overlay.setMode('navigation');
@@ -210,6 +213,7 @@ export function useAnnotationTool(
     uiState.activeTool,
     uiState.activeViewerControl,
     shortcuts,
+    vertexEditConfig,
     actions,
     activeToolKeyHandlerRef,
   ]);
