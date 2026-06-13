@@ -19,7 +19,7 @@ import type {
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
+import type { OsdAnnotation, OsdFields, SegmentationProvider, VertexEditConfig } from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -51,6 +51,7 @@ interface AnnotatorContextValue {
   decorationProviders: readonly DecorationProvider<OsdFields>[];
   defaultPixelSpacing: PixelSpacing | undefined;
   renderDomDecoration: ((decoration: DomDecoration) => ReactNode) | undefined;
+  segmentationProvider: SegmentationProvider | undefined;
 }
 
 const AnnotatorContext = createContext<AnnotatorContextValue | null>(null);
@@ -88,6 +89,12 @@ export interface AnnotatorProviderProps {
    * the `DomDecoration` and returns the React node to mount.
    */
   readonly renderDomDecoration?: ((decoration: DomDecoration) => ReactNode) | undefined;
+  /**
+   * Injected auto-segmentation backend (Segment Anything-style). Required for
+   * the `'segmentation'` tool to be active; when omitted, selecting the tool is
+   * a no-op.
+   */
+  readonly segmentationProvider?: SegmentationProvider | undefined;
 }
 
 export function AnnotatorProvider({
@@ -103,6 +110,7 @@ export function AnnotatorProvider({
   decorationProviders,
   defaultPixelSpacing,
   renderDomDecoration,
+  segmentationProvider,
 }: AnnotatorProviderProps) {
   const [annotationState, dispatchAnnotation] = useReducer(annotationReducer, undefined, () => {
     const initial = createInitialAnnotationState();
@@ -215,6 +223,7 @@ export function AnnotatorProvider({
       decorationProviders: stableDecorationProviders,
       defaultPixelSpacing,
       renderDomDecoration,
+      segmentationProvider,
     }),
     [
       annotationState,
@@ -230,6 +239,7 @@ export function AnnotatorProvider({
       stableDecorationProviders,
       defaultPixelSpacing,
       renderDomDecoration,
+      segmentationProvider,
     ],
   );
 

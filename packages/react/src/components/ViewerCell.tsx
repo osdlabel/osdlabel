@@ -110,7 +110,7 @@ export default function ViewerCell({
   }, [overlay, imageSource?.id, cellIndex, uiState.cellTransforms]);
 
   // Annotation tool hook
-  useAnnotationTool(overlay, imageSource?.id, isActive);
+  useAnnotationTool(overlay, imageSource?.id, isActive, imageSource);
 
   // Track only the annotation dictionary for this cell's image. Immer keeps
   // structural sharing, so this reference only changes when annotations on

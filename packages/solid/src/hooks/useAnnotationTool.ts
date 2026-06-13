@@ -3,8 +3,9 @@ import type { FabricObject } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
 import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
-import type { ImageId } from '@osdlabel/viewer-api';
+import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
+import type { SegmentationImageRef } from 'osdlabel';
 import {
   createAnnotationTool,
   createDragValueControl,
@@ -27,6 +28,7 @@ export function useAnnotationTool(
   overlay: () => FabricOverlay | undefined,
   imageId: () => ImageId | undefined,
   isActive: () => boolean,
+  imageSource?: () => ImageSource | undefined,
 ) {
   const {
     uiState,
@@ -37,6 +39,7 @@ export function useAnnotationTool(
     activeToolKeyHandlerRef,
     shortcuts,
     vertexEditConfig,
+    segmentationProvider,
   } = useAnnotator();
 
   // Auto-switch to select tool when active drawing tool becomes disabled (limit reached)
@@ -113,8 +116,24 @@ export function useAnnotationTool(
       return;
     }
 
+    // Build the segmentation tool config only when a provider is injected and
+    // the cell has a known image source (needed for the tileSource fallback).
+    const src = imageSource?.();
+    const segmentation =
+      segmentationProvider && src
+        ? {
+            provider: segmentationProvider,
+            getImageRef: (id: ImageId): SegmentationImageRef => ({
+              imageId: id,
+              tileSource: src.tileSource,
+              getViewportCanvas: () => ov.getImageCanvas(),
+            }),
+          }
+        : undefined;
+
     const tool: AnnotationTool | null = createAnnotationTool(type, {
       vertexEdit: vertexEditConfig,
+      ...(segmentation ? { segmentation } : {}),
     });
 
     if (!tool) {
