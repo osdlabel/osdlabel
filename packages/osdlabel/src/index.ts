@@ -200,3 +200,15 @@ export type {
 // Live decoration update wiring
 export { enableLiveDecorationUpdates } from './live-decoration-updates.js';
 export type { LiveDecorationUpdateOptions } from './live-decoration-updates.js';
+
+// Auto-segmentation provider contract (injected by consumers)
+export type {
+  SegmentationProvider,
+  SegmentationImageRef,
+  SegmentationPrompt,
+  SegmentationResult,
+  SegmentationPoint,
+  SegmentationPointLabel,
+  SegmentationBox,
+} from '@osdlabel/segmentation';
+export type { SegmentationToolConfig } from '@osdlabel/fabric-annotations';

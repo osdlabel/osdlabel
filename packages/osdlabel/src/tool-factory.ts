@@ -14,6 +14,7 @@ import type {
   FabricShapeOptions,
   FabricRawAnnotationData,
 } from '@osdlabel/fabric-annotations';
+import type { SegmentationToolConfig } from '@osdlabel/fabric-annotations';
 import {
   RectangleTool,
   CircleTool,
@@ -22,6 +23,7 @@ import {
   PolylineTool,
   FreeHandPathTool,
   SelectTool,
+  SegmentationTool,
   buildFabricObjectFromGeometry,
   getGeometryFromFabricObject,
   serializeFabricObject,
@@ -39,6 +41,12 @@ export interface CreateAnnotationToolOptions {
    * polyline, and free-draw tools expose. Defaults are applied when omitted.
    */
   readonly vertexEdit?: VertexEditConfig | undefined;
+  /**
+   * Configuration for the auto-segmentation tool. Required for the `'segmentation'`
+   * tool to be available; when omitted, `createAnnotationTool('segmentation')`
+   * returns null so the tool degrades gracefully when no provider is configured.
+   */
+  readonly segmentation?: SegmentationToolConfig | undefined;
 }
 
 /**
@@ -66,6 +74,8 @@ export function createAnnotationTool(
       return new PolylineTool(vertexEdit);
     case 'freeHandPath':
       return new FreeHandPathTool(undefined, vertexEdit);
+    case 'segmentation':
+      return options?.segmentation ? new SegmentationTool(options.segmentation) : null;
     case 'select':
       return new SelectTool(vertexEdit);
     default:

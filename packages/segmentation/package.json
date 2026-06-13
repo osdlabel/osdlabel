@@ -1,7 +1,7 @@
 {
-  "name": "@osdlabel/fabric-annotations",
+  "name": "@osdlabel/segmentation",
   "version": "0.5.0",
-  "description": "Fabric.js annotation tools and utilities for osdlabel — drawing tools, serialization, and module augmentation.",
+  "description": "Provider contract for auto-segmentation (Segment Anything-style) models in osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -30,12 +30,7 @@
   },
   "dependencies": {
     "@osdlabel/annotation": "workspace:*",
-    "@osdlabel/annotation-context": "workspace:*",
-    "@osdlabel/segmentation": "workspace:*",
     "@osdlabel/viewer-api": "workspace:*"
-  },
-  "peerDependencies": {
-    "fabric": "catalog:peers"
   },
   "devDependencies": {
     "typescript": "catalog:",

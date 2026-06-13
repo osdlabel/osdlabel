@@ -266,6 +266,9 @@ importers:
       '@osdlabel/annotation-context':
         specifier: workspace:*
         version: link:../annotation-context
+      '@osdlabel/segmentation':
+        specifier: workspace:*
+        version: link:../segmentation
       '@osdlabel/viewer-api':
         specifier: workspace:*
         version: link:../viewer-api
@@ -366,6 +369,9 @@ importers:
       '@osdlabel/geometry':
         specifier: workspace:*
         version: link:../geometry
+      '@osdlabel/segmentation':
+        specifier: workspace:*
+        version: link:../segmentation
       '@osdlabel/validation':
         specifier: workspace:*
         version: link:../validation
@@ -464,6 +470,22 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.7(react@19.2.7)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+
+  packages/segmentation:
+    dependencies:
+      '@osdlabel/annotation':
+        specifier: workspace:*
+        version: link:../annotation
+      '@osdlabel/viewer-api':
+        specifier: workspace:*
+        version: link:../viewer-api
+    devDependencies:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
