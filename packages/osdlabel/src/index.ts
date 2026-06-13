@@ -210,5 +210,18 @@ export type {
   SegmentationPoint,
   SegmentationPointLabel,
   SegmentationBox,
+  SegmentationEncoder,
+  SegmentationDecoder,
+  SegmentationMask,
+  MaskToContoursOptions,
+  ResizeTransform,
+  ComputeResizeTransformOptions,
+} from '@osdlabel/segmentation';
+export {
+  composeSegmentationProvider,
+  maskToContours,
+  computeResizeTransform,
+  imageToModel,
+  modelToImage,
 } from '@osdlabel/segmentation';
 export type { SegmentationToolConfig } from '@osdlabel/fabric-annotations';
