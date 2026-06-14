@@ -35,6 +35,7 @@ export default defineConfig({
             '../../packages/fabric-osd',
             '../../packages/osd-helper',
             '../../packages/decoration',
+            '../../packages/geometry',
             '../../packages/segmentation',
             '../../packages/osdlabel',
             '../../packages/solid',
