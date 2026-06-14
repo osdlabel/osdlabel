@@ -12,6 +12,8 @@ export { PointTool } from './tools/point-tool.js';
 export { PolylineTool } from './tools/polyline-tool.js';
 export { FreeHandPathTool } from './tools/free-hand-path-tool.js';
 export { SelectTool } from './tools/select-tool.js';
+export { SegmentationTool } from './tools/segmentation-tool.js';
+export type { SegmentationToolConfig } from './tools/segmentation-tool.js';
 export {
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,

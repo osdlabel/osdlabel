@@ -110,6 +110,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     overlay,
     () => props.imageSource?.id,
     () => props.isActive,
+    () => props.imageSource,
   );
 
   // Compute visible annotations for the current cell — used by both the

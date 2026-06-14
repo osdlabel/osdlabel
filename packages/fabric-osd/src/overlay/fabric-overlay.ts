@@ -376,6 +376,18 @@ export class FabricOverlay {
     drawerCanvas.style.filter = parts.length > 0 ? parts.join(' ') : '';
   }
 
+  /**
+   * The HTML canvas the OSD drawer renders the image into, or `null` when the
+   * viewer has no canvas drawer yet. The pixels reflect the current viewport
+   * zoom (not full image resolution); consumers such as a segmentation provider
+   * may snapshot it for inference, or fetch the source `tileSource` for full-res.
+   */
+  getImageCanvas(): HTMLCanvasElement | null {
+    const drawer = this._viewer.drawer as { canvas?: unknown } | undefined;
+    const canvas = drawer?.canvas;
+    return canvas instanceof HTMLCanvasElement ? canvas : null;
+  }
+
   resetView(): void {
     this.applyViewTransform(DEFAULT_CELL_TRANSFORM);
   }

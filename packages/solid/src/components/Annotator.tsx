@@ -130,6 +130,8 @@ const Annotator: Component<AnnotatorProps> = (props) => {
       testMode={props.testMode}
       decorationProviders={props.decorationProviders}
       defaultPixelSpacing={props.defaultPixelSpacing}
+      renderDomDecoration={props.renderDomDecoration}
+      segmentationProvider={props.segmentationProvider}
     >
       <AnnotatorSetup contexts={props.contexts} displayedContextIds={props.displayedContextIds} />
       <AnnotatorInner

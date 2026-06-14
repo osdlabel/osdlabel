@@ -35,6 +35,8 @@ export default defineConfig({
             '../../packages/fabric-osd',
             '../../packages/osd-helper',
             '../../packages/decoration',
+            '../../packages/geometry',
+            '../../packages/segmentation',
             '../../packages/osdlabel',
             '../../packages/solid',
             '../../packages/react',
@@ -79,6 +81,7 @@ export default defineConfig({
             { label: 'Decorations', slug: 'guides/decorations' },
             { label: 'Measurements', slug: 'guides/measurements' },
             { label: 'OSD-Fabric Integration', slug: 'guides/osd-fabric-integration' },
+            { label: 'Auto-Segmentation', slug: 'guides/auto-segmentation' },
           ],
         },
         {

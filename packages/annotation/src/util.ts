@@ -6,6 +6,7 @@ import type { GeometryType } from './geometry';
 
 export function toolTypeToGeometryType(toolType: ToolType): GeometryType {
   if (toolType === 'freeHandPath') return 'polyline';
+  if (toolType === 'segmentation') return 'polygon';
   return toolType as GeometryType;
 } // ── ID Factory Functions ─────────────────────────────────────────────────
 
