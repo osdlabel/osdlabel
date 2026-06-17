@@ -330,9 +330,27 @@ browser requirements, which you set up locally:
    `Cross-Origin-Embedder-Policy: require-corp`. The **WebGPU** EP avoids the thread
    requirement and is much faster when available.
 4. **An embedding endpoint** — run (or stub) a server that encodes an image to the
-   `EmbeddingResponseBody` above. Point `apps/dev` at `createOnnxSamProvider` to try
-   it; the dev app otherwise uses a deterministic mock provider so CI needs no
-   weights or network.
+   `EmbeddingResponseBody` above.
+
+### Runnable reference: `apps/sam-demo`
+
+The repo ships a complete, runnable example wiring all of the above against real
+**MobileSAM** weights: [`apps/sam-demo`](https://github.com/guyo13/osdlabel/tree/main/apps/sam-demo).
+It runs the encoder as a **Vite dev-server middleware** (`POST /api/sam/embed`,
+using `sharp` + `onnxruntime-web` in Node) and decodes in the browser via
+`createOnnxSamProvider` — the whole server-encode → client-decode loop in a single
+`pnpm dev`, no separate backend process. It also handles the asset plumbing: a
+`copy-ort-wasm` script (serve the WASM same-origin under COEP), a `fetch-models`
+script (env-configurable MobileSAM URLs), and the COOP/COEP dev headers.
+
+```bash
+SAM_ENCODER_URL=<encoder.onnx> SAM_DECODER_URL=<decoder.onnx> \
+  pnpm --filter @osdlabel/sam-demo fetch-models
+pnpm --filter @osdlabel/sam-demo dev
+```
+
+`onnxruntime-web` lives only in that app's dependencies, so the library packages
+stay ONNX-free. See the app's `README.md` for tensor-name and `maskSpace` overrides.
 
 ## Future work: holes / inner rings
 

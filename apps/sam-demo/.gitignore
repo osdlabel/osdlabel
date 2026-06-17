@@ -1,0 +1,4 @@
+# Model weights and ONNX Runtime WASM are fetched/copied locally, never committed.
+public/models/
+public/ort/
+dist/

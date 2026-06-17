@@ -43,4 +43,5 @@ publishBranch: main
 allowBuilds:
   canvas: true
   esbuild: true
+  protobufjs: false
   sharp: true
