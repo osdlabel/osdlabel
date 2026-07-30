@@ -27,6 +27,34 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 | `-`                    | Remove a grid column                      |
 | `]`                    | Add a grid row                            |
 | `[`                    | Remove a grid row                         |
+| `.` / `>`              | Activate the next annotation context      |
+| `,` / `<`              | Activate the previous annotation context  |
+
+### Annotation context cycling
+
+`.` and `,` step through the `contexts` array in the order you configured it,
+wrapping around at both ends. This is the keyboard equivalent of picking an
+entry in the [`ContextSwitcher`](/osdlabel/api/components/) — nothing else about
+the session changes.
+
+Contexts scoped to other images (via `AnnotationContext.imageIds`) are skipped,
+so cycling only ever lands on a context that is usable on the image in the
+active cell. If the currently active context is itself scoped out of that image,
+`.` enters the ring at the first usable context and `,` at the last.
+
+The active tool is deliberately left selected across a switch. If the new
+context disallows it, the toolbar shows it disabled and the draw is rejected —
+the same enforcement that applies when you pick a context from the UI.
+
+```tsx
+const contexts = [
+  { id: createAnnotationContextId('lesions'), label: 'Lesions', tools: [{ type: 'rectangle' }] },
+  { id: createAnnotationContextId('landmarks'), label: 'Landmarks', tools: [{ type: 'point' }] },
+];
+
+// Pressing `.` with 'lesions' active makes 'landmarks' the active context.
+<Annotator images={images} contexts={contexts} />;
+```
 
 ### Polyline tool shortcuts
 

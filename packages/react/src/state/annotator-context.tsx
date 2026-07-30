@@ -193,6 +193,7 @@ export function AnnotatorProvider({
     activeToolKeyHandlerRef,
     actions,
     uiState,
+    contextState,
     activeImageId,
     constraintStatus,
     shouldSkipKeyboardShortcutPredicate,

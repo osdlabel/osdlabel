@@ -1,7 +1,12 @@
 import type { ToolType, AnnotationId } from '@osdlabel/annotation';
 import type { KeyboardShortcutMap, ImageId } from '@osdlabel/viewer-api';
-import type { ConstraintStatus } from '@osdlabel/annotation-context';
-import type { UIAction, AnnotationAction } from './actions.js';
+import type {
+  AnnotationContext,
+  AnnotationContextId,
+  ConstraintStatus,
+} from '@osdlabel/annotation-context';
+import type { UIAction, AnnotationAction, ContextAction } from './actions.js';
+import { getCycledContextId } from './context-cycling.js';
 
 export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   selectTool: 'v',
@@ -40,6 +45,8 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   decreaseExposure: 'D',
   increaseContrast: 'C',
   decreaseContrast: 'X',
+  nextContext: '.',
+  previousContext: ',',
 } as const;
 
 /** Maximum grid size */
@@ -58,6 +65,12 @@ export interface KeyboardMappingState {
   readonly gridRows: number;
   readonly selectedAnnotationId: AnnotationId | null;
   readonly activeImageId: ImageId | undefined;
+  /**
+   * Annotation contexts in configured order — the ring the context-cycling
+   * shortcuts step through. Omit (or pass an empty array) to disable cycling.
+   */
+  readonly contexts?: readonly AnnotationContext[] | undefined;
+  readonly activeContextId?: AnnotationContextId | null | undefined;
 }
 
 /**
@@ -76,9 +89,9 @@ export function mapKeyEventToActions(
   shortcuts: KeyboardShortcutMap,
   state: KeyboardMappingState,
   constraintStatus: ConstraintStatus,
-): readonly (UIAction | AnnotationAction)[] {
+): readonly (UIAction | AnnotationAction | ContextAction)[] {
   const keyLower = key.toLowerCase();
-  const actions: (UIAction | AnnotationAction)[] = [];
+  const actions: (UIAction | AnnotationAction | ContextAction)[] = [];
 
   // View Transforms (Shift+Key)
   if (shiftKey && keyLower === shortcuts.rotateCW.toLowerCase()) {
@@ -188,6 +201,33 @@ export function mapKeyEventToActions(
         type: 'SET_GRID_DIMENSIONS',
         payload: { columns: state.gridColumns, rows: state.gridRows - 1 },
       });
+    }
+  }
+
+  // Annotation context cycling. The shifted variants of the default `.` / `,`
+  // bindings are accepted too, mirroring the `=` / `+` grid-column handling.
+  else if (
+    key === shortcuts.nextContext ||
+    (shortcuts.nextContext === '.' && key === '>') ||
+    key === shortcuts.previousContext ||
+    (shortcuts.previousContext === ',' && key === '<')
+  ) {
+    const direction =
+      key === shortcuts.nextContext || key === '>' ? ('next' as const) : ('previous' as const);
+    const activeContextId = state.activeContextId ?? null;
+    const nextContextId = getCycledContextId(
+      state.contexts ?? [],
+      activeContextId,
+      direction,
+      state.activeImageId,
+    );
+    // Skip the dispatch when the ring is empty or has a single entry — a
+    // no-op write would still bust every downstream memo.
+    // The active tool is deliberately left alone: `useAnnotationTool` already
+    // re-checks `constraintStatus` at draw time, so a tool the new context
+    // disallows is rejected there and shown disabled in the toolbar.
+    if (nextContextId !== null && nextContextId !== activeContextId) {
+      actions.push({ type: 'SET_ACTIVE_CONTEXT', payload: nextContextId });
     }
   }
 

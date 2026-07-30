@@ -14,6 +14,7 @@ const mockActions = {
   flipActiveImageH: vi.fn(),
   flipActiveImageV: vi.fn(),
   resetActiveImageView: vi.fn(),
+  setActiveContext: vi.fn(),
 };
 
 // Mock UI state
@@ -35,9 +36,19 @@ const mockUiState = {
   gridRows: 1,
 };
 
+// Mock annotation-context state
+const makeContext = (id: string) => ({ id, label: id, tools: [] });
+
+const mockContextState = {
+  contexts: [makeContext('ctx-a'), makeContext('ctx-b'), makeContext('ctx-c')],
+  activeContextId: 'ctx-a' as string | null,
+  displayedContextIds: [],
+};
+
 // Mock context state
 const mockState = {
   uiState: mockUiState,
+  contextState: mockContextState,
   actions: mockActions,
   activeImageId: () => mockUiState.gridAssignments[mockUiState.activeCellIndex],
 };
@@ -101,6 +112,8 @@ describe('useKeyboard', () => {
     mockUiState.activeCellIndex = 0;
     mockUiState.gridColumns = 1;
     mockUiState.gridRows = 1;
+    mockContextState.contexts = [makeContext('ctx-a'), makeContext('ctx-b'), makeContext('ctx-c')];
+    mockContextState.activeContextId = 'ctx-a';
     mockConstraintStatus = makeConstraintStatus();
     mockConstraints.isToolEnabled.mockImplementation((type: string) => {
       const status = mockConstraintStatus as Record<string, { enabled: boolean }>;
@@ -356,6 +369,47 @@ describe('useKeyboard', () => {
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.decreaseGridColumns);
 
       expect(mockActions.setGridDimensions).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Annotation Context Cycling Shortcuts', () => {
+    it('should activate the next context', () => {
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
+      expect(mockActions.setActiveContext).toHaveBeenCalledWith('ctx-b');
+    });
+
+    it('should activate the previous context', () => {
+      mockContextState.activeContextId = 'ctx-b';
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.previousContext);
+      expect(mockActions.setActiveContext).toHaveBeenCalledWith('ctx-a');
+    });
+
+    it('should wrap around past the last context', () => {
+      mockContextState.activeContextId = 'ctx-c';
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
+      expect(mockActions.setActiveContext).toHaveBeenCalledWith('ctx-a');
+    });
+
+    it('should do nothing when there is only one context', () => {
+      mockContextState.contexts = [makeContext('ctx-a')];
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
+      expect(mockActions.setActiveContext).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing when no contexts are configured', () => {
+      mockContextState.contexts = [];
+      mockContextState.activeContextId = null;
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
+      expect(mockActions.setActiveContext).not.toHaveBeenCalled();
+    });
+
+    it('should not change the active tool or selection', () => {
+      mockUiState.selectedAnnotationId = 'ann-1';
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
+
+      expect(mockActions.setActiveContext).toHaveBeenCalledWith('ctx-b');
+      expect(mockActions.setActiveTool).not.toHaveBeenCalled();
+      expect(mockActions.setSelectedAnnotation).not.toHaveBeenCalled();
     });
   });
 
