@@ -1,60 +1,31 @@
 import type { CustomControlEvent, CustomControlHandler } from '../overlay/fabric-overlay.js';
+import type { DragAxisBehavior } from './drag-axis.js';
+import { createAxisDriver } from './drag-axis.js';
 
 /** Configuration for {@link createDragValueControl}. */
-export interface DragValueControlConfig {
-  /** Read the current value when a drag begins. */
-  readonly getValue: () => number;
-  /** Write the new value on each drag move (continuous). */
-  readonly setValue: (value: number) => void;
+export interface DragValueControlConfig extends DragAxisBehavior {
   /** Drag axis driving the value. Default `'x'`. */
-  readonly axis?: 'x' | 'y';
-  /**
-   * Value-units changed per CSS pixel of drag along {@link axis}. Default `1`.
-   * Always positive — use {@link invert} to reverse the direction rather than a
-   * negative sensitivity, so the magnitude and the direction stay separable.
-   */
-  readonly sensitivity?: number;
-  /**
-   * Reverse which way along {@link axis} counts as "more". By default the
-   * x-axis increases rightward and the y-axis increases upward (the convention
-   * that "up" means "more"); set this to flip that. Default `false`.
-   */
-  readonly invert?: boolean;
-  /** Lower clamp (inclusive). */
-  readonly min?: number;
-  /** Upper clamp (inclusive). */
-  readonly max?: number;
-  /**
-   * Quantize the emitted value to multiples of this step (the resolution of
-   * change). When omitted the value is continuous. Example: `0.025` snaps a
-   * drag to the nearest 0.025.
-   */
-  readonly step?: number;
+  readonly axis?: 'x' | 'y' | undefined;
 }
 
 /**
- * Build a {@link CustomControlHandler} that maps pointer-drag distance onto a
- * numeric value. The handler captures the start value and pointer position on
- * `pointerdown`, then on each `pointermove` sets
+ * Build a {@link CustomControlHandler} that maps pointer-drag distance along a
+ * single axis onto a numeric value. The handler captures the start value and
+ * pointer position on `pointerdown`, then on each `pointermove` sets
  * `startValue + delta(axis) * sensitivity`, optionally quantized to `step`
  * and clamped to `[min, max]`.
  *
  * Framework-agnostic and side-effect-free apart from the supplied
  * `getValue`/`setValue`, so it is reusable for any drag-driven viewer function
- * (exposure being the first) and trivial to unit test.
+ * and trivial to unit test. For a gesture that drives two values at once (one
+ * per axis), use {@link createDragVectorControl}.
  */
 export function createDragValueControl(config: DragValueControlConfig): CustomControlHandler {
   const axis = config.axis ?? 'x';
-  const sensitivity = config.sensitivity ?? 1;
-  const directionSign = config.invert ? -1 : 1;
-  const min = config.min ?? Number.NEGATIVE_INFINITY;
-  const max = config.max ?? Number.POSITIVE_INFINITY;
-  const step = config.step;
+  const driver = createAxisDriver(axis, config);
 
   let dragging = false;
   let startScreen = 0;
-  let startValue = 0;
-  let lastValue = 0;
 
   const coord = (event: CustomControlEvent): number =>
     axis === 'x' ? event.screenPoint.x : event.screenPoint.y;
@@ -63,8 +34,7 @@ export function createDragValueControl(config: DragValueControlConfig): CustomCo
     onPointerDown(event: CustomControlEvent): void {
       dragging = true;
       startScreen = coord(event);
-      startValue = config.getValue();
-      lastValue = startValue;
+      driver.begin();
     },
     onPointerMove(event: CustomControlEvent): void {
       if (!dragging) return;
@@ -75,23 +45,7 @@ export function createDragValueControl(config: DragValueControlConfig): CustomCo
         dragging = false;
         return;
       }
-      // For the y-axis, dragging up (smaller screen y) should increase the
-      // value, matching the convention that "up" means "more". `invert` flips
-      // whichever direction the axis defaults to.
-      const rawDelta = coord(event) - startScreen;
-      const delta = (axis === 'y' ? -rawDelta : rawDelta) * directionSign;
-      let next = startValue + delta * sensitivity;
-      // Quantize to the configured resolution before clamping so the value
-      // lands on a clean grid (e.g. multiples of 0.025).
-      if (step !== undefined && step > 0) {
-        next = Math.round(next / step) * step;
-      }
-      next = Math.min(Math.max(next, min), max);
-      // Skip redundant writes — notably while clamped at min/max or held within
-      // the same step during a drag.
-      if (next === lastValue) return;
-      lastValue = next;
-      config.setValue(next);
+      driver.update(coord(event) - startScreen);
     },
     onPointerUp(): void {
       dragging = false;

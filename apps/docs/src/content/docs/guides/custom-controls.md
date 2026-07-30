@@ -3,7 +3,7 @@ title: Custom Drag Controls
 description: Drive viewer functions with mouse drag using the customControl overlay mode
 ---
 
-Some viewer functions are easier to operate by **dragging** than by clicking discrete buttons — adjusting exposure is the obvious example. osdlabel supports this through a dedicated overlay interaction mode, `customControl`, which forwards raw pointer events to a handler you supply instead of letting OpenSeadragon or the Fabric annotation layer consume them.
+Some viewer functions are easier to operate by **dragging** than by clicking discrete buttons — adjusting exposure and contrast is the obvious example. osdlabel supports this through a dedicated overlay interaction mode, `customControl`, which forwards raw pointer events to a handler you supply instead of letting OpenSeadragon or the Fabric annotation layer consume them.
 
 ## The three overlay modes
 
@@ -69,20 +69,46 @@ const handler = createDragValueControl({
 
 It captures the starting value on `pointerdown`, then on each move sets `startValue + delta * sensitivity`, optionally quantized to `step` (the resolution of change) and clamped to `[min, max]`. By default the x-axis increases rightward and the y-axis increases upward; `invert` reverses that, which keeps direction separate from the sensitivity magnitude rather than expressing it as a negative sensitivity. It is framework-agnostic and side-effect-free apart from your `getValue`/`setValue`, and it is defensive about lost pointer captures: a move with no button held (e.g. a dropped `pointercancel`) disarms the drag so hovering can't keep mutating the value. Redundant writes are skipped, so holding at a clamp boundary doesn't spam `setValue`.
 
-## How the bundled UI wires exposure and contrast
+## `createDragVectorControl`
 
-The Solid and React `ViewControls` expose two drag-to-adjust toggles — one for exposure, one for contrast. Selecting either sets a UI field, `activeViewerControl` (`'exposure' | 'contrast'`), which is **mutually exclusive** with the active annotation tool and with the other control — picking a tool exits the control and vice versa, and arming one control disarms the other. The single mode-authority effect in `useAnnotationTool` resolves the overlay mode by precedence (`customControl` > `annotation` > `navigation`) and registers a `createDragValueControl` handler for the armed control.
+When one gesture should drive **two** values — one per axis — use the two-axis factory instead. Each axis takes the same options as the single-axis config and is evaluated independently: its own sensitivity, step, clamp and direction, and its own redundant-write suppression, so a purely horizontal drag never writes the vertical value.
 
-The drag parameters for both controls live in one shared registry, `VIEWER_CONTROL_SPECS`, so Solid and React can't drift apart:
+```ts
+import { createDragVectorControl } from 'osdlabel';
 
-| Control    | Axis                        | Sensitivity | Step    | Range  |
-| ---------- | --------------------------- | ----------- | ------- | ------ |
-| `exposure` | `x`, inverted (left = more) | `0.01`      | `0.025` | −1 … 1 |
-| `contrast` | `y` (up = more)             | `0.01`      | `0.025` | −1 … 1 |
+const handler = createDragVectorControl({
+  x: {
+    getValue: () => exposure,
+    setValue: setExposure,
+    invert: true,
+    sensitivity: 0.01,
+    step: 0.025,
+    min: -1,
+    max: 1,
+  },
+  y: {
+    getValue: () => contrast,
+    setValue: setContrast,
+    sensitivity: 0.01,
+    step: 0.025,
+    min: -1,
+    max: 1,
+  },
+});
+```
 
-The two controls deliberately occupy different axes: horizontal drag is exposure, vertical drag is contrast.
+Both axes are measured from the same `pointerdown` origin, so releasing and pressing again re-anchors the gesture. Omit an axis to ignore drags along it.
 
-Each control reads the active cell's current value from the registry's `getValue` and dispatches `setActiveImageExposure` / `setActiveImageContrast` on drag. The `SET_EXPOSURE` / `SET_CONTRAST` reducers store the value faithfully, so the control owns the resolution rather than the reducer snapping to a coarser grid.
+## How the bundled UI wires tone
+
+The Solid and React `ViewControls` expose a **single** drag-to-adjust toggle covering both tonal adjustments. Selecting it sets a UI field, `activeViewerControl` (`'tone'`), which is **mutually exclusive** with the active annotation tool — picking a tool exits the control and vice versa. The single mode-authority effect in `useAnnotationTool` resolves the overlay mode by precedence (`customControl` > `annotation` > `navigation`) and registers a `createDragVectorControl` handler built from the shared `VIEWER_CONTROL_SPECS` registry, so Solid and React can't drift apart:
+
+| Control | Axis                        | Field      | Sensitivity | Step    | Range  |
+| ------- | --------------------------- | ---------- | ----------- | ------- | ------ |
+| `tone`  | `x`, inverted (left = more) | `exposure` | `0.01`      | `0.025` | −1 … 1 |
+| `tone`  | `y` (up = more)             | `contrast` | `0.01`      | `0.025` | −1 … 1 |
+
+One armed control covers both axes: drag diagonally to adjust exposure and contrast together, or along a single axis to adjust just that one — no mode switch in between. Each axis reads the active cell's current value via `getToneValue` and dispatches `setActiveImageExposure` / `setActiveImageContrast`. The `SET_EXPOSURE` / `SET_CONTRAST` reducers store the value faithfully, so the control owns the resolution rather than the reducer snapping to a coarser grid.
 
 Both values also have discrete button and keyboard steps of `0.1` (`Shift+E` / `Shift+D` for exposure, `Shift+C` / `Shift+X` for contrast) and are cleared by `Reset` (`Shift+0`). They are rendered as CSS filters on OSD's drawer canvas in a fixed order — `brightness()`, then `contrast()`, then `invert()` — composed by the pure `composeImageFilterCss` helper.
 
@@ -93,4 +119,4 @@ Both values also have discrete button and keyboard steps of `0.1` (`Shift+E` / `
 
 ## Adding your own viewer control
 
-To add another drag-driven function: give it a `ViewerControlId`, add its drag parameters to `VIEWER_CONTROL_SPECS`, map the id to the action that writes its value in `useAnnotationTool`, and add a toggle to your toolbar that calls `setActiveViewerControl(id)`.
+To add another drag-driven function: give it a `ViewerControlId`, add its per-axis drag parameters to `VIEWER_CONTROL_SPECS`, map each axis's `field` to the action that writes it in `useAnnotationTool`, and add a toggle to your toolbar that calls `setActiveViewerControl(id)`. A control may use one axis or both.

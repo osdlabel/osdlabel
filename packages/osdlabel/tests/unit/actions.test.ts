@@ -5,8 +5,7 @@ import { applyUIAction } from '../../src/actions.js';
 import { createInitialUIState } from '../../src/initial-state.js';
 
 const RECTANGLE: ToolType = 'rectangle';
-const EXPOSURE: ViewerControlId = 'exposure';
-const CONTRAST: ViewerControlId = 'contrast';
+const TONE: ViewerControlId = 'tone';
 
 describe('applyUIAction — tool / viewer-control mutual exclusivity', () => {
   it('SET_ACTIVE_VIEWER_CONTROL clears an active tool', () => {
@@ -14,15 +13,15 @@ describe('applyUIAction — tool / viewer-control mutual exclusivity', () => {
     applyUIAction(state, { type: 'SET_ACTIVE_TOOL', payload: RECTANGLE });
     expect(state.activeTool).toBe(RECTANGLE);
 
-    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: EXPOSURE });
-    expect(state.activeViewerControl).toBe(EXPOSURE);
+    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: TONE });
+    expect(state.activeViewerControl).toBe(TONE);
     expect(state.activeTool).toBeNull();
   });
 
   it('SET_ACTIVE_TOOL clears an active viewer control', () => {
     const state = createInitialUIState();
-    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: EXPOSURE });
-    expect(state.activeViewerControl).toBe(EXPOSURE);
+    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: TONE });
+    expect(state.activeViewerControl).toBe(TONE);
 
     applyUIAction(state, { type: 'SET_ACTIVE_TOOL', payload: RECTANGLE });
     expect(state.activeTool).toBe(RECTANGLE);
@@ -31,11 +30,11 @@ describe('applyUIAction — tool / viewer-control mutual exclusivity', () => {
 
   it('clearing the tool to null leaves the viewer control untouched', () => {
     const state = createInitialUIState();
-    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: EXPOSURE });
+    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: TONE });
 
     applyUIAction(state, { type: 'SET_ACTIVE_TOOL', payload: null });
     expect(state.activeTool).toBeNull();
-    expect(state.activeViewerControl).toBe(EXPOSURE);
+    expect(state.activeViewerControl).toBe(TONE);
   });
 
   it('clearing the viewer control to null leaves the tool untouched', () => {
@@ -49,19 +48,11 @@ describe('applyUIAction — tool / viewer-control mutual exclusivity', () => {
 
   it('selecting the select tool also clears the viewer control', () => {
     const state = createInitialUIState();
-    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: EXPOSURE });
+    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: TONE });
 
     applyUIAction(state, { type: 'SET_ACTIVE_TOOL', payload: 'select' });
     expect(state.activeTool).toBe('select');
     expect(state.activeViewerControl).toBeNull();
-  });
-
-  it('switching between drag controls replaces the active one', () => {
-    const state = createInitialUIState();
-    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: EXPOSURE });
-
-    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: CONTRAST });
-    expect(state.activeViewerControl).toBe(CONTRAST);
   });
 });
 

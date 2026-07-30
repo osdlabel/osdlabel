@@ -19,6 +19,10 @@ test.describe('View Controls', () => {
     await expect(page.locator('[data-testid="view-exposure-decrease"]')).toBeVisible();
     await expect(page.locator('[data-testid="view-contrast-increase"]')).toBeVisible();
     await expect(page.locator('[data-testid="view-contrast-decrease"]')).toBeVisible();
+    // One unified drag control covers both tonal axes.
+    await expect(page.locator('[data-testid="view-tone-drag"]')).toBeVisible();
+    await expect(page.locator('[data-testid="view-exposure-drag"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="view-contrast-drag"]')).toHaveCount(0);
     // Reset button should not be visible initially as view is not transformed
     await expect(page.locator('[data-testid="view-reset"]')).not.toBeVisible();
   });
@@ -119,8 +123,8 @@ test.describe('View Controls', () => {
     await expect(drawerCanvas).toHaveCSS('filter', 'brightness(0)');
   });
 
-  test('Exposure drag mode adjusts brightness continuously', async ({ page }) => {
-    const dragBtn = page.locator('[data-testid="view-exposure-drag"]');
+  test('Tone drag mode adjusts exposure and contrast in one gesture', async ({ page }) => {
+    const dragBtn = page.locator('[data-testid="view-tone-drag"]');
     const resetBtn = page.locator('[data-testid="view-reset"]');
     const drawerCanvas = page.locator('.openseadragon-canvas canvas').nth(0);
     const viewer = page.locator('.openseadragon-canvas');
@@ -136,37 +140,53 @@ test.describe('View Controls', () => {
       return el?.__osdViewer?.isOpen?.() === true;
     });
 
-    // Enter drag-exposure (customControl) mode — button shows active state.
+    // Enter tone-drag (customControl) mode — button shows active state.
     await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
     await dragBtn.click();
     await expect(dragBtn).toHaveCSS('background-color', 'rgb(33, 150, 243)');
 
     const box = await viewer.boundingBox();
     if (!box) throw new Error('viewer canvas not found');
-    const startX = box.x + box.width / 2;
-    const y = box.y + box.height / 2;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
 
-    // Exposure drags along the x-axis with left = brighter. Drag left well past
-    // the range so exposure saturates at its max (1) → brightness(2). Asserting
-    // the clamped value keeps this deterministic regardless of exact pixel
-    // distance and the 0.025 step resolution (a mid-range target would be
-    // sensitive to subpixel mouse jitter). Use several held moves so the gesture
-    // reliably registers and the cumulative distance clears the clamp even if an
-    // intermediate move is dropped.
-    await page.mouse.move(startX, y);
+    // One diagonal gesture drives both axes: left = brighter, up = more
+    // contrast. Dragging well past the range saturates both at their max (1) →
+    // brightness(2) contrast(2), which keeps the assertion deterministic
+    // regardless of exact pixel distance and the 0.025 step resolution. Several
+    // held moves make the gesture register reliably even if one is dropped.
+    await page.mouse.move(cx, cy);
     await page.mouse.down();
-    await page.mouse.move(startX - 80, y, { steps: 4 });
-    await page.mouse.move(startX - 160, y, { steps: 4 });
-    await page.mouse.move(box.x + 10, y, { steps: 4 });
+    await page.mouse.move(cx - 80, cy - 80, { steps: 4 });
+    await page.mouse.move(cx - 160, cy - 160, { steps: 4 });
+    await page.mouse.move(box.x + 10, box.y + 10, { steps: 4 });
     await page.mouse.up();
 
-    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2) contrast(2)');
     await expect(resetBtn).toBeVisible();
 
-    // Exiting the mode restores the inactive button styling; exposure persists.
+    // A purely vertical drag moves contrast only, leaving exposure alone.
+    await resetBtn.click();
+    await expect(drawerCanvas).toHaveCSS('filter', 'none');
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy - 80, { steps: 4 });
+    await page.mouse.move(cx, box.y + 10, { steps: 4 });
+    await page.mouse.up();
+    await expect(drawerCanvas).toHaveCSS('filter', 'contrast(2)');
+
+    // A purely horizontal drag moves exposure only — contrast persists.
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx - 80, cy, { steps: 4 });
+    await page.mouse.move(box.x + 10, cy, { steps: 4 });
+    await page.mouse.up();
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2) contrast(2)');
+
+    // Exiting the mode restores the inactive styling; the adjustments persist.
     await dragBtn.click();
     await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
-    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
+    await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2) contrast(2)');
 
     // Selecting a tool also exits the control (mutual exclusivity).
     await dragBtn.click();
@@ -220,56 +240,6 @@ test.describe('View Controls', () => {
 
     await page.locator('[data-testid="view-reset"]').click();
     await expect(drawerCanvas).toHaveCSS('filter', 'none');
-  });
-
-  test('Contrast drag mode adjusts contrast continuously', async ({ page }) => {
-    const dragBtn = page.locator('[data-testid="view-contrast-drag"]');
-    const exposureDragBtn = page.locator('[data-testid="view-exposure-drag"]');
-    const resetBtn = page.locator('[data-testid="view-reset"]');
-    const drawerCanvas = page.locator('.openseadragon-canvas canvas').nth(0);
-    const viewer = page.locator('.openseadragon-canvas');
-
-    // The FabricOverlay (and thus the customControl handler) is created on OSD's
-    // 'open' event — wait for the viewer to be open before dragging.
-    await page.waitForFunction(() => {
-      const el = document.querySelector('.openseadragon-canvas') as
-        | (Element & { __osdViewer?: { isOpen?: () => boolean } })
-        | null;
-      return el?.__osdViewer?.isOpen?.() === true;
-    });
-
-    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
-    await dragBtn.click();
-    await expect(dragBtn).toHaveCSS('background-color', 'rgb(33, 150, 243)');
-
-    const box = await viewer.boundingBox();
-    if (!box) throw new Error('viewer canvas not found');
-    const x = box.x + box.width / 2;
-    const startY = box.y + box.height / 2;
-
-    // Contrast drags along the y-axis (up = more contrast). Drag well past the
-    // range so the value saturates at its max (1) → contrast(2), which keeps
-    // the assertion independent of exact pixel distance and the 0.025 step
-    // resolution.
-    await page.mouse.move(x, startY);
-    await page.mouse.down();
-    await page.mouse.move(x, startY - 80, { steps: 4 });
-    await page.mouse.move(x, startY - 160, { steps: 4 });
-    await page.mouse.move(x, box.y + 10, { steps: 4 });
-    await page.mouse.up();
-
-    await expect(drawerCanvas).toHaveCSS('filter', 'contrast(2)');
-    await expect(resetBtn).toBeVisible();
-
-    // The two drag controls are mutually exclusive — only one owns the pointer.
-    await exposureDragBtn.click();
-    await expect(exposureDragBtn).toHaveCSS('background-color', 'rgb(33, 150, 243)');
-    await expect(dragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
-
-    // Selecting a tool exits the control; the contrast value persists.
-    await page.locator('[data-testid="tool-rectangle"]').click();
-    await expect(exposureDragBtn).toHaveCSS('background-color', 'rgb(51, 51, 51)');
-    await expect(drawerCanvas).toHaveCSS('filter', 'contrast(2)');
   });
 
   test('Reset clears rotation and flip', async ({ page }) => {

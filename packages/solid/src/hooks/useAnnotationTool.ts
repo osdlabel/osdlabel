@@ -7,13 +7,15 @@ import type { ImageId } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
   createAnnotationTool,
-  createDragValueControl,
+  createDragVectorControl,
   getScenePointFromEvent,
+  getToneValue,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
   processObjectModified,
   VIEWER_CONTROL_SPECS,
 } from 'osdlabel';
+import type { DragAxisBehavior, ViewerControlAxisSpec } from 'osdlabel';
 import type { ToolCallbacks } from '@osdlabel/fabric-annotations';
 import { useAnnotator } from '../state/annotator-context.js';
 
@@ -92,23 +94,26 @@ export function useAnnotationTool(
     // VIEWER_CONTROL_SPECS registry so Solid and React behave identically.
     const spec = viewerControl ? VIEWER_CONTROL_SPECS[viewerControl] : undefined;
     if (active && viewerControl && spec) {
-      const setValue =
-        viewerControl === 'exposure'
-          ? actions.setActiveImageExposure
-          : actions.setActiveImageContrast;
+      const axis = (axisSpec: ViewerControlAxisSpec): DragAxisBehavior => ({
+        getValue: () =>
+          getToneValue(
+            uiState.cellTransforms[uiState.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM,
+            axisSpec.field,
+          ),
+        setValue: (value) =>
+          axisSpec.field === 'exposure'
+            ? actions.setActiveImageExposure(value)
+            : actions.setActiveImageContrast(value),
+        invert: axisSpec.invert,
+        sensitivity: axisSpec.sensitivity,
+        step: axisSpec.step,
+        min: axisSpec.min,
+        max: axisSpec.max,
+      });
       ov.setCustomControlHandler(
-        createDragValueControl({
-          getValue: () =>
-            spec.getValue(
-              uiState.cellTransforms[uiState.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM,
-            ),
-          setValue: (value) => setValue(value),
-          axis: spec.axis,
-          invert: spec.invert,
-          sensitivity: spec.sensitivity,
-          step: spec.step,
-          min: spec.min,
-          max: spec.max,
+        createDragVectorControl({
+          ...(spec.x ? { x: axis(spec.x) } : {}),
+          ...(spec.y ? { y: axis(spec.y) } : {}),
         }),
       );
       ov.setMode('customControl');

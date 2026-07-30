@@ -46,8 +46,11 @@ export const DEFAULT_CELL_TRANSFORM: CellTransform = {
  * Identifies a drag-driven viewer control. When one is active the overlay
  * enters `customControl` mode and forwards pointer events to that control's
  * handler instead of to OSD or the Fabric annotation layer.
+ *
+ * `tone` is one two-axis gesture covering both tonal adjustments: horizontal
+ * drag adjusts exposure, vertical drag adjusts contrast.
  */
-export type ViewerControlId = 'exposure' | 'contrast';
+export type ViewerControlId = 'tone';
 
 /** UI state */
 export interface UIState {

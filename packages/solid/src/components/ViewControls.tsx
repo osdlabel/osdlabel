@@ -307,50 +307,6 @@ export const ViewControls: Component = () => {
         </svg>
       </button>
 
-      <button
-        type="button"
-        title="Drag horizontally to adjust exposure (left = brighter)"
-        aria-label="Drag to adjust exposure"
-        aria-pressed={uiState.activeViewerControl === 'exposure'}
-        data-testid="view-exposure-drag"
-        disabled={!isActive()}
-        onClick={() =>
-          actions.setActiveViewerControl(
-            uiState.activeViewerControl === 'exposure' ? null : 'exposure',
-          )
-        }
-        style={{
-          width: '32px',
-          height: '32px',
-          'background-color': uiState.activeViewerControl === 'exposure' ? '#2196F3' : '#333',
-          border: 'none',
-          'border-radius': '4px',
-          color: 'white',
-          cursor: isActive() ? 'pointer' : 'default',
-          opacity: isActive() ? '1' : '0.5',
-          display: 'flex',
-          'align-items': 'center',
-          'justify-content': 'center',
-        }}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M3 12h4" />
-          <path d="M17 12h4" />
-          <path d="m7 9-3 3 3 3" />
-          <path d="m17 9 3 3-3 3" />
-        </svg>
-      </button>
-
       <div style={{ width: '1px', height: '24px', 'background-color': '#555', margin: '0 4px' }} />
 
       <button
@@ -441,22 +397,22 @@ export const ViewControls: Component = () => {
         </svg>
       </button>
 
+      <div style={{ width: '1px', height: '24px', 'background-color': '#555', margin: '0 4px' }} />
+
       <button
         type="button"
-        title="Drag vertically to adjust contrast (up = more contrast)"
-        aria-label="Drag to adjust contrast"
-        aria-pressed={uiState.activeViewerControl === 'contrast'}
-        data-testid="view-contrast-drag"
+        title="Drag to adjust tone — horizontal: exposure (left = brighter), vertical: contrast (up = more)"
+        aria-label="Drag to adjust exposure and contrast"
+        aria-pressed={uiState.activeViewerControl === 'tone'}
+        data-testid="view-tone-drag"
         disabled={!isActive()}
         onClick={() =>
-          actions.setActiveViewerControl(
-            uiState.activeViewerControl === 'contrast' ? null : 'contrast',
-          )
+          actions.setActiveViewerControl(uiState.activeViewerControl === 'tone' ? null : 'tone')
         }
         style={{
           width: '32px',
           height: '32px',
-          'background-color': uiState.activeViewerControl === 'contrast' ? '#2196F3' : '#333',
+          'background-color': uiState.activeViewerControl === 'tone' ? '#2196F3' : '#333',
           border: 'none',
           'border-radius': '4px',
           color: 'white',
@@ -477,12 +433,12 @@ export const ViewControls: Component = () => {
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 8a4 4 0 0 1 0 8z" fill="currentColor" />
-          <path d="M12 2v4" />
-          <path d="M12 18v4" />
-          <path d="m9 6 3-3 3 3" />
-          <path d="m9 18 3 3 3-3" />
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 8.5a3.5 3.5 0 0 1 0 7z" fill="currentColor" />
+          <path d="m5 9-3 3 3 3" />
+          <path d="m19 9 3 3-3 3" />
+          <path d="m9 5 3-3 3 3" />
+          <path d="m9 19 3 3 3-3" />
         </svg>
       </button>
 
