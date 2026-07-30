@@ -205,6 +205,33 @@ export function createActions(
     );
   }
 
+  function increaseActiveImageContrast(): void {
+    const cellIndex = uiState.activeCellIndex;
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, { type: 'INCREASE_CONTRAST', payload: { cellIndex } }),
+      ),
+    );
+  }
+
+  function decreaseActiveImageContrast(): void {
+    const cellIndex = uiState.activeCellIndex;
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, { type: 'DECREASE_CONTRAST', payload: { cellIndex } }),
+      ),
+    );
+  }
+
+  function setActiveImageContrast(value: number): void {
+    const cellIndex = uiState.activeCellIndex;
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, { type: 'SET_CONTRAST', payload: { cellIndex, value } }),
+      ),
+    );
+  }
+
   function resetActiveImageView(): void {
     const cellIndex = uiState.activeCellIndex;
     setUIState(
@@ -235,6 +262,9 @@ export function createActions(
     increaseActiveImageExposure,
     decreaseActiveImageExposure,
     setActiveImageExposure,
+    increaseActiveImageContrast,
+    decreaseActiveImageContrast,
+    setActiveImageContrast,
     resetActiveImageView,
   };
 }

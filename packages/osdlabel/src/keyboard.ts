@@ -38,6 +38,8 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   toggleNegative: 'N',
   increaseExposure: 'E',
   decreaseExposure: 'D',
+  increaseContrast: 'C',
+  decreaseContrast: 'X',
 } as const;
 
 /** Maximum grid size */
@@ -93,6 +95,10 @@ export function mapKeyEventToActions(
     actions.push({ type: 'INCREASE_EXPOSURE', payload: { cellIndex: state.activeCellIndex } });
   } else if (shiftKey && keyLower === shortcuts.decreaseExposure.toLowerCase()) {
     actions.push({ type: 'DECREASE_EXPOSURE', payload: { cellIndex: state.activeCellIndex } });
+  } else if (shiftKey && keyLower === shortcuts.increaseContrast.toLowerCase()) {
+    actions.push({ type: 'INCREASE_CONTRAST', payload: { cellIndex: state.activeCellIndex } });
+  } else if (shiftKey && keyLower === shortcuts.decreaseContrast.toLowerCase()) {
+    actions.push({ type: 'DECREASE_CONTRAST', payload: { cellIndex: state.activeCellIndex } });
   } else if (key === shortcuts.resetView || (shiftKey && keyLower === '0')) {
     actions.push({ type: 'RESET_VIEW', payload: { cellIndex: state.activeCellIndex } });
   }

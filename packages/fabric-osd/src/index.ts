@@ -5,6 +5,8 @@ export type {
   CustomControlEvent,
   CustomControlHandler,
 } from './overlay/fabric-overlay.js';
+export { composeImageFilterCss } from './overlay/image-filters.js';
+export type { ImageFilters } from './overlay/image-filters.js';
 export { createDragValueControl } from './controls/drag-value-control.js';
 export type { DragValueControlConfig } from './controls/drag-value-control.js';
 export { DecorationLayer } from './decoration/decoration-layer.js';

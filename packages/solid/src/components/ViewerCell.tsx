@@ -102,7 +102,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     const cellTransform = uiState.cellTransforms[props.cellIndex] ?? DEFAULT_CELL_TRANSFORM;
 
     ov.applyViewTransform(cellTransform);
-    ov.applyImageFilters(cellTransform.exposure, cellTransform.inverted);
+    ov.applyImageFilters(cellTransform);
   });
 
   // Use annotation tool hook

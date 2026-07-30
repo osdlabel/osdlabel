@@ -5,6 +5,8 @@ import type { Point } from '@osdlabel/annotation';
 import type { CellTransform } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import { initFabricModule } from '@osdlabel/fabric-annotations';
+import { composeImageFilterCss } from './image-filters.js';
+import type { ImageFilters } from './image-filters.js';
 import {
   POINTER_DOWN,
   POINTER_MOVE,
@@ -364,16 +366,15 @@ export class FabricOverlay {
     return this._viewer.viewport.getFlip();
   }
 
-  applyImageFilters(exposure: number, inverted: boolean): void {
+  /**
+   * Apply the tonal adjustments of a cell transform as CSS filters on OSD's
+   * drawer canvas. Takes an object rather than positional args so the parameter
+   * list stays self-documenting as adjustments are added; the filter string
+   * itself is composed by the pure {@link composeImageFilterCss}.
+   */
+  applyImageFilters(filters: ImageFilters): void {
     const drawerCanvas = this._viewer.drawer.canvas as HTMLElement;
-    const parts: string[] = [];
-    if (exposure !== 0) {
-      parts.push(`brightness(${1 + exposure})`);
-    }
-    if (inverted) {
-      parts.push('invert(1)');
-    }
-    drawerCanvas.style.filter = parts.length > 0 ? parts.join(' ') : '';
+    drawerCanvas.style.filter = composeImageFilterCss(filters);
   }
 
   resetView(): void {

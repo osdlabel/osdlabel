@@ -99,6 +99,12 @@ function dispatchAction(
     case 'DECREASE_EXPOSURE':
       actions.decreaseActiveImageExposure();
       break;
+    case 'INCREASE_CONTRAST':
+      actions.increaseActiveImageContrast();
+      break;
+    case 'DECREASE_CONTRAST':
+      actions.decreaseActiveImageContrast();
+      break;
     case 'RESET_VIEW':
       actions.resetActiveImageView();
       break;

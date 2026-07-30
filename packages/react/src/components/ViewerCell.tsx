@@ -106,7 +106,7 @@ export default function ViewerCell({
     if (!overlay || !imageSource?.id) return;
     const cellTransform = uiState.cellTransforms[cellIndex] ?? DEFAULT_CELL_TRANSFORM;
     overlay.applyViewTransform(cellTransform);
-    overlay.applyImageFilters(cellTransform.exposure, cellTransform.inverted);
+    overlay.applyImageFilters(cellTransform);
   }, [overlay, imageSource?.id, cellIndex, uiState.cellTransforms]);
 
   // Annotation tool hook

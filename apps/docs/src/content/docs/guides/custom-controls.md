@@ -68,9 +68,20 @@ const handler = createDragValueControl({
 
 It captures the starting value on `pointerdown`, then on each move sets `startValue + delta * sensitivity`, optionally quantized to `step` (the resolution of change) and clamped to `[min, max]`. It is framework-agnostic and side-effect-free apart from your `getValue`/`setValue`, and it is defensive about lost pointer captures: a move with no button held (e.g. a dropped `pointercancel`) disarms the drag so hovering can't keep mutating the value. Redundant writes are skipped, so holding at a clamp boundary doesn't spam `setValue`.
 
-## How the bundled UI wires exposure
+## How the bundled UI wires exposure and contrast
 
-The Solid and React `ViewControls` expose a drag-to-adjust-exposure toggle. Selecting it sets a UI field, `activeViewerControl`, which is **mutually exclusive** with the active annotation tool — picking a tool exits the control and vice versa. The single mode-authority effect in `useAnnotationTool` resolves the overlay mode by precedence (`customControl` > `annotation` > `navigation`) and registers a `createDragValueControl` handler that reads the active cell's exposure and dispatches `setActiveImageExposure` on drag. The control drags along the y-axis (up = brighter) with a resolution of `0.025`; the `SET_EXPOSURE` reducer stores the value faithfully, so the control owns the resolution rather than the reducer snapping to a coarser grid.
+The Solid and React `ViewControls` expose two drag-to-adjust toggles — one for exposure, one for contrast. Selecting either sets a UI field, `activeViewerControl` (`'exposure' | 'contrast'`), which is **mutually exclusive** with the active annotation tool and with the other control — picking a tool exits the control and vice versa, and arming one control disarms the other. The single mode-authority effect in `useAnnotationTool` resolves the overlay mode by precedence (`customControl` > `annotation` > `navigation`) and registers a `createDragValueControl` handler for the armed control.
+
+The drag parameters for both controls live in one shared registry, `VIEWER_CONTROL_SPECS`, so Solid and React can't drift apart:
+
+| Control    | Axis               | Sensitivity | Step    | Range  |
+| ---------- | ------------------ | ----------- | ------- | ------ |
+| `exposure` | `y` (up = more)    | `0.01`      | `0.025` | −1 … 1 |
+| `contrast` | `x` (right = more) | `0.01`      | `0.025` | −1 … 1 |
+
+Each control reads the active cell's current value from the registry's `getValue` and dispatches `setActiveImageExposure` / `setActiveImageContrast` on drag. The `SET_EXPOSURE` / `SET_CONTRAST` reducers store the value faithfully, so the control owns the resolution rather than the reducer snapping to a coarser grid.
+
+Both values also have discrete button and keyboard steps of `0.1` (`Shift+E` / `Shift+D` for exposure, `Shift+C` / `Shift+X` for contrast) and are cleared by `Reset` (`Shift+0`). They are rendered as CSS filters on OSD's drawer canvas in a fixed order — `brightness()`, then `contrast()`, then `invert()` — composed by the pure `composeImageFilterCss` helper.
 
 ## Behavior notes
 
@@ -79,4 +90,4 @@ The Solid and React `ViewControls` expose a drag-to-adjust-exposure toggle. Sele
 
 ## Adding your own viewer control
 
-To add another drag-driven function, give it a `ViewerControlId`, branch on it where the exposure control is wired (or, once there's more than one, extract a small registry mapping each id to a handler factory), and add a toggle to your toolbar that calls `setActiveViewerControl(id)`.
+To add another drag-driven function: give it a `ViewerControlId`, add its drag parameters to `VIEWER_CONTROL_SPECS`, map the id to the action that writes its value in `useAnnotationTool`, and add a toggle to your toolbar that calls `setActiveViewerControl(id)`.

@@ -14,7 +14,12 @@ const mockActions = {
 };
 
 const mockState = {
-  uiState: { activeTool: 'select' },
+  uiState: {
+    activeTool: 'select',
+    activeViewerControl: null,
+    activeCellIndex: 0,
+    cellTransforms: {},
+  },
   contextState: { activeContextId: 'ctx-1', contexts: [] },
   annotationState: { byImage: { 'img-1': { 'ann-1': { geometry: { type: 'rectangle' } } } } },
   constraintStatus: () => ({

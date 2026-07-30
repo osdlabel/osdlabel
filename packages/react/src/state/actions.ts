@@ -129,6 +129,21 @@ export function createActions(
     });
   }
 
+  function increaseActiveImageContrast(): void {
+    dispatchUI({ type: 'INCREASE_CONTRAST', payload: { cellIndex: getUIState().activeCellIndex } });
+  }
+
+  function decreaseActiveImageContrast(): void {
+    dispatchUI({ type: 'DECREASE_CONTRAST', payload: { cellIndex: getUIState().activeCellIndex } });
+  }
+
+  function setActiveImageContrast(value: number): void {
+    dispatchUI({
+      type: 'SET_CONTRAST',
+      payload: { cellIndex: getUIState().activeCellIndex, value },
+    });
+  }
+
   function resetActiveImageView(): void {
     dispatchUI({ type: 'RESET_VIEW', payload: { cellIndex: getUIState().activeCellIndex } });
   }
@@ -156,6 +171,9 @@ export function createActions(
     increaseActiveImageExposure,
     decreaseActiveImageExposure,
     setActiveImageExposure,
+    increaseActiveImageContrast,
+    decreaseActiveImageContrast,
+    setActiveImageContrast,
     resetActiveImageView,
   };
 }
