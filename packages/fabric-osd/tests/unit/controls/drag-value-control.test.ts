@@ -194,4 +194,67 @@ describe('createDragValueControl', () => {
     control.onPointerMove?.(evt(0, 60)); // dragged up 40px → +0.4
     expect(value).toBeCloseTo(0.4);
   });
+
+  it('invert reverses the x-axis so leftward drag increases', () => {
+    let value = 0;
+    const control = createDragValueControl({
+      getValue: () => value,
+      setValue: (v) => {
+        value = v;
+      },
+      axis: 'x',
+      invert: true,
+      sensitivity: 0.01,
+    });
+
+    control.onPointerDown?.(evt(100, 0));
+    control.onPointerMove?.(evt(60, 0)); // dragged left 40px → +0.4
+    expect(value).toBeCloseTo(0.4);
+
+    control.onPointerMove?.(evt(130, 0)); // 30px right of start → -0.3
+    expect(value).toBeCloseTo(-0.3);
+  });
+
+  it('invert reverses the y-axis so downward drag increases', () => {
+    let value = 0;
+    const control = createDragValueControl({
+      getValue: () => value,
+      setValue: (v) => {
+        value = v;
+      },
+      axis: 'y',
+      invert: true,
+      sensitivity: 0.01,
+    });
+
+    control.onPointerDown?.(evt(0, 100));
+    control.onPointerMove?.(evt(0, 150)); // dragged down 50px → +0.5
+    expect(value).toBeCloseTo(0.5);
+  });
+
+  it('invert composes with clamping and step quantization', () => {
+    let value = 0;
+    const control = createDragValueControl({
+      getValue: () => value,
+      setValue: (v) => {
+        value = v;
+      },
+      axis: 'x',
+      invert: true,
+      sensitivity: 0.01,
+      step: 0.025,
+      min: -1,
+      max: 1,
+    });
+
+    control.onPointerDown?.(evt(0, 0));
+    control.onPointerMove?.(evt(-7, 0)); // left 7px → raw 0.07 → 0.075
+    expect(value).toBeCloseTo(0.075);
+
+    control.onPointerMove?.(evt(-10000, 0)); // far left → clamps to max
+    expect(value).toBe(1);
+
+    control.onPointerMove?.(evt(10000, 0)); // far right → clamps to min
+    expect(value).toBe(-1);
+  });
 });

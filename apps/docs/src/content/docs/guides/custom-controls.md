@@ -58,15 +58,16 @@ import { createDragValueControl } from 'osdlabel';
 const handler = createDragValueControl({
   getValue: () => currentExposure, // read at pointer-down
   setValue: (v) => setExposure(v), // called continuously during drag
-  axis: 'y', // 'x' (default) or 'y'
-  sensitivity: 0.01, // value-units per CSS pixel
+  axis: 'x', // 'x' (default) or 'y'
+  invert: true, // flip which way counts as "more"
+  sensitivity: 0.01, // value-units per CSS pixel (keep positive)
   step: 0.025, // resolution of change (omit for continuous)
   min: -1,
   max: 1,
 });
 ```
 
-It captures the starting value on `pointerdown`, then on each move sets `startValue + delta * sensitivity`, optionally quantized to `step` (the resolution of change) and clamped to `[min, max]`. It is framework-agnostic and side-effect-free apart from your `getValue`/`setValue`, and it is defensive about lost pointer captures: a move with no button held (e.g. a dropped `pointercancel`) disarms the drag so hovering can't keep mutating the value. Redundant writes are skipped, so holding at a clamp boundary doesn't spam `setValue`.
+It captures the starting value on `pointerdown`, then on each move sets `startValue + delta * sensitivity`, optionally quantized to `step` (the resolution of change) and clamped to `[min, max]`. By default the x-axis increases rightward and the y-axis increases upward; `invert` reverses that, which keeps direction separate from the sensitivity magnitude rather than expressing it as a negative sensitivity. It is framework-agnostic and side-effect-free apart from your `getValue`/`setValue`, and it is defensive about lost pointer captures: a move with no button held (e.g. a dropped `pointercancel`) disarms the drag so hovering can't keep mutating the value. Redundant writes are skipped, so holding at a clamp boundary doesn't spam `setValue`.
 
 ## How the bundled UI wires exposure and contrast
 
@@ -74,10 +75,12 @@ The Solid and React `ViewControls` expose two drag-to-adjust toggles — one for
 
 The drag parameters for both controls live in one shared registry, `VIEWER_CONTROL_SPECS`, so Solid and React can't drift apart:
 
-| Control    | Axis               | Sensitivity | Step    | Range  |
-| ---------- | ------------------ | ----------- | ------- | ------ |
-| `exposure` | `y` (up = more)    | `0.01`      | `0.025` | −1 … 1 |
-| `contrast` | `x` (right = more) | `0.01`      | `0.025` | −1 … 1 |
+| Control    | Axis                        | Sensitivity | Step    | Range  |
+| ---------- | --------------------------- | ----------- | ------- | ------ |
+| `exposure` | `x`, inverted (left = more) | `0.01`      | `0.025` | −1 … 1 |
+| `contrast` | `y` (up = more)             | `0.01`      | `0.025` | −1 … 1 |
+
+The two controls deliberately occupy different axes: horizontal drag is exposure, vertical drag is contrast.
 
 Each control reads the active cell's current value from the registry's `getValue` and dispatches `setActiveImageExposure` / `setActiveImageContrast` on drag. The `SET_EXPOSURE` / `SET_CONTRAST` reducers store the value faithfully, so the control owns the resolution rather than the reducer snapping to a coarser grid.
 

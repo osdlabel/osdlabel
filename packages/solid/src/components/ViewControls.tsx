@@ -309,7 +309,7 @@ export const ViewControls: Component = () => {
 
       <button
         type="button"
-        title="Drag to adjust exposure"
+        title="Drag horizontally to adjust exposure (left = brighter)"
         aria-label="Drag to adjust exposure"
         aria-pressed={uiState.activeViewerControl === 'exposure'}
         data-testid="view-exposure-drag"
@@ -443,7 +443,7 @@ export const ViewControls: Component = () => {
 
       <button
         type="button"
-        title="Drag to adjust contrast"
+        title="Drag vertically to adjust contrast (up = more contrast)"
         aria-label="Drag to adjust contrast"
         aria-pressed={uiState.activeViewerControl === 'contrast'}
         data-testid="view-contrast-drag"
@@ -479,10 +479,10 @@ export const ViewControls: Component = () => {
         >
           <circle cx="12" cy="12" r="4" />
           <path d="M12 8a4 4 0 0 1 0 8z" fill="currentColor" />
-          <path d="M2 12h4" />
-          <path d="M18 12h4" />
-          <path d="m6 9-3 3 3 3" />
-          <path d="m18 9 3 3-3 3" />
+          <path d="M12 2v4" />
+          <path d="M12 18v4" />
+          <path d="m9 6 3-3 3 3" />
+          <path d="m9 18 3 3 3-3" />
         </svg>
       </button>
 

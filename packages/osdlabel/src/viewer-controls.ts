@@ -8,6 +8,11 @@ import type { CellTransform, ViewerControlId } from '@osdlabel/viewer-api';
 export interface ViewerControlSpec {
   /** Drag axis driving the value. */
   readonly axis: 'x' | 'y';
+  /**
+   * Reverse the axis's default direction (x increases rightward, y increases
+   * upward), so "more" is leftward / downward instead.
+   */
+  readonly invert: boolean;
   /** Value-units changed per CSS pixel of drag. */
   readonly sensitivity: number;
   /** Resolution of change the drag quantizes to. */
@@ -19,13 +24,15 @@ export interface ViewerControlSpec {
 }
 
 /**
- * Registry of the drag-driven viewer controls. Exposure drags vertically
- * (up = brighter); contrast drags horizontally (right = more contrast),
- * matching the window/level convention of medical image viewers.
+ * Registry of the drag-driven viewer controls. The two axes are split so both
+ * can be adjusted without re-arming: exposure drags horizontally (left =
+ * brighter) and contrast drags vertically (up = more contrast).
  */
 export const VIEWER_CONTROL_SPECS: Readonly<Record<ViewerControlId, ViewerControlSpec>> = {
   exposure: {
-    axis: 'y',
+    axis: 'x',
+    // Leftward = brighter, so the x-axis's rightward default is reversed.
+    invert: true,
     sensitivity: 0.01,
     step: 0.025,
     min: -1,
@@ -33,7 +40,9 @@ export const VIEWER_CONTROL_SPECS: Readonly<Record<ViewerControlId, ViewerContro
     getValue: (transform) => transform.exposure,
   },
   contrast: {
-    axis: 'x',
+    axis: 'y',
+    // Upward = more contrast, which is the y-axis default.
+    invert: false,
     sensitivity: 0.01,
     step: 0.025,
     min: -1,

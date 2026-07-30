@@ -104,6 +104,7 @@ export function useAnnotationTool(
             ),
           setValue: (value) => setValue(value),
           axis: spec.axis,
+          invert: spec.invert,
           sensitivity: spec.sensitivity,
           step: spec.step,
           min: spec.min,

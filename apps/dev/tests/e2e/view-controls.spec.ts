@@ -143,20 +143,21 @@ test.describe('View Controls', () => {
 
     const box = await viewer.boundingBox();
     if (!box) throw new Error('viewer canvas not found');
-    const x = box.x + box.width / 2;
-    const startY = box.y + box.height / 2;
+    const startX = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
 
-    // Drag up well past the range so exposure saturates at its max (1) →
-    // brightness(2). Asserting the clamped value keeps this deterministic
-    // regardless of exact pixel distance and the 0.025 step resolution (a
-    // mid-range target would be sensitive to subpixel mouse jitter). Use several
-    // held moves so the gesture reliably registers and the cumulative distance
-    // clears the clamp even if an intermediate move is dropped.
-    await page.mouse.move(x, startY);
+    // Exposure drags along the x-axis with left = brighter. Drag left well past
+    // the range so exposure saturates at its max (1) → brightness(2). Asserting
+    // the clamped value keeps this deterministic regardless of exact pixel
+    // distance and the 0.025 step resolution (a mid-range target would be
+    // sensitive to subpixel mouse jitter). Use several held moves so the gesture
+    // reliably registers and the cumulative distance clears the clamp even if an
+    // intermediate move is dropped.
+    await page.mouse.move(startX, y);
     await page.mouse.down();
-    await page.mouse.move(x, startY - 80, { steps: 4 });
-    await page.mouse.move(x, startY - 160, { steps: 4 });
-    await page.mouse.move(x, box.y + 10, { steps: 4 });
+    await page.mouse.move(startX - 80, y, { steps: 4 });
+    await page.mouse.move(startX - 160, y, { steps: 4 });
+    await page.mouse.move(box.x + 10, y, { steps: 4 });
     await page.mouse.up();
 
     await expect(drawerCanvas).toHaveCSS('filter', 'brightness(2)');
@@ -243,18 +244,18 @@ test.describe('View Controls', () => {
 
     const box = await viewer.boundingBox();
     if (!box) throw new Error('viewer canvas not found');
-    const startX = box.x + box.width / 2;
-    const y = box.y + box.height / 2;
+    const x = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
 
-    // Contrast drags along the x-axis (right = more contrast). Drag well past
-    // the range so the value saturates at its max (1) → contrast(2), which
-    // keeps the assertion independent of exact pixel distance and the 0.025
-    // step resolution.
-    await page.mouse.move(startX, y);
+    // Contrast drags along the y-axis (up = more contrast). Drag well past the
+    // range so the value saturates at its max (1) → contrast(2), which keeps
+    // the assertion independent of exact pixel distance and the 0.025 step
+    // resolution.
+    await page.mouse.move(x, startY);
     await page.mouse.down();
-    await page.mouse.move(startX + 80, y, { steps: 4 });
-    await page.mouse.move(startX + 160, y, { steps: 4 });
-    await page.mouse.move(box.x + box.width - 10, y, { steps: 4 });
+    await page.mouse.move(x, startY - 80, { steps: 4 });
+    await page.mouse.move(x, startY - 160, { steps: 4 });
+    await page.mouse.move(x, box.y + 10, { steps: 4 });
     await page.mouse.up();
 
     await expect(drawerCanvas).toHaveCSS('filter', 'contrast(2)');
