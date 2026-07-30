@@ -3,7 +3,7 @@ import { useAnnotator, type ActiveToolKeyHandlerRef } from '../state/annotator-c
 import { useConstraints } from './useConstraints.js';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { mapKeyEventToActions, MAX_GRID_SIZE, DEFAULT_KEYBOARD_SHORTCUTS } from 'osdlabel';
-import type { AnnotationAction, UIAction } from 'osdlabel';
+import type { AnnotationAction, ContextAction, UIAction } from 'osdlabel';
 
 export { MAX_GRID_SIZE, DEFAULT_KEYBOARD_SHORTCUTS };
 
@@ -12,7 +12,7 @@ export function useKeyboard(
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef,
   shouldSkipTargetPredicate?: (target: HTMLElement) => boolean,
 ) {
-  const { actions, uiState, activeImageId, constraintStatus } = useAnnotator();
+  const { actions, uiState, contextState, activeImageId, constraintStatus } = useAnnotator();
   const { isToolEnabled: _isToolEnabled } = useConstraints();
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -43,6 +43,8 @@ export function useKeyboard(
         gridRows: uiState.gridRows,
         selectedAnnotationId: uiState.selectedAnnotationId,
         activeImageId: activeImageId(),
+        contexts: contextState.contexts,
+        activeContextId: contextState.activeContextId,
       },
       constraintStatus(),
     );
@@ -63,9 +65,12 @@ export function useKeyboard(
 
 function dispatchAction(
   actions: ReturnType<typeof import('../state/actions.js').createActions>,
-  action: UIAction | AnnotationAction,
+  action: UIAction | AnnotationAction | ContextAction,
 ): void {
   switch (action.type) {
+    case 'SET_ACTIVE_CONTEXT':
+      actions.setActiveContext(action.payload);
+      break;
     case 'SET_ACTIVE_TOOL':
       actions.setActiveTool(action.payload);
       break;

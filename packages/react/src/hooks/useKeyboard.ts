@@ -1,8 +1,8 @@
 import { useEffect, useCallback } from 'react';
 import type { KeyboardShortcutMap, ImageId, UIState } from '@osdlabel/viewer-api';
-import type { ConstraintStatus } from '@osdlabel/annotation-context';
+import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import { mapKeyEventToActions, DEFAULT_KEYBOARD_SHORTCUTS, MAX_GRID_SIZE } from 'osdlabel';
-import type { AnnotationAction, UIAction } from 'osdlabel';
+import type { AnnotationAction, ContextAction, UIAction } from 'osdlabel';
 import type { ActiveToolKeyHandlerRef } from '../state/annotator-context.js';
 import type { createActions } from '../state/actions.js';
 
@@ -13,6 +13,7 @@ export function useKeyboard(
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef,
   actions: ReturnType<typeof createActions>,
   uiState: UIState,
+  contextState: ContextState,
   activeImageId: ImageId | undefined,
   constraintStatus: ConstraintStatus,
   shouldSkipTargetPredicate?: (target: HTMLElement) => boolean,
@@ -45,6 +46,8 @@ export function useKeyboard(
           gridRows: uiState.gridRows,
           selectedAnnotationId: uiState.selectedAnnotationId,
           activeImageId,
+          contexts: contextState.contexts,
+          activeContextId: contextState.activeContextId,
         },
         constraintStatus,
       );
@@ -58,6 +61,10 @@ export function useKeyboard(
       activeToolKeyHandlerRef,
       actions,
       uiState,
+      // Depend on the two fields actually read rather than the whole
+      // contextState, so a `displayedContextIds` change doesn't resubscribe.
+      contextState.contexts,
+      contextState.activeContextId,
       activeImageId,
       constraintStatus,
       shouldSkipTargetPredicate,
@@ -74,9 +81,12 @@ export function useKeyboard(
 
 function dispatchAction(
   actions: ReturnType<typeof createActions>,
-  action: UIAction | AnnotationAction,
+  action: UIAction | AnnotationAction | ContextAction,
 ): void {
   switch (action.type) {
+    case 'SET_ACTIVE_CONTEXT':
+      actions.setActiveContext(action.payload);
+      break;
     case 'SET_ACTIVE_TOOL':
       actions.setActiveTool(action.payload);
       break;

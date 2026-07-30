@@ -26,6 +26,7 @@ npm install osdlabel fabric openseadragon valibot
   — that work with both SolidJS `produce()` and Immer `produce()`
 - Initial-state factories and `computeConstraintStatus`
 - Keyboard mapping: `mapKeyEventToActions`, `DEFAULT_KEYBOARD_SHORTCUTS`
+- Context cycling: `getCycledContextId`, `getSelectableContexts`
 - Tool factory: `createAnnotationTool`, `buildToolCallbacks`
 - `enableLiveDecorationUpdates` — rAF-throttled live label-follows-shape updates
   during Fabric drags

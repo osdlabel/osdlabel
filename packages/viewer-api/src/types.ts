@@ -145,4 +145,8 @@ export interface KeyboardShortcutMap {
   readonly decreaseExposure: string;
   readonly increaseContrast: string;
   readonly decreaseContrast: string;
+  /** Activate the next annotation context in the configured order (wraps around) */
+  readonly nextContext: string;
+  /** Activate the previous annotation context in the configured order (wraps around) */
+  readonly previousContext: string;
 }

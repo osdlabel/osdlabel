@@ -190,6 +190,10 @@ export type { ViewerControlSpec, ViewerControlAxisSpec, ToneField } from './view
 export { DEFAULT_KEYBOARD_SHORTCUTS, MAX_GRID_SIZE, mapKeyEventToActions } from './keyboard.js';
 export type { KeyboardMappingState } from './keyboard.js';
 
+// Annotation context cycling
+export { getSelectableContexts, getCycledContextId } from './context-cycling.js';
+export type { ContextCycleDirection } from './context-cycling.js';
+
 // Tool factory and helpers
 export {
   createAnnotationTool,
