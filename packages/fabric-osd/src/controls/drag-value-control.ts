@@ -10,9 +10,16 @@ export interface DragValueControlConfig {
   readonly axis?: 'x' | 'y';
   /**
    * Value-units changed per CSS pixel of drag along {@link axis}. Default `1`.
-   * For the y-axis, dragging up (decreasing screen y) increases the value.
+   * Always positive — use {@link invert} to reverse the direction rather than a
+   * negative sensitivity, so the magnitude and the direction stay separable.
    */
   readonly sensitivity?: number;
+  /**
+   * Reverse which way along {@link axis} counts as "more". By default the
+   * x-axis increases rightward and the y-axis increases upward (the convention
+   * that "up" means "more"); set this to flip that. Default `false`.
+   */
+  readonly invert?: boolean;
   /** Lower clamp (inclusive). */
   readonly min?: number;
   /** Upper clamp (inclusive). */
@@ -39,6 +46,7 @@ export interface DragValueControlConfig {
 export function createDragValueControl(config: DragValueControlConfig): CustomControlHandler {
   const axis = config.axis ?? 'x';
   const sensitivity = config.sensitivity ?? 1;
+  const directionSign = config.invert ? -1 : 1;
   const min = config.min ?? Number.NEGATIVE_INFINITY;
   const max = config.max ?? Number.POSITIVE_INFINITY;
   const step = config.step;
@@ -68,9 +76,10 @@ export function createDragValueControl(config: DragValueControlConfig): CustomCo
         return;
       }
       // For the y-axis, dragging up (smaller screen y) should increase the
-      // value, matching the convention that "up" means "more".
+      // value, matching the convention that "up" means "more". `invert` flips
+      // whichever direction the axis defaults to.
       const rawDelta = coord(event) - startScreen;
-      const delta = axis === 'y' ? -rawDelta : rawDelta;
+      const delta = (axis === 'y' ? -rawDelta : rawDelta) * directionSign;
       let next = startValue + delta * sensitivity;
       // Quantize to the configured resolution before clamping so the value
       // lands on a clean grid (e.g. multiples of 0.025).
