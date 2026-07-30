@@ -23,6 +23,7 @@ export interface CellTransform {
   readonly flippedH: boolean;
   readonly flippedV: boolean;
   readonly exposure: number; // -1 to 1 (0 = default, maps to CSS brightness 0.0–2.0)
+  readonly contrast: number; // -1 to 1 (0 = default, maps to CSS contrast 0.0–2.0)
   readonly inverted: boolean; // false = normal, true = CSS invert(1)
 }
 
@@ -31,6 +32,7 @@ export const DEFAULT_CELL_TRANSFORM: CellTransform = {
   flippedH: false,
   flippedV: false,
   exposure: 0,
+  contrast: 0,
   inverted: false,
 };
 
@@ -45,7 +47,7 @@ export const DEFAULT_CELL_TRANSFORM: CellTransform = {
  * enters `customControl` mode and forwards pointer events to that control's
  * handler instead of to OSD or the Fabric annotation layer.
  */
-export type ViewerControlId = 'exposure';
+export type ViewerControlId = 'exposure' | 'contrast';
 
 /** UI state */
 export interface UIState {
@@ -138,4 +140,6 @@ export interface KeyboardShortcutMap {
   readonly toggleNegative: string;
   readonly increaseExposure: string;
   readonly decreaseExposure: string;
+  readonly increaseContrast: string;
+  readonly decreaseContrast: string;
 }

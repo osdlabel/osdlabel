@@ -274,6 +274,65 @@ describe('State Management', () => {
       dispose();
     });
 
+    it('increaseActiveImageContrast increments by 0.1 and clamps to 1 for the active cell', () => {
+      const { uiState, actions, dispose } = createTestStore();
+      actions.setActiveCell(1);
+
+      actions.setActiveImageContrast(0.9);
+      actions.increaseActiveImageContrast();
+      expect(uiState.cellTransforms[1]?.contrast).toBe(1.0);
+
+      // Clamps to 1
+      actions.increaseActiveImageContrast();
+      expect(uiState.cellTransforms[1]?.contrast).toBe(1.0);
+
+      dispose();
+    });
+
+    it('decreaseActiveImageContrast decrements by 0.1 and clamps to -1 for the active cell', () => {
+      const { uiState, actions, dispose } = createTestStore();
+      actions.setActiveCell(2);
+
+      actions.setActiveImageContrast(-0.9);
+      actions.decreaseActiveImageContrast();
+      expect(uiState.cellTransforms[2]?.contrast).toBe(-1.0);
+
+      // Clamps to -1
+      actions.decreaseActiveImageContrast();
+      expect(uiState.cellTransforms[2]?.contrast).toBe(-1.0);
+
+      dispose();
+    });
+
+    it('setActiveImageContrast sets specific value and clamps for the active cell', () => {
+      const { uiState, actions, dispose } = createTestStore();
+      actions.setActiveCell(0);
+
+      actions.setActiveImageContrast(0.5);
+      expect(uiState.cellTransforms[0]?.contrast).toBe(0.5);
+
+      actions.setActiveImageContrast(1.5);
+      expect(uiState.cellTransforms[0]?.contrast).toBe(1.0);
+
+      actions.setActiveImageContrast(-2.0);
+      expect(uiState.cellTransforms[0]?.contrast).toBe(-1.0);
+
+      dispose();
+    });
+
+    it('contrast and exposure adjust independently for the same cell', () => {
+      const { uiState, actions, dispose } = createTestStore();
+      actions.setActiveCell(0);
+
+      actions.setActiveImageExposure(0.3);
+      actions.setActiveImageContrast(-0.4);
+
+      expect(uiState.cellTransforms[0]?.exposure).toBe(0.3);
+      expect(uiState.cellTransforms[0]?.contrast).toBe(-0.4);
+
+      dispose();
+    });
+
     it('resetActiveImageView resets active cell transforms but leaves other cells alone', () => {
       const { uiState, actions, dispose } = createTestStore();
 

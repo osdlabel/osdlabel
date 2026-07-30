@@ -12,6 +12,7 @@ import {
   processToolAddAnnotation,
   processToolUpdateAnnotation,
   processObjectModified,
+  VIEWER_CONTROL_SPECS,
 } from 'osdlabel';
 import type { ToolCallbacks } from '@osdlabel/fabric-annotations';
 import { useAnnotator } from '../state/annotator-context.js';
@@ -87,18 +88,26 @@ export function useAnnotationTool(
     // A drag-driven viewer control takes precedence over annotation tools:
     // the overlay enters customControl mode and forwards pointer events to the
     // control's handler. This is the single authority over setMode, so there is
-    // no second effect that could race it.
-    if (active && viewerControl === 'exposure') {
+    // no second effect that could race it. Drag parameters come from the shared
+    // VIEWER_CONTROL_SPECS registry so Solid and React behave identically.
+    const spec = viewerControl ? VIEWER_CONTROL_SPECS[viewerControl] : undefined;
+    if (active && viewerControl && spec) {
+      const setValue =
+        viewerControl === 'exposure'
+          ? actions.setActiveImageExposure
+          : actions.setActiveImageContrast;
       ov.setCustomControlHandler(
         createDragValueControl({
           getValue: () =>
-            (uiState.cellTransforms[uiState.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM).exposure,
-          setValue: (value) => actions.setActiveImageExposure(value),
-          axis: 'y',
-          sensitivity: 0.01,
-          step: 0.025,
-          min: -1,
-          max: 1,
+            spec.getValue(
+              uiState.cellTransforms[uiState.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM,
+            ),
+          setValue: (value) => setValue(value),
+          axis: spec.axis,
+          sensitivity: spec.sensitivity,
+          step: spec.step,
+          min: spec.min,
+          max: spec.max,
         }),
       );
       ov.setMode('customControl');

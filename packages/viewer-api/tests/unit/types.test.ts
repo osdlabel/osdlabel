@@ -9,6 +9,7 @@ describe('viewer-api types', () => {
       flippedH: false,
       flippedV: false,
       exposure: 0,
+      contrast: 0,
       inverted: false,
     });
   });

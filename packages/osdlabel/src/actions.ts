@@ -59,6 +59,12 @@ export type UIAction =
       readonly type: 'SET_EXPOSURE';
       readonly payload: { readonly cellIndex: number; readonly value: number };
     }
+  | { readonly type: 'INCREASE_CONTRAST'; readonly payload: { readonly cellIndex: number } }
+  | { readonly type: 'DECREASE_CONTRAST'; readonly payload: { readonly cellIndex: number } }
+  | {
+      readonly type: 'SET_CONTRAST';
+      readonly payload: { readonly cellIndex: number; readonly value: number };
+    }
   | { readonly type: 'RESET_VIEW'; readonly payload: { readonly cellIndex: number } };
 
 export type ContextAction =
@@ -255,6 +261,42 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       draft.cellTransforms[action.payload.cellIndex] = {
         ...current,
         exposure: Math.round(exposure * 1000) / 1000,
+      };
+      break;
+    }
+    case 'INCREASE_CONTRAST': {
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
+      const contrast = Math.min(current.contrast + 0.1, 1);
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        contrast: Math.round(contrast * 10) / 10,
+      };
+      break;
+    }
+    case 'DECREASE_CONTRAST': {
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
+      const contrast = Math.max(current.contrast - 0.1, -1);
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        contrast: Math.round(contrast * 10) / 10,
+      };
+      break;
+    }
+    case 'SET_CONTRAST': {
+      const current = draft.cellTransforms[action.payload.cellIndex] ?? {
+        ...DEFAULT_CELL_TRANSFORM,
+      };
+      const contrast = Math.max(Math.min(action.payload.value, 1), -1);
+      // Same contract as SET_EXPOSURE: the caller (e.g. the drag control's
+      // `step`) owns the resolution of change; rounding here only strips
+      // floating-point noise.
+      draft.cellTransforms[action.payload.cellIndex] = {
+        ...current,
+        contrast: Math.round(contrast * 1000) / 1000,
       };
       break;
     }

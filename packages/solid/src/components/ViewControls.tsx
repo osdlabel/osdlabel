@@ -351,12 +351,148 @@ export const ViewControls: Component = () => {
         </svg>
       </button>
 
+      <div style={{ width: '1px', height: '24px', 'background-color': '#555', margin: '0 4px' }} />
+
+      <button
+        type="button"
+        title="Decrease Contrast (Shift+X)"
+        aria-label="Decrease Contrast"
+        data-testid="view-contrast-decrease"
+        disabled={!isActive()}
+        onClick={() => actions.decreaseActiveImageContrast()}
+        style={{
+          width: '32px',
+          height: '32px',
+          'background-color': '#333',
+          border: 'none',
+          'border-radius': '4px',
+          color: 'white',
+          cursor: isActive() ? 'pointer' : 'default',
+          opacity: isActive() ? '1' : '0.5',
+          display: 'flex',
+          'align-items': 'center',
+          'justify-content': 'center',
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+        </svg>
+      </button>
+
+      <div
+        aria-live="polite"
+        style={{
+          'min-width': '28px',
+          'text-align': 'center',
+          color: 'white',
+          'font-size': '12px',
+          opacity: isActive() ? '1' : '0.5',
+        }}
+      >
+        {cellTransform().contrast > 0
+          ? `+${cellTransform().contrast.toFixed(1)}`
+          : cellTransform().contrast.toFixed(1)}
+      </div>
+
+      <button
+        type="button"
+        title="Increase Contrast (Shift+C)"
+        aria-label="Increase Contrast"
+        data-testid="view-contrast-increase"
+        disabled={!isActive()}
+        onClick={() => actions.increaseActiveImageContrast()}
+        style={{
+          width: '32px',
+          height: '32px',
+          'background-color': '#333',
+          border: 'none',
+          'border-radius': '4px',
+          color: 'white',
+          cursor: isActive() ? 'pointer' : 'default',
+          opacity: isActive() ? '1' : '0.5',
+          display: 'flex',
+          'align-items': 'center',
+          'justify-content': 'center',
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+          <path d="M12 7v10" />
+        </svg>
+      </button>
+
+      <button
+        type="button"
+        title="Drag to adjust contrast"
+        aria-label="Drag to adjust contrast"
+        aria-pressed={uiState.activeViewerControl === 'contrast'}
+        data-testid="view-contrast-drag"
+        disabled={!isActive()}
+        onClick={() =>
+          actions.setActiveViewerControl(
+            uiState.activeViewerControl === 'contrast' ? null : 'contrast',
+          )
+        }
+        style={{
+          width: '32px',
+          height: '32px',
+          'background-color': uiState.activeViewerControl === 'contrast' ? '#2196F3' : '#333',
+          border: 'none',
+          'border-radius': '4px',
+          color: 'white',
+          cursor: isActive() ? 'pointer' : 'default',
+          opacity: isActive() ? '1' : '0.5',
+          display: 'flex',
+          'align-items': 'center',
+          'justify-content': 'center',
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 8a4 4 0 0 1 0 8z" fill="currentColor" />
+          <path d="M2 12h4" />
+          <path d="M18 12h4" />
+          <path d="m6 9-3 3 3 3" />
+          <path d="m18 9 3 3-3 3" />
+        </svg>
+      </button>
+
       <Show
         when={
           cellTransform().rotation !== 0 ||
           cellTransform().flippedH ||
           cellTransform().flippedV ||
           cellTransform().exposure !== 0 ||
+          cellTransform().contrast !== 0 ||
           cellTransform().inverted
         }
       >
