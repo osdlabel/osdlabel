@@ -88,6 +88,7 @@ export {
   composeImageFilterCss,
   DecorationLayer,
   createDragValueControl,
+  createDragVectorControl,
 } from '@osdlabel/fabric-osd';
 export type {
   OverlayOptions,
@@ -96,6 +97,8 @@ export type {
   CustomControlEvent,
   CustomControlHandler,
   DragValueControlConfig,
+  DragVectorControlConfig,
+  DragAxisBehavior,
   ImageFilters,
 } from '@osdlabel/fabric-osd';
 
@@ -180,8 +183,8 @@ export {
 export { computeConstraintStatus, countAnnotationsForContextAndType } from './constraints.js';
 
 // Drag-driven viewer control registry
-export { VIEWER_CONTROL_SPECS } from './viewer-controls.js';
-export type { ViewerControlSpec } from './viewer-controls.js';
+export { VIEWER_CONTROL_SPECS, getToneValue } from './viewer-controls.js';
+export type { ViewerControlSpec, ViewerControlAxisSpec, ToneField } from './viewer-controls.js';
 
 // Keyboard mapping
 export { DEFAULT_KEYBOARD_SHORTCUTS, MAX_GRID_SIZE, mapKeyEventToActions } from './keyboard.js';
