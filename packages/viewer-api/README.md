@@ -17,7 +17,11 @@ npm install @osdlabel/viewer-api
 - `ImageSource` — describes a tile source / image to annotate
 - `PixelSpacing` — physical calibration for measurements
 - `AnnotationState<E>` and `getAllAnnotationsFlat`
-- `CellTransform`, `DEFAULT_CELL_TRANSFORM` — per-cell pan/zoom/rotate/flip state
+- `CellTransform`, `DEFAULT_CELL_TRANSFORM` — per-cell view state: `rotation`,
+  `flippedH` / `flippedV`, and the tonal fields `exposure`, `contrast` (both
+  `-1`–`1`, `0` = unchanged) and `inverted`
+- `ViewerControlId` — identifies a drag-driven viewer control (currently `tone`,
+  the two-axis exposure/contrast gesture)
 - `UIState`, `KeyboardShortcutMap`
 
 ## Usage

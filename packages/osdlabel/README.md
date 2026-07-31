@@ -23,14 +23,25 @@ npm install osdlabel fabric openseadragon valibot
 - `serialize` / `deserialize` (versioned JSON document format),
   `SerializationError`, `DeserializeResult`
 - Pure reducers — `applyAnnotationAction`, `applyUIAction`, `applyContextAction`
-  — that work with both SolidJS `produce()` and Immer `produce()`
-- Initial-state factories and `computeConstraintStatus`
-- Keyboard mapping: `mapKeyEventToActions`, `DEFAULT_KEYBOARD_SHORTCUTS`
+  — that work with both SolidJS `produce()` and Immer `produce()`, plus
+  `validateAddAnnotation`
+- Initial-state factories, `computeConstraintStatus`, and
+  `countAnnotationsForContextAndType`
+- Keyboard mapping: `mapKeyEventToActions`, `DEFAULT_KEYBOARD_SHORTCUTS`,
+  `MAX_GRID_SIZE`
 - Context cycling: `getCycledContextId`, `getSelectableContexts`
-- Tool factory: `createAnnotationTool`, `buildToolCallbacks`
+- `createAnnotationFromGeometry` — builds a complete annotation (id, style, raw
+  Fabric data) from a geometry
+- Tool factory: `createAnnotationTool`, `buildToolCallbacks`, and the pure
+  processors `processObjectModified`, `processToolAddAnnotation`,
+  `processToolUpdateAnnotation`, `processConvertCircleToRectangle`
+- `VIEWER_CONTROL_SPECS` / `getToneValue` — the framework-agnostic registry of
+  drag-driven viewer controls, so the Solid and React hooks configure the
+  exposure/contrast gesture identically
 - `enableLiveDecorationUpdates` — rAF-throttled live label-follows-shape updates
   during Fabric drags
-- Re-exports the full `@osdlabel/decoration` API
+- Re-exports the full `@osdlabel/decoration`, `@osdlabel/fabric-annotations`,
+  `@osdlabel/fabric-osd`, and `@osdlabel/validation` public APIs
 
 ## Usage
 

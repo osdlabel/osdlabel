@@ -19,8 +19,11 @@ npm install @osdlabel/annotation
   via intersection by feature packages
 - `BaseAnnotation`, `AnnotationStyle`, `AnnotationId` (branded id)
 - `Geometry` — discriminated union of geometry types (rectangle, circle, line,
-  point, polyline, path)
-- `ToolType` and `toolTypeToGeometryType`
+  point, polyline, polygon)
+- `ToolType` (`rectangle`, `circle`, `line`, `point`, `polyline`,
+  `freeHandPath`) and `toolTypeToGeometryType` — several tools can produce the
+  same geometry, so the two unions are deliberately distinct
+- `DEFAULT_ANNOTATION_STYLE`
 - `RawAnnotationData<TFormat, TData>` — generic raw-data container
 - `createAnnotationId` and other id/util helpers
 

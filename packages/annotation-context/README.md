@@ -18,8 +18,10 @@ npm install @osdlabel/annotation-context
 
 ## What's inside
 
-- `AnnotationContext`, `AnnotationContextId` (branded id)
-- `ToolConstraint`, `ConstraintStatus`, `ContextState`, `ContextFields`
+- `AnnotationContext`, `AnnotationContextId` (branded id), and its
+  `createAnnotationContextId` factory
+- `ToolConstraint`, `CountScope` (`'per-image' | 'global'`), `ConstraintStatus`,
+  `ContextState`, `ContextFields`
 - Scoping helpers: `isContextScopedToImage`, `getCountableImageIds`
 
 ## Usage
