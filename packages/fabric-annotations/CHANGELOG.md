@@ -1,5 +1,14 @@
 # @osdlabel/fabric-annotations
 
+## 0.7.0
+
+### Patch Changes
+
+- Updated dependencies [49b5003]
+  - @osdlabel/viewer-api@0.7.0
+  - @osdlabel/annotation-context@0.7.0
+  - @osdlabel/annotation@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

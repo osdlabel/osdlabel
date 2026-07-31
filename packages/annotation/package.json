@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/annotation",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Annotation data model for osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
