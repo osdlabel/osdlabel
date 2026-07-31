@@ -1,5 +1,13 @@
 # @osdlabel/osd-helper
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [ee551bd]
+  - @osdlabel/annotation@0.7.1
+  - @osdlabel/viewer-api@0.7.1
+
 ## 0.7.0
 
 ### Patch Changes
