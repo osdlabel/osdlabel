@@ -1,5 +1,28 @@
 # osdlabel
 
+## 0.7.0
+
+### Minor Changes
+
+- 49b5003: Add keyboard controls for cycling between annotation contexts.
+  - `.` activates the next annotation context and `,` the previous one, wrapping around at both ends. The shifted `>` / `<` variants are accepted too, mirroring the existing `=` / `+` grid-column handling. `KeyboardShortcutMap` gains `nextContext` / `previousContext`, overridable like any other binding.
+  - Contexts scoped to other images (via `AnnotationContext.imageIds`) are skipped, so a keypress only ever lands on a context usable on the image in the active cell. When the active context is unset — or is itself scoped out of the current image — the ring is entered at the end the direction implies: `next` lands on the first selectable context, `previous` on the last.
+  - The active tool and selected annotation are deliberately left untouched, making the shortcut equivalent to picking an entry in `ContextSwitcher`. `useAnnotationTool` already re-checks `constraintStatus` at draw time, so a tool the new context disallows is rejected there and shown disabled in the toolbar.
+  - New pure helpers `getSelectableContexts` and `getCycledContextId` are exported from `osdlabel`, keeping `mapKeyEventToActions` a thin dispatcher. It now returns `ContextAction` alongside UI and annotation actions; both framework `useKeyboard` hooks handle `SET_ACTIVE_CONTEXT`.
+  - The new `KeyboardMappingState.contexts` / `.activeContextId` fields are optional, so existing callers of `mapKeyEventToActions` keep compiling — cycling simply no-ops without them. **Breaking (React only):** `useKeyboard` takes a new required `contextState` argument between `uiState` and `activeImageId`; callers using the `AnnotatorProvider` are unaffected.
+
+### Patch Changes
+
+- Updated dependencies [49b5003]
+  - @osdlabel/viewer-api@0.7.0
+  - @osdlabel/annotation-context@0.7.0
+  - @osdlabel/decoration@0.7.0
+  - @osdlabel/fabric-annotations@0.7.0
+  - @osdlabel/fabric-osd@0.7.0
+  - @osdlabel/annotation@0.7.0
+  - @osdlabel/geometry@0.7.0
+  - @osdlabel/validation@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes
