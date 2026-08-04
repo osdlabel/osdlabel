@@ -1,5 +1,17 @@
 # @osdlabel/docs
 
+## 0.1.10
+
+### Patch Changes
+
+- Updated dependencies [1e74977]
+  - @osdlabel/solid@0.7.2
+  - @osdlabel/react@0.7.2
+  - osdlabel@0.7.2
+  - @osdlabel/annotation@0.7.2
+  - @osdlabel/annotation-context@0.7.2
+  - @osdlabel/viewer-api@0.7.2
+
 ## 0.1.9
 
 ### Patch Changes

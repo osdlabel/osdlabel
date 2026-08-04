@@ -1,5 +1,11 @@
 # @osdlabel/validation
 
+## 0.7.2
+
+### Patch Changes
+
+- @osdlabel/annotation@0.7.2
+
 ## 0.7.1
 
 ### Patch Changes
