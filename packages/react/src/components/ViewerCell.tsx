@@ -8,7 +8,7 @@ import type { OverlayMode } from '@osdlabel/fabric-osd';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import type { ImageSource } from '@osdlabel/viewer-api';
-import { openImage } from '@osdlabel/osd-helper';
+import { DEFAULT_VIEWER_OPTIONS, openImage } from '@osdlabel/osd-helper';
 import { useAnnotationTool } from '../hooks/useAnnotationTool.js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
@@ -52,14 +52,8 @@ export default function ViewerCell({
     if (!containerRef.current) return;
 
     const viewer = OpenSeadragon({
+      ...DEFAULT_VIEWER_OPTIONS,
       element: containerRef.current,
-      prefixUrl: '',
-      showNavigationControl: false,
-      animationTime: 0.3,
-      minZoomLevel: 0.5,
-      maxZoomLevel: 40,
-      visibilityRatio: 0.5,
-      constrainDuringPan: true,
     });
     viewerRef.current = viewer;
 

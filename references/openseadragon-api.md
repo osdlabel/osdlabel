@@ -11,12 +11,31 @@ const viewer = OpenSeadragon({
   prefixUrl: '', // disable default button images
   showNavigationControl: false, // disable default zoom buttons
   animationTime: 0.3, // pan/zoom animation duration (seconds)
-  minZoomLevel: 0.5,
+  minZoomImageRatio: 0.5, // zoom-out floor, relative to home zoom
   maxZoomLevel: 40,
   visibilityRatio: 0.5,
   constrainDuringPan: true,
+  gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true },
 });
+```
 
+`@osdlabel/osd-helper` exports these as `DEFAULT_VIEWER_OPTIONS`; the viewer
+cells spread it and add their own `element`.
+
+Two of those options are load-bearing:
+
+- **`minZoomImageRatio`, never `minZoomLevel`.** `minZoomLevel` is an absolute
+  zoom (`1` = image width fills the viewport width), but home zoom — the
+  "fit the image" zoom — is `imageAspect / containerAspect` whenever the image
+  is taller than its container, which can be far below any fixed floor. An
+  absolute floor above home zoom makes `applyConstraints()` (called on every
+  mouse-up) snap the view in and then refuse to zoom back out to fit.
+  `minZoomImageRatio` is relative to home zoom, so fitting always stays
+  reachable.
+- **`clickToZoom: false`.** OSD zooms in by `zoomPerClick` (2x) on a plain
+  click by default, so clicking a cell to activate it would move the view.
+
+```typescript
 // Open a DZI tile source
 viewer.open({
   Image: {
