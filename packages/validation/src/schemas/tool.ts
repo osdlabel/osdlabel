@@ -8,4 +8,5 @@ export const ToolTypeSchema = v.union([
   v.literal('point'),
   v.literal('polyline'),
   v.literal('freeHandPath'),
+  v.literal('segmentation'),
 ]);

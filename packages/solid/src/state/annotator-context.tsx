@@ -6,7 +6,7 @@ import type { AnnotationState, KeyboardShortcutMap, UIState } from '@osdlabel/vi
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
+import type { OsdAnnotation, OsdFields, SegmentationProvider, VertexEditConfig } from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -36,6 +36,7 @@ interface AnnotatorContextValue {
   decorationProviders: readonly DecorationProvider<OsdFields>[];
   defaultPixelSpacing: PixelSpacing | undefined;
   renderDomDecoration: ((decoration: DomDecoration) => JSX.Element) | undefined;
+  segmentationProvider: SegmentationProvider | undefined;
 }
 
 const KeyboardHandler = (props: {
@@ -87,6 +88,12 @@ export interface AnnotatorProviderProps {
    * the `DomDecoration` and returns the element to mount.
    */
   readonly renderDomDecoration?: ((decoration: DomDecoration) => JSX.Element) | undefined;
+  /**
+   * Injected auto-segmentation backend (Segment Anything-style). Required for
+   * the `'segmentation'` tool to be active; when omitted, selecting the tool is
+   * a no-op.
+   */
+  readonly segmentationProvider?: SegmentationProvider | undefined;
 }
 
 export function AnnotatorProvider(props: AnnotatorProviderProps) {
@@ -165,6 +172,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     decorationProviders: props.decorationProviders ?? [],
     defaultPixelSpacing: props.defaultPixelSpacing,
     renderDomDecoration: props.renderDomDecoration,
+    segmentationProvider: props.segmentationProvider,
   };
 
   return (

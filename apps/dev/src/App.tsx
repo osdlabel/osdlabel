@@ -27,6 +27,7 @@ import type {
   OsdFields,
 } from '@osdlabel/solid';
 import { FabricObject } from 'fabric';
+import { demoSegmentationProvider } from './demo-segmentation-provider.js';
 
 // NOTE: initFabricModule() is intentionally NOT called here. The library
 // registers the Fabric `id` custom property automatically when a FabricOverlay
@@ -86,6 +87,7 @@ const CONTEXTS: AnnotationContext[] = [
       { type: 'point' },
       { type: 'polyline' },
       { type: 'freeHandPath' },
+      { type: 'segmentation' },
     ],
   },
 ];
@@ -467,6 +469,7 @@ function App() {
       onConstraintChange={(status) => console.log('Constraint status changed:', status)}
       testMode={true}
       defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}
+      segmentationProvider={demoSegmentationProvider}
       decorationProviders={[
         withSelectionEmphasis(
           createMeasurementProvider({ area: true, perimeter: true, length: true, radius: true }),

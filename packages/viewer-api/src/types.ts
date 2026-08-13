@@ -116,6 +116,7 @@ export interface KeyboardShortcutMap {
   readonly pointTool: string;
   readonly polylineTool: string;
   readonly freeHandPathTool: string;
+  readonly segmentationTool: string;
   readonly cancel: string;
   readonly delete: string;
   readonly deleteAlt: string;

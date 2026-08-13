@@ -10,6 +10,7 @@ export function createTestKeyboardShortcuts(): KeyboardShortcutMap {
     pointTool: 'p',
     polylineTool: 'd',
     freeHandPathTool: 'f',
+    segmentationTool: 's',
     cancel: 'Escape',
     delete: 'Delete',
     deleteAlt: 'Backspace',

@@ -9,6 +9,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
   point: 'Point',
   polyline: 'Polyline',
   freeHandPath: 'Free Draw',
+  segmentation: 'Segment',
 };
 
 const Toolbar: Component = () => {

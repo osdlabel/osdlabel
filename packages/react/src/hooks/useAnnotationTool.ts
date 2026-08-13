@@ -3,8 +3,9 @@ import type { FabricObject } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
 import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
-import type { ImageId } from '@osdlabel/viewer-api';
+import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
+import type { SegmentationImageRef } from 'osdlabel';
 import {
   createAnnotationTool,
   createDragVectorControl,
@@ -30,6 +31,7 @@ export function useAnnotationTool(
   overlay: FabricOverlay | undefined,
   imageId: ImageId | undefined,
   isActive: boolean,
+  imageSource?: ImageSource | undefined,
 ) {
   const {
     uiState,
@@ -40,6 +42,7 @@ export function useAnnotationTool(
     activeToolKeyHandlerRef,
     shortcuts,
     vertexEditConfig,
+    segmentationProvider,
   } = useAnnotator();
 
   // Auto-switch to select tool when active drawing tool becomes disabled
@@ -61,6 +64,10 @@ export function useAnnotationTool(
   constraintStatusRef.current = constraintStatus;
   const uiStateRef = useRef(uiState);
   uiStateRef.current = uiState;
+  const segmentationProviderRef = useRef(segmentationProvider);
+  segmentationProviderRef.current = segmentationProvider;
+  const imageSourceRef = useRef(imageSource);
+  imageSourceRef.current = imageSource;
 
   // Handle object:modified events
   useEffect(() => {
@@ -129,8 +136,25 @@ export function useAnnotationTool(
       return;
     }
 
+    // Build the segmentation tool config only when a provider is injected and
+    // the cell has a known image source (needed for the tileSource fallback).
+    const provider = segmentationProviderRef.current;
+    const src = imageSourceRef.current;
+    const segmentation =
+      provider && src
+        ? {
+            provider,
+            getImageRef: (id: ImageId): SegmentationImageRef => ({
+              imageId: id,
+              tileSource: src.tileSource,
+              getViewportCanvas: () => overlay.getImageCanvas(),
+            }),
+          }
+        : undefined;
+
     const tool: AnnotationTool | null = createAnnotationTool(uiState.activeTool, {
       vertexEdit: vertexEditConfig,
+      ...(segmentation ? { segmentation } : {}),
     });
 
     if (!tool) {

@@ -1,0 +1,29 @@
+{
+  "name": "@osdlabel/sam-demo",
+  "version": "0.0.7",
+  "author": "Guy Or <guydude1@gmail.com>",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-ort-wasm.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "fetch-models": "node scripts/fetch-models.mjs"
+  },
+  "dependencies": {
+    "@osdlabel/solid": "workspace:*",
+    "fabric": "catalog:",
+    "osdlabel": "workspace:*",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "@osdlabel/segmentation-onnx": "workspace:*",
+    "@types/node": "^22.10.0",
+    "onnxruntime-web": "^1.23.0",
+    "sharp": "^0.34.1",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  }
+}
