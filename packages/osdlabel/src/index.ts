@@ -213,3 +213,17 @@ export type {
 // Live decoration update wiring
 export { enableLiveDecorationUpdates } from './live-decoration-updates.js';
 export type { LiveDecorationUpdateOptions } from './live-decoration-updates.js';
+
+// Fullscreen
+export {
+  getFullscreenElement,
+  isDocumentFullscreen,
+  isFullscreenSupported,
+  requestFullscreen,
+  exitFullscreen,
+  toggleFullscreen,
+  onFullscreenChange,
+  shouldSuppressEscapeKey,
+} from './fullscreen.js';
+export { FULLSCREEN_ROOT_ATTRIBUTE, resolveFullscreenTarget } from './fullscreen-target.js';
+export type { ResolveFullscreenTargetOptions } from './fullscreen-target.js';
