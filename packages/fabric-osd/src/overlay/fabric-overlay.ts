@@ -9,6 +9,7 @@ import { composeImageFilterCss } from './image-filters.js';
 import type { ImageFilters } from './image-filters.js';
 import { mirrorScreenX } from './mirror-screen-x.js';
 import { computeScrollZoom } from './scroll-zoom.js';
+import { observeDevicePixelRatio, syncFabricDevicePixelRatio } from './device-pixel-ratio.js';
 import {
   POINTER_DOWN,
   POINTER_MOVE,
@@ -190,6 +191,9 @@ export class FabricOverlay {
   /** Callbacks fired at the end of every `sync()`. */
   private readonly _syncSubscribers = new Set<() => void>();
 
+  /** Tears down the device-pixel-ratio media-query observer. */
+  private _disposeDevicePixelRatioObserver: (() => void) | null = null;
+
   // ── Bound OSD event handlers (for add/removeHandler) ─────────────
   private readonly _onAnimation = (): void => {
     this.sync();
@@ -201,6 +205,9 @@ export class FabricOverlay {
     this.sync();
   };
   private readonly _onResize = (): void => {
+    // Before setDimensions: it re-applies Fabric's retina scaling, so the
+    // ratio has to be current by the time it runs.
+    syncFabricDevicePixelRatio();
     const size = this._viewer.viewport.getContainerSize();
     this._fabricCanvas.setDimensions({ width: size.x, height: size.y });
     this.sync();
@@ -262,6 +269,9 @@ export class FabricOverlay {
       return Math.sqrt(vpt[0] * vpt[0] + vpt[1] * vpt[1]);
     };
 
+    // Fabric captured window.devicePixelRatio when its config module was
+    // evaluated, which may predate the page landing on this display.
+    syncFabricDevicePixelRatio();
     this._fabricCanvas.setDimensions({
       width: containerSize.x,
       height: containerSize.y,
@@ -288,6 +298,17 @@ export class FabricOverlay {
     // Suppress all OSD built-in keyboard shortcuts (arrows, WASD, +/-, f, r, etc.)
     // so they don't conflict with the host application's keyboard handling.
     viewer.addHandler('canvas-key', this._onCanvasKey);
+
+    // A display-scale change need not change the container's CSS size (drag a
+    // window between a Retina and a non-Retina monitor), so no resize fires on
+    // its own. Re-enter OSD's own resize path — the same remedy OSD applies to
+    // itself when its window `resize` listener sees a pixelDensityRatio change
+    // — which raises `resize`, where the ratio is resynced and the canvas
+    // re-measured. With an unchanged container size the resulting pan/zoom is
+    // a no-op.
+    this._disposeDevicePixelRatioObserver = observeDevicePixelRatio(() => {
+      this._viewer.forceResize();
+    });
 
     // Initial sync if the viewer is already open
     if (viewer.isOpen()) {
@@ -477,6 +498,8 @@ export class FabricOverlay {
   destroy(): void {
     this._customControlHandler = null;
     this._syncSubscribers.clear();
+    this._disposeDevicePixelRatioObserver?.();
+    this._disposeDevicePixelRatioObserver = null;
     this._overlayTracker.destroy();
     this._viewer.removeHandler(OSD_ANIMATION, this._onAnimation);
     this._viewer.removeHandler(OSD_ANIMATION_FINISH, this._onAnimationFinish);
