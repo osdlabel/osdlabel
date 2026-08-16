@@ -2,7 +2,12 @@ import { onMount, onCleanup } from 'solid-js';
 import { useAnnotator, type ActiveToolKeyHandlerRef } from '../state/annotator-context.js';
 import { useConstraints } from './useConstraints.js';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
-import { mapKeyEventToActions, MAX_GRID_SIZE, DEFAULT_KEYBOARD_SHORTCUTS } from 'osdlabel';
+import {
+  mapKeyEventToActions,
+  shouldSuppressEscapeKey,
+  MAX_GRID_SIZE,
+  DEFAULT_KEYBOARD_SHORTCUTS,
+} from 'osdlabel';
 import type { AnnotationAction, ContextAction, UIAction } from 'osdlabel';
 
 export { MAX_GRID_SIZE, DEFAULT_KEYBOARD_SHORTCUTS };
@@ -16,6 +21,13 @@ export function useKeyboard(
   const { isToolEnabled: _isToolEnabled } = useConstraints();
 
   const handleKeyDown = (e: KeyboardEvent) => {
+    // While the browser is displaying an element fullscreen it consumes Escape
+    // to exit, and that cannot be prevented. Acting on it here too would make
+    // one keypress do two unrelated things — see shouldSuppressEscapeKey. This
+    // must come before the tool key handler so the polyline, freehand, and
+    // vertex-editor Escape branches are covered as well.
+    if (shouldSuppressEscapeKey(e.key)) return;
+
     // Suppress shortcuts if typing in input/textarea/contenteditable
     const target = e.target as HTMLElement;
     if (

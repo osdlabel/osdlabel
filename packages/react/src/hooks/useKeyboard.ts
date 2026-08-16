@@ -1,7 +1,12 @@
 import { useEffect, useCallback } from 'react';
 import type { KeyboardShortcutMap, ImageId, UIState } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
-import { mapKeyEventToActions, DEFAULT_KEYBOARD_SHORTCUTS, MAX_GRID_SIZE } from 'osdlabel';
+import {
+  mapKeyEventToActions,
+  shouldSuppressEscapeKey,
+  DEFAULT_KEYBOARD_SHORTCUTS,
+  MAX_GRID_SIZE,
+} from 'osdlabel';
 import type { AnnotationAction, ContextAction, UIAction } from 'osdlabel';
 import type { ActiveToolKeyHandlerRef } from '../state/annotator-context.js';
 import type { createActions } from '../state/actions.js';
@@ -20,6 +25,14 @@ export function useKeyboard(
 ) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      // While the browser is displaying an element fullscreen it consumes
+      // Escape to exit, and that cannot be prevented. Acting on it here too
+      // would make one keypress do two unrelated things — see
+      // shouldSuppressEscapeKey. This must come before the tool key handler so
+      // the polyline, freehand, and vertex-editor Escape branches are covered
+      // as well.
+      if (shouldSuppressEscapeKey(e.key)) return;
+
       const target = e.target as HTMLElement;
       if (
         target.tagName === 'INPUT' ||
