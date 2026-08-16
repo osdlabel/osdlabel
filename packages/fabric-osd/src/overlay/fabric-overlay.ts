@@ -7,6 +7,8 @@ import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import { initFabricModule } from '@osdlabel/fabric-annotations';
 import { composeImageFilterCss } from './image-filters.js';
 import type { ImageFilters } from './image-filters.js';
+import { mirrorScreenX } from './mirror-screen-x.js';
+import { computeScrollZoom } from './scroll-zoom.js';
 import {
   POINTER_DOWN,
   POINTER_MOVE,
@@ -125,10 +127,7 @@ export function imageToScreenFlipAware(viewer: OpenSeadragon.Viewer, imagePoint:
   const osdPoint = viewport.imageToViewerElementCoordinates(
     new OpenSeadragon.Point(imagePoint.x, imagePoint.y),
   );
-  let x = osdPoint.x;
-  if (viewport.getFlip()) {
-    x = viewport.getContainerSize().x - x;
-  }
+  const x = mirrorScreenX(osdPoint.x, viewport.getContainerSize().x, viewport.getFlip());
   return { x, y: osdPoint.y };
 }
 
@@ -138,10 +137,7 @@ export function imageToScreenFlipAware(viewer: OpenSeadragon.Viewer, imagePoint:
  */
 export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint: Point): Point {
   const viewport = viewer.viewport;
-  let sx = screenPoint.x;
-  if (viewport.getFlip()) {
-    sx = viewport.getContainerSize().x - sx;
-  }
+  const sx = mirrorScreenX(screenPoint.x, viewport.getContainerSize().x, viewport.getFlip());
   const osdPoint = viewport.viewerElementToImageCoordinates(
     new OpenSeadragon.Point(sx, screenPoint.y),
   );
@@ -548,16 +544,31 @@ export class FabricOverlay {
   }
 
   /**
+   * Convert a DOM event's client coordinates to CSS pixels relative to the
+   * viewer element.
+   *
+   * Fabric's container is absolutely positioned at the origin of OSD's canvas
+   * element, so its bounding rect is the viewer element's rect — which is the
+   * coordinate space OSD's `viewport.pointFromPixel` and
+   * `viewerElementToImageCoordinates` expect. Client coordinates are offset by
+   * wherever the viewer sits in the window, and that offset changes when the
+   * page enters fullscreen, scrolls, or reflows.
+   */
+  private _toElementPoint(originalEvent: { clientX: number; clientY: number }): Point {
+    const rect = this._fabricContainer.getBoundingClientRect();
+    return {
+      x: originalEvent.clientX - rect.left,
+      y: originalEvent.clientY - rect.top,
+    };
+  }
+
+  /**
    * Build the {@link CustomControlEvent} payload from a raw DOM pointer event:
    * the screen point is element-relative CSS pixels and the image point is the
    * flip-aware image-space conversion.
    */
   private _buildCustomControlEvent(originalEvent: PointerEvent): CustomControlEvent {
-    const rect = this._fabricContainer.getBoundingClientRect();
-    const screenPoint: Point = {
-      x: originalEvent.clientX - rect.left,
-      y: originalEvent.clientY - rect.top,
-    };
+    const screenPoint = this._toElementPoint(originalEvent);
     const imagePoint = this.screenToImage(screenPoint);
     return { originalEvent, screenPoint, imagePoint };
   }
@@ -698,16 +709,24 @@ export class FabricOverlay {
           // Ctrl/Cmd+scroll → manually zoom OSD.
           // OSD's own scroll-zoom is disabled (setMouseNavEnabled(false)),
           // so we call viewport.zoomBy() directly.
-          const delta = -domEvent.deltaY;
-          const zoomFactor = Math.pow(1.2, delta > 0 ? 1 : -1);
+          const viewport = this._viewer.viewport;
+          const command = computeScrollZoom({
+            deltaY: domEvent.deltaY,
+            position: this._toElementPoint(domEvent),
+            containerWidth: viewport.getContainerSize().x,
+            flipped: viewport.getFlip(),
+          });
+          if (!command) return;
 
           // Zoom around the pointer position (in viewport coordinates)
-          const viewerPos = this._viewer.viewport.pointFromPixel(
-            new OpenSeadragon.Point(domEvent.clientX, domEvent.clientY),
-            true, // current = true (use current animated position)
+          viewport.zoomBy(
+            command.factor,
+            viewport.pointFromPixel(
+              new OpenSeadragon.Point(command.anchorPixel.x, command.anchorPixel.y),
+              true, // current = true (use current animated position)
+            ),
           );
-          this._viewer.viewport.zoomBy(zoomFactor, viewerPos);
-          this._viewer.viewport.applyConstraints();
+          viewport.applyConstraints();
         }
       },
     });
