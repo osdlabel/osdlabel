@@ -99,6 +99,8 @@ Unspecified keys keep their default bindings. See [`KeyboardShortcutMap`](/osdla
 
 Shortcuts are automatically suppressed when focus is in an `<input>`, `<textarea>`, or `contenteditable` element.
 
+`Escape` is additionally ignored whenever an element is displayed fullscreen, including one your own app put there. The browser exits fullscreen on `Escape` and the keypress cannot be intercepted, so acting on it as well would make one press do two unrelated things. Every other shortcut keeps working while fullscreen. See [Fullscreen](/guides/basic-controls/#fullscreen).
+
 For additional suppression logic, use the `shouldSkipKeyboardShortcutPredicate` prop:
 
 ```tsx
