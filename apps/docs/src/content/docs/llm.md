@@ -48,7 +48,6 @@ This guide walks you through setting up a minimal annotation interface with osdl
 Create an array of `ImageSource` objects. Each image needs a unique branded ID and a URL (DZI or standard image).
 
 ```tsx
-
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
@@ -68,7 +67,6 @@ const images: ImageSource[] = [
 Contexts define which tools are available and their constraints. Each context represents a labelling task (e.g., marking a specific pathology).
 
 ```tsx
-
 const contexts: AnnotationContext[] = [
   {
     id: createAnnotationContextId('default'),
@@ -90,7 +88,6 @@ const contexts: AnnotationContext[] = [
 The `Annotator` component provides a complete annotation interface with toolbar, grid view, filmstrip, and status bar.
 
 ```tsx
-
 function App() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -184,7 +181,6 @@ type AnnotationContextId = string & { readonly __brand: unique symbol };
 You cannot pass a plain `string` where a branded ID is expected. Use the factory functions:
 
 ```ts
-
 const imageId = createImageId('my-image');
 const annotationId = createAnnotationId('ann-1');
 const contextId = createAnnotationContextId('ctx-1');
@@ -331,7 +327,6 @@ For most applications, importing from the framework-specific package (`@osdlabel
 // SolidJS
 
 // React
-
 ```
 
 ### 2. Direct package imports
@@ -355,14 +350,13 @@ osdlabel provides a set of UI components that you can compose to build your anno
 The `Annotator` component is an all-in-one solution that includes a toolbar, grid view, filmstrip, and status bar. It's the quickest way to get started if you want a complete, out-of-the-box layout.
 
 ```tsx
-
 <Annotator
   images={images}
   contexts={contexts}
   showContextSwitcher={true}
   filmstripPosition="left"
   onAnnotationsChange={(anns) => console.log(anns.length)}
-/>;
+/>
 ```
 
 ### AnnotatorProvider
@@ -370,12 +364,11 @@ The `Annotator` component is an all-in-one solution that includes a toolbar, gri
 The `AnnotatorProvider` is the context provider that manages all state stores. Use this when you want to build a custom layout instead of using the default `Annotator`.
 
 ```tsx
-
 <AnnotatorProvider onAnnotationsChange={(anns) => saveAnnotations(anns)}>
   <Toolbar />
   <GridView columns={2} rows={1} maxColumns={4} maxRows={4} images={images} />
   <StatusBar imageId={activeImageId()} />
-</AnnotatorProvider>;
+</AnnotatorProvider>
 ```
 
 Both `Annotator` and `AnnotatorProvider` accept two decoration-related props: `decorationProviders` (a `readonly DecorationProvider<OsdFields>[]` composed in array order) and `defaultPixelSpacing` (a fallback `PixelSpacing` used when an `ImageSource` does not specify its own). See the [Decorations](/osdlabel/guides/decorations/) and [Measurements](/osdlabel/guides/measurements/) guides for usage.
@@ -395,8 +388,7 @@ A single OpenSeaDragon viewer with a Fabric.js overlay. This is the core renderi
 A configurable MxN grid layout of `ViewerCell` components.
 
 ```tsx
-
-<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />;
+<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />
 ```
 
 ## UI Controls
@@ -414,8 +406,7 @@ A tool selector that respects the active context's constraints and shows availab
 A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail assigns that image to the active cell.
 
 ```tsx
-
-<Filmstrip images={images} position="left" />;
+<Filmstrip images={images} position="left" />
 ```
 
 ### StatusBar
@@ -423,8 +414,7 @@ A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail ass
 Displays the active context, tool, and annotation count for the current image.
 
 ```tsx
-
-<StatusBar imageId={activeImageId()} />;
+<StatusBar imageId={activeImageId()} />
 ```
 
 ### ContextSwitcher
@@ -432,8 +422,7 @@ Displays the active context, tool, and annotation count for the current image.
 A dropdown for switching between available annotation contexts.
 
 ```tsx
-
-<ContextSwitcher label="Task:" />;
+<ContextSwitcher label="Task:" />
 ```
 
 ### GridControls
@@ -441,8 +430,7 @@ A dropdown for switching between available annotation contexts.
 UI controls for adjusting grid dimensions (columns and rows).
 
 ```tsx
-
-<GridControls maxColumns={4} maxRows={4} />;
+<GridControls maxColumns={4} maxRows={4} />
 ```
 
 ---
@@ -617,14 +605,13 @@ actions.setActiveTool(null);
 The `GridView` component displays images in an MxN grid. Each cell is an independent OpenSeaDragon viewer with its own Fabric.js overlay.
 
 ```tsx
-
 <GridView
   columns={uiState.gridColumns}
   rows={uiState.gridRows}
   maxColumns={4}
   maxRows={4}
   images={images}
-/>;
+/>
 ```
 
 ## Grid dimensions
@@ -635,8 +622,7 @@ Resize the grid using keyboard shortcuts or the `GridControls` component (which 
 - `-` — Remove a column (minimum 1)
 
 ```tsx
-
-<GridControls maxColumns={4} maxRows={4} />;
+<GridControls maxColumns={4} maxRows={4} />
 ```
 
 #### Programmatic control:
@@ -667,8 +653,7 @@ The active cell is highlighted visually and receives all drawing/selection input
 The `Filmstrip` component shows thumbnails of all available images and allows drag-to-assign interaction:
 
 ```tsx
-
-<Filmstrip images={images} position="left" />;
+<Filmstrip images={images} position="left" />
 ```
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
@@ -693,7 +678,6 @@ The `Annotator` component bundles the grid, filmstrip, toolbar, and status bar i
 <MinimalViewerDemoWrapper />
 
 ```tsx
-
 <Annotator
   images={images}
   contexts={contexts}
@@ -703,7 +687,7 @@ The `Annotator` component bundles the grid, filmstrip, toolbar, and status bar i
   showFilmstrip
   showViewControls
   showFps
-/>;
+/>
 ```
 
 - Set `showFilmstrip={false}` to hide the filmstrip sidebar.
@@ -726,7 +710,6 @@ Only one context is active at a time.
 ## Defining contexts
 
 ```tsx
-
 const contexts: AnnotationContext[] = [
   {
     id: createAnnotationContextId('buildings'),
@@ -884,7 +867,6 @@ const status = constraintStatus();
 Or use the `useConstraints` hook for convenience:
 
 ```tsx
-
 const { isToolEnabled, canAddAnnotation } = useConstraints();
 
 if (isToolEnabled('rectangle')) {
@@ -933,7 +915,6 @@ osdlabel uses a flat JSON array format for persisting annotations:
 Use `serialize()` to create a flat array of annotations from the current state:
 
 ```tsx
-
 const { annotationState } = useAnnotator();
 
 const doc = serialize(annotationState);
@@ -947,7 +928,6 @@ const json = JSON.stringify(doc, null, 2);
 Use `deserialize()` to parse an array and load it into the store:
 
 ```tsx
-
 const { actions } = useAnnotator();
 
 const parsed = JSON.parse(jsonString);
@@ -973,7 +953,6 @@ Loading already-serialized osdlabel documents is just `deserialize` (above). The
 Use `createAnnotationFromGeometry` — it builds the complete annotation (geometry **and** the Fabric envelope) in one call:
 
 ```tsx
-
 const annotation = createAnnotationFromGeometry(
   { type: 'rectangle', origin: { x: 120, y: 80 }, width: 200, height: 140, rotation: 0 },
   { imageId, contextId, toolType: 'rectangle', label: 'lesion' },
@@ -1028,7 +1007,6 @@ These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `P
 The library provides comprehensive Valibot schemas for annotation validation in the `@osdlabel/validation` package:
 
 ```tsx
-
 if (v.safeParse(BaseAnnotationSchema, unknownData).success) {
   // unknownData is basically valid BaseAnnotation
 }
@@ -1062,7 +1040,6 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 Use `getAllAnnotationsFlat()` to extract a flat array from the state at any time:
 
 ```tsx
-
 const { annotationState } = useAnnotator();
 const allAnnotations = getAllAnnotationsFlat(annotationState);
 ```
@@ -1240,7 +1217,6 @@ You generally don't interact with this directly. It's used internally by OSD for
 The overlay computes a 6-element affine matrix `[a, b, c, d, tx, ty]` that maps image-space to screen-space:
 
 ```ts
-
 // Called internally on every OSD animation frame
 const matrix = computeViewportTransform(viewer);
 fabricCanvas.setViewportTransform(matrix);
@@ -1322,14 +1298,12 @@ You don't choose the render target by hand — the `type` field (`'text'` / `'li
 Drop a single built-in provider on `<Annotator>` to render each annotation's `label` field at its centroid:
 
 ```tsx
-
-<Annotator images={images} contexts={contexts} decorationProviders={[createLabelProvider()]} />;
+<Annotator images={images} contexts={contexts} decorationProviders={[createLabelProvider()]} />
 ```
 
 To also display a circle's area and radius next to each circle:
 
 ```tsx
-
 <Annotator
   images={images}
   contexts={contexts}
@@ -1337,7 +1311,7 @@ To also display a circle's area and radius next to each circle:
     createLabelProvider(),
     createMeasurementProvider({ area: true, radius: true }),
   ]}
-/>;
+/>
 ```
 
 You can see all three built-in providers wired up live on the [Interactive Demo](/osdlabel/demo/) page.
@@ -1349,7 +1323,6 @@ You can see all three built-in providers wired up live on the [Interactive Demo]
 Renders each annotation's `label` field as a text decoration. Annotations without a label are skipped.
 
 ```tsx
-
 const labels = createLabelProvider({
   // Optional style applied to every label.
   style: { color: '#fff', background: 'rgba(0,0,0,0.6)' },
@@ -1377,7 +1350,6 @@ Renders one text label per annotation containing the requested metrics, formatte
 | `radius`    | circle                     | `px` or `<unit>`                            |
 
 ```tsx
-
 const measurements = createMeasurementProvider({
   area: true,
   perimeter: true,
@@ -1397,7 +1369,6 @@ A measurement label is anchored at the annotation's centroid by default. See the
 Emits a dashed connector line and a midpoint distance label for each caller-supplied pair of annotations. The library does not invent pairing semantics — you supply a `pair: (annotations) => AnnotationPair[]` function and the provider produces one line + one label per pair.
 
 ```tsx
-
 const distances = createDistanceProvider({
   // Pair every two consecutive point annotations.
   pair: (annotations) => {
@@ -1445,7 +1416,6 @@ Most consumers compose providers with the `decorationProviders` array — the li
 For custom shells that bypass `<Annotator>` (e.g. integrations into a non-standard host), use `composeProviders` to fold an array into a single provider you can pass to `enableLiveDecorationUpdates` or invoke directly:
 
 ```ts
-
 const all = composeProviders([labels, measurements, distances]);
 const decorations = all(ctx);
 ```
@@ -1455,7 +1425,6 @@ const decorations = all(ctx);
 When a scene has many overlapping labels, the user's currently-selected annotation can be hard to read. `withSelectionEmphasis` wraps any provider and merges style overrides onto decorations whose `relatedAnnotationIds` includes the current `selectedAnnotationId`:
 
 ```tsx
-
 const emphasized = withSelectionEmphasis(createMeasurementProvider({ area: true, radius: true }), {
   selectedTextStyle: {
     zIndex: 10,
@@ -1547,7 +1516,6 @@ Comparing a **branded id** (e.g. `contextId: AnnotationContextId`) against a pla
 Render `W × H` at the top-right corner of each rectangle / polygon:
 
 ```ts
-
 export const bboxDimensions: DecorationProvider = ({ annotations }) => {
   const out: TextDecoration[] = [];
   for (const ann of annotations) {
@@ -1575,7 +1543,6 @@ export const bboxDimensions: DecorationProvider = ({ annotations }) => {
 Draw a dashed line from each rectangle's centroid to the next, in document order:
 
 ```ts
-
 export const rectanglePath: DecorationProvider = ({ annotations }) => {
   const rects = annotations.filter((a) => a.geometry.type === 'rectangle');
   const out: LineDecoration[] = [];
@@ -1641,7 +1608,6 @@ A `LineDecoration` is rendered as a non-interactive Fabric `Line` on the overlay
 ### Provider side (framework-agnostic)
 
 ```ts
-
 // Typed with the imageId extension field so the payload can carry it
 // (see "Typing providers with extension fields" above).
 export const deleteButtons: DecorationProvider<{ imageId: ImageId }> = ({ annotations }) => {
@@ -1672,7 +1638,6 @@ The render-prop runs inside the annotator's component tree, so the rendered comp
 **React** — returns a `ReactNode`, portalled via `createPortal`:
 
 ```tsx
-
 function DeleteButton({ content }: { content: unknown }) {
   const { actions } = useAnnotator();
   const { annotationId, imageId } = content as { annotationId: AnnotationId; imageId: ImageId };
@@ -1694,7 +1659,6 @@ function DeleteButton({ content }: { content: unknown }) {
 **Solid** — returns a `JSX.Element`, portalled via `<Portal>`:
 
 ```tsx
-
 function DeleteButton(props: { content: unknown }) {
   const { actions } = useAnnotator();
   const { annotationId, imageId } = props.content as {
@@ -1795,7 +1759,6 @@ interface Measurement {
 `ImageSource.pixelSpacing` is the source of truth for a single image. This is the right place to put data extracted from DICOM headers or other per-image calibration:
 
 ```ts
-
 const images: ImageSource[] = [
   {
     id: createImageId('ct-slice-42'),
@@ -1856,7 +1819,6 @@ type SpacingAxis = 'x' | 'y' | 'mean';
 Returns a `Measurement`. `axis` defaults to `'mean'`. If `spacing` is `undefined`, returns `{ value: pixels, unit: 'px' }`.
 
 ```ts
-
 const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
 
 toPhysicalLength(200, spacing); // { value: 90,  unit: 'mm' }   — mean of x and y
@@ -1870,7 +1832,6 @@ toPhysicalLength(200, undefined); // { value: 200, unit: 'px' }
 Always uses `x · y`. If `spacing` is `undefined`, returns `{ value: pixelsSquared, unit: 'px²' }`.
 
 ```ts
-
 const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
 
 toPhysicalArea(20000, spacing); // { value: 4000, unit: 'mm²' }   — 20000 · 0.5 · 0.4
@@ -1882,7 +1843,6 @@ toPhysicalArea(20000, undefined); // { value: 20000, unit: 'px²' }
 `formatMeasurement` renders a `Measurement` to a string. Defaults are sensible (2 decimal places, single-space separator); both knobs are tunable:
 
 ```ts
-
 formatMeasurement({ value: 12.34567, unit: 'mm' });
 // '12.35 mm'
 
@@ -2306,7 +2266,6 @@ A complete, minimal annotation setup with a single image and unrestricted tools.
 <MinimalViewerDemoWrapper />
 
 ```tsx
-
 const images: ImageSource[] = [
   {
     id: createImageId('demo'),
@@ -2357,7 +2316,6 @@ A setup with multiple annotation contexts for classifying different types of fea
 <MultipleContextsDemoWrapper />
 
 ```tsx
-
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
@@ -2450,7 +2408,6 @@ Use `AnnotatorProvider` and `useAnnotator()` to build a fully custom annotation 
 <CustomToolbarDemoWrapper />
 
 ```tsx
-
 const images: ImageSource[] = [
   {
     id: createImageId('sample'),

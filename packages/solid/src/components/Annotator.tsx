@@ -1,4 +1,5 @@
-import { createEffect, Show, type Component, type JSX } from 'solid-js';
+import { createEffect, onCleanup, Show, type Component, type JSX } from 'solid-js';
+import { FULLSCREEN_ROOT_ATTRIBUTE } from 'osdlabel';
 import { AnnotatorProvider } from '../state/annotator-context.js';
 import type { AnnotatorProviderProps } from '../state/annotator-context.js';
 import { useAnnotator } from '../state/annotator-context.js';
@@ -27,6 +28,8 @@ export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'>
   readonly showContextSwitcher?: boolean | undefined;
   /** Whether to show the view controls (default: true) */
   readonly showViewControls?: boolean | undefined;
+  /** Whether to show the fullscreen toggle inside the view controls (default: true) */
+  readonly showFullscreenControl?: boolean | undefined;
   /** Filmstrip position (default: 'left') */
   readonly filmstripPosition?: 'left' | 'right' | 'bottom' | undefined;
   /** Maximum grid dimensions */
@@ -40,7 +43,11 @@ export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'>
 }
 
 const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProps>> = (props) => {
-  const { uiState } = useAnnotator();
+  const { uiState, fullscreenTargetRef } = useAnnotator();
+
+  onCleanup(() => {
+    fullscreenTargetRef.element = null;
+  });
 
   const activeImageId = () => {
     const cellIndex = uiState.activeCellIndex;
@@ -59,11 +66,20 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
 
   return (
     <div
+      ref={(el) => {
+        fullscreenTargetRef.element = el;
+      }}
+      data-testid="annotator-root"
+      {...{ [FULLSCREEN_ROOT_ATTRIBUTE]: '' }}
       style={{
         display: 'flex',
         'flex-direction': 'column',
         width: '100%',
         height: '100%',
+        // The root painted nothing of its own, so in fullscreen the black
+        // ::backdrop showed through wherever the flex children did not reach.
+        // Matches the toolbar bar so the annotator reads as one surface.
+        background: '#1a1a1a',
         ...props.style,
       }}
     >
@@ -77,7 +93,7 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
         }}
       >
         <Toolbar />
-        {showViewControls() && <ViewControls />}
+        {showViewControls() && <ViewControls showFullscreenControl={props.showFullscreenControl} />}
         {showContextSwitcher() && <ContextSwitcher label="Context:" />}
         {showGridControls() && (
           <div style={{ 'margin-left': 'auto' }}>
@@ -127,9 +143,11 @@ const Annotator: Component<AnnotatorProps> = (props) => {
       vertexEditLongPressMs={props.vertexEditLongPressMs}
       vertexEditMoveTolerancePx={props.vertexEditMoveTolerancePx}
       shouldSkipKeyboardShortcutPredicate={props.shouldSkipKeyboardShortcutPredicate}
+      fullscreenTarget={props.fullscreenTarget}
       testMode={props.testMode}
       decorationProviders={props.decorationProviders}
       defaultPixelSpacing={props.defaultPixelSpacing}
+      renderDomDecoration={props.renderDomDecoration}
     >
       <AnnotatorSetup contexts={props.contexts} displayedContextIds={props.displayedContextIds} />
       <AnnotatorInner
@@ -139,6 +157,7 @@ const Annotator: Component<AnnotatorProps> = (props) => {
         showGridControls={props.showGridControls}
         showContextSwitcher={props.showContextSwitcher}
         showViewControls={props.showViewControls}
+        showFullscreenControl={props.showFullscreenControl}
         filmstripPosition={props.filmstripPosition}
         maxGridSize={props.maxGridSize}
         style={props.style}

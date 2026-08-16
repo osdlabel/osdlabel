@@ -14,6 +14,7 @@ export {
 export type {
   AnnotatorProviderProps,
   ActiveToolKeyHandlerRef,
+  FullscreenTargetRef,
 } from './state/annotator-context.js';
 
 // Components
@@ -31,4 +32,6 @@ export type { AnnotatorProps } from './components/Annotator.js';
 
 // Hooks
 export { useConstraints } from './hooks/useConstraints.js';
+export { useFullscreen } from './hooks/useFullscreen.js';
+export type { UseFullscreenResult } from './hooks/useFullscreen.js';
 export { useKeyboard, MAX_GRID_SIZE, DEFAULT_KEYBOARD_SHORTCUTS } from './hooks/useKeyboard.js';

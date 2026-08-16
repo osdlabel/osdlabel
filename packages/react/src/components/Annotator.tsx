@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode, type CSSProperties } from 'react';
+import { useCallback, useEffect, type ReactNode, type CSSProperties } from 'react';
+import { FULLSCREEN_ROOT_ATTRIBUTE } from 'osdlabel';
 import { AnnotatorProvider } from '../state/annotator-context.js';
 import type { AnnotatorProviderProps } from '../state/annotator-context.js';
 import { useAnnotator } from '../state/annotator-context.js';
@@ -27,6 +28,8 @@ export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'>
   readonly showContextSwitcher?: boolean | undefined;
   /** Whether to show the view controls (default: true) */
   readonly showViewControls?: boolean | undefined;
+  /** Whether to show the fullscreen toggle inside the view controls (default: true) */
+  readonly showFullscreenControl?: boolean | undefined;
   /** Filmstrip position (default: 'left') */
   readonly filmstripPosition?: 'left' | 'right' | 'bottom' | undefined;
   /** Maximum grid dimensions */
@@ -70,12 +73,21 @@ function AnnotatorInner({
   showGridControls: showGridControlsProp,
   showContextSwitcher: showContextSwitcherProp,
   showViewControls: showViewControlsProp,
+  showFullscreenControl,
   filmstripPosition: filmstripPositionProp,
   maxGridSize,
   style,
   showFps,
 }: Omit<AnnotatorProps, keyof AnnotatorProviderProps>) {
-  const { uiState } = useAnnotator();
+  const { uiState, fullscreenTargetRef } = useAnnotator();
+
+  // React calls a ref callback with null on unmount, so no explicit cleanup.
+  const setRootRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      fullscreenTargetRef.element = el;
+    },
+    [fullscreenTargetRef],
+  );
 
   const activeImageId = uiState.gridAssignments[uiState.activeCellIndex];
   const filmstripPosition = filmstripPositionProp ?? 'left';
@@ -89,11 +101,18 @@ function AnnotatorInner({
 
   return (
     <div
+      ref={setRootRef}
+      data-testid="annotator-root"
+      {...{ [FULLSCREEN_ROOT_ATTRIBUTE]: '' }}
       style={{
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
         height: '100%',
+        // The root painted nothing of its own, so in fullscreen the black
+        // ::backdrop showed through wherever the flex children did not reach.
+        // Matches the toolbar bar so the annotator reads as one surface.
+        background: '#1a1a1a',
         ...style,
       }}
     >
@@ -107,7 +126,7 @@ function AnnotatorInner({
         }}
       >
         <Toolbar />
-        {showViewControls && <ViewControls />}
+        {showViewControls && <ViewControls showFullscreenControl={showFullscreenControl} />}
         {showContextSwitcher && <ContextSwitcher label="Context:" />}
         {showGridControls && (
           <div style={{ marginLeft: 'auto' }}>
@@ -155,6 +174,7 @@ export default function Annotator({
   showGridControls,
   showContextSwitcher,
   showViewControls,
+  showFullscreenControl,
   filmstripPosition,
   maxGridSize,
   style,
@@ -172,6 +192,7 @@ export default function Annotator({
         showGridControls={showGridControls}
         showContextSwitcher={showContextSwitcher}
         showViewControls={showViewControls}
+        showFullscreenControl={showFullscreenControl}
         filmstripPosition={filmstripPosition}
         maxGridSize={maxGridSize}
         style={style}

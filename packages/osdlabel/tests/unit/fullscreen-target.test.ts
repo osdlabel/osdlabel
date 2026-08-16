@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import {
-  FULLSCREEN_ROOT_ATTRIBUTE,
-  resolveFullscreenTarget,
-} from '../../src/fullscreen-target.js';
+import { FULLSCREEN_ROOT_ATTRIBUTE, resolveFullscreenTarget } from '../../src/fullscreen-target.js';
 
 afterEach(() => {
   document.body.innerHTML = '';

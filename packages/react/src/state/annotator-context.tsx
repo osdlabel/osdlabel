@@ -37,6 +37,21 @@ export interface ActiveToolKeyHandlerRef {
   handler: ((event: KeyboardEvent) => boolean) | null;
 }
 
+/**
+ * Mutable slot holding the element the fullscreen toggle targets. `<Annotator>`
+ * populates it with its root div; it stays `null` when the host composes its
+ * own layout, in which case the toggle falls back to the nearest
+ * `[data-osdlabel-fullscreen-root]` ancestor and finally to the document
+ * element.
+ *
+ * A plain mutable slot rather than state: the target is imperative DOM
+ * identity, read once per click, and nothing should re-render when it changes.
+ * Mirrors {@link ActiveToolKeyHandlerRef}.
+ */
+export interface FullscreenTargetRef {
+  element: HTMLElement | null;
+}
+
 interface AnnotatorContextValue {
   annotationState: AnnotationState<OsdFields>;
   uiState: UIState;
@@ -44,6 +59,8 @@ interface AnnotatorContextValue {
   constraintStatus: ConstraintStatus;
   actions: ReturnType<typeof createActions>;
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef;
+  fullscreenTargetRef: FullscreenTargetRef;
+  fullscreenTarget: HTMLElement | (() => HTMLElement | null) | null | undefined;
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
   activeImageId: ImageId | undefined;
@@ -72,6 +89,18 @@ export interface AnnotatorProviderProps {
    */
   readonly vertexEditMoveTolerancePx?: number | undefined;
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
+  /**
+   * Element to display fullscreen when the view controls' fullscreen button is
+   * pressed, overriding the `<Annotator>` root. Pass a getter when the element
+   * is created after the provider mounts.
+   *
+   * The element **must contain the annotator's own UI**: anything rendered
+   * outside the fullscreen element is invisible while fullscreen, including the
+   * button that exits it. Escape and the browser's own affordance still work,
+   * and `useFullscreen` still reports the state, so a host that deliberately
+   * targets something else can render its own exit control.
+   */
+  readonly fullscreenTarget?: HTMLElement | (() => HTMLElement | null) | null | undefined;
   readonly testMode?: boolean | undefined;
   /**
    * Decoration providers — pure functions that derive text/line decorations
@@ -99,6 +128,7 @@ export function AnnotatorProvider({
   vertexEditLongPressMs,
   vertexEditMoveTolerancePx,
   shouldSkipKeyboardShortcutPredicate,
+  fullscreenTarget,
   testMode = false,
   decorationProviders,
   defaultPixelSpacing,
@@ -155,6 +185,7 @@ export function AnnotatorProvider({
   );
 
   const activeToolKeyHandlerRef = useRef<ActiveToolKeyHandlerRef>({ handler: null }).current;
+  const fullscreenTargetRef = useRef<FullscreenTargetRef>({ element: null }).current;
   const mergedShortcuts = useMemo(
     () => ({ ...DEFAULT_KEYBOARD_SHORTCUTS, ...keyboardShortcuts }),
     [keyboardShortcuts],
@@ -209,6 +240,8 @@ export function AnnotatorProvider({
       constraintStatus,
       actions,
       activeToolKeyHandlerRef,
+      fullscreenTargetRef,
+      fullscreenTarget,
       shortcuts: mergedShortcuts,
       vertexEditConfig,
       activeImageId,
@@ -224,6 +257,8 @@ export function AnnotatorProvider({
       constraintStatus,
       actions,
       activeToolKeyHandlerRef,
+      fullscreenTargetRef,
+      fullscreenTarget,
       mergedShortcuts,
       vertexEditConfig,
       activeImageId,
