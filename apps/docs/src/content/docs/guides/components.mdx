@@ -37,6 +37,8 @@ import { AnnotatorProvider } from '@osdlabel/solid';
 </AnnotatorProvider>;
 ```
 
+Both also accept `fullscreenTarget`, naming the element the fullscreen toggle should display (an element or a getter). It defaults to the `Annotator` root, and for custom layouts you can mark your own wrapper with `data-osdlabel-fullscreen-root` instead. `Annotator` and `ViewControls` additionally take `showFullscreenControl` to hide the toggle. See [Fullscreen](/guides/basic-controls/#fullscreen).
+
 Both `Annotator` and `AnnotatorProvider` accept two decoration-related props: `decorationProviders` (a `readonly DecorationProvider<OsdFields>[]` composed in array order) and `defaultPixelSpacing` (a fallback `PixelSpacing` used when an `ImageSource` does not specify its own). See the [Decorations](/osdlabel/guides/decorations/) and [Measurements](/osdlabel/guides/measurements/) guides for usage.
 
 ## Viewers & Grid

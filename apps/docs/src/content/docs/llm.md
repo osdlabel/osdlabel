@@ -48,6 +48,7 @@ This guide walks you through setting up a minimal annotation interface with osdl
 Create an array of `ImageSource` objects. Each image needs a unique branded ID and a URL (DZI or standard image).
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
@@ -67,6 +68,7 @@ const images: ImageSource[] = [
 Contexts define which tools are available and their constraints. Each context represents a labelling task (e.g., marking a specific pathology).
 
 ```tsx
+
 const contexts: AnnotationContext[] = [
   {
     id: createAnnotationContextId('default'),
@@ -88,6 +90,7 @@ const contexts: AnnotationContext[] = [
 The `Annotator` component provides a complete annotation interface with toolbar, grid view, filmstrip, and status bar.
 
 ```tsx
+
 function App() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -181,6 +184,7 @@ type AnnotationContextId = string & { readonly __brand: unique symbol };
 You cannot pass a plain `string` where a branded ID is expected. Use the factory functions:
 
 ```ts
+
 const imageId = createImageId('my-image');
 const annotationId = createAnnotationId('ann-1');
 const contextId = createAnnotationContextId('ctx-1');
@@ -327,6 +331,7 @@ For most applications, importing from the framework-specific package (`@osdlabel
 // SolidJS
 
 // React
+
 ```
 
 ### 2. Direct package imports
@@ -350,13 +355,14 @@ osdlabel provides a set of UI components that you can compose to build your anno
 The `Annotator` component is an all-in-one solution that includes a toolbar, grid view, filmstrip, and status bar. It's the quickest way to get started if you want a complete, out-of-the-box layout.
 
 ```tsx
+
 <Annotator
   images={images}
   contexts={contexts}
   showContextSwitcher={true}
   filmstripPosition="left"
   onAnnotationsChange={(anns) => console.log(anns.length)}
-/>
+/>;
 ```
 
 ### AnnotatorProvider
@@ -364,12 +370,15 @@ The `Annotator` component is an all-in-one solution that includes a toolbar, gri
 The `AnnotatorProvider` is the context provider that manages all state stores. Use this when you want to build a custom layout instead of using the default `Annotator`.
 
 ```tsx
+
 <AnnotatorProvider onAnnotationsChange={(anns) => saveAnnotations(anns)}>
   <Toolbar />
   <GridView columns={2} rows={1} maxColumns={4} maxRows={4} images={images} />
   <StatusBar imageId={activeImageId()} />
-</AnnotatorProvider>
+</AnnotatorProvider>;
 ```
+
+Both also accept `fullscreenTarget`, naming the element the fullscreen toggle should display (an element or a getter). It defaults to the `Annotator` root, and for custom layouts you can mark your own wrapper with `data-osdlabel-fullscreen-root` instead. `Annotator` and `ViewControls` additionally take `showFullscreenControl` to hide the toggle. See [Fullscreen](/guides/basic-controls/#fullscreen).
 
 Both `Annotator` and `AnnotatorProvider` accept two decoration-related props: `decorationProviders` (a `readonly DecorationProvider<OsdFields>[]` composed in array order) and `defaultPixelSpacing` (a fallback `PixelSpacing` used when an `ImageSource` does not specify its own). See the [Decorations](/osdlabel/guides/decorations/) and [Measurements](/osdlabel/guides/measurements/) guides for usage.
 
@@ -388,7 +397,8 @@ A single OpenSeaDragon viewer with a Fabric.js overlay. This is the core renderi
 A configurable MxN grid layout of `ViewerCell` components.
 
 ```tsx
-<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />
+
+<GridView columns={2} rows={2} maxColumns={4} maxRows={4} images={images} />;
 ```
 
 ## UI Controls
@@ -406,7 +416,8 @@ A tool selector that respects the active context's constraints and shows availab
 A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail assigns that image to the active cell.
 
 ```tsx
-<Filmstrip images={images} position="left" />
+
+<Filmstrip images={images} position="left" />;
 ```
 
 ### StatusBar
@@ -414,7 +425,8 @@ A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail ass
 Displays the active context, tool, and annotation count for the current image.
 
 ```tsx
-<StatusBar imageId={activeImageId()} />
+
+<StatusBar imageId={activeImageId()} />;
 ```
 
 ### ContextSwitcher
@@ -422,7 +434,8 @@ Displays the active context, tool, and annotation count for the current image.
 A dropdown for switching between available annotation contexts.
 
 ```tsx
-<ContextSwitcher label="Task:" />
+
+<ContextSwitcher label="Task:" />;
 ```
 
 ### GridControls
@@ -430,7 +443,8 @@ A dropdown for switching between available annotation contexts.
 UI controls for adjusting grid dimensions (columns and rows).
 
 ```tsx
-<GridControls maxColumns={4} maxRows={4} />
+
+<GridControls maxColumns={4} maxRows={4} />;
 ```
 
 ---
@@ -500,6 +514,34 @@ function MyToolbar() {
 }
 ```
 
+## `useFullscreen`
+
+Tracks and controls the browser's fullscreen state. Independent of `AnnotatorProvider`, so you can build your own control without adopting the rest of the annotator's state.
+
+```tsx
+
+function MyFullscreenButton() {
+  const fullscreen = useFullscreen();
+
+  return (
+    <button
+      onClick={(e) => {
+        const root = e.currentTarget.closest('[data-osdlabel-fullscreen-root]');
+        if (root) void fullscreen.toggle(root);
+      }}
+    >
+      {fullscreen.isFullscreen() ? 'Exit fullscreen' : 'Fullscreen'}
+    </button>
+  );
+}
+```
+
+Returns `fullscreenElement`, `isFullscreen`, `isSupported` and `toggle` (Solid returns the first three as accessors; React returns plain values).
+
+The browser is the source of truth here — `Escape`, F11 and the browser's own exit affordance all change fullscreen state without going through an action — so this reads `document` and stays in sync via `fullscreenchange` rather than mirroring into `UIState`.
+
+`toggle` must be called from within a user gesture, or the browser will reject the request. It resolves `false` when refused rather than throwing. See [Fullscreen](/guides/basic-controls/#fullscreen) for the built-in toggle and how the target element is chosen.
+
 ## `useKeyboard`
 
 Sets up keyboard shortcut handling. This is called automatically by `AnnotatorProvider`, so you usually don't need to call it directly unless you are building a completely custom provider setup.
@@ -555,6 +597,69 @@ While drawing or selecting, you can still navigate:
 
 These modifier-based gestures pass through to OpenSeaDragon while keeping Fabric in control of regular mouse events.
 
+## Fullscreen
+
+The view controls include a fullscreen toggle that puts the annotator into the browser's native fullscreen mode. Hide it with `showFullscreenControl={false}`, on either `<Annotator>` or `<ViewControls>`. It hides itself where the browser has no element-level Fullscreen API — iPhone Safari, or an `<iframe>` without `allow="fullscreen"`.
+
+### What goes fullscreen
+
+By default, the whole `<Annotator>` — toolbar, filmstrip, grid and status bar together. If you compose those pieces yourself instead of rendering `<Annotator>`, mark your own wrapper:
+
+```tsx
+<div data-osdlabel-fullscreen-root>
+  <Toolbar />
+  <ViewControls />
+  <GridView columns={2} rows={1} images={images} />
+</div>
+```
+
+Or name an element explicitly, which takes precedence over both:
+
+```tsx
+<Annotator
+  fullscreenTarget={() => document.getElementById('workspace')}
+  images={images}
+  contexts={contexts}
+/>
+```
+
+Whatever you target **must contain the annotator's own UI**. Anything rendered outside the fullscreen element is invisible while fullscreen — including the button that exits it, and including tooltips or menus your app portals to `document.body`. Escape and the browser's own affordance still work, and `useFullscreen` still reports the state, so you can render your own exit control if you deliberately target something else.
+
+### Escape does one thing at a time
+
+The browser exits fullscreen on `Escape` and that keypress cannot be intercepted. So while fullscreen, the annotator ignores `Escape` entirely — it will not deselect, clear the active tool, or cancel an in-progress polyline. One press, one effect; press it again once you are out to cancel as usual. Every other shortcut keeps working.
+
+This applies to the Fullscreen API only. Browser-native fullscreen (F11, kiosk mode) is not exited by `Escape` either, so there is nothing to disambiguate and shortcuts behave normally.
+
+### What happens to the view
+
+Entering or leaving fullscreen preserves the centre of the image and scales it by the change in the container's diagonal, so the round trip returns you to the exact zoom and centre you started from. The image is not re-fitted, and annotations stay locked to it throughout.
+
+### Tracking the state yourself
+
+`useFullscreen` is independent of `AnnotatorProvider`, so you can build your own control:
+
+```tsx
+const fullscreen = useFullscreen();
+
+// Solid: accessors. React: plain values.
+<button
+  onClick={(e) => fullscreen.toggle(e.currentTarget.closest('[data-osdlabel-fullscreen-root]')!)}
+>
+  {fullscreen.isFullscreen() ? 'Exit' : 'Fullscreen'}
+</button>;
+```
+
+`toggle` must be called from within a user gesture — browsers reject a fullscreen request otherwise. It resolves `false` rather than throwing when refused.
+
+### Styling
+
+The `<Annotator>` root paints a dark background so the black fullscreen backdrop does not show through. Override it via `style` if your app is light-themed:
+
+```tsx
+<Annotator style={{ background: '#fff' }} images={images} contexts={contexts} />
+```
+
 ## Polyline tool workflow
 
 The polyline tool is multi-click (not drag-based):
@@ -605,13 +710,14 @@ actions.setActiveTool(null);
 The `GridView` component displays images in an MxN grid. Each cell is an independent OpenSeaDragon viewer with its own Fabric.js overlay.
 
 ```tsx
+
 <GridView
   columns={uiState.gridColumns}
   rows={uiState.gridRows}
   maxColumns={4}
   maxRows={4}
   images={images}
-/>
+/>;
 ```
 
 ## Grid dimensions
@@ -622,7 +728,8 @@ Resize the grid using keyboard shortcuts or the `GridControls` component (which 
 - `-` — Remove a column (minimum 1)
 
 ```tsx
-<GridControls maxColumns={4} maxRows={4} />
+
+<GridControls maxColumns={4} maxRows={4} />;
 ```
 
 #### Programmatic control:
@@ -653,7 +760,8 @@ The active cell is highlighted visually and receives all drawing/selection input
 The `Filmstrip` component shows thumbnails of all available images and allows drag-to-assign interaction:
 
 ```tsx
-<Filmstrip images={images} position="left" />
+
+<Filmstrip images={images} position="left" />;
 ```
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
@@ -678,6 +786,7 @@ The `Annotator` component bundles the grid, filmstrip, toolbar, and status bar i
 <MinimalViewerDemoWrapper />
 
 ```tsx
+
 <Annotator
   images={images}
   contexts={contexts}
@@ -687,7 +796,7 @@ The `Annotator` component bundles the grid, filmstrip, toolbar, and status bar i
   showFilmstrip
   showViewControls
   showFps
-/>
+/>;
 ```
 
 - Set `showFilmstrip={false}` to hide the filmstrip sidebar.
@@ -710,6 +819,7 @@ Only one context is active at a time.
 ## Defining contexts
 
 ```tsx
+
 const contexts: AnnotationContext[] = [
   {
     id: createAnnotationContextId('buildings'),
@@ -867,6 +977,7 @@ const status = constraintStatus();
 Or use the `useConstraints` hook for convenience:
 
 ```tsx
+
 const { isToolEnabled, canAddAnnotation } = useConstraints();
 
 if (isToolEnabled('rectangle')) {
@@ -915,6 +1026,7 @@ osdlabel uses a flat JSON array format for persisting annotations:
 Use `serialize()` to create a flat array of annotations from the current state:
 
 ```tsx
+
 const { annotationState } = useAnnotator();
 
 const doc = serialize(annotationState);
@@ -928,6 +1040,7 @@ const json = JSON.stringify(doc, null, 2);
 Use `deserialize()` to parse an array and load it into the store:
 
 ```tsx
+
 const { actions } = useAnnotator();
 
 const parsed = JSON.parse(jsonString);
@@ -953,6 +1066,7 @@ Loading already-serialized osdlabel documents is just `deserialize` (above). The
 Use `createAnnotationFromGeometry` — it builds the complete annotation (geometry **and** the Fabric envelope) in one call:
 
 ```tsx
+
 const annotation = createAnnotationFromGeometry(
   { type: 'rectangle', origin: { x: 120, y: 80 }, width: 200, height: 140, rotation: 0 },
   { imageId, contextId, toolType: 'rectangle', label: 'lesion' },
@@ -1007,6 +1121,7 @@ These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `P
 The library provides comprehensive Valibot schemas for annotation validation in the `@osdlabel/validation` package:
 
 ```tsx
+
 if (v.safeParse(BaseAnnotationSchema, unknownData).success) {
   // unknownData is basically valid BaseAnnotation
 }
@@ -1040,6 +1155,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 Use `getAllAnnotationsFlat()` to extract a flat array from the state at any time:
 
 ```tsx
+
 const { annotationState } = useAnnotator();
 const allAnnotations = getAllAnnotationsFlat(annotationState);
 ```
@@ -1142,6 +1258,8 @@ Unspecified keys keep their default bindings. See [`KeyboardShortcutMap`](/osdla
 
 Shortcuts are automatically suppressed when focus is in an `<input>`, `<textarea>`, or `contenteditable` element.
 
+`Escape` is additionally ignored whenever an element is displayed fullscreen, including one your own app put there. The browser exits fullscreen on `Escape` and the keypress cannot be intercepted, so acting on it as well would make one press do two unrelated things. Every other shortcut keeps working while fullscreen. See [Fullscreen](/guides/basic-controls/#fullscreen).
+
 For additional suppression logic, use the `shouldSkipKeyboardShortcutPredicate` prop:
 
 ```tsx
@@ -1217,6 +1335,7 @@ You generally don't interact with this directly. It's used internally by OSD for
 The overlay computes a 6-element affine matrix `[a, b, c, d, tx, ty]` that maps image-space to screen-space:
 
 ```ts
+
 // Called internally on every OSD animation frame
 const matrix = computeViewportTransform(viewer);
 fabricCanvas.setViewportTransform(matrix);
@@ -1298,12 +1417,14 @@ You don't choose the render target by hand — the `type` field (`'text'` / `'li
 Drop a single built-in provider on `<Annotator>` to render each annotation's `label` field at its centroid:
 
 ```tsx
-<Annotator images={images} contexts={contexts} decorationProviders={[createLabelProvider()]} />
+
+<Annotator images={images} contexts={contexts} decorationProviders={[createLabelProvider()]} />;
 ```
 
 To also display a circle's area and radius next to each circle:
 
 ```tsx
+
 <Annotator
   images={images}
   contexts={contexts}
@@ -1311,7 +1432,7 @@ To also display a circle's area and radius next to each circle:
     createLabelProvider(),
     createMeasurementProvider({ area: true, radius: true }),
   ]}
-/>
+/>;
 ```
 
 You can see all three built-in providers wired up live on the [Interactive Demo](/osdlabel/demo/) page.
@@ -1323,6 +1444,7 @@ You can see all three built-in providers wired up live on the [Interactive Demo]
 Renders each annotation's `label` field as a text decoration. Annotations without a label are skipped.
 
 ```tsx
+
 const labels = createLabelProvider({
   // Optional style applied to every label.
   style: { color: '#fff', background: 'rgba(0,0,0,0.6)' },
@@ -1350,6 +1472,7 @@ Renders one text label per annotation containing the requested metrics, formatte
 | `radius`    | circle                     | `px` or `<unit>`                            |
 
 ```tsx
+
 const measurements = createMeasurementProvider({
   area: true,
   perimeter: true,
@@ -1369,6 +1492,7 @@ A measurement label is anchored at the annotation's centroid by default. See the
 Emits a dashed connector line and a midpoint distance label for each caller-supplied pair of annotations. The library does not invent pairing semantics — you supply a `pair: (annotations) => AnnotationPair[]` function and the provider produces one line + one label per pair.
 
 ```tsx
+
 const distances = createDistanceProvider({
   // Pair every two consecutive point annotations.
   pair: (annotations) => {
@@ -1416,6 +1540,7 @@ Most consumers compose providers with the `decorationProviders` array — the li
 For custom shells that bypass `<Annotator>` (e.g. integrations into a non-standard host), use `composeProviders` to fold an array into a single provider you can pass to `enableLiveDecorationUpdates` or invoke directly:
 
 ```ts
+
 const all = composeProviders([labels, measurements, distances]);
 const decorations = all(ctx);
 ```
@@ -1425,6 +1550,7 @@ const decorations = all(ctx);
 When a scene has many overlapping labels, the user's currently-selected annotation can be hard to read. `withSelectionEmphasis` wraps any provider and merges style overrides onto decorations whose `relatedAnnotationIds` includes the current `selectedAnnotationId`:
 
 ```tsx
+
 const emphasized = withSelectionEmphasis(createMeasurementProvider({ area: true, radius: true }), {
   selectedTextStyle: {
     zIndex: 10,
@@ -1516,6 +1642,7 @@ Comparing a **branded id** (e.g. `contextId: AnnotationContextId`) against a pla
 Render `W × H` at the top-right corner of each rectangle / polygon:
 
 ```ts
+
 export const bboxDimensions: DecorationProvider = ({ annotations }) => {
   const out: TextDecoration[] = [];
   for (const ann of annotations) {
@@ -1543,6 +1670,7 @@ export const bboxDimensions: DecorationProvider = ({ annotations }) => {
 Draw a dashed line from each rectangle's centroid to the next, in document order:
 
 ```ts
+
 export const rectanglePath: DecorationProvider = ({ annotations }) => {
   const rects = annotations.filter((a) => a.geometry.type === 'rectangle');
   const out: LineDecoration[] = [];
@@ -1608,6 +1736,7 @@ A `LineDecoration` is rendered as a non-interactive Fabric `Line` on the overlay
 ### Provider side (framework-agnostic)
 
 ```ts
+
 // Typed with the imageId extension field so the payload can carry it
 // (see "Typing providers with extension fields" above).
 export const deleteButtons: DecorationProvider<{ imageId: ImageId }> = ({ annotations }) => {
@@ -1638,6 +1767,7 @@ The render-prop runs inside the annotator's component tree, so the rendered comp
 **React** — returns a `ReactNode`, portalled via `createPortal`:
 
 ```tsx
+
 function DeleteButton({ content }: { content: unknown }) {
   const { actions } = useAnnotator();
   const { annotationId, imageId } = content as { annotationId: AnnotationId; imageId: ImageId };
@@ -1659,6 +1789,7 @@ function DeleteButton({ content }: { content: unknown }) {
 **Solid** — returns a `JSX.Element`, portalled via `<Portal>`:
 
 ```tsx
+
 function DeleteButton(props: { content: unknown }) {
   const { actions } = useAnnotator();
   const { annotationId, imageId } = props.content as {
@@ -1759,6 +1890,7 @@ interface Measurement {
 `ImageSource.pixelSpacing` is the source of truth for a single image. This is the right place to put data extracted from DICOM headers or other per-image calibration:
 
 ```ts
+
 const images: ImageSource[] = [
   {
     id: createImageId('ct-slice-42'),
@@ -1819,6 +1951,7 @@ type SpacingAxis = 'x' | 'y' | 'mean';
 Returns a `Measurement`. `axis` defaults to `'mean'`. If `spacing` is `undefined`, returns `{ value: pixels, unit: 'px' }`.
 
 ```ts
+
 const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
 
 toPhysicalLength(200, spacing); // { value: 90,  unit: 'mm' }   — mean of x and y
@@ -1832,6 +1965,7 @@ toPhysicalLength(200, undefined); // { value: 200, unit: 'px' }
 Always uses `x · y`. If `spacing` is `undefined`, returns `{ value: pixelsSquared, unit: 'px²' }`.
 
 ```ts
+
 const spacing = { x: 0.5, y: 0.4, unit: 'mm' };
 
 toPhysicalArea(20000, spacing); // { value: 4000, unit: 'mm²' }   — 20000 · 0.5 · 0.4
@@ -1843,6 +1977,7 @@ toPhysicalArea(20000, undefined); // { value: 20000, unit: 'px²' }
 `formatMeasurement` renders a `Measurement` to a string. Defaults are sensible (2 decimal places, single-space separator); both knobs are tunable:
 
 ```ts
+
 formatMeasurement({ value: 12.34567, unit: 'mm' });
 // '12.35 mm'
 
@@ -1951,16 +2086,16 @@ The Fabric canvas element has `pointer-events: none` in CSS. All pointer event r
 
 ## The sync loop
 
-When the user pans or zooms in OSD, the annotation canvas must move in lockstep. The `FabricOverlay` subscribes to four OSD events:
+When the user pans or zooms in OSD, the annotation canvas must move in lockstep. The `FabricOverlay` repaints on the events listed in `OSD_SYNC_EVENTS`:
 
-| OSD Event          | When it fires                           |
-| ------------------ | --------------------------------------- |
-| `animation`        | Every frame during a pan/zoom animation |
-| `animation-finish` | When an animation completes             |
-| `resize`           | When the viewer container resizes       |
-| `open`             | When a new image is loaded              |
-
-Additionally, `flip` and `rotate` events trigger a sync when the view transform changes.
+| OSD Event          | When it fires                               |
+| ------------------ | ------------------------------------------- |
+| `animation`        | Every frame during a pan/zoom animation     |
+| `animation-finish` | When an animation completes                 |
+| `after-resize`     | After a container resize has settled bounds |
+| `open`             | When a new image is loaded                  |
+| `flip`             | When the horizontal flip is toggled         |
+| `rotate`           | When the rotation changes                   |
 
 On each event, `sync()` runs:
 
@@ -1973,6 +2108,21 @@ sync(): void {
 ```
 
 `sync()` uses **synchronous** `renderAll()`, not `requestRenderAll()`. This is critical because `sync()` runs inside OSD's own `requestAnimationFrame` callback. Using the async variant would defer the Fabric paint to the next frame, causing a visible 1-frame lag where the image has moved but annotations haven't.
+
+### Why the resize path is split
+
+`resize` is deliberately not in that list, even though it is the event that names the situation. OSD raises it from inside `viewport.resize()`, **before** that method calls `fitBounds`, and `doViewerResize` applies its follow-up `panTo` / `zoomTo` only after `viewport.resize()` returns. So when `resize` fires:
+
+- `getContainerSize()` already reports the new size — the Fabric canvas must be re-measured here, and synchronously. Deferring `setDimensions` to a later tick would leave the canvas a frame at the old size, stretched against the new layout.
+- the viewport's centre and zoom are still mid-update, so a paint here is immediately superseded.
+
+`FabricOverlay._onResize` therefore measures without painting, and the paint happens on `after-resize`. Note that dropping the resize-path paint entirely and relying on `animation` would not work: `setDimensions` clears the backing store, so a resize tick whose springs did not move — and which therefore raises no `animation` — would leave the overlay blank.
+
+### Device pixel ratio
+
+Fabric reads `window.devicePixelRatio` exactly once, when its `config` module is evaluated, and `Canvas.setDimensions()` re-applies whatever was captured. OpenSeadragon re-reads its own `pixelDensityRatio` on window `resize` and force-resizes itself when it changed; Fabric has no equivalent. Left alone, a display-scale change leaves crisp OSD tiles under a soft annotation overlay.
+
+The overlay resyncs Fabric's ratio immediately before every `setDimensions`, and watches for changes with a re-arming `(resolution: Ndppx)` media query — a `resize` listener would miss the case that matters, since dragging a window between a Retina and a non-Retina display changes the ratio without changing the container's CSS size.
 
 ## The affine viewportTransform
 
@@ -2184,6 +2334,15 @@ scroll:
   └── Ctrl/Cmd held? → Manual viewport.zoomBy() (OSD scroll-zoom is disabled)
 ```
 
+#### The scroll-zoom anchor
+
+Two rules govern the point that manual zoom anchors on, both encoded in the pure `computeScrollZoom`:
+
+- **The anchor is element-relative.** `viewport.pointFromPixel` subtracts only OSD's own margins; it expects a pixel in the viewer element's coordinate space. Passing `clientX` / `clientY` offsets the anchor by wherever the viewer sits in the window, so the view drifts away from the cursor — and the offset changes when the page enters fullscreen or scrolls.
+- **The anchor is flip-mirrored.** When the viewport is flipped, x has to be mirrored around the container width before conversion, exactly as OSD's own `onCanvasScroll` does. `mirrorScreenX` is shared with `imageToScreenFlipAware` and `screenToImageFlipAware` so the three sites cannot disagree.
+
+A wheel event with no vertical delta produces no zoom at all — a purely horizontal trackpad shear must not be read as "scroll down".
+
 ### Forwarding to Fabric
 
 Events are forwarded by dispatching a synthetic `PointerEvent` on Fabric's upper canvas element. This is necessary because the original DOM event targets the MouseTracker's element, not Fabric's canvas.
@@ -2266,6 +2425,7 @@ A complete, minimal annotation setup with a single image and unrestricted tools.
 <MinimalViewerDemoWrapper />
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('demo'),
@@ -2316,6 +2476,7 @@ A setup with multiple annotation contexts for classifying different types of fea
 <MultipleContextsDemoWrapper />
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('sample-1'),
@@ -2408,6 +2569,7 @@ Use `AnnotatorProvider` and `useAnnotator()` to build a fully custom annotation 
 <CustomToolbarDemoWrapper />
 
 ```tsx
+
 const images: ImageSource[] = [
   {
     id: createImageId('sample'),

@@ -31,16 +31,16 @@ The Fabric canvas element has `pointer-events: none` in CSS. All pointer event r
 
 ## The sync loop
 
-When the user pans or zooms in OSD, the annotation canvas must move in lockstep. The `FabricOverlay` subscribes to four OSD events:
+When the user pans or zooms in OSD, the annotation canvas must move in lockstep. The `FabricOverlay` repaints on the events listed in `OSD_SYNC_EVENTS`:
 
-| OSD Event          | When it fires                           |
-| ------------------ | --------------------------------------- |
-| `animation`        | Every frame during a pan/zoom animation |
-| `animation-finish` | When an animation completes             |
-| `resize`           | When the viewer container resizes       |
-| `open`             | When a new image is loaded              |
-
-Additionally, `flip` and `rotate` events trigger a sync when the view transform changes.
+| OSD Event          | When it fires                               |
+| ------------------ | ------------------------------------------- |
+| `animation`        | Every frame during a pan/zoom animation     |
+| `animation-finish` | When an animation completes                 |
+| `after-resize`     | After a container resize has settled bounds |
+| `open`             | When a new image is loaded                  |
+| `flip`             | When the horizontal flip is toggled         |
+| `rotate`           | When the rotation changes                   |
 
 On each event, `sync()` runs:
 
@@ -53,6 +53,21 @@ sync(): void {
 ```
 
 `sync()` uses **synchronous** `renderAll()`, not `requestRenderAll()`. This is critical because `sync()` runs inside OSD's own `requestAnimationFrame` callback. Using the async variant would defer the Fabric paint to the next frame, causing a visible 1-frame lag where the image has moved but annotations haven't.
+
+### Why the resize path is split
+
+`resize` is deliberately not in that list, even though it is the event that names the situation. OSD raises it from inside `viewport.resize()`, **before** that method calls `fitBounds`, and `doViewerResize` applies its follow-up `panTo` / `zoomTo` only after `viewport.resize()` returns. So when `resize` fires:
+
+- `getContainerSize()` already reports the new size — the Fabric canvas must be re-measured here, and synchronously. Deferring `setDimensions` to a later tick would leave the canvas a frame at the old size, stretched against the new layout.
+- the viewport's centre and zoom are still mid-update, so a paint here is immediately superseded.
+
+`FabricOverlay._onResize` therefore measures without painting, and the paint happens on `after-resize`. Note that dropping the resize-path paint entirely and relying on `animation` would not work: `setDimensions` clears the backing store, so a resize tick whose springs did not move — and which therefore raises no `animation` — would leave the overlay blank.
+
+### Device pixel ratio
+
+Fabric reads `window.devicePixelRatio` exactly once, when its `config` module is evaluated, and `Canvas.setDimensions()` re-applies whatever was captured. OpenSeadragon re-reads its own `pixelDensityRatio` on window `resize` and force-resizes itself when it changed; Fabric has no equivalent. Left alone, a display-scale change leaves crisp OSD tiles under a soft annotation overlay.
+
+The overlay resyncs Fabric's ratio immediately before every `setDimensions`, and watches for changes with a re-arming `(resolution: Ndppx)` media query — a `resize` listener would miss the case that matters, since dragging a window between a Retina and a non-Retina display changes the ratio without changing the container's CSS size.
 
 ## The affine viewportTransform
 
@@ -263,6 +278,15 @@ pointerup:
 scroll:
   └── Ctrl/Cmd held? → Manual viewport.zoomBy() (OSD scroll-zoom is disabled)
 ```
+
+#### The scroll-zoom anchor
+
+Two rules govern the point that manual zoom anchors on, both encoded in the pure `computeScrollZoom`:
+
+- **The anchor is element-relative.** `viewport.pointFromPixel` subtracts only OSD's own margins; it expects a pixel in the viewer element's coordinate space. Passing `clientX` / `clientY` offsets the anchor by wherever the viewer sits in the window, so the view drifts away from the cursor — and the offset changes when the page enters fullscreen or scrolls.
+- **The anchor is flip-mirrored.** When the viewport is flipped, x has to be mirrored around the container width before conversion, exactly as OSD's own `onCanvasScroll` does. `mirrorScreenX` is shared with `imageToScreenFlipAware` and `screenToImageFlipAware` so the three sites cannot disagree.
+
+A wheel event with no vertical delta produces no zoom at all — a purely horizontal trackpad shear must not be read as "scroll down".
 
 ### Forwarding to Fabric
 

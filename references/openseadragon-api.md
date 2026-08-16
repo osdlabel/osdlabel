@@ -146,3 +146,54 @@ viewer.viewport.getRotation();
 // Get container size in web coordinates
 viewer.viewport.getContainerSize(); // { x: width, y: height }
 ```
+
+## Resize Sequence (verified against OSD 5.0.1 source)
+
+OSD installs a `ResizeObserver` on `viewer.container` and handles the change on
+its next update tick, in `doViewerResize`. The order matters for anything that
+paints in lockstep with the viewport:
+
+```
+doViewerResize(viewer, containerSize)
+  ├── viewport.resize(containerSize, preserveImageSizeOnResize)
+  │     ├── containerSize updated  →  getContainerSize() is already current
+  │     ├── raiseEvent('resize')   ←  bounds NOT yet refitted
+  │     ├── fitBounds(...)
+  │     └── raiseEvent('after-resize')
+  ├── viewport.panTo(center, true)
+  └── viewport.zoomTo(zoom * resizeRatio, null, true)
+
+  … later in the same update tick, if the springs moved:
+  └── raiseEvent('animation')      ←  fully settled
+```
+
+So `resize` is the event to _measure_ on and `after-resize` the event to
+_paint_ on. With `preserveImageSizeOnResize` false (the default), the centre is
+preserved and `resizeRatio` works out such that on-screen image scale changes
+by the ratio of the container **diagonals** — which makes an
+enter/exit fullscreen round trip exactly reversible.
+
+OSD separately listens to window `resize` to recompute its own
+`pixelDensityRatio`, calling `forceResize()` when it changed. There is no
+equivalent for a display-scale change that does not alter the container's CSS
+size (dragging a window between monitors); `viewer.forceResize()` is the public
+way to re-enter the path.
+
+## Pointer Coordinates
+
+`viewport.pointFromPixel(pixel, current)` subtracts only OSD's own margins — the
+pixel must be **relative to the viewer element**, not client/window
+coordinates. MouseTracker events already deliver this as `event.position`
+(`getMouseRelative(event, tracker.element)`).
+
+OSD's own `onCanvasScroll` mirrors that position before converting when the
+viewport is flipped:
+
+```javascript
+if (this.viewport.flipped) {
+  event.position.x = this.viewport.getContainerSize().x - event.position.x;
+}
+```
+
+Any hand-rolled zoom-to-pointer must do the same, since none of OSD's
+coordinate conversions account for flip (it lives in the drawer's render pass).

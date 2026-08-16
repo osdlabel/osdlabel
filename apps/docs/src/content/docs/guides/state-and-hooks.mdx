@@ -68,6 +68,35 @@ function MyToolbar() {
 }
 ```
 
+## `useFullscreen`
+
+Tracks and controls the browser's fullscreen state. Independent of `AnnotatorProvider`, so you can build your own control without adopting the rest of the annotator's state.
+
+```tsx
+import { useFullscreen } from '@osdlabel/solid';
+
+function MyFullscreenButton() {
+  const fullscreen = useFullscreen();
+
+  return (
+    <button
+      onClick={(e) => {
+        const root = e.currentTarget.closest('[data-osdlabel-fullscreen-root]');
+        if (root) void fullscreen.toggle(root);
+      }}
+    >
+      {fullscreen.isFullscreen() ? 'Exit fullscreen' : 'Fullscreen'}
+    </button>
+  );
+}
+```
+
+Returns `fullscreenElement`, `isFullscreen`, `isSupported` and `toggle` (Solid returns the first three as accessors; React returns plain values).
+
+The browser is the source of truth here — `Escape`, F11 and the browser's own exit affordance all change fullscreen state without going through an action — so this reads `document` and stays in sync via `fullscreenchange` rather than mirroring into `UIState`.
+
+`toggle` must be called from within a user gesture, or the browser will reject the request. It resolves `false` when refused rather than throwing. See [Fullscreen](/guides/basic-controls/#fullscreen) for the built-in toggle and how the target element is chosen.
+
 ## `useKeyboard`
 
 Sets up keyboard shortcut handling. This is called automatically by `AnnotatorProvider`, so you usually don't need to call it directly unless you are building a completely custom provider setup.

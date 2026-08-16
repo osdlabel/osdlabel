@@ -48,6 +48,69 @@ While drawing or selecting, you can still navigate:
 
 These modifier-based gestures pass through to OpenSeaDragon while keeping Fabric in control of regular mouse events.
 
+## Fullscreen
+
+The view controls include a fullscreen toggle that puts the annotator into the browser's native fullscreen mode. Hide it with `showFullscreenControl={false}`, on either `<Annotator>` or `<ViewControls>`. It hides itself where the browser has no element-level Fullscreen API — iPhone Safari, or an `<iframe>` without `allow="fullscreen"`.
+
+### What goes fullscreen
+
+By default, the whole `<Annotator>` — toolbar, filmstrip, grid and status bar together. If you compose those pieces yourself instead of rendering `<Annotator>`, mark your own wrapper:
+
+```tsx
+<div data-osdlabel-fullscreen-root>
+  <Toolbar />
+  <ViewControls />
+  <GridView columns={2} rows={1} images={images} />
+</div>
+```
+
+Or name an element explicitly, which takes precedence over both:
+
+```tsx
+<Annotator
+  fullscreenTarget={() => document.getElementById('workspace')}
+  images={images}
+  contexts={contexts}
+/>
+```
+
+Whatever you target **must contain the annotator's own UI**. Anything rendered outside the fullscreen element is invisible while fullscreen — including the button that exits it, and including tooltips or menus your app portals to `document.body`. Escape and the browser's own affordance still work, and `useFullscreen` still reports the state, so you can render your own exit control if you deliberately target something else.
+
+### Escape does one thing at a time
+
+The browser exits fullscreen on `Escape` and that keypress cannot be intercepted. So while fullscreen, the annotator ignores `Escape` entirely — it will not deselect, clear the active tool, or cancel an in-progress polyline. One press, one effect; press it again once you are out to cancel as usual. Every other shortcut keeps working.
+
+This applies to the Fullscreen API only. Browser-native fullscreen (F11, kiosk mode) is not exited by `Escape` either, so there is nothing to disambiguate and shortcuts behave normally.
+
+### What happens to the view
+
+Entering or leaving fullscreen preserves the centre of the image and scales it by the change in the container's diagonal, so the round trip returns you to the exact zoom and centre you started from. The image is not re-fitted, and annotations stay locked to it throughout.
+
+### Tracking the state yourself
+
+`useFullscreen` is independent of `AnnotatorProvider`, so you can build your own control:
+
+```tsx
+const fullscreen = useFullscreen();
+
+// Solid: accessors. React: plain values.
+<button
+  onClick={(e) => fullscreen.toggle(e.currentTarget.closest('[data-osdlabel-fullscreen-root]')!)}
+>
+  {fullscreen.isFullscreen() ? 'Exit' : 'Fullscreen'}
+</button>;
+```
+
+`toggle` must be called from within a user gesture — browsers reject a fullscreen request otherwise. It resolves `false` rather than throwing when refused.
+
+### Styling
+
+The `<Annotator>` root paints a dark background so the black fullscreen backdrop does not show through. Override it via `style` if your app is light-themed:
+
+```tsx
+<Annotator style={{ background: '#fff' }} images={images} contexts={contexts} />
+```
+
 ## Polyline tool workflow
 
 The polyline tool is multi-click (not drag-based):
