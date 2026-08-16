@@ -22,3 +22,4 @@ export { default as FpsCounter } from './components/FpsCounter.js';
 
 // Hooks
 export { useConstraints } from './hooks/useConstraints.js';
+export { useKeyboard } from './hooks/useKeyboard.js';
