@@ -5,7 +5,11 @@ export * from 'osdlabel';
 export { annotationReducer, uiReducer, contextReducer } from './state/reducer.js';
 export { createActions } from './state/actions.js';
 export { AnnotatorProvider, useAnnotator } from './state/annotator-context.js';
-export type { AnnotatorProviderProps, ActiveToolKeyHandlerRef } from './state/annotator-context.js';
+export type {
+  AnnotatorProviderProps,
+  ActiveToolKeyHandlerRef,
+  FullscreenTargetRef,
+} from './state/annotator-context.js';
 
 // Components
 export { default as Annotator } from './components/Annotator.js';
@@ -22,4 +26,6 @@ export { default as FpsCounter } from './components/FpsCounter.js';
 
 // Hooks
 export { useConstraints } from './hooks/useConstraints.js';
+export { useFullscreen } from './hooks/useFullscreen.js';
+export type { UseFullscreenResult } from './hooks/useFullscreen.js';
 export { useKeyboard } from './hooks/useKeyboard.js';

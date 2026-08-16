@@ -22,6 +22,21 @@ export interface ActiveToolKeyHandlerRef {
   handler: ((event: KeyboardEvent) => boolean) | null;
 }
 
+/**
+ * Mutable slot holding the element the fullscreen toggle targets. `<Annotator>`
+ * populates it with its root div; it stays `null` when the host composes its
+ * own layout, in which case the toggle falls back to the nearest
+ * `[data-osdlabel-fullscreen-root]` ancestor and finally to the document
+ * element.
+ *
+ * A plain mutable slot rather than reactive state: the target is imperative
+ * DOM identity, read once per click, and nothing re-renders when it changes.
+ * Mirrors {@link ActiveToolKeyHandlerRef}.
+ */
+export interface FullscreenTargetRef {
+  element: HTMLElement | null;
+}
+
 interface AnnotatorContextValue {
   annotationState: AnnotationState<OsdFields>;
   uiState: UIState;
@@ -29,6 +44,8 @@ interface AnnotatorContextValue {
   constraintStatus: Accessor<ConstraintStatus>;
   actions: ReturnType<typeof createActions>;
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef;
+  fullscreenTargetRef: FullscreenTargetRef;
+  fullscreenTarget: HTMLElement | (() => HTMLElement | null) | null | undefined;
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
   activeImageId: Accessor<ImageId | undefined>;
@@ -70,6 +87,18 @@ export interface AnnotatorProviderProps {
   readonly vertexEditMoveTolerancePx?: number | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
+  /**
+   * Element to display fullscreen when the view controls' fullscreen button is
+   * pressed, overriding the `<Annotator>` root. Pass a getter when the element
+   * is created after the provider mounts.
+   *
+   * The element **must contain the annotator's own UI**: anything rendered
+   * outside the fullscreen element is invisible while fullscreen, including the
+   * button that exits it. Escape and the browser's own affordance still work,
+   * and `useFullscreen` still reports the state, so a host that deliberately
+   * targets something else can render its own exit control.
+   */
+  readonly fullscreenTarget?: HTMLElement | (() => HTMLElement | null) | null | undefined;
   /** When true, exposes internal instances on DOM elements for E2E test access */
   readonly testMode?: boolean | undefined;
   /**
@@ -106,6 +135,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
   const constraintStatus = createConstraintStatus(contextState, annotationState, activeImageId);
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };
+  const fullscreenTargetRef: FullscreenTargetRef = { element: null };
   const mergedShortcuts = { ...DEFAULT_KEYBOARD_SHORTCUTS, ...props.keyboardShortcuts };
   const vertexEditConfig: VertexEditConfig = {
     longPressMs: props.vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -158,6 +188,8 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     constraintStatus,
     actions,
     activeToolKeyHandlerRef,
+    fullscreenTargetRef,
+    fullscreenTarget: props.fullscreenTarget,
     shortcuts: mergedShortcuts,
     vertexEditConfig,
     activeImageId,

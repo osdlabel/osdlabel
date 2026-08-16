@@ -1,11 +1,32 @@
 import { useAnnotator } from '../state/annotator-context.js';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
+import { resolveFullscreenTarget } from 'osdlabel';
+import { useFullscreen } from '../hooks/useFullscreen.js';
 
-export function ViewControls() {
-  const { uiState, actions, activeImageId } = useAnnotator();
+export interface ViewControlsProps {
+  /** Whether to show the fullscreen toggle (default: true) */
+  readonly showFullscreenControl?: boolean | undefined;
+}
+
+export function ViewControls({ showFullscreenControl }: ViewControlsProps = {}) {
+  const { uiState, actions, activeImageId, fullscreenTargetRef, fullscreenTarget } = useAnnotator();
+  const fullscreen = useFullscreen();
 
   const cellTransform = uiState.cellTransforms[uiState.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM;
   const isActive = !!activeImageId;
+
+  const showFullscreen = showFullscreenControl !== false && fullscreen.isSupported;
+
+  const handleFullscreen = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    // Resolved from the button itself, so a hand-composed layout only needs
+    // the [data-osdlabel-fullscreen-root] attribute on its own wrapper.
+    const target = resolveFullscreenTarget({
+      explicit: fullscreenTarget,
+      registered: fullscreenTargetRef.element,
+      from: event.currentTarget,
+    });
+    if (target) void fullscreen.toggle(target);
+  };
 
   const btnStyle = (active?: boolean): React.CSSProperties => ({
     width: '32px',
@@ -328,6 +349,69 @@ export function ViewControls() {
           <path d="m9 19 3 3 3-3" />
         </svg>
       </button>
+      {showFullscreen && (
+        <>
+          {sep}
+          <button
+            type="button"
+            title={fullscreen.isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            aria-label={fullscreen.isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            aria-pressed={fullscreen.isFullscreen}
+            data-testid="view-fullscreen"
+            onClick={handleFullscreen}
+            style={{
+              width: '32px',
+              height: '32px',
+              backgroundColor: fullscreen.isFullscreen ? '#2196F3' : '#333',
+              border: 'none',
+              borderRadius: '4px',
+              color: 'white',
+              // Deliberately not btnStyle(): that dims and disables the cursor
+              // without an active image. Fullscreen is viewer chrome, not an
+              // image transform, so it works on an empty grid.
+              cursor: 'pointer',
+              opacity: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {fullscreen.isFullscreen ? (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+                <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+                <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+                <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+              </svg>
+            ) : (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+                <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+              </svg>
+            )}
+          </button>
+        </>
+      )}
       {showReset && (
         <>
           {sep}

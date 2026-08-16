@@ -181,7 +181,10 @@ function AppContent() {
   };
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div
+      data-osdlabel-fullscreen-root
+      style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Top bar */}
       <div
         style={{
