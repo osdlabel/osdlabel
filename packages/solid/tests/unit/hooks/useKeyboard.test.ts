@@ -285,6 +285,63 @@ describe('useKeyboard', () => {
       expect(mockActions.setActiveTool).toHaveBeenCalledWith(null);
       expect(mockActions.setSelectedAnnotation).not.toHaveBeenCalled();
     });
+
+    describe('while an element is displayed fullscreen', () => {
+      // jsdom implements no part of the Fullscreen API, so the property has to
+      // be defined rather than assigned.
+      function setFullscreenElement(element: Element | null): void {
+        Object.defineProperty(document, 'fullscreenElement', {
+          configurable: true,
+          get: () => element,
+        });
+      }
+
+      afterEach(() => {
+        delete (document as unknown as Record<string, unknown>).fullscreenElement;
+      });
+
+      it('should ignore Escape entirely', () => {
+        // The browser exits fullscreen on Escape and cannot be stopped, so one
+        // press must not also deselect.
+        mockUiState.selectedAnnotationId = 'ann-1';
+        setFullscreenElement(document.createElement('div'));
+
+        dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.cancel);
+
+        expect(mockActions.setSelectedAnnotation).not.toHaveBeenCalled();
+        expect(mockActions.setActiveTool).not.toHaveBeenCalled();
+      });
+
+      it('should not reach the active tool key handler on Escape', () => {
+        // Covers the three tool-level Escape branches at once: the polyline
+        // and freehand cancels and the vertex editor's exit all arrive through
+        // this handler.
+        const handler = vi.fn().mockReturnValue(true);
+        activeToolKeyHandlerRef.handler = handler;
+        setFullscreenElement(document.createElement('div'));
+
+        dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.cancel);
+
+        expect(handler).not.toHaveBeenCalled();
+      });
+
+      it('should leave every other shortcut working', () => {
+        setFullscreenElement(document.createElement('div'));
+
+        dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.rectangleTool);
+
+        expect(mockActions.setActiveTool).toHaveBeenCalledWith('rectangle');
+      });
+
+      it('should still handle Escape once fullscreen has been left', () => {
+        mockUiState.selectedAnnotationId = 'ann-1';
+        setFullscreenElement(null);
+
+        dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.cancel);
+
+        expect(mockActions.setSelectedAnnotation).toHaveBeenCalledWith(null);
+      });
+    });
   });
 
   describe('Delete Shortcut', () => {
