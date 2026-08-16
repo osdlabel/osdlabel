@@ -8,6 +8,12 @@ export type {
 export { composeImageFilterCss } from './overlay/image-filters.js';
 export type { ImageFilters } from './overlay/image-filters.js';
 export { mirrorScreenX } from './overlay/mirror-screen-x.js';
+export {
+  observeDevicePixelRatio,
+  readWindowDevicePixelRatio,
+  resolveDevicePixelRatioChange,
+  syncFabricDevicePixelRatio,
+} from './overlay/device-pixel-ratio.js';
 export { computeScrollZoom, SCROLL_ZOOM_PER_NOTCH } from './overlay/scroll-zoom.js';
 export type { ScrollZoomInput, ScrollZoomCommand } from './overlay/scroll-zoom.js';
 export { createDragValueControl } from './controls/drag-value-control.js';
