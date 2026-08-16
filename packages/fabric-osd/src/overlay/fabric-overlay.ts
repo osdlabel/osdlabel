@@ -15,10 +15,9 @@ import {
   POINTER_MOVE,
   POINTER_UP,
   POINTER_CANCEL,
-  OSD_ANIMATION,
-  OSD_ANIMATION_FINISH,
+  OSD_CANVAS_KEY,
   OSD_RESIZE,
-  OSD_OPEN,
+  OSD_SYNC_EVENTS,
 } from './constants.js';
 
 /** Overlay interaction modes */
@@ -195,28 +194,40 @@ export class FabricOverlay {
   private _disposeDevicePixelRatioObserver: (() => void) | null = null;
 
   // ── Bound OSD event handlers (for add/removeHandler) ─────────────
-  private readonly _onAnimation = (): void => {
+
+  /** Repaint from settled viewport bounds. Bound to every OSD_SYNC_EVENTS entry. */
+  private readonly _onSyncEvent = (): void => {
     this.sync();
   };
-  private readonly _onAnimationFinish = (): void => {
-    this.sync();
-  };
-  private readonly _onOpen = (): void => {
-    this.sync();
-  };
+
+  /**
+   * Re-measure the canvas for a new container size — without painting.
+   *
+   * OSD raises `resize` from inside `viewport.resize()`, before that method
+   * calls `fitBounds` and before `doViewerResize` applies its follow-up
+   * `panTo` / `zoomTo`. Two consequences:
+   *
+   * - `getContainerSize()` already reports the new size, and `setDimensions`
+   *   must run here and synchronously. Deferring it (to a rAF, say) would
+   *   leave Fabric a frame at the old size, stretched against the new layout.
+   * - The viewport's centre and zoom are mid-update, so painting here paints a
+   *   transform that is about to be superseded. The paint therefore moves to
+   *   `after-resize`, which OSD raises once `fitBounds` has settled the bounds.
+   *
+   * It cannot move to `animation` alone: `setDimensions` clears the backing
+   * store, so a resize tick where the springs did not move — and which
+   * therefore raises no `animation` — would leave the overlay blank.
+   *
+   * Note this is a correctness tidy-up, not a fix for BL-001's visible jitter.
+   * Both paints land in the same frame before the browser composites, so the
+   * superseded one was never actually shown. See BACKLOG.md.
+   */
   private readonly _onResize = (): void => {
     // Before setDimensions: it re-applies Fabric's retina scaling, so the
     // ratio has to be current by the time it runs.
     syncFabricDevicePixelRatio();
     const size = this._viewer.viewport.getContainerSize();
     this._fabricCanvas.setDimensions({ width: size.x, height: size.y });
-    this.sync();
-  };
-  private readonly _onFlip = (): void => {
-    this.sync();
-  };
-  private readonly _onRotate = (): void => {
-    this.sync();
   };
   private readonly _onCanvasKey = (event: { preventDefaultAction: boolean }): void => {
     event.preventDefaultAction = true;
@@ -288,16 +299,15 @@ export class FabricOverlay {
     this._overlayTracker = this._createMouseTracker();
 
     // ── Attach OSD event handlers ────────────────────────────────
-    viewer.addHandler(OSD_ANIMATION, this._onAnimation);
-    viewer.addHandler(OSD_ANIMATION_FINISH, this._onAnimationFinish);
+    for (const eventName of OSD_SYNC_EVENTS) {
+      viewer.addHandler(eventName, this._onSyncEvent);
+    }
+    // Not a sync event — it re-measures without painting. See _onResize.
     viewer.addHandler(OSD_RESIZE, this._onResize);
-    viewer.addHandler(OSD_OPEN, this._onOpen);
-    viewer.addHandler('flip', this._onFlip);
-    viewer.addHandler('rotate', this._onRotate);
 
     // Suppress all OSD built-in keyboard shortcuts (arrows, WASD, +/-, f, r, etc.)
     // so they don't conflict with the host application's keyboard handling.
-    viewer.addHandler('canvas-key', this._onCanvasKey);
+    viewer.addHandler(OSD_CANVAS_KEY, this._onCanvasKey);
 
     // A display-scale change need not change the container's CSS size (drag a
     // window between a Retina and a non-Retina monitor), so no resize fires on
@@ -320,10 +330,11 @@ export class FabricOverlay {
       this.setMode('annotation');
     }
 
-    // Expose viewer on its container element for E2E test access
+    // Expose viewer and overlay on the container element for E2E test access
     if (options?.testMode) {
       const osdCanvas = viewer.canvas as unknown as Record<string, unknown>;
       osdCanvas.__osdViewer = viewer;
+      osdCanvas.__osdOverlay = this;
     }
   }
 
@@ -501,13 +512,11 @@ export class FabricOverlay {
     this._disposeDevicePixelRatioObserver?.();
     this._disposeDevicePixelRatioObserver = null;
     this._overlayTracker.destroy();
-    this._viewer.removeHandler(OSD_ANIMATION, this._onAnimation);
-    this._viewer.removeHandler(OSD_ANIMATION_FINISH, this._onAnimationFinish);
+    for (const eventName of OSD_SYNC_EVENTS) {
+      this._viewer.removeHandler(eventName, this._onSyncEvent);
+    }
     this._viewer.removeHandler(OSD_RESIZE, this._onResize);
-    this._viewer.removeHandler(OSD_OPEN, this._onOpen);
-    this._viewer.removeHandler('flip', this._onFlip);
-    this._viewer.removeHandler('rotate', this._onRotate);
-    this._viewer.removeHandler('canvas-key', this._onCanvasKey);
+    this._viewer.removeHandler(OSD_CANVAS_KEY, this._onCanvasKey);
     this._fabricCanvas.dispose();
     this._canvasEl.remove();
   }
