@@ -1,5 +1,95 @@
 # @osdlabel/react
 
+## 0.8.0
+
+### Minor Changes
+
+- b6b4e3d: Add a fullscreen toggle to the annotator
+
+  The view controls gain a fullscreen button that puts the whole annotator —
+  toolbar, filmstrip, grid and status bar — into the browser's native fullscreen
+  mode. Hide it with `showFullscreenControl={false}` on `<Annotator>` or
+  `<ViewControls>`; it hides itself where the browser has no element-level
+  Fullscreen API, such as iPhone Safari or an `<iframe>` without
+  `allow="fullscreen"`.
+
+  Which element goes fullscreen is resolved most-specific-first: the new
+  `fullscreenTarget` prop (an element or a getter), then whatever claimed
+  `fullscreenTargetRef` on the annotator context, and finally the document
+  element so the control is never inert. `<Annotator>` claims the ref with its
+  own root; a layout composed by hand claims it the same way, on the element
+  wrapping the annotator UI.
+
+  New `useFullscreen` hook in both framework packages, plus `getFullscreenElement`,
+  `isFullscreenSupported`, `requestFullscreen`, `exitFullscreen`,
+  `toggleFullscreen`, `onFullscreenChange` and `resolveFullscreenTarget` from
+  `osdlabel`. The shim covers the standard Fullscreen API plus Safari's `webkit`
+  prefix, and requests resolve `false` rather than rejecting when the browser
+  refuses.
+
+  Entering and leaving preserves the centre of the image and scales it by the
+  change in the container's diagonal, so the round trip returns the exact zoom
+  and centre you started from.
+
+  **Possible visual change:** the `<Annotator>` root now paints
+  `background: #1a1a1a`. It painted nothing before, so in fullscreen the black
+  backdrop showed through every gap in the layout. If you embed the annotator in
+  a light-themed page you may see a dark rectangle where you previously saw your
+  own background — override it with `style={{ background: '...' }}`.
+
+  Also fixes Solid's `<Annotator>` silently dropping the `renderDomDecoration`
+  prop, which was never added to its hand-enumerated provider prop list.
+
+### Patch Changes
+
+- b6b4e3d: Ignore `Escape` while an element is displayed fullscreen
+
+  The browser exits fullscreen on `Escape` and the keypress cannot be
+  intercepted, so the annotator acting on it too made one press do two unrelated
+  things: leave fullscreen _and_ deselect, clear the active tool, or cancel an
+  in-progress polyline, with the second effect hidden behind the transition.
+
+  The guard covers all four `Escape` handlers — the vertex editor's exit, the
+  polyline and free-hand cancels, and the global cancel — and applies whenever
+  _any_ element is fullscreen, including one your own app put there. Every other
+  shortcut keeps working. Browser-native fullscreen (F11, kiosk mode) is
+  unaffected, since `Escape` does not exit those either.
+
+  Also fixes three package root barrels that were missing exports available from
+  their sub-path barrels: `useKeyboard` from `@osdlabel/react`, and
+  `ActiveToolKeyHandlerRef` and `FpsCounter` from `@osdlabel/solid`.
+
+- 43265af: Stop toolbar clicks from parking keyboard focus on the button
+
+  Clicking a `<button>` focuses it, and a focused button is activated again by
+  `Enter` or `Space`. In an annotator, whose shortcuts are global and whose real
+  focus context is the image, that turns every toolbar click into a loaded gun:
+  after clicking Rotate, `Enter` rotated again; after clicking the fullscreen
+  toggle, `Enter` left fullscreen. Worse, `Enter` is the polyline-finish binding,
+  so finishing a shape re-fired whichever control had last been clicked.
+
+  The `Toolbar`, `ViewControls` and `GridControls` containers now suppress the
+  default on `mousedown` when the press lands on a button, so the button never
+  takes focus. The click still fires, and keyboard operation is untouched: `Tab`
+  still reaches every control and `Enter` / `Space` still activate it.
+
+  Exported as `preventButtonFocusSteal` from `osdlabel` for hosts that build
+  their own control surfaces around the annotator.
+
+- Updated dependencies [b6b4e3d]
+- Updated dependencies [b6b4e3d]
+- Updated dependencies [b6b4e3d]
+- Updated dependencies [43265af]
+  - osdlabel@0.8.0
+  - @osdlabel/fabric-osd@0.8.0
+  - @osdlabel/annotation@0.8.0
+  - @osdlabel/annotation-context@0.8.0
+  - @osdlabel/decoration@0.8.0
+  - @osdlabel/fabric-annotations@0.8.0
+  - @osdlabel/osd-helper@0.8.0
+  - @osdlabel/validation@0.8.0
+  - @osdlabel/viewer-api@0.8.0
+
 ## 0.7.2
 
 ### Patch Changes

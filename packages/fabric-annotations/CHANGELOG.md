@@ -1,5 +1,13 @@
 # @osdlabel/fabric-annotations
 
+## 0.8.0
+
+### Patch Changes
+
+- @osdlabel/annotation@0.8.0
+- @osdlabel/annotation-context@0.8.0
+- @osdlabel/viewer-api@0.8.0
+
 ## 0.7.2
 
 ### Patch Changes
