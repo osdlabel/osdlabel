@@ -1288,6 +1288,12 @@ Shortcuts are automatically suppressed when focus is in an `<input>`, `<textarea
 
 `Escape` is additionally ignored whenever an element is displayed fullscreen, including one your own app put there. The browser exits fullscreen on `Escape` and the keypress cannot be intercepted, so acting on it as well would make one press do two unrelated things. Every other shortcut keeps working while fullscreen. See [Fullscreen](/guides/basic-controls/#fullscreen).
 
+## Toolbar buttons and focus
+
+Clicking a button in the `Toolbar`, `ViewControls` or `GridControls` does not move keyboard focus onto it. A focused button is re-activated by `Enter` and `Space`, which would collide with the annotator's global shortcuts — `Enter` finishes a polyline, so it would also re-fire whichever control was last clicked.
+
+Keyboard operation is unchanged: `Tab` still reaches every control, and `Enter` / `Space` still activate a control focused that way. If you build your own control surface around the annotator, `preventButtonFocusSteal` is exported for the same purpose — attach it to your container's `onMouseDown`.
+
 For additional suppression logic, use the `shouldSkipKeyboardShortcutPredicate` prop:
 
 ```tsx

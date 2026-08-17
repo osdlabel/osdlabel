@@ -1,5 +1,6 @@
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ToolType } from '@osdlabel/annotation';
+import { preventButtonFocusSteal } from 'osdlabel';
 
 const TOOL_LABELS: Record<ToolType, string> = {
   rectangle: 'Rect',
@@ -34,6 +35,7 @@ export default function Toolbar() {
 
   return (
     <div
+      onMouseDown={preventButtonFocusSteal}
       style={{
         display: 'flex',
         gap: '4px',
