@@ -225,5 +225,5 @@ export {
   onFullscreenChange,
   shouldSuppressEscapeKey,
 } from './fullscreen.js';
-export { FULLSCREEN_ROOT_ATTRIBUTE, resolveFullscreenTarget } from './fullscreen-target.js';
+export { resolveFullscreenTarget } from './fullscreen-target.js';
 export type { ResolveFullscreenTargetOptions } from './fullscreen-target.js';

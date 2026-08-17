@@ -23,14 +23,25 @@ export interface ActiveToolKeyHandlerRef {
 }
 
 /**
- * Mutable slot holding the element the fullscreen toggle targets. `<Annotator>`
- * populates it with its root div; it stays `null` when the host composes its
- * own layout, in which case the toggle falls back to the nearest
- * `[data-osdlabel-fullscreen-root]` ancestor and finally to the document
- * element.
+ * Mutable slot holding the element the fullscreen toggle targets.
  *
- * A plain mutable slot rather than reactive state: the target is imperative
- * DOM identity, read once per click, and nothing re-renders when it changes.
+ * `<Annotator>` claims this with its own root. A host composing its own layout
+ * claims it the same way, on the element wrapping the annotator UI:
+ *
+ * ```tsx
+ * const { fullscreenTargetRef } = useAnnotator();
+ *
+ * <div ref={(el) => (fullscreenTargetRef.element = el)}>
+ *   <Toolbar />
+ *   <ViewControls />
+ * </div>
+ * ```
+ *
+ * Left unclaimed, and with no `fullscreenTarget` prop set, the toggle falls
+ * back to the document element.
+ *
+ * A plain mutable slot rather than reactive state: the target is imperative DOM
+ * identity, read once per click, and nothing re-renders when it changes.
  * Mirrors {@link ActiveToolKeyHandlerRef}.
  */
 export interface FullscreenTargetRef {

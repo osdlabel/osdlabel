@@ -38,11 +38,31 @@ export interface ActiveToolKeyHandlerRef {
 }
 
 /**
- * Mutable slot holding the element the fullscreen toggle targets. `<Annotator>`
- * populates it with its root div; it stays `null` when the host composes its
- * own layout, in which case the toggle falls back to the nearest
- * `[data-osdlabel-fullscreen-root]` ancestor and finally to the document
- * element.
+ * Mutable slot holding the element the fullscreen toggle targets.
+ *
+ * `<Annotator>` claims this with its own root. A host composing its own layout
+ * claims it the same way, on the element wrapping the annotator UI:
+ *
+ * ```tsx
+ * const { fullscreenTargetRef } = useAnnotator();
+ * const setRootRef = useCallback(
+ *   (el: HTMLDivElement | null) => {
+ *     fullscreenTargetRef.element = el;
+ *   },
+ *   [fullscreenTargetRef],
+ * );
+ *
+ * <div ref={setRootRef}>
+ *   <Toolbar />
+ *   <ViewControls />
+ * </div>
+ * ```
+ *
+ * The `useCallback` matters: an inline ref callback is a new function every
+ * render, which React detaches and reattaches each time.
+ *
+ * Left unclaimed, and with no `fullscreenTarget` prop set, the toggle falls
+ * back to the document element.
  *
  * A plain mutable slot rather than state: the target is imperative DOM
  * identity, read once per click, and nothing should re-render when it changes.

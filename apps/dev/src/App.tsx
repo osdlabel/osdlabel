@@ -91,7 +91,7 @@ const CONTEXTS: AnnotationContext[] = [
 ];
 
 function AppContent() {
-  const { uiState, annotationState, actions, activeImageId } = useAnnotator();
+  const { uiState, annotationState, actions, activeImageId, fullscreenTargetRef } = useAnnotator();
   const [copyLabel, setCopyLabel] = createSignal('Copy JSON');
   const [activeCtxIdx, setActiveCtxIdx] = createSignal(0);
   const [exportedJson, setExportedJson] = createSignal('');
@@ -184,7 +184,10 @@ function AppContent() {
 
   return (
     <div
-      data-osdlabel-fullscreen-root
+      // Claim this element as the fullscreen target. <Annotator> does the same
+      // with its own root; a hand-composed layout registers whichever element
+      // wraps the annotator UI.
+      ref={(el) => (fullscreenTargetRef.element = el)}
       style={{ width: '100vw', height: '100vh', display: 'flex', 'flex-direction': 'column' }}
     >
       {/* Top bar */}

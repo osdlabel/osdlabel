@@ -54,14 +54,33 @@ The view controls include a fullscreen toggle that puts the annotator into the b
 
 ### What goes fullscreen
 
-By default, the whole `<Annotator>` — toolbar, filmstrip, grid and status bar together. If you compose those pieces yourself instead of rendering `<Annotator>`, mark your own wrapper:
+By default, the whole `<Annotator>` — toolbar, filmstrip, grid and status bar together. It claims its own root through `fullscreenTargetRef` on the annotator context.
+
+If you compose those pieces yourself instead of rendering `<Annotator>`, claim your own root the same way:
 
 ```tsx
-<div data-osdlabel-fullscreen-root>
+const { fullscreenTargetRef } = useAnnotator();
+
+// Solid
+<div ref={(el) => (fullscreenTargetRef.element = el)}>
   <Toolbar />
   <ViewControls />
   <GridView columns={2} rows={1} images={images} />
-</div>
+</div>;
+```
+
+In React, wrap the assignment in a `useCallback` so the ref is not detached and reattached on every render:
+
+```tsx
+const { fullscreenTargetRef } = useAnnotator();
+const setRoot = useCallback(
+  (el: HTMLDivElement | null) => {
+    fullscreenTargetRef.element = el;
+  },
+  [fullscreenTargetRef],
+);
+
+<div ref={setRoot}>{/* … */}</div>;
 ```
 
 Or name an element explicitly, which takes precedence over both:
@@ -73,6 +92,8 @@ Or name an element explicitly, which takes precedence over both:
   contexts={contexts}
 />
 ```
+
+Nothing claimed and no prop set? The toggle falls back to the document element, so it is never inert.
 
 Whatever you target **must contain the annotator's own UI**. Anything rendered outside the fullscreen element is invisible while fullscreen — including the button that exits it, and including tooltips or menus your app portals to `document.body`. Escape and the browser's own affordance still work, and `useFullscreen` still reports the state, so you can render your own exit control if you deliberately target something else.
 
@@ -92,10 +113,14 @@ Entering or leaving fullscreen preserves the centre of the image and scales it b
 
 ```tsx
 const fullscreen = useFullscreen();
+const { fullscreenTargetRef } = useAnnotator();
 
 // Solid: accessors. React: plain values.
 <button
-  onClick={(e) => fullscreen.toggle(e.currentTarget.closest('[data-osdlabel-fullscreen-root]')!)}
+  onClick={() => {
+    const root = fullscreenTargetRef.element;
+    if (root) void fullscreen.toggle(root);
+  }}
 >
   {fullscreen.isFullscreen() ? 'Exit' : 'Fullscreen'}
 </button>;

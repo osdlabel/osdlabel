@@ -17,13 +17,10 @@ export function ViewControls({ showFullscreenControl }: ViewControlsProps = {}) 
 
   const showFullscreen = showFullscreenControl !== false && fullscreen.isSupported;
 
-  const handleFullscreen = (event: React.MouseEvent<HTMLButtonElement>): void => {
-    // Resolved from the button itself, so a hand-composed layout only needs
-    // the [data-osdlabel-fullscreen-root] attribute on its own wrapper.
+  const handleFullscreen = (): void => {
     const target = resolveFullscreenTarget({
       explicit: fullscreenTarget,
       registered: fullscreenTargetRef.element,
-      from: event.currentTarget,
     });
     if (target) void fullscreen.toggle(target);
   };
