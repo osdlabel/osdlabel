@@ -14,16 +14,18 @@ Fullscreen API, such as iPhone Safari or an `<iframe>` without
 `allow="fullscreen"`.
 
 Which element goes fullscreen is resolved most-specific-first: the new
-`fullscreenTarget` prop (an element or a getter), the `<Annotator>` root, the
-nearest `[data-osdlabel-fullscreen-root]` ancestor — one attribute is all a
-hand-composed layout needs — and finally the document element.
+`fullscreenTarget` prop (an element or a getter), then whatever claimed
+`fullscreenTargetRef` on the annotator context, and finally the document
+element so the control is never inert. `<Annotator>` claims the ref with its
+own root; a layout composed by hand claims it the same way, on the element
+wrapping the annotator UI.
 
 New `useFullscreen` hook in both framework packages, plus `getFullscreenElement`,
 `isFullscreenSupported`, `requestFullscreen`, `exitFullscreen`,
-`toggleFullscreen`, `onFullscreenChange`, `resolveFullscreenTarget` and
-`FULLSCREEN_ROOT_ATTRIBUTE` from `osdlabel`. The shim covers the standard
-Fullscreen API plus Safari's `webkit` prefix, and requests resolve `false`
-rather than rejecting when the browser refuses.
+`toggleFullscreen`, `onFullscreenChange` and `resolveFullscreenTarget` from
+`osdlabel`. The shim covers the standard Fullscreen API plus Safari's `webkit`
+prefix, and requests resolve `false` rather than rejecting when the browser
+refuses.
 
 Entering and leaving preserves the centre of the image and scales it by the
 change in the container's diagonal, so the round trip returns the exact zoom

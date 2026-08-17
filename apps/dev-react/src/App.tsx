@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   Toolbar,
   StatusBar,
@@ -105,7 +105,19 @@ const CONTEXTS: AnnotationContext[] = [
 ];
 
 function AppContent() {
-  const { uiState, annotationState, actions, activeImageId } = useAnnotator();
+  const { uiState, annotationState, actions, activeImageId, fullscreenTargetRef } = useAnnotator();
+
+  // Claim this component's root as the fullscreen target. <Annotator> does the
+  // same with its own root; a hand-composed layout registers whichever element
+  // wraps the annotator UI. useCallback so the ref is not detached and
+  // reattached on every render.
+  const setFullscreenRoot = useCallback(
+    (el: HTMLDivElement | null) => {
+      fullscreenTargetRef.element = el;
+    },
+    [fullscreenTargetRef],
+  );
+
   const [copyLabel, setCopyLabel] = useState('Copy JSON');
   const [activeCtxIdx, setActiveCtxIdx] = useState(0);
   const [exportedJson, setExportedJson] = useState('');
@@ -182,7 +194,7 @@ function AppContent() {
 
   return (
     <div
-      data-osdlabel-fullscreen-root
+      ref={setFullscreenRoot}
       style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}
     >
       {/* Top bar */}

@@ -35,10 +35,17 @@ const readView = (page: Page): Promise<ViewState | null> =>
     };
   });
 
+/**
+ * Whether the element that went fullscreen is the app's registered root rather
+ * than the `documentElement` fallback — i.e. the dev app's
+ * `fullscreenTargetRef` registration was picked up.
+ */
 const fullscreenRootIsTarget = (page: Page): Promise<boolean> =>
-  page.evaluate(
-    () => document.fullscreenElement?.hasAttribute('data-osdlabel-fullscreen-root') ?? false,
-  );
+  page.evaluate(() => {
+    const el = document.fullscreenElement;
+    if (!el || el === document.documentElement) return false;
+    return el.querySelector('.openseadragon-canvas') !== null;
+  });
 
 test.describe('Fullscreen', () => {
   test.beforeEach(async ({ page }) => {

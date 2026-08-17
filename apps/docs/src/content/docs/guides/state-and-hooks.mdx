@@ -73,15 +73,16 @@ function MyToolbar() {
 Tracks and controls the browser's fullscreen state. Independent of `AnnotatorProvider`, so you can build your own control without adopting the rest of the annotator's state.
 
 ```tsx
-import { useFullscreen } from '@osdlabel/solid';
+import { useFullscreen, useAnnotator } from '@osdlabel/solid';
 
 function MyFullscreenButton() {
   const fullscreen = useFullscreen();
+  const { fullscreenTargetRef } = useAnnotator();
 
   return (
     <button
-      onClick={(e) => {
-        const root = e.currentTarget.closest('[data-osdlabel-fullscreen-root]');
+      onClick={() => {
+        const root = fullscreenTargetRef.element;
         if (root) void fullscreen.toggle(root);
       }}
     >
@@ -92,6 +93,8 @@ function MyFullscreenButton() {
 ```
 
 Returns `fullscreenElement`, `isFullscreen`, `isSupported` and `toggle` (Solid returns the first three as accessors; React returns plain values).
+
+The hook itself takes no target — pass whichever element you want displayed. `fullscreenTargetRef.element` is whatever `<Annotator>` or your own layout registered; outside a provider, use any element you hold a reference to.
 
 The browser is the source of truth here — `Escape`, F11 and the browser's own exit affordance all change fullscreen state without going through an action — so this reads `document` and stays in sync via `fullscreenchange` rather than mirroring into `UIState`.
 

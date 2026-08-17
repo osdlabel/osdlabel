@@ -1,5 +1,4 @@
 import { useCallback, useEffect, type ReactNode, type CSSProperties } from 'react';
-import { FULLSCREEN_ROOT_ATTRIBUTE } from 'osdlabel';
 import { AnnotatorProvider } from '../state/annotator-context.js';
 import type { AnnotatorProviderProps } from '../state/annotator-context.js';
 import { useAnnotator } from '../state/annotator-context.js';
@@ -103,7 +102,6 @@ function AnnotatorInner({
     <div
       ref={setRootRef}
       data-testid="annotator-root"
-      {...{ [FULLSCREEN_ROOT_ATTRIBUTE]: '' }}
       style={{
         display: 'flex',
         flexDirection: 'column',

@@ -384,7 +384,7 @@ The `AnnotatorProvider` is the context provider that manages all state stores. U
 </AnnotatorProvider>;
 ```
 
-Both also accept `fullscreenTarget`, naming the element the fullscreen toggle should display (an element or a getter). It defaults to the `Annotator` root, and for custom layouts you can mark your own wrapper with `data-osdlabel-fullscreen-root` instead. `Annotator` and `ViewControls` additionally take `showFullscreenControl` to hide the toggle. See [Fullscreen](/guides/basic-controls/#fullscreen).
+Both also accept `fullscreenTarget`, naming the element the fullscreen toggle should display (an element or a getter). It defaults to whatever claimed `fullscreenTargetRef` on the context — the `Annotator` root, or your own wrapper in a custom layout. `Annotator` and `ViewControls` additionally take `showFullscreenControl` to hide the toggle. See [Fullscreen](/guides/basic-controls/#fullscreen).
 
 Both `Annotator` and `AnnotatorProvider` accept two decoration-related props: `decorationProviders` (a `readonly DecorationProvider<OsdFields>[]` composed in array order) and `defaultPixelSpacing` (a fallback `PixelSpacing` used when an `ImageSource` does not specify its own). See the [Decorations](/osdlabel/guides/decorations/) and [Measurements](/osdlabel/guides/measurements/) guides for usage.
 
@@ -528,11 +528,12 @@ Tracks and controls the browser's fullscreen state. Independent of `AnnotatorPro
 
 function MyFullscreenButton() {
   const fullscreen = useFullscreen();
+  const { fullscreenTargetRef } = useAnnotator();
 
   return (
     <button
-      onClick={(e) => {
-        const root = e.currentTarget.closest('[data-osdlabel-fullscreen-root]');
+      onClick={() => {
+        const root = fullscreenTargetRef.element;
         if (root) void fullscreen.toggle(root);
       }}
     >
@@ -543,6 +544,8 @@ function MyFullscreenButton() {
 ```
 
 Returns `fullscreenElement`, `isFullscreen`, `isSupported` and `toggle` (Solid returns the first three as accessors; React returns plain values).
+
+The hook itself takes no target — pass whichever element you want displayed. `fullscreenTargetRef.element` is whatever `<Annotator>` or your own layout registered; outside a provider, use any element you hold a reference to.
 
 The browser is the source of truth here — `Escape`, F11 and the browser's own exit affordance all change fullscreen state without going through an action — so this reads `document` and stays in sync via `fullscreenchange` rather than mirroring into `UIState`.
 
@@ -609,14 +612,33 @@ The view controls include a fullscreen toggle that puts the annotator into the b
 
 ### What goes fullscreen
 
-By default, the whole `<Annotator>` — toolbar, filmstrip, grid and status bar together. If you compose those pieces yourself instead of rendering `<Annotator>`, mark your own wrapper:
+By default, the whole `<Annotator>` — toolbar, filmstrip, grid and status bar together. It claims its own root through `fullscreenTargetRef` on the annotator context.
+
+If you compose those pieces yourself instead of rendering `<Annotator>`, claim your own root the same way:
 
 ```tsx
-<div data-osdlabel-fullscreen-root>
+const { fullscreenTargetRef } = useAnnotator();
+
+// Solid
+<div ref={(el) => (fullscreenTargetRef.element = el)}>
   <Toolbar />
   <ViewControls />
   <GridView columns={2} rows={1} images={images} />
-</div>
+</div>;
+```
+
+In React, wrap the assignment in a `useCallback` so the ref is not detached and reattached on every render:
+
+```tsx
+const { fullscreenTargetRef } = useAnnotator();
+const setRoot = useCallback(
+  (el: HTMLDivElement | null) => {
+    fullscreenTargetRef.element = el;
+  },
+  [fullscreenTargetRef],
+);
+
+<div ref={setRoot}>{/* … */}</div>;
 ```
 
 Or name an element explicitly, which takes precedence over both:
@@ -628,6 +650,8 @@ Or name an element explicitly, which takes precedence over both:
   contexts={contexts}
 />
 ```
+
+Nothing claimed and no prop set? The toggle falls back to the document element, so it is never inert.
 
 Whatever you target **must contain the annotator's own UI**. Anything rendered outside the fullscreen element is invisible while fullscreen — including the button that exits it, and including tooltips or menus your app portals to `document.body`. Escape and the browser's own affordance still work, and `useFullscreen` still reports the state, so you can render your own exit control if you deliberately target something else.
 
@@ -647,10 +671,14 @@ Entering or leaving fullscreen preserves the centre of the image and scales it b
 
 ```tsx
 const fullscreen = useFullscreen();
+const { fullscreenTargetRef } = useAnnotator();
 
 // Solid: accessors. React: plain values.
 <button
-  onClick={(e) => fullscreen.toggle(e.currentTarget.closest('[data-osdlabel-fullscreen-root]')!)}
+  onClick={() => {
+    const root = fullscreenTargetRef.element;
+    if (root) void fullscreen.toggle(root);
+  }}
 >
   {fullscreen.isFullscreen() ? 'Exit' : 'Fullscreen'}
 </button>;

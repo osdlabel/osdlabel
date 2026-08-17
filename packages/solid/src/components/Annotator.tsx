@@ -1,5 +1,4 @@
 import { createEffect, onCleanup, Show, type Component, type JSX } from 'solid-js';
-import { FULLSCREEN_ROOT_ATTRIBUTE } from 'osdlabel';
 import { AnnotatorProvider } from '../state/annotator-context.js';
 import type { AnnotatorProviderProps } from '../state/annotator-context.js';
 import { useAnnotator } from '../state/annotator-context.js';
@@ -70,7 +69,6 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
         fullscreenTargetRef.element = el;
       }}
       data-testid="annotator-root"
-      {...{ [FULLSCREEN_ROOT_ATTRIBUTE]: '' }}
       style={{
         display: 'flex',
         'flex-direction': 'column',
