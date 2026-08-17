@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAnnotator } from '../state/annotator-context.js';
+import { preventButtonFocusSteal } from 'osdlabel';
 
 export interface GridControlsProps {
   readonly maxColumns: number;
@@ -30,7 +31,11 @@ function TableSelector({
   };
 
   return (
-    <div style={{ position: 'relative' }} onMouseLeave={() => setIsOpen(false)}>
+    <div
+      style={{ position: 'relative' }}
+      onMouseLeave={() => setIsOpen(false)}
+      onMouseDown={preventButtonFocusSteal}
+    >
       <button
         data-testid="grid-selector-trigger"
         onClick={() => setIsOpen(!isOpen)}

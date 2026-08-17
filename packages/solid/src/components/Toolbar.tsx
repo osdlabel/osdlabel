@@ -1,6 +1,7 @@
 import { Show, type Component } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ToolType } from '@osdlabel/annotation';
+import { preventButtonFocusSteal } from 'osdlabel';
 
 const TOOL_LABELS: Record<ToolType, string> = {
   rectangle: 'Rect',
@@ -40,6 +41,7 @@ const Toolbar: Component = () => {
 
   return (
     <div
+      onMouseDown={preventButtonFocusSteal}
       style={{
         display: 'flex',
         gap: '4px',

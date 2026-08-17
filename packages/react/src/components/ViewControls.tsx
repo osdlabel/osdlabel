@@ -1,6 +1,6 @@
 import { useAnnotator } from '../state/annotator-context.js';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
-import { resolveFullscreenTarget } from 'osdlabel';
+import { preventButtonFocusSteal, resolveFullscreenTarget } from 'osdlabel';
 import { useFullscreen } from '../hooks/useFullscreen.js';
 
 export interface ViewControlsProps {
@@ -53,6 +53,7 @@ export function ViewControls({ showFullscreenControl }: ViewControlsProps = {}) 
 
   return (
     <div
+      onMouseDown={preventButtonFocusSteal}
       style={{
         display: 'flex',
         alignItems: 'center',

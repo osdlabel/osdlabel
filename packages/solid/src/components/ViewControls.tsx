@@ -1,7 +1,7 @@
 import { type Component, Show } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
-import { resolveFullscreenTarget } from 'osdlabel';
+import { preventButtonFocusSteal, resolveFullscreenTarget } from 'osdlabel';
 import { useFullscreen } from '../hooks/useFullscreen.js';
 
 export interface ViewControlsProps {
@@ -31,6 +31,7 @@ export const ViewControls: Component<ViewControlsProps> = (props) => {
 
   return (
     <div
+      onMouseDown={preventButtonFocusSteal}
       style={{
         display: 'flex',
         'align-items': 'center',

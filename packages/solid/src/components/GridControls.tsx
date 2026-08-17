@@ -1,5 +1,6 @@
 import { type Component, createSignal, For, Show } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
+import { preventButtonFocusSteal } from 'osdlabel';
 
 export interface GridControlsProps {
   readonly maxColumns: number;
@@ -52,7 +53,11 @@ const TableSelector: Component<{
   );
 
   return (
-    <div style={{ position: 'relative' }} onMouseLeave={() => setIsOpen(false)}>
+    <div
+      style={{ position: 'relative' }}
+      onMouseLeave={() => setIsOpen(false)}
+      onMouseDown={preventButtonFocusSteal}
+    >
       <button
         data-testid="grid-selector-trigger"
         onClick={() => setIsOpen(!isOpen())}

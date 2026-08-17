@@ -226,4 +226,7 @@ export {
   shouldSuppressEscapeKey,
 } from './fullscreen.js';
 export { resolveFullscreenTarget } from './fullscreen-target.js';
+
+// Chrome focus behaviour
+export { preventButtonFocusSteal } from './prevent-button-focus-steal.js';
 export type { ResolveFullscreenTargetOptions } from './fullscreen-target.js';
