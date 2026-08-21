@@ -91,13 +91,13 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
         }}
       >
         <Toolbar />
+        {/* Sits next to the tools rather than pinned to the right edge with
+            `margin-left: auto`: its grid popover opens rightward from the
+            button, so anchoring it at the edge clipped it whenever the
+            annotator container was narrow. */}
+        {showGridControls() && <GridControls maxColumns={maxCols()} maxRows={maxRows()} />}
         {showViewControls() && <ViewControls showFullscreenControl={props.showFullscreenControl} />}
         {showContextSwitcher() && <ContextSwitcher label="Context:" />}
-        {showGridControls() && (
-          <div style={{ 'margin-left': 'auto' }}>
-            <GridControls maxColumns={maxCols()} maxRows={maxRows()} />
-          </div>
-        )}
       </div>
       <div
         style={{
