@@ -124,13 +124,13 @@ function AnnotatorInner({
         }}
       >
         <Toolbar />
+        {/* Sits next to the tools rather than pinned to the right edge with
+            `marginLeft: auto`: its grid popover opens rightward from the
+            button, so anchoring it at the edge clipped it whenever the
+            annotator container was narrow. */}
+        {showGridControls && <GridControls maxColumns={maxCols} maxRows={maxRows} />}
         {showViewControls && <ViewControls showFullscreenControl={showFullscreenControl} />}
         {showContextSwitcher && <ContextSwitcher label="Context:" />}
-        {showGridControls && (
-          <div style={{ marginLeft: 'auto' }}>
-            <GridControls maxColumns={maxCols} maxRows={maxRows} />
-          </div>
-        )}
       </div>
       <div
         style={{
