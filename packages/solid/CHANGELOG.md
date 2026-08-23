@@ -1,5 +1,27 @@
 # @osdlabel/solid
 
+## 0.8.1
+
+### Patch Changes
+
+- 59aabbe: Move the annotator's grid-layout button out of the toolbar's right edge
+
+  `<Annotator showGridControls>` pinned the grid-layout button to the far right of
+  the toolbar with `margin-left: auto`. Its hover popover is anchored to the
+  button's left edge and opens rightward, so in a narrow annotator container the
+  popover ran past the right edge and was clipped. The button now sits in the
+  toolbar's normal flow, right after the drawing tools, leaving the popover room
+  to open inside the container at any width.
+  - osdlabel@0.8.1
+  - @osdlabel/annotation@0.8.1
+  - @osdlabel/annotation-context@0.8.1
+  - @osdlabel/decoration@0.8.1
+  - @osdlabel/fabric-annotations@0.8.1
+  - @osdlabel/fabric-osd@0.8.1
+  - @osdlabel/osd-helper@0.8.1
+  - @osdlabel/validation@0.8.1
+  - @osdlabel/viewer-api@0.8.1
+
 ## 0.8.0
 
 ### Minor Changes
