@@ -99,6 +99,12 @@ function validatePolylineRequirements(data: LooseData): boolean {
   return true;
 }
 
+function validateHitDetectionProps(data: LooseData): boolean {
+  if (data.perPixelTargetFind !== undefined && typeof data.perPixelTargetFind !== 'boolean') return false;
+  if (data.targetFindTolerance !== undefined && !isFiniteNum(data.targetFindTolerance)) return false;
+  return true;
+}
+
 // ── Fabric data object schema ───────────────────────────────────────────
 
 const FabricDataObjectSchema = v.pipe(
@@ -108,6 +114,7 @@ const FabricDataObjectSchema = v.pipe(
   v.check(validateNumericProps),
   v.check(validateDimensionProps),
   v.check(validateStringProps),
+  v.check(validateHitDetectionProps),
   v.check(validateRectRequirements),
   v.check(validateCircleRequirements),
   v.check(validateLineRequirements),

@@ -12,7 +12,16 @@ import {
 import type { Annotation, AnnotationStyle, Geometry, GeometryType } from '@osdlabel/annotation';
 import type { FabricFields, FabricRawAnnotationData } from './types.js';
 
-export function getFabricOptions(style: AnnotationStyle, id: string) {
+export interface FabricHitDetectionOptions {
+  perPixelTargetFind?: boolean;
+  targetFindTolerance?: number;
+}
+
+export function getFabricOptions(
+  style: AnnotationStyle,
+  id: string,
+  hitOptions: FabricHitDetectionOptions = {}
+) {
   const fill = new Color(style.fillColor);
   if (style.fillOpacity !== undefined) {
     fill.setAlpha(style.fillOpacity);
@@ -26,6 +35,8 @@ export function getFabricOptions(style: AnnotationStyle, id: string) {
     opacity: style.opacity,
     id,
     strokeUniform: true,
+    perPixelTargetFind: hitOptions.perPixelTargetFind ?? true,
+    targetFindTolerance: hitOptions.targetFindTolerance ?? 5,
   };
 }
 
