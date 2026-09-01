@@ -13,6 +13,8 @@ import type {
   AddAnnotationParams,
   FabricShapeOptions,
   FabricRawAnnotationData,
+  AnnotationRawData,
+  SegmentationBrushToolConfig,
 } from '@osdlabel/fabric-annotations';
 import {
   RectangleTool,
@@ -22,6 +24,7 @@ import {
   PolylineTool,
   FreeHandPathTool,
   SelectTool,
+  SegmentationBrushTool,
   buildFabricObjectFromGeometry,
   getGeometryFromFabricObject,
   serializeFabricObject,
@@ -39,6 +42,12 @@ export interface CreateAnnotationToolOptions {
    * polyline, and free-draw tools expose. Defaults are applied when omitted.
    */
   readonly vertexEdit?: VertexEditConfig | undefined;
+  /**
+   * Configuration for the raster brush. Required for `'segmentationBrush'` to
+   * be available; without it `createAnnotationTool('segmentationBrush')`
+   * returns null so the tool degrades gracefully.
+   */
+  readonly segmentationBrush?: SegmentationBrushToolConfig | undefined;
 }
 
 /**
@@ -66,6 +75,10 @@ export function createAnnotationTool(
       return new PolylineTool(vertexEdit);
     case 'freeHandPath':
       return new FreeHandPathTool(undefined, vertexEdit);
+    case 'segmentationBrush':
+      return options?.segmentationBrush
+        ? new SegmentationBrushTool(options.segmentationBrush)
+        : null;
     case 'select':
       return new SelectTool(vertexEdit);
     default:
@@ -243,7 +256,7 @@ export function processToolUpdateAnnotation(
  * Fabric data so a converted shape keeps the original styling. Annotation
  * style is not stored separately — it lives in the serialized Fabric object.
  */
-function styleOptionsFromRawData(raw: FabricRawAnnotationData, id: string): FabricShapeOptions {
+function styleOptionsFromRawData(raw: AnnotationRawData, id: string): FabricShapeOptions {
   const d = raw.data;
   const asString = (value: unknown, fallback: string): string =>
     typeof value === 'string' ? value : fallback;

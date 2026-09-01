@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from 'solid-js';
+import { createEffect, onCleanup, untrack } from 'solid-js';
 import type { FabricObject } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
@@ -6,6 +6,7 @@ import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
+  buildSegmentationBrushConfig,
   createAnnotationTool,
   createDragVectorControl,
   getScenePointFromEvent,
@@ -40,6 +41,7 @@ export function useAnnotationTool(
     activeToolKeyHandlerRef,
     shortcuts,
     vertexEditConfig,
+    brushOptions,
   } = useAnnotator();
 
   // Auto-switch to select tool when active drawing tool becomes disabled (limit reached)
@@ -130,6 +132,31 @@ export function useAnnotationTool(
 
     const tool: AnnotationTool | null = createAnnotationTool(type, {
       vertexEdit: vertexEditConfig,
+      segmentationBrush: buildSegmentationBrushConfig(
+        {
+          getBrushRadius: () => uiState.brushRadius,
+          isErasing: () => uiState.brushErasing,
+          getImageSize: () => ov.getImageSize(),
+          getSelectedAnnotationId: () => uiState.selectedAnnotationId,
+          getAnnotationState: () => annotationState,
+          getImageId: () => imgId,
+          getActiveContextId: () => contextState.activeContextId,
+          maxPixels: brushOptions.maxPixels,
+        },
+        {
+          addAnnotation: (annotation) => actions.addAnnotation(annotation),
+          updateAnnotation: (id, imageIdArg, patch) =>
+            actions.updateAnnotation(id, imageIdArg, patch),
+          deleteAnnotation: (id, imageIdArg) => actions.deleteAnnotation(id, imageIdArg),
+          setSelectedAnnotation: (id) => actions.setSelectedAnnotation(id),
+          adjustBrushRadius: (direction) => actions.adjustBrushRadius(direction),
+          // Called through, not read here: reading the getter inside this
+          // effect would track it, so a host deriving `brushOptions` from a
+          // signal would rebuild the tool — and discard an in-progress stroke —
+          // when only the callback changed. React defers it for the same reason.
+          onCapacityExceeded: (error) => brushOptions.onCapacityExceeded?.(error),
+        },
+      ),
     });
 
     if (!tool) {
@@ -169,13 +196,24 @@ export function useAnnotationTool(
     };
 
     // Activate tool
-    ov.setMode('annotation');
-    tool.activate(ov, imgId, callbacks, shortcuts);
+    // The brush writes into an annotation rather than transforming one, so
+    // objects stay inert while it is active — a stroke over an existing shape
+    // must paint, not drag it.
+    ov.setMode(type === 'segmentationBrush' ? 'paint' : 'annotation');
+    // Untracked: a tool may read its config accessors during `activate` (the
+    // brush sizes its cursor ring from `uiState.brushRadius`), and anything
+    // read here becomes a dependency of this effect. That turned a radius
+    // change into a full teardown — `onCleanup` → `deactivate()` → `cancel()`
+    // — which silently discards a stroke in progress. Resizing mid-stroke is
+    // a routine painting gesture, so the whole stroke vanished with no
+    // feedback. React is immune only because it reads through refs; this is
+    // the structural equivalent.
+    untrack(() => tool.activate(ov, imgId, callbacks, shortcuts));
 
     const keyHandler = (e: KeyboardEvent) => tool!.onKeyDown(e);
     activeToolKeyHandlerRef.handler = keyHandler;
 
-    const isDrawingTool = type !== 'select';
+    const isDrawingTool = type !== 'select' && type !== 'segmentationBrush';
 
     // Track whether we suppressed mouse:down so we also suppress mouse:up
     let suppressedDown = false;

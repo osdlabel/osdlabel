@@ -29,6 +29,8 @@ const mockState = {
   actions: mockActions,
   activeToolKeyHandlerRef: { handler: null },
   shortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
+  vertexEditConfig: { longPressMs: 500, moveTolerancePx: 5 },
+  brushOptions: {},
 };
 
 vi.mock('../../../src/state/annotator-context.js', () => ({

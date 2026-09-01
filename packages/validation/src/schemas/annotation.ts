@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { GeometrySchema } from './geometry.js';
 import { ToolTypeSchema } from './tool.js';
 import { FabricRawAnnotationDataSchema } from './fabric-data.js';
+import { MaskRawAnnotationDataSchema } from './mask-data.js';
 
 /**
  * Schema for @see {@link import("@osdlabel/annotation/annotation").BaseAnnotation} — validates core annotation fields.
@@ -22,7 +23,11 @@ export const BaseAnnotationSchema = v.object({
 export const OsdFieldsSchema = v.object({
   imageId: v.pipe(v.string(), v.minLength(1)),
   contextId: v.pipe(v.string(), v.minLength(1)),
-  rawAnnotationData: FabricRawAnnotationDataSchema,
+  // Vector annotations carry a serialized Fabric object; masks carry pixels.
+  rawAnnotationData: v.variant('format', [
+    FabricRawAnnotationDataSchema,
+    MaskRawAnnotationDataSchema,
+  ]),
 });
 
 export const OsdAnnotationSchema = v.intersect([BaseAnnotationSchema, OsdFieldsSchema]);

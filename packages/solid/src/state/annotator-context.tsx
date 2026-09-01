@@ -6,7 +6,7 @@ import type { AnnotationState, KeyboardShortcutMap, UIState } from '@osdlabel/vi
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
+import type { BrushOptions, OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -59,6 +59,7 @@ interface AnnotatorContextValue {
   fullscreenTarget: HTMLElement | (() => HTMLElement | null) | null | undefined;
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
+  brushOptions: BrushOptions;
   activeImageId: Accessor<ImageId | undefined>;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -96,6 +97,11 @@ export interface AnnotatorProviderProps {
    * Defaults to {@link DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX}.
    */
   readonly vertexEditMoveTolerancePx?: number | undefined;
+  /**
+   * Settings for the segmentation brush — the mask pixel cap and what to do
+   * when a stroke exceeds it. See {@link BrushOptions}.
+   */
+  readonly brushOptions?: BrushOptions | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
@@ -152,6 +158,19 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     longPressMs: props.vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
     moveTolerancePx: props.vertexEditMoveTolerancePx ?? DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
   };
+  // Getters rather than a captured snapshot: the object's identity is fixed, so
+  // consumers can hold it, while a host that swaps its `brushOptions` prop is
+  // still observed. Reading a getter inside an effect tracks it, so the tool is
+  // rebuilt when a setting genuinely changes — and never merely because the
+  // host re-rendered.
+  const brushOptions: BrushOptions = {
+    get maxPixels() {
+      return props.brushOptions?.maxPixels;
+    },
+    get onCapacityExceeded() {
+      return props.brushOptions?.onCapacityExceeded;
+    },
+  };
 
   // Load initial annotations if provided
   if (props.initialAnnotations) {
@@ -203,6 +222,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     fullscreenTarget: props.fullscreenTarget,
     shortcuts: mergedShortcuts,
     vertexEditConfig,
+    brushOptions,
     activeImageId,
     testMode: props.testMode ?? false,
     decorationProviders: props.decorationProviders ?? [],

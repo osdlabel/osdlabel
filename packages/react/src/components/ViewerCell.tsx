@@ -1,3 +1,4 @@
+import type { FabricObject } from 'fabric';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import OpenSeadragon from 'openseadragon';
@@ -142,14 +143,28 @@ export default function ViewerCell({
       if (imageSource?.id !== capturedImageId) return;
 
       const promises = matching.map(async (ann) => {
-        const obj = await createFabricObjectFromRawData(ann);
+        // Per-annotation, so one that cannot be rebuilt degrades alone. The
+        // canvas has already been cleared by this point, so a throw escaping
+        // into Promise.all would take every *other* annotation in this cell
+        // down with it — the whole cell would silently go blank.
+        let obj: FabricObject | null = null;
+        try {
+          obj = await createFabricObjectFromRawData(ann);
+        } catch (error) {
+          console.error(`osdlabel: could not render annotation ${ann.id}`, error);
+          return null;
+        }
         if (obj) {
+          // Only active-context annotations may be interactive; mark the rest
+          // `_readOnly` so setMode() keeps them inert too.
+          //
+          // Interactivity itself is the overlay's call, not ours: the current
+          // mode decides. Setting `selectable`/`evented` here directly used to
+          // undo `paint` mode on the first rebuild, so a brush stroke over a
+          // shape started dragging it again after the first commit.
           const isActiveCtx = ann.contextId === activeContextId;
           obj._readOnly = !isActiveCtx;
-          obj.set({
-            selectable: isActiveCtx,
-            evented: isActiveCtx,
-          });
+          overlay.applyModeToObject(obj, !isActiveCtx);
         }
         return obj;
       });

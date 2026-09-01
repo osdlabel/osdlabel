@@ -8,18 +8,32 @@ import type {
 import type { ImageId } from '@osdlabel/viewer-api';
 import { DEFAULT_KEYBOARD_SHORTCUTS, mapKeyEventToActions } from '../../src/keyboard.js';
 import type { KeyboardMappingState } from '../../src/keyboard.js';
+import { computeConstraintStatus } from '../../src/constraints.js';
+import {
+  createInitialContextState,
+  createInitialAnnotationState,
+} from '../../src/initial-state.js';
 
-const TOOL_TYPES: readonly ToolType[] = [
-  'rectangle',
-  'circle',
-  'line',
-  'point',
-  'polyline',
-  'freeHandPath',
-];
+/**
+ * Every tool the constraint layer knows about, taken from the constraint layer
+ * itself rather than listed here.
+ *
+ * A hand-written list silently forecloses tests: while `segmentationBrush` was
+ * missing from it, `ALL_ENABLED.segmentationBrush` was `undefined`, so any test
+ * of the brush's shortcut would have thrown on `.enabled` instead of failing
+ * meaningfully — and so none was written. Deriving it means a new tool shows up
+ * here the moment it is added.
+ */
+const TOOL_TYPES: readonly ToolType[] = Object.keys(
+  computeConstraintStatus(createInitialContextState(), createInitialAnnotationState(), undefined),
+) as ToolType[];
 
 const ALL_ENABLED: ConstraintStatus = Object.fromEntries(
   TOOL_TYPES.map((type) => [type, { enabled: true, currentCount: 0, maxCount: null }]),
+) as ConstraintStatus;
+
+const NONE_ENABLED: ConstraintStatus = Object.fromEntries(
+  TOOL_TYPES.map((type) => [type, { enabled: false, currentCount: 1, maxCount: 1 }]),
 ) as ConstraintStatus;
 
 const STATE: KeyboardMappingState = {
@@ -197,5 +211,73 @@ describe('mapKeyEventToActions — annotation context cycling', () => {
     expect(
       mapKeyEventToActions('-', false, DEFAULT_KEYBOARD_SHORTCUTS, state, ALL_ENABLED),
     ).toEqual([{ type: 'SET_GRID_DIMENSIONS', payload: { columns: 1, rows: 2 } }]);
+  });
+});
+
+describe('mapKeyEventToActions — the segmentation brush', () => {
+  it('selects the brush on its shortcut key', () => {
+    expect(
+      mapKeyEventToActions('b', false, DEFAULT_KEYBOARD_SHORTCUTS, STATE, ALL_ENABLED),
+    ).toEqual([{ type: 'SET_ACTIVE_TOOL', payload: 'segmentationBrush' }]);
+  });
+
+  it('refuses when the active context does not allow the brush', () => {
+    // The toolbar shows the button disabled; the shortcut has to agree, or the
+    // keyboard becomes a way around a constraint the UI enforces.
+    expect(
+      mapKeyEventToActions('b', false, DEFAULT_KEYBOARD_SHORTCUTS, STATE, NONE_ENABLED),
+    ).toEqual([]);
+  });
+
+  it('does not fire on Shift+B', () => {
+    expect(mapKeyEventToActions('B', true, DEFAULT_KEYBOARD_SHORTCUTS, STATE, ALL_ENABLED)).toEqual(
+      [],
+    );
+  });
+
+  it('leaves the bracket keys to the grid when the brush is not handling them', () => {
+    // `]` / `[` are bound to both brush radius and grid rows. The tool consumes
+    // them first via `activeToolKeyHandlerRef` while it is active; this map is
+    // what runs otherwise, and it must still resize the grid.
+    expect(
+      mapKeyEventToActions(']', false, DEFAULT_KEYBOARD_SHORTCUTS, STATE, ALL_ENABLED),
+    ).toEqual([{ type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 3 } }]);
+    expect(
+      mapKeyEventToActions('[', false, DEFAULT_KEYBOARD_SHORTCUTS, STATE, ALL_ENABLED),
+    ).toEqual([{ type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } }]);
+  });
+
+  it('binds the brush-radius keys to the same physical keys', () => {
+    // Not a restatement of the map: this pins the collision the tool's
+    // key-consumption order exists to resolve. If the defaults are ever split
+    // apart, that ordering logic becomes dead code and should be revisited.
+    expect(DEFAULT_KEYBOARD_SHORTCUTS.increaseBrushRadius).toBe(
+      DEFAULT_KEYBOARD_SHORTCUTS.increaseGridRows,
+    );
+    expect(DEFAULT_KEYBOARD_SHORTCUTS.decreaseBrushRadius).toBe(
+      DEFAULT_KEYBOARD_SHORTCUTS.decreaseGridRows,
+    );
+  });
+});
+
+describe('computeConstraintStatus — tool coverage', () => {
+  it('reports on the segmentation brush like every other tool', () => {
+    // The constraint layer's tool list is what the toolbar and the keyboard
+    // both read. A tool missing from it is invisible to constraints: its
+    // status is `undefined`, the toolbar renders no button, and the shortcut
+    // throws on `.enabled`.
+    expect(TOOL_TYPES).toContain('segmentationBrush');
+    expect(TOOL_TYPES).toEqual(
+      expect.arrayContaining([
+        'rectangle',
+        'circle',
+        'line',
+        'point',
+        'polyline',
+        'freeHandPath',
+        'segmentationBrush',
+      ]),
+    );
+    expect(TOOL_TYPES).toHaveLength(7);
   });
 });

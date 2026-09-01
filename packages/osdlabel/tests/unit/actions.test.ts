@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ToolType } from '@osdlabel/annotation';
 import type { ViewerControlId } from '@osdlabel/viewer-api';
+import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
 import { applyUIAction } from '../../src/actions.js';
 import { createInitialUIState } from '../../src/initial-state.js';
 
@@ -99,5 +100,55 @@ describe('applyUIAction — contrast', () => {
     applyUIAction(state, { type: 'RESET_VIEW', payload: { cellIndex: 2 } });
     expect(state.cellTransforms[2]?.contrast).toBe(0);
     expect(state.cellTransforms[2]?.exposure).toBe(0);
+  });
+});
+
+describe('applyUIAction — brush state', () => {
+  it('starts at the default radius, painting rather than erasing', () => {
+    // Fixed literals, not the constants under test: deriving the expectation
+    // from the implementation makes the assertion pass for any value.
+    const state = createInitialUIState();
+    expect(state.brushRadius).toBe(12);
+    expect(state.brushErasing).toBe(false);
+  });
+
+  it('SET_BRUSH_RADIUS stores a rounded value', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_BRUSH_RADIUS', payload: 7.6 });
+    expect(state.brushRadius).toBe(8);
+  });
+
+  it('SET_BRUSH_RADIUS clamps to the supported range', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_BRUSH_RADIUS', payload: 100_000 });
+    expect(state.brushRadius).toBe(MAX_BRUSH_RADIUS);
+    applyUIAction(state, { type: 'SET_BRUSH_RADIUS', payload: -5 });
+    expect(state.brushRadius).toBe(MIN_BRUSH_RADIUS);
+  });
+
+  it('SET_BRUSH_RADIUS ignores a non-finite value rather than storing it', () => {
+    // NaN survives both Math.round and the min/max pair, and a stored NaN is
+    // unrecoverable from the keyboard — the resize keys step from the current
+    // value. A host binding a text field (`Number(input.value)`) hits this.
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_BRUSH_RADIUS', payload: 9 });
+    applyUIAction(state, { type: 'SET_BRUSH_RADIUS', payload: Number.NaN });
+    expect(state.brushRadius).toBe(9);
+  });
+
+  it('SET_BRUSH_ERASING stores what it is given, both ways', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_BRUSH_ERASING', payload: true });
+    expect(state.brushErasing).toBe(true);
+    applyUIAction(state, { type: 'SET_BRUSH_ERASING', payload: false });
+    expect(state.brushErasing).toBe(false);
+  });
+
+  it('the brush is a tool like any other for mutual exclusivity', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_ACTIVE_VIEWER_CONTROL', payload: TONE });
+    applyUIAction(state, { type: 'SET_ACTIVE_TOOL', payload: 'segmentationBrush' });
+    expect(state.activeTool).toBe('segmentationBrush');
+    expect(state.activeViewerControl).toBeNull();
   });
 });

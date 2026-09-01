@@ -1,6 +1,6 @@
 import OpenSeadragon from 'openseadragon';
 import { Canvas as FabricCanvas } from 'fabric';
-import type { TMat2D } from 'fabric';
+import type { FabricObject, TMat2D } from 'fabric';
 import type { Point } from '@osdlabel/annotation';
 import type { CellTransform } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
@@ -21,7 +21,18 @@ import {
 } from './constants.js';
 
 /** Overlay interaction modes */
-export type OverlayMode = 'navigation' | 'annotation' | 'customControl';
+/**
+ * How pointer input is routed and what it may act on.
+ *
+ * - `navigation` — OSD owns the pointer; Fabric is inert.
+ * - `annotation` — Fabric owns the pointer; objects can be selected and dragged.
+ * - `paint` — Fabric owns the pointer, but objects are inert. For tools that
+ *   write *into* an annotation rather than transform it: a brush stroke over a
+ *   shape must paint, never drag it.
+ * - `customControl` — the tracker forwards raw events to a registered handler;
+ *   neither OSD nor Fabric reacts.
+ */
+export type OverlayMode = 'navigation' | 'annotation' | 'paint' | 'customControl';
 
 /**
  * A pointer event delivered to a {@link CustomControlHandler} while the
@@ -395,6 +406,23 @@ export class FabricOverlay {
   }
 
   /**
+   * Full-resolution size of the opened image in pixels, or `null` before the
+   * image has loaded.
+   *
+   * Raster annotations need this: a mask is defined against the image's own
+   * pixel grid, and formats like COCO RLE encode runs across the whole image,
+   * so both the buffer and the exporter need the true dimensions rather than
+   * anything derived from the current viewport.
+   */
+  getImageSize(): { width: number; height: number } | null {
+    const item = this._viewer.world.getItemAt(0);
+    if (!item) return null;
+    const size = item.getContentSize();
+    if (!size || size.x <= 0 || size.y <= 0) return null;
+    return { width: size.x, height: size.y };
+  }
+
+  /**
    * Apply the tonal adjustments of a cell transform as CSS filters on OSD's
    * drawer canvas. Takes an object rather than positional args so the parameter
    * list stays self-documenting as adjustments are added; the filter string
@@ -434,6 +462,28 @@ export class FabricOverlay {
     this._customControlHandler = handler;
   }
 
+  /**
+   * Applies the current mode's interaction rules to one object.
+   *
+   * `setMode` walks every object on the canvas, but objects are also added
+   * *after* it runs — the annotation layer is cleared and rebuilt on every
+   * state change. Those rebuilt objects have to be brought under the same rule,
+   * and they cannot get it from `setMode`: it early-returns when the mode has
+   * not changed, so calling it again is a no-op.
+   *
+   * Before this existed, `ViewerCell` set `selectable`/`evented` itself, which
+   * silently undid `paint` mode the first time a stroke committed — the next
+   * stroke over a shape dragged it again.
+   *
+   * `readOnly` marks an object that must stay inert in any mode (a
+   * displayed-but-not-active context, or a decoration).
+   */
+  applyModeToObject(obj: FabricObject, readOnly: boolean): void {
+    const interactive = this._mode === 'annotation' && !readOnly;
+    obj.selectable = interactive;
+    obj.evented = interactive;
+  }
+
   /** Set the overlay interaction mode */
   setMode(mode: OverlayMode): void {
     // No-op guard: re-applying the current mode would needlessly
@@ -450,8 +500,7 @@ export class FabricOverlay {
         this._overlayTracker.setTracking(false);
         this._fabricCanvas.selection = false;
         this._fabricCanvas.forEachObject((obj) => {
-          obj.selectable = false;
-          obj.evented = false;
+          this.applyModeToObject(obj, obj._readOnly === true);
         });
         // Deselect any active Fabric selection so controls disappear
         this._fabricCanvas.discardActiveObject();
@@ -465,10 +514,22 @@ export class FabricOverlay {
         this._overlayTracker.setTracking(true);
         this._fabricCanvas.selection = true;
         this._fabricCanvas.forEachObject((obj) => {
-          const readOnly = obj._readOnly === true;
-          obj.selectable = !readOnly;
-          obj.evented = !readOnly;
+          this.applyModeToObject(obj, obj._readOnly === true);
         });
+        this._viewer.setMouseNavEnabled(false);
+        break;
+
+      case 'paint':
+        // Fabric receives pointer events so the active tool can rasterize, but
+        // nothing on the canvas is selectable or draggable. Without this a
+        // stroke that starts over an existing shape drags it instead of
+        // painting, and `object:modified` then persists the accidental move.
+        this._overlayTracker.setTracking(true);
+        this._fabricCanvas.selection = false;
+        this._fabricCanvas.forEachObject((obj) => {
+          this.applyModeToObject(obj, obj._readOnly === true);
+        });
+        this._fabricCanvas.discardActiveObject();
         this._viewer.setMouseNavEnabled(false);
         break;
 
@@ -479,8 +540,7 @@ export class FabricOverlay {
         this._overlayTracker.setTracking(true);
         this._fabricCanvas.selection = false;
         this._fabricCanvas.forEachObject((obj) => {
-          obj.selectable = false;
-          obj.evented = false;
+          this.applyModeToObject(obj, obj._readOnly === true);
         });
         this._fabricCanvas.discardActiveObject();
         this._viewer.setMouseNavEnabled(false);

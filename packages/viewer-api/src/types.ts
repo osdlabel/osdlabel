@@ -66,7 +66,19 @@ export interface UIState {
   gridAssignments: Record<number, ImageId>;
   selectedAnnotationId: AnnotationId | null;
   cellTransforms: Record<number, CellTransform>;
+  /**
+   * Radius of the segmentation brush, in **image** pixels — so a stroke covers
+   * the same real area at any zoom and masks stay reproducible.
+   */
+  brushRadius: number;
+  /** Sticky eraser toggle for the brush (Alt also erases transiently). */
+  brushErasing: boolean;
 }
+
+/** Bounds for {@link UIState.brushRadius}, in image pixels. */
+export const MIN_BRUSH_RADIUS = 1;
+export const MAX_BRUSH_RADIUS = 512;
+export const DEFAULT_BRUSH_RADIUS = 12;
 
 /** Root state for the annotation system */
 export interface AnnotationState<E extends object = Record<string, never>> {
@@ -116,6 +128,18 @@ export interface KeyboardShortcutMap {
   readonly pointTool: string;
   readonly polylineTool: string;
   readonly freeHandPathTool: string;
+  readonly segmentationBrushTool: string;
+  /**
+   * Resize the segmentation brush.
+   *
+   * These share their defaults with the grid-row shortcuts. The brush claims
+   * them for the whole time it is the active tool — not just mid-stroke —
+   * because resizing between strokes is the common case, and while the brush is
+   * selected that is far likelier to be what was meant than resizing the grid.
+   * Rebind either side if you disagree.
+   */
+  readonly increaseBrushRadius: string;
+  readonly decreaseBrushRadius: string;
   readonly cancel: string;
   readonly delete: string;
   readonly deleteAlt: string;
