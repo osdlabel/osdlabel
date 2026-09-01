@@ -26,6 +26,12 @@ export interface AnnotationStyle {
   readonly fillColor: string;
   readonly fillOpacity: number;
   readonly opacity: number;
+  /**
+   * Radius used to render `point` annotations, in image pixels (the same space
+   * as annotation geometry). Falls back to {@link DEFAULT_POINT_RADIUS} when
+   * omitted.
+   */
+  readonly pointRadius?: number;
 }
 
 export declare const annotationIdBrand: unique symbol;

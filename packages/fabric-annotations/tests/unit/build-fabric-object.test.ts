@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_ANNOTATION_STYLE, createAnnotationId } from '@osdlabel/annotation';
+import {
+  DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_POINT_RADIUS,
+  createAnnotationId,
+} from '@osdlabel/annotation';
 import type { Geometry } from '@osdlabel/annotation';
 import { buildFabricObjectFromGeometry } from '../../src/build-fabric-object.js';
 import { getFabricOptions, getGeometryFromFabricObject } from '../../src/fabric-utils.js';
 import { initFabricModule } from '../../src/fabric-module.js';
+import type { Circle } from 'fabric';
 
 // Register custom Fabric properties so toObject() includes `id`.
 initFabricModule();
@@ -83,6 +88,20 @@ describe('buildFabricObjectFromGeometry', () => {
     expect(back.start.y).toBeCloseTo(5);
     expect(back.end.x).toBeCloseTo(95);
     expect(back.end.y).toBeCloseTo(65);
+  });
+
+  it('renders point geometry at DEFAULT_POINT_RADIUS by default', () => {
+    const obj = buildFabricObjectFromGeometry({ type: 'point', position: { x: 1, y: 2 } }, options);
+    expect((obj as Circle).radius).toBe(DEFAULT_POINT_RADIUS);
+  });
+
+  it('renders point geometry at an explicit radius', () => {
+    const obj = buildFabricObjectFromGeometry(
+      { type: 'point', position: { x: 1, y: 2 } },
+      options,
+      12,
+    );
+    expect((obj as Circle).radius).toBe(12);
   });
 
   it('round-trips point geometry', () => {
