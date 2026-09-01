@@ -300,7 +300,9 @@ The guard is not enough on its own, which is why the press is dispatched **non-b
 
 The symptom was touch-only because `addContact()` clamps an implausible count back to one for `"mouse"` and `"pen"` and warns, but not for `"touch"`. Mouse input therefore worked while logging `GesturePointList.addContact() Implausible contacts value` on every press in annotation mode; touch was left at two contacts, and OSD's handlers key off exact counts.
 
-The move and release must keep bubbling. Fabric binds `pointerup` on the **document**, and moves `pointermove` from the canvas to the document for the duration of a press, so a non-bubbling release would never reach Fabric at all — costing every gesture that commits on mouse-up. Only `pointerdown` adds a contact, so only the press needs withholding; a doubled `pointerup` is absorbed by `removeContact()`'s floor at zero. See [#175](https://github.com/osdlabel/osdlabel/issues/175).
+The move must keep bubbling. Fabric moves `pointermove` from the canvas to the document for the duration of a press, so a non-bubbling move would reach Fabric only between presses. The bubbled copy re-enters the tracker's element, but only updates a position OSD already has.
+
+The release must reach the document too — Fabric binds `pointerup` there — but it must **not pass through the tracker's element on the way**. OSD's `updatePointerUp` removes a contact before it honours `stopPropagation`, exactly as `onPointerDown` adds one. That was survivable while every release was forwarded from `releaseHandler`, which OSD calls _after_ removing the contact, so the bubbled copy hit `removeContact()`'s floor at zero. But the releases described below are forwarded from `preProcessEventHandler`, _before_ OSD has processed the real event, and there the bubbled copy removed a live contact: the second finger that revealed a lost release was then counted as a fresh first contact and reported as a press of its own. So the release is dispatched on the container's **parent**, the viewer canvas. It bubbles to the document from there, and the viewer canvas's own OSD tracker is disabled in every mode that forwards. See [#175](https://github.com/osdlabel/osdlabel/issues/175).
 
 ```ts
 private _forwardToFabric(type: string, originalEvent: PointerEvent, pressSeq?: number): void {
@@ -313,16 +315,28 @@ private _forwardToFabric(type: string, originalEvent: PointerEvent, pressSeq?: n
       // ... all other properties copied from original
       // Only the press is withheld from the container; see above.
       bubbles: type !== 'pointerdown',
+      // A release always reports the primary button up, whatever revealed it.
+      button: type === 'pointerup' ? 0 : originalEvent.button,
       cancelable: true,
     });
     // Presses carry their sequence, keyed on the event the tool receives.
     if (pressSeq !== undefined) this._pressSeqByEvent.set(syntheticEvent, pressSeq);
-    this._fabricCanvas.upperCanvasEl.dispatchEvent(syntheticEvent);
+    // The release starts above the tracker's element; see above.
+    const target =
+      type === 'pointerup' ? this._fabricContainer.parentElement : this._fabricCanvas.upperCanvasEl;
+    target.dispatchEvent(syntheticEvent);
   } finally {
     this._forwarding = false;
   }
 }
 ```
+
+**Releases OSD never reports.** `releaseHandler` fires only when OSD's contact count for the pointer type returns to zero, and never for a `pointercancel`. Three realistic inputs therefore leave a Fabric gesture open with no release: the active finger lifting while a second finger (a palm, a thumb) rests; a second finger landing mid-gesture, which turns it into a pinch that keeps feeding moves to the first pointer; and a `pointercancel` from the browser. Fabric binds no `pointercancel` listener and drops every non-primary pointer, so the overlay forwards a synthetic `pointerup` **carrying the primary pointer's id** from `preProcessEventHandler` in those cases — on a cancel, on a lift while another same-type contact is still down (read before OSD removes the lifting contact, so `contacts > 1` means "others remain"), and, in `paint` mode only, on a second contact's press. Such a release is consumed as a plain release, never paired into a double click, and it always reports `button: 0`, because Fabric drops a `pointerup` with any other button and the event that revealed the loss (a cancel, say) need not carry 0 itself. The ordinary last-contact release still travels through `releaseHandler`, so nothing is doubled. The brush adds a belt to these braces: it tracks the pointer that started a stroke, ignores moves from any other, and treats a move with the primary button up as a lost release, committing the stroke rather than painting on.
+
+Two more inputs are handled in `preProcessEventHandler`, in every mode that forwards:
+
+- **A palm.** OSD keeps one contact list _per pointer type_, so a touch landing while a pen or mouse press is held is, to OSD, a fresh first contact: it fires `pressHandler`, and the overlay would forward a primary `pointerdown` that Fabric acts on, start a stroke with the palm, and commit the smear when the palm lifts. A contact of another pointer type while a press is pending is therefore swallowed: `eventInfo.preventGesture` keeps OSD's press and release handlers quiet for it (its contact is still counted, and removed again on its release), and its id is remembered so its moves are swallowed too — OSD's `moveHandler` is the one handler `preventGesture` does not gate.
+- **A chord.** With a mouse or pen, releasing the primary button while another is held arrives as a `pointermove` with the primary bit of `buttons` clear, and the eventual `pointerup` names the other button, which OSD ignores (`updatePointerUp` returns early for any `button` but 0). No release would ever be reported, so the pending press is ended on that move. Touch is excluded: a touch contact reports `buttons: 1` for its whole life.
 
 ### Double clicks
 

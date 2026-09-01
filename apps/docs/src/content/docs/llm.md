@@ -280,6 +280,16 @@ Valibot schema implementations for rigorous data validation.
 - Implements the Standard Schema interface for annotation types (`GeometrySchema`, `PointSchema`, `BaseAnnotationSchema`).
 - Depends on `@osdlabel/annotation` and `valibot`.
 
+### `@osdlabel/mask`
+
+Raster mask storage and codecs, with **zero dependencies** — including on `@osdlabel/annotation`. It is the codec layer, deliberately unaware of annotations.
+
+- The `MaskBuffer` interface and its `BoundedDenseMaskBuffer` implementation: a dense buffer over the painted bounding box, grown on demand and capped by `maxPixels`.
+- Stroke rasterization (`stampCircle`, `strokeSegment`) and the `MaskSnapshot` / `MaskRegion` value types.
+- The canonical encoding (`encodeCanonical`, `decodeCanonical`) that annotator state always holds.
+- The `MaskCodec` extension point and the built-in COCO codecs (`cocoRleCodec`, `cocoRleUncompressedCodec`, `cocoBbox`, `cocoArea`), verified byte-for-byte against `pycocotools`.
+- The types and functions you need for painting, exporting, and writing a codec are re-exported by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`; the lower-level run-length helpers (`toRuns`, `snapshotToCocoCounts`, `encodeCocoCountsString`, …) are available from `@osdlabel/mask` directly. See the [Segmentation Brush guide](/osdlabel/guides/segmentation-brush/).
+
 ### `@osdlabel/fabric-annotations`
 
 Fabric.js annotation tools and utilities, completely **SolidJS-agnostic and OSD-agnostic**.
@@ -970,14 +980,29 @@ const contexts: AnnotationContext[] = [
 
 Each tool in a context can have:
 
-| Property       | Type                       | Default       | Description                                                                              |
-| -------------- | -------------------------- | ------------- | ---------------------------------------------------------------------------------------- |
-| `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'polyline'` \| `'freeHandPath'` |
-| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                               |
-| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                       |
-| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                           |
+| Property       | Type                       | Default       | Description                                                                                                       |
+| -------------- | -------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'polyline'` \| `'freeHandPath'` \| `'segmentationBrush'` |
+| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                                                        |
+| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                                                |
+| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                                                    |
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
+
+For `segmentationBrush`, `maxCount` limits how many **mask annotations** the
+context may hold, not how many strokes you may paint: a stroke that refines the
+selected mask never creates an annotation, so it does not count against the
+limit.
+
+Note the interaction with auto-deactivation, though. Painting the last allowed
+mask disables the brush and switches to the select tool, and a disabled tool
+cannot be reselected — so at the limit, refining becomes unreachable through
+the UI even though the tool itself would permit it. If your workflow is "paint
+`n` masks, then refine them", leave `maxCount` unset (or set it above `n`) and
+enforce the count at review time. Tracked in
+[#154](https://github.com/osdlabel/osdlabel/issues/154); see also the
+[Segmentation Brush
+guide](/osdlabel/guides/segmentation-brush/#painting-into-an-existing-mask).
 
 ### Styling a tool
 
@@ -1174,6 +1199,53 @@ osdlabel uses a flat JSON array format for persisting annotations:
 ]
 ```
 
+### Mask annotations
+
+Annotations painted with the [segmentation
+brush](/osdlabel/guides/segmentation-brush/) carry pixels rather than a vector
+shape, so they use a different `rawAnnotationData` envelope. Their `geometry` is
+a **summary** — a bounding box and an exact pixel count — and the pixels
+themselves live in the payload:
+
+```json
+{
+  "id": "ann-2",
+  "imageId": "sample-1",
+  "contextId": "general",
+  "toolType": "segmentationBrush",
+  "geometry": {
+    "type": "mask",
+    "origin": { "x": 140, "y": 80 },
+    "width": 230,
+    "height": 200,
+    "pixelCount": 33192
+  },
+  "rawAnnotationData": {
+    "format": "osdlabel-mask",
+    "data": {
+      "x": 140,
+      "y": 80,
+      "width": 230,
+      "height": 200,
+      "imageWidth": 600,
+      "imageHeight": 800,
+      "counts": "URLNASDBASq4..."
+    }
+  },
+  "createdAt": "2026-03-06T12:00:00.000Z",
+  "updatedAt": "2026-03-06T12:00:00.000Z"
+}
+```
+
+`counts` is base64 of LEB128 run lengths, row-major over the bounding box and
+starting with a run of background. This is osdlabel's own encoding, not COCO —
+see [Exporting masks in another format](#exporting-masks-in-another-format).
+
+`pixelCount` is the exact number of set pixels, so it is always at most
+`width * height` — validation rejects a larger one. The payload may also carry
+an optional `fill` recording the mask's tint; the built-in `Annotator` does not
+write one, leaving the colour to the renderer.
+
 ## Exporting annotations
 
 Use `serialize()` to create a flat array of annotations from the current state:
@@ -1212,6 +1284,27 @@ The two directions are intentionally **asymmetric**, and it trips people up:
 
 So: persist the **flat** array, load it back through `deserialize` to get the **keyed** map. If you keep your own annotation list (e.g. a flat `Annotation[]` from `onAnnotationsChange`), you still pass it through `deserialize` to seed the store.
 
+## Exporting masks in another format
+
+`serialize` takes an optional codec that re-encodes mask payloads on the way
+out. Vector annotations pass through untouched:
+
+```ts
+
+const coco = serialize(annotationState, { maskCodec: cocoRleCodec });
+
+// Reading it back needs a registry of the codecs you might encounter.
+const registry = createMaskCodecRegistry(cocoRleCodec);
+const { byImage } = deserialize(coco, { maskCodecs: registry });
+```
+
+Without `maskCodec`, masks keep the canonical `osdlabel-mask` encoding, which
+round-trips exactly. Note that `{ maskCodec: cocoRleCodec }` produces osdlabel
+annotations whose mask payloads are COCO RLE — it does **not** produce a COCO
+dataset document. Writing your own codec, the `pycocotools` interop caveat for
+very large images, and what survives a round trip are all covered in the
+[Segmentation Brush guide](/osdlabel/guides/segmentation-brush/#exporting).
+
 ## Seeding from external geometry
 
 Loading already-serialized osdlabel documents is just `deserialize` (above). The harder case is **importing annotations from another system** — you have raw geometry (a bounding box from a detector, a contour from a segmentation model, points from a CSV) but no Fabric `rawAnnotationData` envelope.
@@ -1228,7 +1321,7 @@ const annotation = createAnnotationFromGeometry(
 actions.addAnnotation(annotation);
 ```
 
-It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
+It accepts any `VectorGeometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
 
 ### Choosing a `toolType`
 
@@ -1246,6 +1339,41 @@ It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `
 The static `toolTypeToGeometryType('freeHandPath')` helper returns `polyline`, but the freehand **tool** produces a closed `polygon` by default at runtime (open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
 
 Multi-point shapes import the same way: pass `{ type: 'polyline', points }` (open) or `{ type: 'polygon', points }` (closed), where `points` is an array of image-space `{ x, y }` coordinates. Annotations drawn with the built-in freehand tool are already plain `polygon` / `polyline` geometry, so there is nothing special to handle when importing them either.
+
+### Seeding a mask
+
+Masks are the one geometry `createAnnotationFromGeometry` cannot build — its
+parameter type is `VectorGeometry`, so passing a mask is a compile error rather
+than a runtime surprise. A mask's geometry is only a bounding-box summary; the
+pixels are separate, so there is nothing to build from geometry alone.
+
+Paint the pixels into a buffer and use `createMaskAnnotation`:
+
+```ts
+
+const buffer = new BoundedDenseMaskBuffer({ imageWidth: 600, imageHeight: 800 });
+for (const [x, y] of foregroundPixels) buffer.set(x, y, 1);
+
+actions.addAnnotation(
+  createMaskAnnotation(buffer.snapshot(), { imageId, contextId, label: 'lesion' }),
+);
+```
+
+If your source is already COCO RLE, decode it instead of replaying pixels — a
+`MaskSnapshot` is exactly what `createMaskAnnotation` takes. `decode` is
+optional on `MaskCodec` (an export-only format may omit it), so narrow before
+calling:
+
+```ts
+
+const { decode } = cocoRleCodec;
+if (decode) {
+  actions.addAnnotation(createMaskAnnotation(decode({ size, counts }), { imageId, contextId }));
+}
+```
+
+Importing a whole document of them is
+[`deserialize(doc, { maskCodecs })`](#exporting-masks-in-another-format).
 
 ### Lower-level escape hatch
 
@@ -1334,6 +1462,406 @@ const allAnnotations = getAllAnnotationsFlat(annotationState);
 
 ---
 
+# Segmentation Brush
+
+Every other osdlabel tool produces **vector geometry** — a rectangle is four
+numbers, a polygon is a list of points. The segmentation brush produces
+**pixels**. You paint a region freehand, adjust the brush size, erase parts of
+it, and the result is a raster mask attached to the annotation.
+
+That difference runs deeper than the tool, so this guide covers both: how to use
+the brush, and how mask data is represented at each layer — which is what you
+need to know before you wire masks into a downstream system.
+
+Examples use `@osdlabel/solid`; the API is identical in `@osdlabel/react`.
+
+## Enabling the brush
+
+The brush is a tool like any other — add `segmentationBrush` to a context's
+`tools` and it appears in the toolbar:
+
+```tsx
+const contexts: AnnotationContext[] = [
+  {
+    id: createAnnotationContextId('lesion'),
+    label: 'Lesion',
+    tools: [{ type: 'segmentationBrush', maxCount: 5 }],
+  },
+];
+```
+
+`maxCount` limits how many mask **annotations** the context may hold, not how
+many strokes you may paint: refining the selected mask never creates an
+annotation, so it does not count against the limit. At the limit the brush
+stays enabled while a mask it can refine is selected — one of the active
+context's masks on the current image — and a stroke on empty canvas is refused
+rather than starting another mask. With nothing refinable selected it is
+disabled like any other tool at its limit, and the annotator switches to the
+select tool; selecting a mask enables it again.
+
+## Using it
+
+| Gesture                | Effect                                         |
+| ---------------------- | ---------------------------------------------- |
+| Drag                   | Paint                                          |
+| Alt + drag             | Erase                                          |
+| `Erase` toolbar toggle | Erase without holding a modifier               |
+| `]` / `[`              | Grow / shrink the brush                        |
+| Brush slider           | Set the radius directly                        |
+| `b`                    | Activate the brush                             |
+| `Escape` (mid-stroke)  | Abandon the stroke, leaving the mask unchanged |
+
+Alt-to-erase follows the convention in CVAT and QuPath. The toolbar toggle is
+sticky, for when you are erasing for a while.
+
+The mid-stroke cancel is bound to `polylineCancel` rather than `cancel` — the
+same key that abandons an in-progress polyline, since both mean "discard what I
+am drawing". Identical at the defaults; they differ only if you rebind one.
+
+### The radius is in image pixels
+
+Not screen pixels. A radius of 20 means 20 image pixels whether you are zoomed
+out to the whole slide or in at 40×, so the disc it paints is the same size on
+the image either way. This is what makes a mask reproducible: replaying the same
+strokes at a different zoom paints the same pixels. The cursor ring shows the true footprint, so it grows on screen as you
+zoom in.
+
+### Painting into an existing mask
+
+A stroke **refines the selected mask** if one is selected, and otherwise
+**starts a new one** — which is then selected, so the stroke after that
+continues refining it rather than stacking a second annotation.
+
+**To switch which mask you are refining, use the select tool.** While the brush
+is active nothing on the canvas is clickable — the overlay puts it in a `paint`
+mode where objects are inert, so that a stroke over a shape paints instead of
+dragging it. Press `v`, click the mask you want, then press `b` and keep
+painting. `Escape` between strokes clears the selection without leaving the
+brush, so the next stroke starts a fresh mask.
+
+Two consequences worth knowing:
+
+- Erasing a mask's last pixel deletes the annotation. An empty mask renders
+  nothing and cannot be clicked, so leaving it would strand an invisible
+  annotation that still counted against `maxCount`.
+- A mask selected in a _different_ annotation context is not a valid target.
+  Selection is global, but a stroke must not reach into a context you are not
+  working in — that annotation may not even be displayed. The brush starts a
+  new mask instead.
+
+## How a mask is stored
+
+Masks pass through three representations. The split is the point: what is fast
+to paint into is not what is compact to keep in state, and neither is what a
+downstream system wants to read.
+
+| Layer              | Form                                      | Why                                           |
+| ------------------ | ----------------------------------------- | --------------------------------------------- |
+| Painting (runtime) | mutable dense `Uint8Array` over the bbox  | fast stamping, no allocation per frame        |
+| Annotation state   | canonical RLE in `rawAnnotationData`      | immutable, cheap to diff, codec-independent   |
+| Export             | pluggable `MaskCodec` — COCO RLE built in | you pick the format; we are not locked to one |
+
+### Geometry is not the mask
+
+For every other tool, `annotation.geometry` _is_ the annotation — a rectangle's
+geometry reconstructs the rectangle exactly. Masks break that invariant:
+
+```ts
+interface MaskGeometry {
+  readonly type: 'mask';
+  readonly origin: Point; // bbox top-left, image-space px
+  readonly width: number; // bbox size, image px
+  readonly height: number;
+  readonly pixelCount: number; // set pixels — exact area, O(1)
+}
+```
+
+That is a **summary**, not the shape. The pixels live in
+`annotation.rawAnnotationData`. A mask is not reconstructible from its geometry
+alone.
+
+This is why anything that builds a shape _from_ geometry —
+`createAnnotationFromGeometry`, `buildFabricObjectFromGeometry` — takes
+`VectorGeometry` (`Exclude<Geometry, MaskGeometry>`). Passing a mask is a
+compile error, not a runtime surprise, and the error points at the mask-aware
+helpers:
+
+```ts
+
+const annotation = createMaskAnnotation(snapshot, { imageId, contextId });
+```
+
+The snapshot must lie inside the image it names — integer box, integer origin,
+no overhang. A `BoundedDenseMaskBuffer` cannot produce anything else, because
+it clips every write to the image; a snapshot you assemble yourself can, and
+`createMaskAnnotation` throws a `RangeError` rather than accept it. That is
+deliberate: the same check runs on the way back in, so a mask admitted here
+would be one that disappears on reload.
+
+What geometry _does_ buy you is an exact area. `pixelCount` is the true count of
+set pixels, so a mask's area measurement is more accurate than a traced
+polygon's approximation of the same region.
+
+### The canonical payload
+
+State always holds osdlabel's own encoding, never a downstream one:
+
+```ts
+{
+  format: 'osdlabel-mask',
+  data: {
+    x, y, width, height,        // bounding box placement, image-space px
+    imageWidth, imageHeight,    // full image size, which COCO RLE needs
+    counts: '...',              // base64 LEB128 run lengths, row-major
+    fill: 'rgba(...)',          // optional tint; the Annotator does not write one
+  }
+}
+```
+
+Deliberately not COCO. Baking a downstream format into annotator state would
+contradict "open for extension", and COCO's column-major ordering and
+signed-delta string encoding would leak into painting, rendering, and every
+consumer that touches state. Conversion happens **only** at the serialization
+boundary.
+
+The `format` string is the payload's version. Readers drop fields of `data`
+they do not know, so a `version` field inside it would go unseen by readers
+already shipped, whereas an unknown `format` is refused. An incompatible change
+to the layout ships under a new string, with a codec registered for the old
+one, and `'osdlabel-mask'` means exactly this layout for good.
+
+## Exporting
+
+`serialize` takes an optional codec that re-encodes mask payloads on the way
+out. Vector annotations are untouched:
+
+```ts
+
+const canonical = serialize(annotationState); // osdlabel's own encoding
+const coco = serialize(annotationState, { maskCodec: cocoRleCodec });
+```
+
+:::caution[This is not a COCO dataset document]
+`{ maskCodec: cocoRleCodec }` produces **osdlabel annotations whose mask
+payloads are COCO RLE segmentations**. It does not produce a COCO file — there
+are no `images`, `annotations`, or `categories` sections, and no category ids.
+Assembling a real COCO document from these segmentations is your job;
+`cocoBbox(snapshot)` and `cocoArea(snapshot)` give you the `bbox` and `area`
+fields to go with each one.
+:::
+
+Re-encoding decodes each mask first, under the default 64-megapixel cap. A
+host that lowered the brush's `maxPixels` needs nothing more; one that holds
+masks painted under a different cap passes the same value as `maxMaskPixels`,
+or export throws on the first mask above the default.
+
+Two COCO codecs ship built in:
+
+- `cocoRleCodec` — `counts` as the compressed string `pycocotools` emits.
+- `cocoRleUncompressedCodec` — `counts` as plain integers. Same ordering, easier
+  to eyeball.
+
+Both are column-major over the **full image** with `size: [imageHeight,
+imageWidth]`, per the COCO spec.
+
+### Verified against pycocotools
+
+The compressed codec is checked against the reference implementation:
+`packages/mask/tests/fixtures/pycocotools-golden.json` holds counts produced by
+`pycocotools.mask.encode`, and the codec reproduces them byte for byte.
+
+:::note[A `pycocotools` limitation, if your images are very large]
+`pycocotools` stores run lengths in a 32-bit unsigned array. A run longer than
+2³²−1 is silently truncated when it reads a mask back — the area survives, but
+the mask _moves_. A small mask at the centre of a 100000×100000 image comes
+back near the top-left corner.
+
+osdlabel encodes and decodes such runs correctly, and **does not refuse, clamp,
+or warn** about them: the output is valid COCO, and imposing a limit here would
+be wrong for consumers whose tooling reads wide counts. If you care, check it
+yourself before exporting:
+
+```ts
+
+if (!isCocoInteropSafe(snapshot)) {
+  // This image is large enough that pycocotools may misplace the mask.
+}
+```
+
+Since no run can exceed the image's total pixel count, any image of 2³²−1 pixels
+or fewer is always safe.
+:::
+
+## Importing
+
+Give `deserialize` a registry of codecs and it converts recognised foreign
+formats back to canonical before validating:
+
+```ts
+
+const registry = createMaskCodecRegistry(cocoRleCodec);
+const { byImage } = deserialize(json, { maskCodecs: registry });
+```
+
+Every mask in the document is decoded on import — canonical ones included, not
+just the foreign formats a codec handles. That does three things: it converts
+what needs converting, it proves the payload is actually decodable rather than
+deferring the failure to render time, and it lets geometry be **recomputed from
+the pixels** instead of trusted from the document, so a stale or hand-written
+bounding box cannot surface as a wrong area or a misplaced selection box.
+
+Decoding is bounded. `maxMaskPixels` caps any single mask (64 megapixels, which
+is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
+document as a whole.
+
+:::caution[The defaults are not an adversarial boundary]
+Decode cost per pixel varies about fortyfold with a mask's run structure, so a
+budget generous enough for real documents still buys a crafted one seconds of
+blocking. The defaults resolve that conflict toward not breaking real work.
+**If you load documents you did not produce, set `maxTotalMaskPixels`
+explicitly** — sized to your own workflow, it turns the crafted case from a
+minute into milliseconds.
+:::
+
+```ts
+const { byImage, skipped } = deserialize(json, {
+  maskCodecs: registry,
+  maxMaskPixels: 4_000_000,
+  maxTotalMaskPixels: 16_000_000,
+});
+```
+
+A mask whose pixels cannot be decoded is **dropped, not fatal** — one corrupt
+annotation should not cost you the other forty in the file. `skipped` lists what
+was lost and why, and is empty on a clean load, so check it before treating an
+
+```ts
+if (skipped.length > 0) {
+  console.warn(`${skipped.length} mask(s) could not be loaded`, skipped);
+}
+```
+
+Everything else still throws: a schema violation, or a document that blows the
+decode budget, is a property of the file rather than of one annotation in it,
+and loading part of it silently would be worse than refusing.
+
+Round-tripping through a codec is lossless for pixels but not for styling: the
+render tint is an osdlabel field that COCO has nowhere to put, so re-imported
+masks fall back to the default fill.
+
+## Writing your own codec
+
+`MaskCodec` is the extension point, in the same spirit as `DecorationProvider`:
+
+```ts
+interface MaskCodec<T = unknown> {
+  readonly format: string;
+  encode(mask: MaskSnapshot): T;
+  decode?(payload: T, options?: MaskDecodeOptions): MaskSnapshot;
+}
+
+interface MaskDecodeOptions {
+  /** Refuse to decode a mask larger than this, in pixels. */
+  readonly maxPixels?: number | undefined;
+}
+```
+
+A `MaskSnapshot` is a tightly-cropped, row-major `Uint8Array` over the mask's
+bounding box, plus the full image dimensions:
+
+```ts
+const pngCodec: MaskCodec<{ readonly png: string }> = {
+  format: 'png-base64',
+  encode: (snapshot) => ({ png: encodePng(snapshot) }),
+  decode: (payload, options) => {
+    const { width, height } = readPngHeader(payload.png);
+    // Check the ceiling BEFORE allocating or scanning — a payload names its own
+    // dimensions, so this is the only thing standing between an importer and a
+    // document that decides for itself how much work it is worth.
+    if (options?.maxPixels !== undefined && width * height > options.maxPixels) {
+      throw new RangeError(`mask of ${width}x${height} exceeds ${options.maxPixels} pixels`);
+    }
+    return decodePng(payload.png);
+  },
+};
+```
+
+:::caution[Honour `maxPixels`, or the import bounds do not apply to your format]
+`options` is optional, so a codec that ignores it still compiles — and then
+`deserialize`'s [`maxMaskPixels` and
+`maxTotalMaskPixels`](#importing) silently do not bind it. `deserialize` passes
+its **remaining budget** as `maxPixels`, so checking it before doing work is
+what makes those limits real. Check early: a codec that scans the payload first
+and validates after has already spent the cost the bound exists to prevent.
+:::
+
+Omit `decode` for an export-only format. Registering it in a
+`createMaskCodecRegistry(...)` is what makes `deserialize` able to read it back.
+
+## Memory and very large images
+
+Masks are stored cropped to the region you actually painted, growing on demand —
+the same model CVAT (bbox-cropped masks) and 3D Slicer (per-segment extent plus
+offset) settled on. Cost scales with what you paint, not with the size of the
+image, which is what makes painting on a deep-zoom slide affordable.
+
+There is a cap. `maxPixels` defaults to 64 megapixels (≈64 MB at one byte per
+pixel) and bounds the pathological case: strokes scattered across opposite
+corners of a huge image, whose bounding box is the whole image even though
+almost nothing is painted.
+
+```tsx
+<Annotator
+  brushOptions={{
+    maxPixels: 16 * 1024 * 1024,
+    onCapacityExceeded: (error) => toast(error.message),
+  }}
+/>
+```
+
+`maxPixels` **lowers** the cap; it cannot raise it. 64 megapixels is a ceiling
+the whole library shares — rendering, export, and the validation schema all
+enforce it, and the schema's copy is a module constant rather than a per-call
+option. A larger value is clamped, because honouring it would let you paint a
+mask that could not then be rendered, exported, or loaded back.
+
+The cap is on the one-byte pixel buffer. Rendering a mask, and the live preview
+while painting, use a four-byte RGBA raster over the mask's box (the preview
+over up to 1.5x the box in each axis), so the memory a mask costs on screen is
+four to nine times the cap suggests, and an engine can refuse a canvas that
+large before the cap is reached — iOS Safari at about 16 megapixels of area. A
+refused preview is reported through `onCapacityExceeded` and the stroke is
+abandoned with the mask unchanged; a mask too large to render is skipped and
+reported like any other annotation that cannot be revived. On devices with
+such limits, set `maxPixels` below them.
+
+A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
+before any pixel is written, so the mask is left exactly as it was rather than
+half-painted. `onCapacityExceeded` is your only chance to tell the user why
+nothing happened.
+
+A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
+before any pixel is written, so the mask is left exactly as it was rather than
+half-painted. `onCapacityExceeded` is your only chance to tell the user why
+nothing happened.
+
+## Not in this version
+
+- **Undo/redo.** osdlabel has no undo anywhere yet; the brush does not add one.
+  A stroke is committed on pointer-up, so `Escape` mid-stroke is the only way
+  back.
+- **Cross-annotation exclusivity.** Masks may overlap. Each annotation owns its
+  own pixels, which maps directly onto COCO instance segmentation; painting into
+  one never erases from another.
+- **Raising the 64-megapixel ceiling.** It is fixed for now, because the
+  validation schema enforces it as a module constant. Making it configurable
+  means threading a bound through validation, rendering, and export together.
+- **Sub-pixel or feathered edges.** Pixels are binary. The mask is rendered with
+  `imageSmoothing: false`, so it looks blocky at high zoom — which is honest
+  about what the data is.
+
+---
+
 # Keyboard Shortcuts
 
 osdlabel is designed for high-throughput annotation tasks with a comprehensive set of keyboard shortcuts.
@@ -1351,6 +1879,7 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 | `p`                    | Point tool                                                            |
 | `d`                    | Polyline (draw) tool                                                  |
 | `f`                    | Free hand path tool                                                   |
+| `b`                    | Segmentation brush tool                                               |
 | `Escape`               | Deselect annotation, then deactivate tool                             |
 | `Delete` / `Backspace` | Delete selected annotation                                            |
 | `1`–`9`                | Activate grid cell by position (ignored if the grid has no such cell) |
@@ -1358,8 +1887,33 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 | `-`                    | Remove a grid column                                                  |
 | `]`                    | Add a grid row                                                        |
 | `[`                    | Remove a grid row                                                     |
+| `]` / `[`              | Grow / shrink the brush (brush active)                                |
 | `.` / `>`              | Activate the next annotation context                                  |
 | `,` / `<`              | Activate the previous annotation context                              |
+
+### Brush size and the grid-row keys
+
+`]` and `[` do double duty. While the segmentation brush is the active tool it
+takes them first — through `activeToolKeyHandlerRef`, which runs before the
+global map — and they grow or shrink the brush. Every other time, they add and
+remove grid rows.
+
+This is deliberate: while you are painting, resizing the brush is far likelier
+to be what you meant than resizing the grid. The step is proportional (25% of
+the current radius, minimum 1px), so the keys stay useful at both a 2px and a
+200px brush, and the value is clamped to `MIN_BRUSH_RADIUS`/`MAX_BRUSH_RADIUS`.
+
+If you would rather keep the grid keys unconditional, rebind either side —
+both come from the shortcut map:
+
+```tsx
+<Annotator
+  keyboardShortcuts={{
+    increaseBrushRadius: '+',
+    decreaseBrushRadius: '_',
+  }}
+/>
+```
 
 ### Annotation context cycling
 
@@ -2639,7 +3193,9 @@ The guard is not enough on its own, which is why the press is dispatched **non-b
 
 The symptom was touch-only because `addContact()` clamps an implausible count back to one for `"mouse"` and `"pen"` and warns, but not for `"touch"`. Mouse input therefore worked while logging `GesturePointList.addContact() Implausible contacts value` on every press in annotation mode; touch was left at two contacts, and OSD's handlers key off exact counts.
 
-The move and release must keep bubbling. Fabric binds `pointerup` on the **document**, and moves `pointermove` from the canvas to the document for the duration of a press, so a non-bubbling release would never reach Fabric at all — costing every gesture that commits on mouse-up. Only `pointerdown` adds a contact, so only the press needs withholding; a doubled `pointerup` is absorbed by `removeContact()`'s floor at zero. See [#175](https://github.com/osdlabel/osdlabel/issues/175).
+The move must keep bubbling. Fabric moves `pointermove` from the canvas to the document for the duration of a press, so a non-bubbling move would reach Fabric only between presses. The bubbled copy re-enters the tracker's element, but only updates a position OSD already has.
+
+The release must reach the document too — Fabric binds `pointerup` there — but it must **not pass through the tracker's element on the way**. OSD's `updatePointerUp` removes a contact before it honours `stopPropagation`, exactly as `onPointerDown` adds one. That was survivable while every release was forwarded from `releaseHandler`, which OSD calls _after_ removing the contact, so the bubbled copy hit `removeContact()`'s floor at zero. But the releases described below are forwarded from `preProcessEventHandler`, _before_ OSD has processed the real event, and there the bubbled copy removed a live contact: the second finger that revealed a lost release was then counted as a fresh first contact and reported as a press of its own. So the release is dispatched on the container's **parent**, the viewer canvas. It bubbles to the document from there, and the viewer canvas's own OSD tracker is disabled in every mode that forwards. See [#175](https://github.com/osdlabel/osdlabel/issues/175).
 
 ```ts
 private _forwardToFabric(type: string, originalEvent: PointerEvent, pressSeq?: number): void {
@@ -2652,16 +3208,28 @@ private _forwardToFabric(type: string, originalEvent: PointerEvent, pressSeq?: n
       // ... all other properties copied from original
       // Only the press is withheld from the container; see above.
       bubbles: type !== 'pointerdown',
+      // A release always reports the primary button up, whatever revealed it.
+      button: type === 'pointerup' ? 0 : originalEvent.button,
       cancelable: true,
     });
     // Presses carry their sequence, keyed on the event the tool receives.
     if (pressSeq !== undefined) this._pressSeqByEvent.set(syntheticEvent, pressSeq);
-    this._fabricCanvas.upperCanvasEl.dispatchEvent(syntheticEvent);
+    // The release starts above the tracker's element; see above.
+    const target =
+      type === 'pointerup' ? this._fabricContainer.parentElement : this._fabricCanvas.upperCanvasEl;
+    target.dispatchEvent(syntheticEvent);
   } finally {
     this._forwarding = false;
   }
 }
 ```
+
+**Releases OSD never reports.** `releaseHandler` fires only when OSD's contact count for the pointer type returns to zero, and never for a `pointercancel`. Three realistic inputs therefore leave a Fabric gesture open with no release: the active finger lifting while a second finger (a palm, a thumb) rests; a second finger landing mid-gesture, which turns it into a pinch that keeps feeding moves to the first pointer; and a `pointercancel` from the browser. Fabric binds no `pointercancel` listener and drops every non-primary pointer, so the overlay forwards a synthetic `pointerup` **carrying the primary pointer's id** from `preProcessEventHandler` in those cases — on a cancel, on a lift while another same-type contact is still down (read before OSD removes the lifting contact, so `contacts > 1` means "others remain"), and, in `paint` mode only, on a second contact's press. Such a release is consumed as a plain release, never paired into a double click, and it always reports `button: 0`, because Fabric drops a `pointerup` with any other button and the event that revealed the loss (a cancel, say) need not carry 0 itself. The ordinary last-contact release still travels through `releaseHandler`, so nothing is doubled. The brush adds a belt to these braces: it tracks the pointer that started a stroke, ignores moves from any other, and treats a move with the primary button up as a lost release, committing the stroke rather than painting on.
+
+Two more inputs are handled in `preProcessEventHandler`, in every mode that forwards:
+
+- **A palm.** OSD keeps one contact list _per pointer type_, so a touch landing while a pen or mouse press is held is, to OSD, a fresh first contact: it fires `pressHandler`, and the overlay would forward a primary `pointerdown` that Fabric acts on, start a stroke with the palm, and commit the smear when the palm lifts. A contact of another pointer type while a press is pending is therefore swallowed: `eventInfo.preventGesture` keeps OSD's press and release handlers quiet for it (its contact is still counted, and removed again on its release), and its id is remembered so its moves are swallowed too — OSD's `moveHandler` is the one handler `preventGesture` does not gate.
+- **A chord.** With a mouse or pen, releasing the primary button while another is held arrives as a `pointermove` with the primary bit of `buttons` clear, and the eventual `pointerup` names the other button, which OSD ignores (`updatePointerUp` returns early for any `button` but 0). No release would ever be reported, so the pending press is ended on that move. Touch is excluded: a touch contact reports `buttons: 1` for its whole life.
 
 ### Double clicks
 

@@ -26,6 +26,7 @@ export default {
     '../../packages/annotation',
     '../../packages/viewer-api',
     '../../packages/geometry',
+    '../../packages/mask',
     '../../packages/annotation-context',
     '../../packages/validation',
     '../../packages/fabric-annotations',

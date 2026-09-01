@@ -37,6 +37,16 @@ Valibot schema implementations for rigorous data validation.
 - Implements the Standard Schema interface for annotation types (`GeometrySchema`, `PointSchema`, `BaseAnnotationSchema`).
 - Depends on `@osdlabel/annotation` and `valibot`.
 
+### `@osdlabel/mask`
+
+Raster mask storage and codecs, with **zero dependencies** — including on `@osdlabel/annotation`. It is the codec layer, deliberately unaware of annotations.
+
+- The `MaskBuffer` interface and its `BoundedDenseMaskBuffer` implementation: a dense buffer over the painted bounding box, grown on demand and capped by `maxPixels`.
+- Stroke rasterization (`stampCircle`, `strokeSegment`) and the `MaskSnapshot` / `MaskRegion` value types.
+- The canonical encoding (`encodeCanonical`, `decodeCanonical`) that annotator state always holds.
+- The `MaskCodec` extension point and the built-in COCO codecs (`cocoRleCodec`, `cocoRleUncompressedCodec`, `cocoBbox`, `cocoArea`), verified byte-for-byte against `pycocotools`.
+- The types and functions you need for painting, exporting, and writing a codec are re-exported by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`; the lower-level run-length helpers (`toRuns`, `snapshotToCocoCounts`, `encodeCocoCountsString`, …) are available from `@osdlabel/mask` directly. See the [Segmentation Brush guide](/osdlabel/guides/segmentation-brush/).
+
 ### `@osdlabel/fabric-annotations`
 
 Fabric.js annotation tools and utilities, completely **SolidJS-agnostic and OSD-agnostic**.

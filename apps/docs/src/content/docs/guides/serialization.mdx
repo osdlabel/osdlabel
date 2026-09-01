@@ -37,6 +37,53 @@ osdlabel uses a flat JSON array format for persisting annotations:
 ]
 ```
 
+### Mask annotations
+
+Annotations painted with the [segmentation
+brush](/osdlabel/guides/segmentation-brush/) carry pixels rather than a vector
+shape, so they use a different `rawAnnotationData` envelope. Their `geometry` is
+a **summary** — a bounding box and an exact pixel count — and the pixels
+themselves live in the payload:
+
+```json
+{
+  "id": "ann-2",
+  "imageId": "sample-1",
+  "contextId": "general",
+  "toolType": "segmentationBrush",
+  "geometry": {
+    "type": "mask",
+    "origin": { "x": 140, "y": 80 },
+    "width": 230,
+    "height": 200,
+    "pixelCount": 33192
+  },
+  "rawAnnotationData": {
+    "format": "osdlabel-mask",
+    "data": {
+      "x": 140,
+      "y": 80,
+      "width": 230,
+      "height": 200,
+      "imageWidth": 600,
+      "imageHeight": 800,
+      "counts": "URLNASDBASq4..."
+    }
+  },
+  "createdAt": "2026-03-06T12:00:00.000Z",
+  "updatedAt": "2026-03-06T12:00:00.000Z"
+}
+```
+
+`counts` is base64 of LEB128 run lengths, row-major over the bounding box and
+starting with a run of background. This is osdlabel's own encoding, not COCO —
+see [Exporting masks in another format](#exporting-masks-in-another-format).
+
+`pixelCount` is the exact number of set pixels, so it is always at most
+`width * height` — validation rejects a larger one. The payload may also carry
+an optional `fill` recording the mask's tint; the built-in `Annotator` does not
+write one, leaving the colour to the renderer.
+
 ## Exporting annotations
 
 Use `serialize()` to create a flat array of annotations from the current state:
@@ -77,6 +124,28 @@ The two directions are intentionally **asymmetric**, and it trips people up:
 
 So: persist the **flat** array, load it back through `deserialize` to get the **keyed** map. If you keep your own annotation list (e.g. a flat `Annotation[]` from `onAnnotationsChange`), you still pass it through `deserialize` to seed the store.
 
+## Exporting masks in another format
+
+`serialize` takes an optional codec that re-encodes mask payloads on the way
+out. Vector annotations pass through untouched:
+
+```ts
+import { serialize, deserialize, createMaskCodecRegistry, cocoRleCodec } from 'osdlabel';
+
+const coco = serialize(annotationState, { maskCodec: cocoRleCodec });
+
+// Reading it back needs a registry of the codecs you might encounter.
+const registry = createMaskCodecRegistry(cocoRleCodec);
+const { byImage } = deserialize(coco, { maskCodecs: registry });
+```
+
+Without `maskCodec`, masks keep the canonical `osdlabel-mask` encoding, which
+round-trips exactly. Note that `{ maskCodec: cocoRleCodec }` produces osdlabel
+annotations whose mask payloads are COCO RLE — it does **not** produce a COCO
+dataset document. Writing your own codec, the `pycocotools` interop caveat for
+very large images, and what survives a round trip are all covered in the
+[Segmentation Brush guide](/osdlabel/guides/segmentation-brush/#exporting).
+
 ## Seeding from external geometry
 
 Loading already-serialized osdlabel documents is just `deserialize` (above). The harder case is **importing annotations from another system** — you have raw geometry (a bounding box from a detector, a contour from a segmentation model, points from a CSV) but no Fabric `rawAnnotationData` envelope.
@@ -94,7 +163,7 @@ const annotation = createAnnotationFromGeometry(
 actions.addAnnotation(annotation);
 ```
 
-It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
+It accepts any `VectorGeometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
 
 ### Choosing a `toolType`
 
@@ -112,6 +181,43 @@ It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `
 The static `toolTypeToGeometryType('freeHandPath')` helper returns `polyline`, but the freehand **tool** produces a closed `polygon` by default at runtime (open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
 
 Multi-point shapes import the same way: pass `{ type: 'polyline', points }` (open) or `{ type: 'polygon', points }` (closed), where `points` is an array of image-space `{ x, y }` coordinates. Annotations drawn with the built-in freehand tool are already plain `polygon` / `polyline` geometry, so there is nothing special to handle when importing them either.
+
+### Seeding a mask
+
+Masks are the one geometry `createAnnotationFromGeometry` cannot build — its
+parameter type is `VectorGeometry`, so passing a mask is a compile error rather
+than a runtime surprise. A mask's geometry is only a bounding-box summary; the
+pixels are separate, so there is nothing to build from geometry alone.
+
+Paint the pixels into a buffer and use `createMaskAnnotation`:
+
+```ts
+import { BoundedDenseMaskBuffer, createMaskAnnotation } from 'osdlabel';
+
+const buffer = new BoundedDenseMaskBuffer({ imageWidth: 600, imageHeight: 800 });
+for (const [x, y] of foregroundPixels) buffer.set(x, y, 1);
+
+actions.addAnnotation(
+  createMaskAnnotation(buffer.snapshot(), { imageId, contextId, label: 'lesion' }),
+);
+```
+
+If your source is already COCO RLE, decode it instead of replaying pixels — a
+`MaskSnapshot` is exactly what `createMaskAnnotation` takes. `decode` is
+optional on `MaskCodec` (an export-only format may omit it), so narrow before
+calling:
+
+```ts
+import { cocoRleCodec, createMaskAnnotation } from 'osdlabel';
+
+const { decode } = cocoRleCodec;
+if (decode) {
+  actions.addAnnotation(createMaskAnnotation(decode({ size, counts }), { imageId, contextId }));
+}
+```
+
+Importing a whole document of them is
+[`deserialize(doc, { maskCodecs })`](#exporting-masks-in-another-format).
 
 ### Lower-level escape hatch
 
