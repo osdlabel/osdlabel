@@ -23,6 +23,7 @@ import {
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
   type VertexEditConfig,
+  type VertexMarkerOptions,
 } from '@osdlabel/fabric-annotations';
 import type { FabricObject } from 'fabric';
 import type { OsdAnnotation, OsdFields } from './types.js';
@@ -34,6 +35,12 @@ export interface CreateAnnotationToolOptions {
    * polyline, and free-draw tools expose. Defaults are applied when omitted.
    */
   readonly vertexEdit?: VertexEditConfig | undefined;
+  /**
+   * Appearance of the vertex markers drawn while a polyline is in progress.
+   * Radii/colours default to values derived from the tool's resolved style;
+   * pass `{ enabled: false }` to draw no markers.
+   */
+  readonly vertexMarkers?: VertexMarkerOptions | undefined;
 }
 
 /**
@@ -58,7 +65,7 @@ export function createAnnotationTool(
     case 'point':
       return new PointTool();
     case 'polyline':
-      return new PolylineTool(vertexEdit);
+      return new PolylineTool(vertexEdit, options?.vertexMarkers);
     case 'freeHandPath':
       return new FreeHandPathTool(undefined, vertexEdit);
     case 'select':

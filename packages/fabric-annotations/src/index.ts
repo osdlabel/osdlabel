@@ -1,6 +1,14 @@
 export * from './fabric-module.js';
 export * from './fabric-utils.js';
 export { buildFabricObjectFromGeometry } from './build-fabric-object.js';
+export { getPreviewOptions, DEFAULT_PREVIEW_DASH_SCREEN_PX } from './preview-style.js';
+export type { PreviewOptions } from './preview-style.js';
+export {
+  VertexMarkerLayer,
+  DEFAULT_VERTEX_MARKER_RADIUS_PX,
+  DEFAULT_FIRST_VERTEX_MARKER_RADIUS_PX,
+} from './vertex-markers.js';
+export type { VertexMarkerOptions } from './vertex-markers.js';
 export type { ToolOverlay, FabricFields, FabricRawAnnotationData } from './types.js';
 export type { AnnotationTool, ToolCallbacks, AddAnnotationParams } from './tools/base-tool.js';
 export { BaseTool } from './tools/base-tool.js';
