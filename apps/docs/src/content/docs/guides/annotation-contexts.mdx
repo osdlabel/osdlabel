@@ -63,14 +63,29 @@ const contexts: AnnotationContext[] = [
 
 Each tool in a context can have:
 
-| Property       | Type                       | Default       | Description                                                                              |
-| -------------- | -------------------------- | ------------- | ---------------------------------------------------------------------------------------- |
-| `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'polyline'` \| `'freeHandPath'` |
-| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                               |
-| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                       |
-| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                           |
+| Property       | Type                       | Default       | Description                                                                                                       |
+| -------------- | -------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `type`         | `ToolType`                 | (required)    | `'rectangle'` \| `'circle'` \| `'line'` \| `'point'` \| `'polyline'` \| `'freeHandPath'` \| `'segmentationBrush'` |
+| `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                                                        |
+| `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                                                |
+| `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                                                    |
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
+
+For `segmentationBrush`, `maxCount` limits how many **mask annotations** the
+context may hold, not how many strokes you may paint: a stroke that refines the
+selected mask never creates an annotation, so it does not count against the
+limit.
+
+Note the interaction with auto-deactivation, though. Painting the last allowed
+mask disables the brush and switches to the select tool, and a disabled tool
+cannot be reselected — so at the limit, refining becomes unreachable through
+the UI even though the tool itself would permit it. If your workflow is "paint
+`n` masks, then refine them", leave `maxCount` unset (or set it above `n`) and
+enforce the count at review time. Tracked in
+[#154](https://github.com/osdlabel/osdlabel/issues/154); see also the
+[Segmentation Brush
+guide](/osdlabel/guides/segmentation-brush/#painting-into-an-existing-mask).
 
 ## Count scope
 

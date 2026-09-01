@@ -2,13 +2,14 @@
 
 Web-based image annotation library with rich drawing controls, customizable annotation contexts, and built-in serialization.
 
-Powered by [OpenSeaDragon](https://openseadragon.github.io/) for deep zoom tiled image support and [Fabric.js](http://fabricjs.com/) v7 for interactive canvas rendering, with official UI bindings for [SolidJS](https://www.solidjs.com/) and [React](https://react.dev/). Draw rectangles, circles, lines, points, and freehand paths on gigapixel images with smooth pan and zoom.
+Powered by [OpenSeaDragon](https://openseadragon.github.io/) for deep zoom tiled image support and [Fabric.js](http://fabricjs.com/) v7 for interactive canvas rendering, with official UI bindings for [SolidJS](https://www.solidjs.com/) and [React](https://react.dev/). Draw rectangles, circles, lines, points, and freehand paths on gigapixel images with smooth pan and zoom, or paint pixel-level segmentation masks with a brush.
 
 ## Features
 
 - **Deep Zoom support** — annotate gigapixel images served as DZI tiles, or plain image files
 - **Multi-image grid** — view and annotate up to 16 images simultaneously in a configurable grid layout
 - **Annotation tools** — rectangle, circle, line, point, polyline/polygon, and freehand path drawing
+- **Segmentation brush** — paint and erase pixel masks with an adjustable brush; masks are stored in a codec-independent encoding and export to COCO RLE (verified against `pycocotools`) or a format of your own
 - **Vertex editing** — long-press a polygon or polyline to move, insert, and delete individual vertices
 - **Geometry conversion** — convert a selected circle to its bounding rectangle
 - **Context system** — define multiple annotation contexts with per-tool constraints (max count, count scope)
@@ -187,6 +188,8 @@ Default shortcuts (configurable via `keyboardShortcuts` prop):
 | Point tool         | `p`                    |
 | Polyline tool      | `d`                    |
 | Freehand path tool | `f`                    |
+| Segmentation brush | `b`                    |
+| Brush size         | `]` / `[`              |
 | Delete annotation  | `Delete` / `Backspace` |
 | Cancel / Deselect  | `Escape`               |
 
@@ -309,6 +312,7 @@ packages/viewer-api/          # @osdlabel/viewer-api — viewer state types, Pix
 packages/geometry/            # @osdlabel/geometry — geometry math & conversions
 packages/annotation-context/  # @osdlabel/annotation-context — contexts, constraints, scoping
 packages/decoration/          # @osdlabel/decoration — decorations & providers (re-exports geometry math)
+packages/mask/                # @osdlabel/mask — mask buffers, stroke rasterization, canonical + COCO codecs (zero deps)
 packages/validation/          # @osdlabel/validation — Valibot schemas (Standard Schema)
 packages/osd-helper/          # @osdlabel/osd-helper — OpenSeaDragon utilities
 packages/fabric-annotations/  # @osdlabel/fabric-annotations — Fabric.js tools & serialization
