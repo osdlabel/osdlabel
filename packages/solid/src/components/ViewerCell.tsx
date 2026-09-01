@@ -166,14 +166,16 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       const { objects, failures } = await settleAnnotationObjects(matching, async (ann) => {
         const obj = await createFabricObjectFromRawData(ann);
         if (obj) {
-          // Only active context annotations are interactive;
-          // mark non-active as _readOnly so setMode() respects it.
+          // Only active-context annotations may be interactive; mark the rest
+          // `_readOnly` so setMode() keeps them inert too.
+          //
+          // Interactivity itself is the overlay's call, not ours: the current
+          // mode decides. Setting `selectable`/`evented` here directly used to
+          // undo `paint` mode on the first rebuild, so a brush stroke over a
+          // shape started dragging it again after the first commit.
           const isActiveCtx = ann.contextId === activeContextId;
           obj._readOnly = !isActiveCtx;
-          obj.set({
-            selectable: isActiveCtx,
-            evented: isActiveCtx,
-          });
+          ov.applyModeToObject(obj, !isActiveCtx);
         }
         return obj;
       });

@@ -9,6 +9,10 @@ export type {
   BaseAnnotation,
   Annotation,
   RawAnnotationData,
+  MaskGeometry,
+  MaskRawAnnotationData,
+  MaskRawData,
+  VectorGeometry,
 } from '@osdlabel/annotation';
 
 export {
@@ -16,7 +20,44 @@ export {
   DEFAULT_ANNOTATION_STYLE,
   DEFAULT_POINT_RADIUS,
   toolTypeToGeometryType,
+  MASK_RAW_FORMAT,
 } from '@osdlabel/annotation';
+
+// Mask storage + codecs (re-exported from @osdlabel/mask)
+export {
+  BoundedDenseMaskBuffer,
+  DEFAULT_MAX_MASK_PIXELS,
+  MaskCapacityExceededError,
+  emptySnapshot,
+  snapshotPixelCount,
+  stampCircle,
+  strokeSegment,
+  createMaskCodecRegistry,
+  canonicalMaskCodec,
+  encodeCanonical,
+  decodeCanonical,
+  cocoRleCodec,
+  cocoRleUncompressedCodec,
+  cocoBbox,
+  cocoArea,
+  isCocoInteropSafe,
+  COCO_MAX_INTEROP_IMAGE_PIXELS,
+  CANONICAL_MASK_FORMAT,
+  COCO_RLE_FORMAT,
+  COCO_RLE_UNCOMPRESSED_FORMAT,
+} from '@osdlabel/mask';
+export type {
+  MaskBuffer,
+  MaskRegion,
+  MaskSnapshot,
+  MaskCodec,
+  MaskCodecRegistry,
+  MaskDecodeOptions,
+  BoundedDenseMaskBufferOptions,
+  CanonicalMaskData,
+  CocoRleSegmentation,
+  CocoRleUncompressedSegmentation,
+} from '@osdlabel/mask';
 
 // Viewer API (re-exported from @osdlabel/viewer-api)
 export type {
@@ -30,7 +71,14 @@ export type {
   ImageSource,
   TileSourceSpec,
 } from '@osdlabel/viewer-api';
-export { createImageId, DEFAULT_CELL_TRANSFORM, getAllAnnotationsFlat } from '@osdlabel/viewer-api';
+export {
+  createImageId,
+  DEFAULT_CELL_TRANSFORM,
+  getAllAnnotationsFlat,
+  MIN_BRUSH_RADIUS,
+  MAX_BRUSH_RADIUS,
+  DEFAULT_BRUSH_RADIUS,
+} from '@osdlabel/viewer-api';
 export type { PixelSpacing } from '@osdlabel/viewer-api';
 
 // Annotation context (re-exported from @osdlabel/annotation-context)
@@ -62,12 +110,15 @@ export {
   PolylineTool,
   FreeHandPathTool,
   SelectTool,
+  SegmentationBrushTool,
   getFabricOptions,
   serializeFabricObject,
   deserializeFabricObject,
   createFabricObjectFromRawData,
   getGeometryFromFabricObject,
   buildFabricObjectFromGeometry,
+  buildMaskFabricObject,
+  DEFAULT_MASK_FILL,
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
@@ -80,10 +131,16 @@ export {
 export type {
   ToolOverlay,
   FabricFields,
+  AnnotationRawData,
+  FabricRawAnnotationData,
   FabricShapeOptions,
   AnnotationTool,
   ToolCallbacks,
   AddAnnotationParams,
+  SegmentationBrushToolConfig,
+  BrushStrokeCommit,
+  BrushTarget,
+  BuildMaskFabricObjectOptions,
   PolyVertexEditorOptions,
   VertexEditConfig,
   VertexMarkerOptions,
@@ -163,7 +220,12 @@ export {
   PointSchema,
   BaseAnnotationSchema,
   FabricRawAnnotationDataSchema,
+  MaskGeometrySchema,
+  MaskRawAnnotationDataSchema,
   ToolTypeSchema,
+  MAX_IMAGE_DIMENSION,
+  MAX_MASK_COUNTS_LENGTH,
+  MAX_MASK_PIXELS,
 } from '@osdlabel/validation';
 
 // Own types
@@ -171,6 +233,14 @@ export type { OsdAnnotation, OsdFields } from './types.js';
 
 // Annotation construction helpers
 export { createAnnotationFromGeometry } from './create-annotation.js';
+export { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
+export { buildSegmentationBrushConfig, nextBrushRadius } from './brush-config.js';
+export type { BrushOptions } from './brush-options.js';
+export type { BrushConfigAccessors, BrushConfigDispatchers } from './brush-config.js';
+export type {
+  CreateMaskAnnotationOptions,
+  MaskAnnotationFields,
+} from './create-mask-annotation.js';
 export type { CreateAnnotationFromGeometryOptions } from './create-annotation.js';
 
 // Rebuilding canvas objects from stored annotations
@@ -185,8 +255,19 @@ export type {
 } from './annotation-render-failure.js';
 
 // Pre-configured serialization (uses OSD validators)
-export { serialize, deserialize, SerializationError } from './serialization-configured.js';
-export type { DeserializeResult } from './serialization-configured.js';
+export {
+  serialize,
+  deserialize,
+  SerializationError,
+  DEFAULT_MAX_TOTAL_MASK_PIXELS,
+} from './serialization-configured.js';
+export type {
+  DeserializeResult,
+  DeserializeSkip,
+  SerializeOptions,
+  DeserializeOptions,
+  ExportedAnnotation,
+} from './serialization-configured.js';
 
 // Pure action types and reducers
 export {
@@ -205,7 +286,11 @@ export {
 } from './initial-state.js';
 
 // Pure constraint computation
-export { computeConstraintStatus, countAnnotationsForContextAndType } from './constraints.js';
+export {
+  computeConstraintStatus,
+  countAnnotationsForContextAndType,
+  canAddAnnotation,
+} from './constraints.js';
 
 // Drag-driven viewer control registry
 export { VIEWER_CONTROL_SPECS, getToneValue } from './viewer-controls.js';

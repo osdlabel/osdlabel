@@ -9,8 +9,10 @@ import {
   Color,
   version as FABRIC_VERSION,
 } from 'fabric';
-import type { Annotation, AnnotationStyle, Geometry, GeometryType } from '@osdlabel/annotation';
+import type { Annotation, AnnotationStyle, GeometryType } from '@osdlabel/annotation';
+import { MASK_RAW_FORMAT, type VectorGeometry } from '@osdlabel/annotation';
 import type { FabricFields, FabricRawAnnotationData } from './types.js';
+import { buildMaskFabricObject } from './mask-fabric-object.js';
 
 export function getFabricOptions(style: AnnotationStyle, id: string) {
   const fill = new Color(style.fillColor);
@@ -70,11 +72,19 @@ export async function deserializeFabricObject(
 /**
  * Create a Fabric object from an Annotation's rawAnnotationData.
  * Sets selectable/evented to true for committed annotations.
+ *
+ * Masks take a different path: their payload is pixels rather than a
+ * serialized Fabric object, so they are rasterized into a Fabric `Image`.
  */
 export async function createFabricObjectFromRawData(
   annotation: Annotation<FabricFields>,
 ): Promise<FabricObject | null> {
-  const obj = await deserializeFabricObject(annotation.rawAnnotationData);
+  const raw = annotation.rawAnnotationData;
+  if (raw.format === MASK_RAW_FORMAT) {
+    return buildMaskFabricObject(raw, { id: annotation.id });
+  }
+
+  const obj = await deserializeFabricObject(raw);
   if (!obj) return null;
 
   obj.set({
@@ -89,7 +99,12 @@ export async function createFabricObjectFromRawData(
 export function getGeometryFromFabricObject(
   obj: FabricObject,
   type: GeometryType,
-): Geometry | null {
+): VectorGeometry | null {
+  // Masks are never derived from their Fabric object: the rendered image holds
+  // no pixel-count and is locked against transforms, so geometry only ever
+  // flows the other way (buffer -> annotation).
+  if (type === 'mask') return null;
+
   if (type === 'rectangle' && obj instanceof Rect) {
     const width = obj.width * obj.scaleX;
     const height = obj.height * obj.scaleY;

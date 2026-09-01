@@ -1,4 +1,5 @@
 import type { AnnotationState, UIState } from '@osdlabel/viewer-api';
+import { DEFAULT_BRUSH_RADIUS } from '@osdlabel/viewer-api';
 import type { ContextState } from '@osdlabel/annotation-context';
 import type { OsdFields } from './types.js';
 
@@ -19,6 +20,8 @@ export function createInitialUIState(): UIState {
     gridAssignments: {},
     selectedAnnotationId: null,
     cellTransforms: {},
+    brushRadius: DEFAULT_BRUSH_RADIUS,
+    brushErasing: false,
   };
 }
 

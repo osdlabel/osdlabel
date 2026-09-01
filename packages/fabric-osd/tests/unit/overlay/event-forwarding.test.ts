@@ -5,11 +5,13 @@ import { createTestViewer, installPointerEventPolyfill, type TestViewer } from '
 /**
  * Which synthetic events bubble, and why it matters (issue #175).
  *
- * `_forwardToFabric` dispatches a synthetic `PointerEvent` on Fabric's upper
- * canvas. The press is deliberately non-bubbling and the move and release are
- * not, and getting that backwards breaks input in ways that are slow and
- * awkward to see: the whole behaviour lives in `apps/dev/tests/e2e/
- * touch-input.spec.ts`, which needs a browser this package's tests do not have.
+ * `_forwardToFabric` dispatches a synthetic `PointerEvent`: the press
+ * non-bubbling and the move bubbling, both on Fabric's upper canvas, and the
+ * release bubbling from the container's parent so that it never passes
+ * through the tracker's element. Getting any of that wrong breaks input in
+ * ways that are slow and awkward to see: the whole behaviour lives in
+ * `apps/dev/tests/e2e/touch-input.spec.ts`, which needs a browser this
+ * package's tests do not have.
  *
  * This pins the one line those E2E tests turn on, in milliseconds, so a change
  * to it fails here first.
@@ -113,16 +115,59 @@ describe('synthetic event forwarding', () => {
   });
 
   /**
-   * The move and release must bubble. Fabric binds `pointerup` on the
-   * *document* and relocates `pointermove` there once a press lands, so a
-   * non-bubbling copy reaches Fabric for the press and never for the release.
-   * Only `pointerdown` adds a contact, so only the press needs withholding.
+   * The move must bubble. Fabric relocates `pointermove` to the *document*
+   * once a press lands, so a non-bubbling copy reaches it only between
+   * presses. A bubbled move re-enters the tracker's element, but only updates
+   * a position OSD already has.
    */
-  it.each(['pointermove', 'pointerup'] as const)('dispatches the %s bubbling', (type) => {
-    internals(overlay)._forwardToFabric(type, pointerEvent(type));
+  it('dispatches the move bubbling, from the upper canvas', () => {
+    internals(overlay)._forwardToFabric('pointermove', pointerEvent('pointermove'));
 
     expect(dispatched).toHaveLength(1);
-    expect(dispatched[0]!.type).toBe(type);
+    expect(dispatched[0]!.type).toBe('pointermove');
     expect(dispatched[0]!.bubbles).toBe(true);
+  });
+
+  /**
+   * The release must reach the document, where Fabric binds `pointerup`,
+   * without passing through the tracker's element on the way: OSD removes a
+   * contact for a bubbled `pointerup` before honouring `stopPropagation`, and
+   * `_endPendingPress` forwards one from `preProcessEventHandler`, *before*
+   * OSD has processed the real event, so a bubbled copy took a live contact
+   * with it and the second finger was then reported as a fresh press. It is
+   * dispatched on the container's parent, the viewer canvas, whose own OSD
+   * tracker is disabled in every mode that forwards.
+   */
+  it('dispatches the release above the tracker element, bubbling', () => {
+    const fabricContainer = (overlay as unknown as { _fabricContainer: HTMLElement })
+      ._fabricContainer;
+    const seenByContainer: Event[] = [];
+    const seenByParent: Event[] = [];
+    fabricContainer.addEventListener('pointerup', (e) => seenByContainer.push(e));
+    tv.container.addEventListener('pointerup', (e) => seenByParent.push(e));
+
+    internals(overlay)._forwardToFabric('pointerup', pointerEvent('pointerup'));
+
+    expect(dispatched).toHaveLength(0);
+    expect(seenByContainer).toHaveLength(0);
+    expect(seenByParent).toHaveLength(1);
+    expect(seenByParent[0]!.target).toBe(tv.container);
+    expect(seenByParent[0]!.bubbles).toBe(true);
+  });
+
+  /**
+   * Fabric drops a `pointerup` whose `button` is not the primary one, and the
+   * event that reveals a lost release — a cancel, the move that ends a chord —
+   * need not carry 0 itself.
+   */
+  it('reports the primary button on every forwarded release', () => {
+    const seen: PointerEvent[] = [];
+    tv.container.addEventListener('pointerup', (e) => seen.push(e as PointerEvent));
+
+    internals(overlay)._forwardToFabric('pointerup', { ...pointerEvent('pointerup'), button: 2 });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.button).toBe(0);
+    expect(seen[0]!.buttons).toBe(0);
   });
 });

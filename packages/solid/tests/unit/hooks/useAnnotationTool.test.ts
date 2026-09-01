@@ -86,6 +86,7 @@ interface MockCanvas {
   setMode: ReturnType<typeof vi.fn>;
   requestRenderAll: ReturnType<typeof vi.fn>;
   discardActiveObject: ReturnType<typeof vi.fn>;
+  bringObjectToFront: ReturnType<typeof vi.fn>;
   getObjects: ReturnType<typeof vi.fn>;
   remove: ReturnType<typeof vi.fn>;
   add: ReturnType<typeof vi.fn>;
@@ -110,6 +111,8 @@ interface MockOverlay {
   setMode: ReturnType<typeof vi.fn>;
   screenToImage: ReturnType<typeof vi.fn>;
   onDoubleClick: ReturnType<typeof vi.fn>;
+  /** Read by the brush on pointer-down to size its mask buffer. */
+  getImageSize: ReturnType<typeof vi.fn>;
 }
 
 describe('useAnnotationTool', () => {
@@ -134,6 +137,7 @@ describe('useAnnotationTool', () => {
       setMode: vi.fn(),
       requestRenderAll: vi.fn(),
       discardActiveObject: vi.fn(),
+      bringObjectToFront: vi.fn(),
       getObjects: vi.fn().mockReturnValue([]),
       remove: vi.fn(),
       add: vi.fn(),
@@ -143,6 +147,7 @@ describe('useAnnotationTool', () => {
       canvas: mockCanvas,
       setMode: vi.fn(),
       screenToImage: vi.fn(),
+      getImageSize: vi.fn(() => ({ width: 400, height: 300 })),
       // Mirrors FabricOverlay.onDoubleClick: registers and returns unsubscribe.
       onDoubleClick: vi.fn((cb: DoubleClickListener) => {
         doubleClickListeners.push(cb);
@@ -258,6 +263,91 @@ describe('useAnnotationTool', () => {
           mockState.uiState.activeTool = previousTool;
           resolve();
         }, 0);
+      });
+    });
+  });
+  describe('the segmentation brush', () => {
+    /** One complete stroke, as Fabric would deliver it, with no turn of the event loop between. */
+    function stroke(x: number, y: number): void {
+      const e = { altKey: false } as PointerEvent;
+      listeners['mouse:down']!({ e, scenePoint: { x, y } });
+      listeners['mouse:move']!({ e, scenePoint: { x: x + 20, y } });
+      listeners['mouse:up']!({ e, scenePoint: { x: x + 20, y } });
+    }
+
+    it('puts the overlay in paint mode', () => {
+      return new Promise<void>((resolve, reject) => {
+        createRoot((dispose) => {
+          const [overlay] = createSignal(mockOverlay as unknown as FabricOverlay);
+          const [imageId] = createSignal(createImageId('img-1'));
+          const [isActive] = createSignal(true);
+          const previousTool = mockState.uiState.activeTool;
+          mockState.uiState.activeTool = 'segmentationBrush';
+          useAnnotationTool(overlay, imageId, isActive);
+
+          setTimeout(() => {
+            try {
+              // Paint mode keeps every object inert, so a stroke over a shape
+              // paints rather than dragging it.
+              expect(mockOverlay.setMode).toHaveBeenLastCalledWith('paint');
+              resolve();
+            } catch (error) {
+              reject(error instanceof Error ? error : new Error(String(error)));
+            } finally {
+              mockState.uiState.activeTool = previousTool;
+              dispose();
+            }
+          }, 0);
+        });
+      });
+    });
+
+    it('refines the mask it just created when the next stroke lands in the same task (#159)', () => {
+      // The mock's actions are spies, so wire the two the brush depends on to
+      // write into the mock state the way Solid's store proxy would:
+      // synchronously, before the next read.
+      const imgId = createImageId('img-1');
+      vi.mocked(mockActions.addAnnotation).mockImplementation((annotation) => {
+        mockState.annotationState.byImage[imgId] = {
+          ...mockState.annotationState.byImage[imgId],
+          [annotation.id]: { ...annotation, createdAt: 'now', updatedAt: 'now' },
+        };
+      });
+      vi.mocked(mockActions.setSelectedAnnotation).mockImplementation((id) => {
+        mockState.uiState.selectedAnnotationId = id;
+      });
+      const previousSelection = mockState.uiState.selectedAnnotationId;
+      mockState.uiState.selectedAnnotationId = null;
+
+      return new Promise<void>((resolve, reject) => {
+        createRoot((dispose) => {
+          const [overlay] = createSignal(mockOverlay as unknown as FabricOverlay);
+          const [imageId] = createSignal(imgId);
+          const [isActive] = createSignal(true);
+          const previousTool = mockState.uiState.activeTool;
+          mockState.uiState.activeTool = 'segmentationBrush';
+          useAnnotationTool(overlay, imageId, isActive);
+
+          setTimeout(() => {
+            try {
+              stroke(100, 100);
+              stroke(100, 140);
+              stroke(100, 180);
+              // One mask created, then refined twice — never a second mask.
+              expect(mockActions.addAnnotation).toHaveBeenCalledTimes(1);
+              expect(mockActions.updateAnnotation).toHaveBeenCalledTimes(2);
+              resolve();
+            } catch (error) {
+              reject(error instanceof Error ? error : new Error(String(error)));
+            } finally {
+              mockState.uiState.activeTool = previousTool;
+              mockState.uiState.selectedAnnotationId = previousSelection;
+              vi.mocked(mockActions.addAnnotation).mockReset();
+              vi.mocked(mockActions.setSelectedAnnotation).mockReset();
+              dispose();
+            }
+          }, 0);
+        });
       });
     });
   });

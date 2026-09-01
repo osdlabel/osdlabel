@@ -485,6 +485,9 @@ importers:
       '@osdlabel/annotation-context':
         specifier: workspace:*
         version: link:../annotation-context
+      '@osdlabel/mask':
+        specifier: workspace:*
+        version: link:../mask
       '@osdlabel/viewer-api':
         specifier: workspace:*
         version: link:../viewer-api
@@ -594,6 +597,9 @@ importers:
       '@osdlabel/geometry':
         specifier: workspace:*
         version: link:../geometry
+      '@osdlabel/mask':
+        specifier: workspace:*
+        version: link:../mask
       '@osdlabel/validation':
         specifier: workspace:*
         version: link:../validation

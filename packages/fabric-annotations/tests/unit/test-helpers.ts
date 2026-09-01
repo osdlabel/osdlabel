@@ -4,7 +4,14 @@ import type { Point } from '@osdlabel/annotation';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import type { ToolOverlay } from '../../src/types.js';
 
-/** Creates a KeyboardShortcutMap with default values for use in tests. */
+/**
+ * A complete {@link KeyboardShortcutMap} for tests.
+ *
+ * Kept exhaustive by hand rather than derived from `DEFAULT_KEYBOARD_SHORTCUTS`,
+ * which lives in `osdlabel` — a package this one must not depend on. Test files
+ * are excluded from `tsc --noEmit`, so a missing key here is invisible until a
+ * tool reads it and gets `undefined`; add new keys when the map grows.
+ */
 export function createTestKeyboardShortcuts(): KeyboardShortcutMap {
   return {
     selectTool: 'v',
@@ -14,6 +21,7 @@ export function createTestKeyboardShortcuts(): KeyboardShortcutMap {
     pointTool: 'p',
     polylineTool: 'd',
     freeHandPathTool: 'f',
+    segmentationBrushTool: 'b',
     cancel: 'Escape',
     delete: 'Delete',
     deleteAlt: 'Backspace',
@@ -43,6 +51,8 @@ export function createTestKeyboardShortcuts(): KeyboardShortcutMap {
     decreaseExposure: 'D',
     increaseContrast: 'C',
     decreaseContrast: 'X',
+    increaseBrushRadius: ']',
+    decreaseBrushRadius: '[',
     nextContext: '.',
     previousContext: ',',
   };

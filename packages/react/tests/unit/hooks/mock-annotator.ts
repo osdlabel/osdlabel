@@ -27,6 +27,7 @@ export function allEnabled(overrides: Partial<ConstraintStatus> = {}): Constrain
     point: { ...enabled },
     polyline: { ...enabled },
     freeHandPath: { ...enabled },
+    segmentationBrush: { ...enabled },
     ...overrides,
   };
 }
@@ -61,6 +62,9 @@ export function createMockActions(): MockActions {
     decreaseActiveImageContrast: vi.fn(),
     setActiveImageContrast: vi.fn(),
     resetActiveImageView: vi.fn(),
+    setBrushRadius: vi.fn(),
+    adjustBrushRadius: vi.fn(),
+    setBrushErasing: vi.fn(),
   };
 }
 
@@ -128,6 +132,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
       moveTolerancePx: DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
     },
     vertexMarkerOptions: {},
+    brushOptions: {},
     activeImageId: undefined,
     testMode: false,
     decorationProviders: [],

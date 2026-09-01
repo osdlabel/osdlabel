@@ -572,9 +572,10 @@ describe('useKeyboard', () => {
     });
 
     it('uses a new shortcut map', () => {
-      update({ shortcuts: { ...DEFAULT_KEYBOARD_SHORTCUTS, rectangleTool: 'b' } });
+      // `q` is bound to nothing by default; `b` now selects the brush.
+      update({ shortcuts: { ...DEFAULT_KEYBOARD_SHORTCUTS, rectangleTool: 'q' } });
 
-      dispatchKeyDown('b');
+      dispatchKeyDown('q');
 
       expect(actions.setActiveTool).toHaveBeenCalledWith('rectangle');
     });

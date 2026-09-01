@@ -23,6 +23,7 @@ import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-contex
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
 import type {
   AnnotationRenderFailure,
+  BrushOptions,
   OsdAnnotation,
   OsdFields,
   VertexEditConfig,
@@ -112,6 +113,7 @@ interface AnnotatorContextValue {
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
   vertexMarkerOptions: VertexMarkerOptions;
+  brushOptions: BrushOptions;
   activeImageId: ImageId | undefined;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -150,6 +152,11 @@ export interface AnnotatorProviderProps {
    * settled state, not from a value that animates while the user draws.
    */
   readonly vertexMarkers?: VertexMarkerOptions | undefined;
+  /**
+   * Settings for the segmentation brush — the mask pixel cap and what to do
+   * when a stroke exceeds it. See {@link BrushOptions}.
+   */
+  readonly brushOptions?: BrushOptions | undefined;
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
    * Element to display fullscreen when the view controls' fullscreen button is
@@ -212,6 +219,7 @@ export function AnnotatorProvider({
   vertexEditLongPressMs,
   vertexEditMoveTolerancePx,
   vertexMarkers,
+  brushOptions: brushOptionsProp,
   shouldSkipKeyboardShortcutPredicate,
   fullscreenTarget,
   testMode = false,
@@ -297,6 +305,23 @@ export function AnnotatorProvider({
       vertexMarkers?.firstColor,
     ],
   );
+  // Stable identity, so an inline `brushOptions={{ ... }}` from the host does
+  // not bust the context value on every render and re-render every consumer.
+  //
+  // Memoising on the callback could never achieve that: a fresh arrow function
+  // each render *is* the unstable identity, so it was the memo's own dependency
+  // that kept invalidating it. The callback goes through a ref instead and only
+  // the primitive participates.
+  const maxPixels = brushOptionsProp?.maxPixels;
+  const onCapacityExceededRef = useRef(brushOptionsProp?.onCapacityExceeded);
+  onCapacityExceededRef.current = brushOptionsProp?.onCapacityExceeded;
+  const brushOptions = useMemo<BrushOptions>(
+    () => ({
+      maxPixels,
+      onCapacityExceeded: (error) => onCapacityExceededRef.current?.(error),
+    }),
+    [maxPixels],
+  );
 
   // Fire onAnnotationsChange when annotations change (skip initial render)
   const isFirstAnnotationRender = useRef(true);
@@ -357,6 +382,7 @@ export function AnnotatorProvider({
       shortcuts: mergedShortcuts,
       vertexEditConfig,
       vertexMarkerOptions,
+      brushOptions,
       activeImageId,
       testMode,
       decorationProviders: stableDecorationProviders,
@@ -377,6 +403,7 @@ export function AnnotatorProvider({
       mergedShortcuts,
       vertexEditConfig,
       vertexMarkerOptions,
+      brushOptions,
       activeImageId,
       testMode,
       stableDecorationProviders,

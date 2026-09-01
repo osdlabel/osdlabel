@@ -106,6 +106,7 @@ function createMockOverlay() {
     }),
     requestRenderAll: vi.fn(),
     discardActiveObject: vi.fn(),
+    bringObjectToFront: vi.fn(),
     getObjects: vi.fn(() => []),
     remove: vi.fn(),
     add: vi.fn(),
@@ -113,6 +114,8 @@ function createMockOverlay() {
   const overlay = {
     canvas,
     setMode: vi.fn(),
+    // Read by the brush on pointer-down to size its mask buffer.
+    getImageSize: vi.fn(() => ({ width: 400, height: 300 })),
     setCustomControlHandler: vi.fn(),
     screenToImage: vi.fn((p: { x: number; y: number }) => p),
     imageToScreen: vi.fn((p: { x: number; y: number }) => p),
@@ -170,7 +173,7 @@ describe('useAnnotationTool', () => {
 
   /** A provider with a context allowing every tool, the given tool active. */
   function setup(
-    tool: 'select' | 'polyline' | 'rectangle' = 'polyline',
+    tool: 'select' | 'polyline' | 'rectangle' | 'segmentationBrush' = 'polyline',
     props: ProviderProps = {},
   ): AnnotatorHarness {
     const h = renderAnnotator(props, host());
@@ -180,7 +183,12 @@ describe('useAnnotationTool', () => {
         {
           id: contextId,
           label: 'All',
-          tools: [{ type: 'rectangle' }, { type: 'circle' }, { type: 'polyline' }],
+          tools: [
+            { type: 'rectangle' },
+            { type: 'circle' },
+            { type: 'polyline' },
+            { type: 'segmentationBrush' },
+          ],
         },
       ]);
       a.setActiveContext(contextId);
@@ -283,6 +291,50 @@ describe('useAnnotationTool', () => {
 
       expect(built).toHaveLength(1);
       expect(built[0]!.deactivate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the segmentation brush', () => {
+    /** One complete stroke, as Fabric would deliver it, without an `act` between events. */
+    function stroke(x: number, y: number): void {
+      const e = { altKey: false } as PointerEvent;
+      mo.emit('mouse:down', { e, scenePoint: { x, y } });
+      mo.emit('mouse:move', { e, scenePoint: { x: x + 20, y } });
+      mo.emit('mouse:up', { e, scenePoint: { x: x + 20, y } });
+    }
+
+    it('puts the overlay in paint mode, and other tools in annotation mode', () => {
+      // Paint mode keeps every object inert, so a stroke over a shape paints
+      // rather than dragging it. Any other tool needs the objects interactive.
+      const h = setup('segmentationBrush');
+      expect(mo.overlay.setMode).toHaveBeenLastCalledWith('paint');
+      h.run((a) => a.setActiveTool('rectangle'));
+      expect(mo.overlay.setMode).toHaveBeenLastCalledWith('annotation');
+    });
+
+    it('refines the mask it just created when the next stroke lands in the same task (#159)', () => {
+      // A create-commit selects the new mask so the next stroke refines it.
+      // The brush reads the selection back through the store, which already
+      // holds the write (#217) — rendered state would still say `null` until
+      // React committed, and three synchronous strokes made three masks.
+      const h = setup('segmentationBrush');
+      // The hook calls these through the stable `actions` object, so spying on
+      // its properties observes the brush's commits without a re-render.
+      const add = vi.spyOn(h.current.actions, 'addAnnotation');
+      const update = vi.spyOn(h.current.actions, 'updateAnnotation');
+      act(() => {
+        stroke(100, 100);
+        stroke(100, 140);
+        stroke(100, 180);
+      });
+
+      // One mask created, then refined twice — never a second mask.
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(update).toHaveBeenCalledTimes(2);
+      const masks = Object.values(h.current.annotationState.byImage[imageId] ?? {});
+      expect(masks).toHaveLength(1);
+      expect(masks[0]!.geometry.type).toBe('mask');
+      expect(h.current.uiState.selectedAnnotationId).toBe(masks[0]!.id);
     });
   });
 
@@ -487,6 +539,45 @@ describe('useAnnotationTool', () => {
 
     h.run((a) => a.addAnnotation(rect('r1')));
 
+    expect(h.current.uiState.activeTool).toBe('select');
+  });
+
+  it('stays on the brush at its limit while a mask it can refine is selected (#154)', () => {
+    // The limit used to switch the brush off and the tool to select the moment
+    // the first mask committed, so a context limited to n masks could paint
+    // them but never refine them. The brush stays enabled while the selection
+    // is a mask it can refine; it may still not start another.
+    const h = setup('segmentationBrush');
+    h.run((a) =>
+      a.setContexts([
+        { id: contextId, label: 'One', tools: [{ type: 'segmentationBrush', maxCount: 1 }] },
+      ]),
+    );
+    const add = vi.spyOn(h.current.actions, 'addAnnotation');
+    act(() => {
+      // The commit adds the mask and selects it, in one task.
+      const e = { altKey: false } as PointerEvent;
+      mo.emit('mouse:down', { e, scenePoint: { x: 100, y: 100 } });
+      mo.emit('mouse:up', { e, scenePoint: { x: 100, y: 100 } });
+    });
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(h.current.uiState.activeTool).toBe('segmentationBrush');
+    expect(h.current.constraintStatus.segmentationBrush).toEqual({
+      enabled: true,
+      currentCount: 1,
+      maxCount: 1,
+    });
+
+    // A stroke on empty canvas may refine the selection, never start a second mask.
+    act(() => {
+      const e = { altKey: false } as PointerEvent;
+      mo.emit('mouse:down', { e, scenePoint: { x: 200, y: 200 } });
+      mo.emit('mouse:up', { e, scenePoint: { x: 200, y: 200 } });
+    });
+    expect(add).toHaveBeenCalledTimes(1);
+
+    // With nothing refinable selected it is a tool at its limit like any other.
+    h.run((a) => a.setSelectedAnnotation(null));
     expect(h.current.uiState.activeTool).toBe('select');
   });
 

@@ -225,6 +225,34 @@ describe('State Management', () => {
     dispose();
   });
 
+  it('setBrushRadius stores a rounded, clamped radius', () => {
+    const { uiState, actions, dispose } = createTestStore();
+    actions.setBrushRadius(7.6);
+    expect(uiState.brushRadius).toBe(8);
+    actions.setBrushRadius(100_000);
+    expect(uiState.brushRadius).toBe(512);
+    dispose();
+  });
+
+  it('adjustBrushRadius steps proportionally from the current radius', () => {
+    const { uiState, actions, dispose } = createTestStore();
+    actions.setBrushRadius(12);
+    actions.adjustBrushRadius(1);
+    expect(uiState.brushRadius).toBe(15);
+    actions.adjustBrushRadius(-1);
+    expect(uiState.brushRadius).toBe(11);
+    dispose();
+  });
+
+  it('setBrushErasing toggles the eraser', () => {
+    const { uiState, actions, dispose } = createTestStore();
+    actions.setBrushErasing(true);
+    expect(uiState.brushErasing).toBe(true);
+    actions.setBrushErasing(false);
+    expect(uiState.brushErasing).toBe(false);
+    dispose();
+  });
+
   it('setSelectedAnnotation updates selected annotation ID', () => {
     const { uiState, actions, dispose } = createTestStore();
     actions.setSelectedAnnotation(dummyAnnotationId);
