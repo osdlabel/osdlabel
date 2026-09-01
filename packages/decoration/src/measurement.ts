@@ -99,6 +99,9 @@ export function measureLength(
     case 'polygon':
       return measurePerimeter(geometry, pixelSpacing);
     case 'point':
+    case 'mask':
+      // A mask's open-curve length is 0, as in `@osdlabel/geometry`: its
+      // boundary is not stored, only summarised by a box and a pixel count.
       return { value: 0, unit: pixelSpacing.unit };
   }
 }
@@ -142,6 +145,7 @@ export function measurePerimeter(
     case 'line':
     case 'point':
     case 'polyline':
+    case 'mask':
       return { value: 0, unit };
   }
 }

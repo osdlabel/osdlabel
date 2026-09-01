@@ -5,8 +5,8 @@ import {
   DEFAULT_POINT_RADIUS,
   type AnnotationId,
   type AnnotationStyle,
-  type Geometry,
   type ToolType,
+  type VectorGeometry,
 } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { ImageId } from '@osdlabel/viewer-api';
@@ -38,8 +38,13 @@ export interface CreateAnnotationFromGeometryOptions {
 }
 
 /**
- * Build a complete {@link OsdAnnotation} from image-space {@link Geometry},
- * producing the Fabric `rawAnnotationData` envelope for you.
+ * Build a complete {@link OsdAnnotation} from image-space
+ * {@link VectorGeometry}, producing the Fabric `rawAnnotationData` envelope
+ * for you.
+ *
+ * Masks are outside the parameter type: their pixels are not in the geometry,
+ * so there is nothing to build. Use `createMaskAnnotation(snapshot, options)`
+ * instead — the compiler points you there rather than a runtime error.
  *
  * This removes the manual round-trip otherwise required to seed annotations
  * from an external system (build a Fabric object → `serializeFabricObject` →
@@ -61,7 +66,7 @@ export interface CreateAnnotationFromGeometryOptions {
  * ```
  */
 export function createAnnotationFromGeometry(
-  geometry: Geometry,
+  geometry: VectorGeometry,
   options: CreateAnnotationFromGeometryOptions,
 ): OsdAnnotation {
   const id = options.id ?? createAnnotationId(generateId());
