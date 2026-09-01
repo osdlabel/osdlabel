@@ -11,6 +11,7 @@
       "@osdlabel/fabric-annotations",
       "@osdlabel/fabric-osd",
       "@osdlabel/geometry",
+      "@osdlabel/mask",
       "@osdlabel/osd-helper",
       "@osdlabel/react",
       "@osdlabel/solid",

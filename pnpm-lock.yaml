@@ -120,10 +120,10 @@ importers:
         version: 5.9.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
+        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
       vite-plugin-solid:
         specifier: 'catalog:'
-        version: 2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   apps/dev-react:
     dependencies:
@@ -148,13 +148,13 @@ importers:
         version: 19.2.3(@types/react@19.2.16)
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 6.0.2(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 6.0.2(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
+        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
 
   apps/docs:
     dependencies:
@@ -163,7 +163,7 @@ importers:
         version: 3.7.3
       '@astrojs/starlight':
         specifier: ^0.39.3
-        version: 0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3)
+        version: 0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3)
       '@osdlabel/annotation':
         specifier: workspace:*
         version: link:../../packages/annotation
@@ -181,7 +181,7 @@ importers:
         version: link:../../packages/viewer-api
       astro:
         specifier: ^6.4.4
-        version: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3)
+        version: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0)
       osdlabel:
         specifier: workspace:*
         version: link:../../packages/osdlabel
@@ -190,20 +190,20 @@ importers:
         version: 0.33.5
       starlight-package-managers:
         specifier: 0.12.0
-        version: 0.12.0(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3))
+        version: 0.12.0(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3))
       starlight-typedoc:
         specifier: latest
-        version: 0.23.0(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3))(typedoc-plugin-markdown@4.12.0(typedoc@0.28.19(typescript@5.9.3)))(typedoc@0.28.19(typescript@5.9.3))
+        version: 0.23.1(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3))(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.9.3)))(typedoc@0.28.20(typescript@5.9.3))
       typedoc:
         specifier: latest
-        version: 0.28.19(typescript@5.9.3)
+        version: 0.28.20(typescript@5.9.3)
       typedoc-plugin-markdown:
         specifier: latest
-        version: 4.12.0(typedoc@0.28.19(typescript@5.9.3))
+        version: 4.13.0(typedoc@0.28.20(typescript@5.9.3))
     devDependencies:
       '@astrojs/solid-js':
         specifier: ^6.0.1
-        version: 6.0.1(@types/node@24.12.4)(lightningcss@1.32.0)(solid-js@1.9.13)(yaml@2.8.3)
+        version: 6.0.1(@types/node@24.12.4)(lightningcss@1.32.0)(solid-js@1.9.13)(yaml@2.9.0)
       solid-js:
         specifier: 'catalog:'
         version: 1.9.13
@@ -221,7 +221,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/annotation-context:
     dependencies:
@@ -237,7 +237,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/decoration:
     dependencies:
@@ -256,7 +256,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/fabric-annotations:
     dependencies:
@@ -278,7 +278,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/fabric-osd:
     dependencies:
@@ -309,7 +309,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/geometry:
     dependencies:
@@ -322,7 +322,16 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
+
+  packages/mask:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/osd-helper:
     dependencies:
@@ -344,7 +353,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/osdlabel:
     dependencies:
@@ -399,7 +408,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/react:
     dependencies:
@@ -469,7 +478,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/solid:
     dependencies:
@@ -527,13 +536,13 @@ importers:
         version: 5.9.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
+        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
       vite-plugin-solid:
         specifier: 'catalog:'
-        version: 2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/validation:
     dependencies:
@@ -552,7 +561,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   packages/viewer-api:
     dependencies:
@@ -565,7 +574,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
 packages:
 
@@ -2845,8 +2854,8 @@ packages:
     resolution: {integrity: sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ==}
     engines: {node: '>= 12.0.0'}
 
-  linkify-it@5.0.0:
-    resolution: {integrity: sha512-5aHCbzQRADcdP+ATqnDuhhJ/MRIqDkZX5pyjFHRRysS8vZ5AbqGEoFIb6pYHPZ+L/OC2Lc+xT8uHVVR5CAK/wQ==}
+  linkify-it@5.0.2:
+    resolution: {integrity: sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q==}
 
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
@@ -2885,8 +2894,8 @@ packages:
     resolution: {integrity: sha512-o5vL7aDWatOTX8LzaS1WMoaoxIiLRQJuIKKe2wAw6IeULDHaqbiqiggmx+pKvZDb1Sj+pE46Sn1T7lCqfFtg1Q==}
     engines: {node: '>=16'}
 
-  markdown-it@14.1.1:
-    resolution: {integrity: sha512-BuU2qnTti9YKgK5N+IeMubp14ZUKUUw7yeJbkjtosvHiP0AZ5c8IAgEMk79D0eC8F23r4Ac/q8cAIFdm2FtyoA==}
+  markdown-it@14.3.0:
+    resolution: {integrity: sha512-RCEsPjR+sr0x+AuYp601tKTkgFG4YEPLCzHST3cQ/fhlJkqAkz1L2/Qbp1j9qw5SBwQHFBoW8+hoN5xssOF0Tw==}
     hasBin: true
 
   markdown-table@3.0.4:
@@ -3596,11 +3605,12 @@ packages:
     peerDependencies:
       '@astrojs/starlight': '>=0.22.0'
 
-  starlight-typedoc@0.23.0:
-    resolution: {integrity: sha512-GB0tB/15nL3l9tt1aGpkV8EixnSXbApZNZaSBRt8KfIsDAJet7pRiyItk5dxBSbDTXilF2whOMXPqqkbm8dNWA==}
+  starlight-typedoc@0.23.1:
+    resolution: {integrity: sha512-H45Mxv4mZ1xUMhUNjTR4CwKDgKKHZboQA5v5+vTVMdjlCX02Xo7veTB7+F/ivmMHPmQ7SV5auF2BTlU/EpQIoQ==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@astrojs/starlight': '>=0.39.0'
+      astro: '>=6.0.0'
       typedoc: '>=0.28.0'
       typedoc-plugin-markdown: '>=4.6.0'
 
@@ -3724,14 +3734,14 @@ packages:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
 
-  typedoc-plugin-markdown@4.12.0:
-    resolution: {integrity: sha512-eJDEMAfxCmede22c/Jw7d0FA13ggAQv+KkwQYKYCdqI02cin6Rc9QRwbG/7XvvHWinuFejySnZVUWDtvGk3Vbg==}
+  typedoc-plugin-markdown@4.13.0:
+    resolution: {integrity: sha512-OHaOLoMTS0wL2ud73WXvxv486mrUEtgXxW4iKiTOGJVipT/VBWY76rlVRMQGes7aVonoIf5roWRe1UvHbufLlQ==}
     engines: {node: '>= 18'}
     peerDependencies:
       typedoc: 0.28.x
 
-  typedoc@0.28.19:
-    resolution: {integrity: sha512-wKh+lhdmMFivMlc6vRRcMGXeGEHGU2g8a2CkPTJjJlwRf1iXbimWIPcFolCqe4E0d/FRtGszpIrsp3WLpDB8Pw==}
+  typedoc@0.28.20:
+    resolution: {integrity: sha512-uSKqkh8Cr48vllnEy+jdaAgOeR6Y+QCBW7usgUsKj7gJEfR7stw9U/fE49LBnj2tPRKPY0c0EBJSWe9Appmplg==}
     engines: {node: '>= 18', pnpm: '>= 10'}
     hasBin: true
     peerDependencies:
@@ -4108,8 +4118,8 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
-  yaml@2.8.3:
-    resolution: {integrity: sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg==}
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
@@ -4207,12 +4217,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@astrojs/mdx@5.0.6(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))':
+  '@astrojs/mdx@5.0.6(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))':
     dependencies:
       '@astrojs/markdown-remark': 7.1.2
       '@mdx-js/mdx': 3.1.1
       acorn: 8.16.0
-      astro: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3)
+      astro: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0)
       es-module-lexer: 2.1.0
       estree-util-visit: 2.0.0
       hast-util-to-html: 9.0.5
@@ -4236,11 +4246,11 @@ snapshots:
       stream-replace-string: 2.0.0
       zod: 4.4.3
 
-  '@astrojs/solid-js@6.0.1(@types/node@24.12.4)(lightningcss@1.32.0)(solid-js@1.9.13)(yaml@2.8.3)':
+  '@astrojs/solid-js@6.0.1(@types/node@24.12.4)(lightningcss@1.32.0)(solid-js@1.9.13)(yaml@2.9.0)':
     dependencies:
       solid-js: 1.9.13
-      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)
-      vite-plugin-solid: 2.11.12(solid-js@1.9.13)(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3))
+      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)
+      vite-plugin-solid: 2.11.12(solid-js@1.9.13)(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0))
     transitivePeerDependencies:
       - '@testing-library/jest-dom'
       - '@types/node'
@@ -4256,17 +4266,17 @@ snapshots:
       - tsx
       - yaml
 
-  '@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3)':
+  '@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3)':
     dependencies:
       '@astrojs/markdown-remark': 7.2.0
-      '@astrojs/mdx': 5.0.6(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))
+      '@astrojs/mdx': 5.0.6(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))
       '@astrojs/sitemap': 3.7.3
       '@pagefind/default-ui': 1.4.0
       '@types/hast': 3.0.4
       '@types/js-yaml': 4.0.9
       '@types/mdast': 4.0.4
-      astro: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3)
-      astro-expressive-code: 0.42.0(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))
+      astro: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0)
+      astro-expressive-code: 0.42.0(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))
       bcp-47: 2.1.0
       hast-util-from-html: 2.0.3
       hast-util-select: 6.0.4
@@ -5459,10 +5469,10 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vitejs/plugin-react@6.0.2(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))':
+  '@vitejs/plugin-react@6.0.2(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
 
   '@vitest/expect@4.1.8':
     dependencies:
@@ -5473,13 +5483,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.8(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.8(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.8
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
 
   '@vitest/pretty-format@4.1.8':
     dependencies:
@@ -5548,12 +5558,12 @@ snapshots:
 
   astring@1.9.0: {}
 
-  astro-expressive-code@0.42.0(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3)):
+  astro-expressive-code@0.42.0(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0)):
     dependencies:
-      astro: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3)
+      astro: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0)
       rehype-expressive-code: 0.42.0
 
-  astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3):
+  astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0):
     dependencies:
       '@astrojs/compiler': 4.0.0
       '@astrojs/internal-helpers': 0.10.0
@@ -5605,8 +5615,8 @@ snapshots:
       unist-util-visit: 5.1.0
       unstorage: 1.17.5
       vfile: 6.0.3
-      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)
-      vitefu: 1.1.3(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3))
+      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)
+      vitefu: 1.1.3(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
       zod: 4.4.3
@@ -6646,7 +6656,7 @@ snapshots:
       lightningcss-win32-arm64-msvc: 1.32.0
       lightningcss-win32-x64-msvc: 1.32.0
 
-  linkify-it@5.0.0:
+  linkify-it@5.0.2:
     dependencies:
       uc.micro: 2.1.0
 
@@ -6685,11 +6695,11 @@ snapshots:
 
   markdown-extensions@2.0.0: {}
 
-  markdown-it@14.1.1:
+  markdown-it@14.3.0:
     dependencies:
       argparse: 2.0.1
       entities: 4.5.0
-      linkify-it: 5.0.0
+      linkify-it: 5.0.2
       mdurl: 2.0.0
       punycode.js: 2.3.1
       uc.micro: 2.1.0
@@ -7844,16 +7854,17 @@ snapshots:
 
   stackback@0.0.2: {}
 
-  starlight-package-managers@0.12.0(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3)):
+  starlight-package-managers@0.12.0(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3)):
     dependencies:
-      '@astrojs/starlight': 0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3)
+      '@astrojs/starlight': 0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3)
 
-  starlight-typedoc@0.23.0(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3))(typedoc-plugin-markdown@4.12.0(typedoc@0.28.19(typescript@5.9.3)))(typedoc@0.28.19(typescript@5.9.3)):
+  starlight-typedoc@0.23.1(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3))(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.9.3)))(typedoc@0.28.20(typescript@5.9.3)):
     dependencies:
-      '@astrojs/starlight': 0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.8.3))(typescript@5.9.3)
+      '@astrojs/starlight': 0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3)
+      astro: 6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0)
       github-slugger: 2.0.0
-      typedoc: 0.28.19(typescript@5.9.3)
-      typedoc-plugin-markdown: 4.12.0(typedoc@0.28.19(typescript@5.9.3))
+      typedoc: 0.28.20(typescript@5.9.3)
+      typedoc-plugin-markdown: 4.13.0(typedoc@0.28.20(typescript@5.9.3))
 
   std-env@4.1.0: {}
 
@@ -7986,18 +7997,18 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
 
-  typedoc-plugin-markdown@4.12.0(typedoc@0.28.19(typescript@5.9.3)):
+  typedoc-plugin-markdown@4.13.0(typedoc@0.28.20(typescript@5.9.3)):
     dependencies:
-      typedoc: 0.28.19(typescript@5.9.3)
+      typedoc: 0.28.20(typescript@5.9.3)
 
-  typedoc@0.28.19(typescript@5.9.3):
+  typedoc@0.28.20(typescript@5.9.3):
     dependencies:
       '@gerrit0/mini-shiki': 3.23.0
       lunr: 2.3.9
-      markdown-it: 14.1.1
+      markdown-it: 14.3.0
       minimatch: 10.2.5
       typescript: 5.9.3
-      yaml: 2.8.3
+      yaml: 2.9.0
 
   typescript@5.9.3: {}
 
@@ -8117,7 +8128,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-plugin-solid@2.11.12(solid-js@1.9.13)(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)):
+  vite-plugin-solid@2.11.12(solid-js@1.9.13)(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)):
     dependencies:
       '@babel/core': 7.29.0
       '@types/babel__core': 7.20.5
@@ -8125,12 +8136,12 @@ snapshots:
       merge-anything: 5.1.7
       solid-js: 1.9.13
       solid-refresh: 0.6.3(solid-js@1.9.13)
-      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)
-      vitefu: 1.1.1(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3))
+      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)
+      vitefu: 1.1.1(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0))
     transitivePeerDependencies:
       - supports-color
 
-  vite-plugin-solid@2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)):
+  vite-plugin-solid@2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)):
     dependencies:
       '@babel/core': 7.29.0
       '@types/babel__core': 7.20.5
@@ -8138,12 +8149,12 @@ snapshots:
       merge-anything: 5.1.7
       solid-js: 1.9.13
       solid-refresh: 0.6.3(solid-js@1.9.13)
-      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
-      vitefu: 1.1.1(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
+      vitefu: 1.1.1(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
     transitivePeerDependencies:
       - supports-color
 
-  vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3):
+  vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.3
       fdir: 6.5.0(picomatch@4.0.4)
@@ -8155,9 +8166,9 @@ snapshots:
       '@types/node': 24.12.4
       fsevents: 2.3.3
       lightningcss: 1.32.0
-      yaml: 2.8.3
+      yaml: 2.9.0
 
-  vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3):
+  vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -8168,24 +8179,24 @@ snapshots:
       '@types/node': 24.12.4
       esbuild: 0.27.3
       fsevents: 2.3.3
-      yaml: 2.8.3
+      yaml: 2.9.0
 
-  vitefu@1.1.1(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)):
+  vitefu@1.1.1(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)):
     optionalDependencies:
-      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)
+      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)
 
-  vitefu@1.1.1(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)):
+  vitefu@1.1.1(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)):
     optionalDependencies:
-      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
 
-  vitefu@1.1.3(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)):
+  vitefu@1.1.3(vite@7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)):
     optionalDependencies:
-      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.8.3)
+      vite: 7.3.5(@types/node@24.12.4)(lightningcss@1.32.0)(yaml@2.9.0)
 
-  vitest@4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)):
+  vitest@4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3))
+      '@vitest/mocker': 4.1.8(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.8
       '@vitest/runner': 4.1.8
       '@vitest/snapshot': 4.1.8
@@ -8202,7 +8213,7 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.12.4
@@ -8263,7 +8274,7 @@ snapshots:
 
   yallist@3.1.1: {}
 
-  yaml@2.8.3: {}
+  yaml@2.9.0: {}
 
   yargs-parser@22.0.0: {}
 
