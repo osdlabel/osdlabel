@@ -65,6 +65,7 @@ export default defineConfig({
             { label: 'Coordinate Systems', slug: 'guides/coordinate-systems' },
             { label: 'Decorations', slug: 'guides/decorations' },
             { label: 'Measurements', slug: 'guides/measurements' },
+            { label: 'Segmentation Brush', slug: 'guides/segmentation-brush' },
             { label: 'OSD-Fabric Integration', slug: 'guides/osd-fabric-integration' },
           ],
         },
