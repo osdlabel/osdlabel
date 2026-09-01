@@ -108,7 +108,15 @@ function AppContent(props: AnnotateViewProps & { toggles: DecorationToggles }) {
     if (!json.trim()) return;
     try {
       const parsed: unknown = JSON.parse(json);
-      const { byImage } = deserialize(parsed);
+      const { byImage, skipped } = deserialize(parsed);
+      // A mask whose pixels cannot be decoded is dropped rather than failing
+      // the import, so a silent partial load is possible unless this is checked.
+      if (skipped.length > 0) {
+        alert(
+          `${skipped.length} annotation(s) could not be loaded:\n` +
+            skipped.map((s) => `  ${s.id ?? '(no id)'}: ${s.reason}`).join('\n'),
+        );
+      }
       actions.loadAnnotations(byImage);
       setShowImportPanel(false);
       setImportJsonText('');
