@@ -9,6 +9,7 @@ import {
   type VertexMarkerOptions,
 } from '@osdlabel/fabric-annotations';
 import { createAnnotationId } from '@osdlabel/annotation';
+import { BoundedDenseMaskBuffer, createMaskAnnotation } from 'osdlabel';
 import { createImageId, type KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { AnnotatorProvider, useAnnotator } from '../../../src/state/annotator-context.js';
@@ -168,6 +169,28 @@ describe('useAnnotationTool with the provider config (#219)', () => {
       expect(createdTools).toHaveLength(1);
     });
 
+    it('the brush radius or eraser, while the brush is active', () => {
+      // `activate()` reads the radius to size the cursor ring. Without the
+      // `untrack` around it that read is a dependency of the tool effect, and
+      // every `]` press tore the tool down — discarding a stroke in progress.
+      const h = setup();
+      // The shared context leaves `b` unbound for the keyboard test below.
+      h.annotator.actions.setContexts([
+        {
+          id: contextId,
+          label: 'Test',
+          tools: [{ type: 'polyline' }, { type: 'rectangle' }, { type: 'segmentationBrush' }],
+        },
+      ]);
+      h.annotator.actions.setActiveTool('segmentationBrush');
+      expect(createdTools).toHaveLength(2);
+
+      h.annotator.actions.setBrushRadius(20);
+      h.annotator.actions.adjustBrushRadius(1);
+      h.annotator.actions.setBrushErasing(true);
+      expect(createdTools).toHaveLength(2);
+    });
+
     it('the vertex-edit tuning, when an explicit value gives way to the equal default', () => {
       // A signal set to the same number never notifies, so the case that
       // reaches the memo's comparison is a new input resolving to the same
@@ -262,6 +285,40 @@ describe('useAnnotationTool with the provider config (#219)', () => {
     });
 
     expect(canAdd).toBe(false);
+  });
+
+  it('stays on the brush at its limit while a mask it can refine is selected (#154)', () => {
+    // The limit used to switch the brush off and the tool to select the moment
+    // the first mask committed, so a context limited to n masks could paint
+    // them but never refine them. The brush stays enabled while the selection
+    // is a mask it can refine; it may still not start another.
+    const h = setup();
+    h.annotator.actions.setContexts([
+      { id: contextId, label: 'Test', tools: [{ type: 'segmentationBrush', maxCount: 1 }] },
+    ]);
+    h.annotator.actions.setActiveTool('segmentationBrush');
+    expect(activate).toHaveBeenCalled();
+    const callbacks = activate.mock.calls.at(-1)![2] as ToolCallbacks;
+    expect(callbacks.canAddAnnotation('segmentationBrush')).toBe(true);
+
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(5, 5, 1);
+    const mask = createMaskAnnotation(buffer.snapshot(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    batch(() => {
+      h.annotator.actions.addAnnotation(mask);
+      h.annotator.actions.setSelectedAnnotation(mask.id);
+    });
+    expect(h.annotator.uiState.activeTool).toBe('segmentationBrush');
+    expect(h.annotator.constraintStatus().segmentationBrush.enabled).toBe(true);
+    expect(callbacks.canAddAnnotation('segmentationBrush')).toBe(false);
+
+    // With nothing refinable selected it is a tool at its limit like any other.
+    h.annotator.actions.setSelectedAnnotation(null);
+    expect(h.annotator.uiState.activeTool).toBe('select');
   });
 
   it('the keyboard follows a changed binding without remounting', () => {

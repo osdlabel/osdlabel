@@ -6,6 +6,7 @@ import {
   type AnnotationContext,
   type AnnotationId,
   type FabricOverlay,
+  type FabricRawAnnotationData,
   type ImageId,
   type ImageSource,
   type OsdAnnotation,
@@ -68,6 +69,18 @@ const rectangle = (id: AnnotationId, i: number): OsdAnnotation =>
  * Fabric's own loader drops silently unless told otherwise. Ids are stable
  * (`rect-<i>`, `broken-<i>`, `malformed-<i>`), so a reload replaces them.
  */
+/**
+ * The Fabric envelope `createAnnotationFromGeometry` always produces. The
+ * raw-data type is a union with mask payloads, so it has to be narrowed before
+ * the harness can corrupt a Fabric-specific field.
+ */
+function fabricRaw(annotation: OsdAnnotation): FabricRawAnnotationData {
+  if (annotation.rawAnnotationData.format !== 'fabric') {
+    throw new Error(`harness expected a Fabric envelope on ${annotation.id}`);
+  }
+  return annotation.rawAnnotationData;
+}
+
 export function harnessAnnotations(
   count: number,
   broken: number,
@@ -81,12 +94,10 @@ export function harnessAnnotations(
   for (let i = 0; i < broken; i++) {
     const id = createAnnotationId(`broken-${i}`);
     const valid = rectangle(id, count + i);
+    const raw = fabricRaw(valid);
     forImage[id] = {
       ...valid,
-      rawAnnotationData: {
-        ...valid.rawAnnotationData,
-        data: { ...valid.rawAnnotationData.data, type: 'NotAFabricClass' },
-      },
+      rawAnnotationData: { ...raw, data: { ...raw.data, type: 'NotAFabricClass' } },
     };
   }
   for (let i = 0; i < malformed; i++) {
@@ -102,12 +113,10 @@ export function harnessAnnotations(
       },
       { id, imageId: HARNESS_IMAGE_ID, contextId: HARNESS_CONTEXT_ID, toolType: 'polyline' },
     );
+    const raw = fabricRaw(valid);
     forImage[id] = {
       ...valid,
-      rawAnnotationData: {
-        ...valid.rawAnnotationData,
-        data: { ...valid.rawAnnotationData.data, points: null },
-      },
+      rawAnnotationData: { ...raw, data: { ...raw.data, points: null } },
     };
   }
   return { [HARNESS_IMAGE_ID]: forImage };

@@ -52,6 +52,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
     point: { enabled: true, currentCount: 0, maxCount: null },
     polyline: { enabled: true, currentCount: 0, maxCount: null },
     freeHandPath: { enabled: true, currentCount: 0, maxCount: null },
+    segmentationBrush: { enabled: true, currentCount: 0, maxCount: null },
   });
 
   const base: MockAnnotator = {
@@ -87,6 +88,9 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
       decreaseActiveImageContrast: vi.fn(),
       setActiveImageContrast: vi.fn(),
       resetActiveImageView: vi.fn(),
+      setBrushRadius: vi.fn(),
+      adjustBrushRadius: vi.fn(),
+      setBrushErasing: vi.fn(),
     },
     activeToolKeyHandlerRef: { handler: null },
     fullscreenTargetRef: { element: null },
@@ -97,6 +101,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
       moveTolerancePx: DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
     },
     vertexMarkerOptions: {},
+    brushOptions: {},
     activeImageId: () => undefined,
     testMode: false,
     decorationProviders: [],

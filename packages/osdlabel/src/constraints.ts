@@ -1,4 +1,4 @@
-import type { ToolType } from '@osdlabel/annotation';
+import type { AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { ImageId, AnnotationState } from '@osdlabel/viewer-api';
 import type {
   AnnotationContextId,
@@ -15,16 +15,26 @@ const ALL_TOOL_TYPES: readonly ToolType[] = [
   'point',
   'polyline',
   'freeHandPath',
+  'segmentationBrush',
 ] as const;
 
 /**
  * Pure function that computes constraint status from current state.
  * Framework wrappers memoize this (createMemo in Solid, useMemo in React).
+ *
+ * `enabled` means the tool can do something now. For every vector tool that
+ * is "may add an annotation": the count is under the limit. The brush also
+ * edits in place, so it stays enabled at its limit while a mask it can refine
+ * is selected — one of the active context's masks on the current image —
+ * which is why the selection is an input here. Whether a tool may *add* is
+ * {@link canAddAnnotation}; reading `enabled` for that lets the brush start a
+ * new mask past its limit.
  */
 export function computeConstraintStatus(
   contextState: ContextState,
   annotationState: AnnotationState<OsdFields>,
   currentImageId: ImageId | undefined,
+  selectedAnnotationId: AnnotationId | null = null,
 ): ConstraintStatus {
   const activeContext = contextState.contexts.find((c) => c.id === contextState.activeContextId);
 
@@ -50,7 +60,16 @@ export function computeConstraintStatus(
         getCountableImageIds(activeContext, currentImageId, countScope),
       );
       const maxCount = toolConstraint.maxCount ?? null;
-      const enabled = maxCount === null || currentCount < maxCount;
+      const underLimit = maxCount === null || currentCount < maxCount;
+      const enabled =
+        underLimit ||
+        (type === 'segmentationBrush' &&
+          canRefineSelectedMask(
+            annotationState,
+            currentImageId,
+            activeContext.id,
+            selectedAnnotationId,
+          ));
 
       result[type] = {
         enabled,
@@ -83,4 +102,32 @@ export function countAnnotationsForContextAndType(
   }
 
   return count;
+}
+
+/** Whether the selection is a mask the brush may refine: on this image, in the active context. */
+function canRefineSelectedMask(
+  annotationState: AnnotationState<OsdFields>,
+  currentImageId: ImageId,
+  activeContextId: AnnotationContextId,
+  selectedAnnotationId: AnnotationId | null,
+): boolean {
+  if (selectedAnnotationId === null) return false;
+  const selected = annotationState.byImage[currentImageId]?.[selectedAnnotationId];
+  return (
+    selected !== undefined &&
+    selected.geometry.type === 'mask' &&
+    selected.contextId === activeContextId
+  );
+}
+
+/**
+ * Whether `type` may add an annotation now: enabled, and under its limit.
+ *
+ * Distinct from `enabled` for the brush, which stays usable at its limit to
+ * refine the selected mask but may not start another; see
+ * {@link computeConstraintStatus}.
+ */
+export function canAddAnnotation(status: ConstraintStatus, type: ToolType): boolean {
+  const s = status[type];
+  return s.enabled && (s.maxCount === null || s.currentCount < s.maxCount);
 }
