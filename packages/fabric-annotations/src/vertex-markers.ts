@@ -4,7 +4,14 @@ import type { ToolOverlay } from './types.js';
 
 /** Radius (screen px) of an ordinary in-progress vertex marker. */
 export const DEFAULT_VERTEX_MARKER_RADIUS_PX = 3;
-/** Radius (screen px) of the first vertex — the close target, so it is larger. */
+/**
+ * Radius (screen px) of the first vertex — the close target, so it is larger.
+ *
+ * Deliberately kept at or below `PolylineTool`'s `CLOSE_THRESHOLD_SCREEN_PX`:
+ * a ring drawn inside the hit area is forgiving (every pixel of the ring, and
+ * a margin beyond it, closes the shape), whereas a ring drawn larger than the
+ * threshold would invite clicks on its edge that miss.
+ */
 export const DEFAULT_FIRST_VERTEX_MARKER_RADIUS_PX = 5;
 /** Stroke width (screen px) of the first vertex ring. */
 const FIRST_VERTEX_STROKE_PX = 2;
@@ -35,8 +42,13 @@ export interface VertexMarkerOptions {
  *
  * Markers are pure chrome: they carry no `id` (reserved for annotation objects)
  * and are flagged `_readOnly` so `FabricOverlay.setMode` keeps them inert.
+ *
  * Radii are expressed in screen pixels and converted to image space on every
- * sync, so markers keep a constant on-screen size across zoom levels.
+ * {@link VertexMarkerLayer.sync}, which the owning tool calls from its pointer
+ * handlers. A zoom that happens with the pointer stationary (Ctrl/Cmd+wheel,
+ * which `FabricOverlay` leaves to OSD even in annotation mode) therefore leaves
+ * the markers at their previous image-space radius until the next pointer
+ * event, when they snap back to the intended screen size.
  */
 export class VertexMarkerLayer {
   private readonly enabled: boolean;

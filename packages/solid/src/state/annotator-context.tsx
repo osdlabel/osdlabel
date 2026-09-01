@@ -101,6 +101,9 @@ export interface AnnotatorProviderProps {
    * Appearance of the vertex markers drawn while a polyline is in progress.
    * Radii and colours default to values derived from the tool's resolved style;
    * pass `{ enabled: false }` to draw no markers.
+   *
+   * Read once when the provider mounts (as `vertexEdit*` is), so later changes
+   * to this prop do not affect tools already created.
    */
   readonly vertexMarkers?: VertexMarkerOptions | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */

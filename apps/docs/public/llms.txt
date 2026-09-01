@@ -937,8 +937,18 @@ enough that clicking would close the path into a polygon. Pass marker options to
 the radii and colours, or `{ enabled: false }` to turn them off:
 
 ```tsx
+<Annotator vertexMarkers={{ radius: 4, firstRadius: 7, color: '#00e5ff' }} ... />
+```
+
+The same options reach a directly-constructed tool as its second argument:
+
+```tsx
 new PolylineTool(undefined, { radius: 4, firstRadius: 7, color: '#00e5ff' });
 ```
+
+Changing `vertexMarkers` to a different value rebuilds the active tool and discards an
+in-progress path, so drive it from constants or settled state rather than a value that
+animates while the user is drawing.
 
 ## Count scope
 
