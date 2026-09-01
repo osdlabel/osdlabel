@@ -138,6 +138,22 @@ describe('VertexMarkerLayer', () => {
     expect(canvas.add).toHaveBeenCalledTimes(1);
   });
 
+  it('clears markers from the previous overlay when the overlay changes', () => {
+    const layer = new VertexMarkerLayer();
+    layer.sync(overlay, vertices([10, 10], [50, 20]), DEFAULT_ANNOTATION_STYLE);
+    const firstOverlayMarkers = added();
+
+    const otherCanvas = { add: vi.fn(), remove: vi.fn(), getZoom: vi.fn().mockReturnValue(1) };
+    const otherOverlay = {
+      canvas: otherCanvas,
+      imageToScreen: (p: Point) => p,
+    } as unknown as ToolOverlay;
+    layer.sync(otherOverlay, vertices([10, 10]), DEFAULT_ANNOTATION_STYLE);
+
+    expect(removed()).toEqual(firstOverlayMarkers);
+    expect(otherCanvas.add).toHaveBeenCalledTimes(1);
+  });
+
   it('draws nothing when disabled', () => {
     const layer = new VertexMarkerLayer({ enabled: false });
 

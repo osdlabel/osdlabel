@@ -104,6 +104,38 @@ describe('PolylineTool', () => {
       expect(mockCanvas.add.mock.calls[0][0].strokeDashArray).toEqual([2, 8]);
     });
 
+    it('scales the preview stroke to screen pixels', () => {
+      mockCanvas.getZoom.mockReturnValue(0.1);
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      // DEFAULT_ANNOTATION_STYLE.strokeWidth (2) at zoom 0.1 must still land as
+      // 2 screen px, not a 0.2 px hairline.
+      expect(mockCanvas.add.mock.calls[0][0].strokeWidth).toBeCloseTo(20);
+    });
+
+    it('styles the commit by the context active at finish, not at draw start', () => {
+      let activeStyle = { strokeColor: '#ff0000' };
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({ type, defaultStyle: activeStyle }),
+      };
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+
+      // The user switches annotation context mid-draw; finish() reads the
+      // context id live, so the style must follow it.
+      activeStyle = { strokeColor: '#0000ff' };
+      tool.onKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      expect(addedParams[0]!.fabricObject.stroke).toBe('#0000ff');
+    });
+
     it('commits the annotation in the same style as the preview', () => {
       mockCallbacks = {
         ...mockCallbacks,

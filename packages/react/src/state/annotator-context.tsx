@@ -112,8 +112,12 @@ export interface AnnotatorProviderProps {
   /**
    * Appearance of the vertex markers drawn while a polyline is in progress.
    * Radii and colours default to values derived from the tool's resolved style;
-   * pass `{ enabled: false }` to draw no markers. Compared field-by-field, so
-   * an inline object literal does not churn the active tool.
+   * pass `{ enabled: false }` to draw no markers.
+   *
+   * Compared field-by-field, so an inline object literal is safe to pass. A
+   * genuine value change still rebuilds the active tool (as `vertexEdit*` does),
+   * which discards an in-progress path — so drive these from constants or
+   * settled state, not from a value that animates while the user draws.
    */
   readonly vertexMarkers?: VertexMarkerOptions | undefined;
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
@@ -228,6 +232,7 @@ export function AnnotatorProvider({
   );
   // Depend on the individual fields, not the object identity, so callers can
   // pass an inline literal without recreating the active tool on every render.
+  // Keep this list in sync with VertexMarkerOptions when fields are added.
   const vertexMarkerOptions = useMemo<VertexMarkerOptions>(
     () => ({ ...vertexMarkers }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
