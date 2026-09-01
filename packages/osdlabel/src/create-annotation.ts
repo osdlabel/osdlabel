@@ -2,6 +2,7 @@ import {
   createAnnotationId,
   generateId,
   DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_POINT_RADIUS,
   type AnnotationId,
   type AnnotationStyle,
   type Geometry,
@@ -65,7 +66,11 @@ export function createAnnotationFromGeometry(
 ): OsdAnnotation {
   const id = options.id ?? createAnnotationId(generateId());
   const style = options.style ?? DEFAULT_ANNOTATION_STYLE;
-  const fabricObject = buildFabricObjectFromGeometry(geometry, getFabricOptions(style, id));
+  const fabricObject = buildFabricObjectFromGeometry(
+    geometry,
+    getFabricOptions(style, id),
+    style.pointRadius ?? DEFAULT_POINT_RADIUS,
+  );
 
   const raw = serializeFabricObject(fabricObject);
   // Self-contained: guarantee the id survives serialization even if

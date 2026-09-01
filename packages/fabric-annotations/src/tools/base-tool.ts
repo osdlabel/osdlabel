@@ -1,6 +1,13 @@
 import { FabricObject } from 'fabric';
 import type { ToolOverlay } from '../types.js';
-import type { ToolType, Point, AnnotationId, BaseAnnotation } from '@osdlabel/annotation';
+import {
+  DEFAULT_ANNOTATION_STYLE,
+  type ToolType,
+  type Point,
+  type AnnotationId,
+  type AnnotationStyle,
+  type BaseAnnotation,
+} from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
@@ -78,6 +85,18 @@ export abstract class BaseTool implements AnnotationTool {
     this.imageId = imageId;
     this.callbacks = callbacks;
     this.shortcuts = shortcuts;
+  }
+
+  /**
+   * The style new annotations of this tool's type are drawn with: the library
+   * default merged with the active context's `ToolConstraint.defaultStyle`.
+   * Tools must resolve the style through this so the in-progress preview and
+   * the committed annotation always agree.
+   */
+  protected resolveStyle(): AnnotationStyle {
+    const type = this.type;
+    const toolConstraint = type === 'select' ? undefined : this.callbacks?.getToolConstraint(type);
+    return { ...DEFAULT_ANNOTATION_STYLE, ...toolConstraint?.defaultStyle };
   }
 
   onKeyDown(event: KeyboardEvent): boolean {

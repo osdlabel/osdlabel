@@ -5,7 +5,6 @@ import {
   type Point,
   type AnnotationStyle,
   createAnnotationId,
-  DEFAULT_ANNOTATION_STYLE,
   generateId,
 } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
@@ -35,22 +34,21 @@ export abstract class ShapeTool<T extends FabricObject> extends BaseTool {
     this.activeContextId = contextId;
     this.startPoint = imagePoint;
 
-    const toolConstraint = this.callbacks.getToolConstraint(this.type);
-    const style: AnnotationStyle = {
-      ...DEFAULT_ANNOTATION_STYLE,
-      ...toolConstraint?.defaultStyle,
-    };
-
+    const style = this.resolveStyle();
     const id = createAnnotationId(generateId());
     const options = getFabricOptions(style, id);
 
-    this.preview = this.createPreview(imagePoint, options);
+    this.preview = this.createPreview(imagePoint, options, style);
 
     this.overlay.canvas.add(this.preview);
     this.overlay.canvas.requestRenderAll();
   }
 
-  protected abstract createPreview(imagePoint: Point, options: FabricShapeOptions): T;
+  protected abstract createPreview(
+    imagePoint: Point,
+    options: FabricShapeOptions,
+    style: AnnotationStyle,
+  ): T;
 
   onPointerMove(_event: PointerEvent, imagePoint: Point): void {
     if (!this.overlay || !this.preview || !this.startPoint) return;

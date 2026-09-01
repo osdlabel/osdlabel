@@ -57,6 +57,46 @@ describe('FreeHandPathTool', () => {
     };
   });
 
+  describe('preview style (issue #156)', () => {
+    it("draws the preview in the tool constraint's defaultStyle", () => {
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({
+          type,
+          defaultStyle: { strokeColor: '#00e5ff', strokeWidth: 3 },
+        }),
+      };
+      tool = new FreeHandPathTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      const preview = mockCanvas.add.mock.calls[0][0];
+      expect(preview.stroke).toBe('#00e5ff');
+      expect(preview.strokeWidth).toBe(3);
+      expect(preview.id).toBeUndefined();
+      expect(preview._readOnly).toBe(true);
+    });
+
+    it('commits the annotation in the same style as the preview', () => {
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({ type, defaultStyle: { strokeColor: '#00e5ff' } }),
+      };
+      tool = new FreeHandPathTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      const preview = mockCanvas.add.mock.calls[0][0];
+      tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 10 });
+      tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
+      tool.onPointerUp({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
+
+      expect(addedParams).toHaveLength(1);
+      expect(addedParams[0]!.fabricObject.stroke).toBe(preview.stroke);
+    });
+  });
+
   it('should create a closed polygon on mousedown, drag, mouseup', () => {
     tool = new FreeHandPathTool();
     tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);

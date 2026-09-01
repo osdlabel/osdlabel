@@ -6,7 +6,7 @@ import type { AnnotationState, KeyboardShortcutMap, UIState } from '@osdlabel/vi
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
+import type { OsdAnnotation, OsdFields, VertexEditConfig, VertexMarkerOptions } from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -59,6 +59,7 @@ interface AnnotatorContextValue {
   fullscreenTarget: HTMLElement | (() => HTMLElement | null) | null | undefined;
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
+  vertexMarkerOptions: VertexMarkerOptions;
   activeImageId: Accessor<ImageId | undefined>;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -96,6 +97,12 @@ export interface AnnotatorProviderProps {
    * Defaults to {@link DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX}.
    */
   readonly vertexEditMoveTolerancePx?: number | undefined;
+  /**
+   * Appearance of the vertex markers drawn while a polyline is in progress.
+   * Radii and colours default to values derived from the tool's resolved style;
+   * pass `{ enabled: false }` to draw no markers.
+   */
+  readonly vertexMarkers?: VertexMarkerOptions | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
@@ -152,6 +159,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     longPressMs: props.vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
     moveTolerancePx: props.vertexEditMoveTolerancePx ?? DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
   };
+  const vertexMarkerOptions: VertexMarkerOptions = { ...props.vertexMarkers };
 
   // Load initial annotations if provided
   if (props.initialAnnotations) {
@@ -203,6 +211,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     fullscreenTarget: props.fullscreenTarget,
     shortcuts: mergedShortcuts,
     vertexEditConfig,
+    vertexMarkerOptions,
     activeImageId,
     testMode: props.testMode ?? false,
     decorationProviders: props.decorationProviders ?? [],

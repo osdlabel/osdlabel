@@ -72,6 +72,41 @@ Each tool in a context can have:
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
 
+### Styling a tool
+
+`defaultStyle` merges over `DEFAULT_ANNOTATION_STYLE` and applies to every annotation the tool
+creates — and to the **in-progress preview** as well, so a shape is drawn in the colour it will be
+committed in. Every tool honours it, including `polyline` and `freeHandPath`:
+
+```tsx
+{
+  type: 'polyline',
+  defaultStyle: { strokeColor: '#00e5ff', strokeWidth: 3 },
+}
+```
+
+| Field             | Type                | Description                                                      |
+| ----------------- | ------------------- | ---------------------------------------------------------------- |
+| `strokeColor`     | `string`            | Stroke colour                                                    |
+| `strokeWidth`     | `number`            | Stroke width                                                     |
+| `strokeDashArray` | `readonly number[]` | Dash pattern; also used for the preview when set                 |
+| `fillColor`       | `string`            | Fill colour                                                      |
+| `fillOpacity`     | `number`            | Fill alpha (0–1)                                                 |
+| `opacity`         | `number`            | Object opacity (0–1)                                             |
+| `pointRadius`     | `number`            | Radius of `point` annotations, in image pixels (defaults to `5`) |
+
+The preview is drawn unfilled and dashed so it stays distinguishable from committed annotations. If
+the style sets its own `strokeDashArray`, the preview uses that instead.
+
+While a `polyline` is being drawn, a marker is rendered at each clicked vertex. The first vertex is
+drawn larger as a hollow ring — it is the close target — and fills in solid once the pointer is close
+enough that clicking would close the path into a polygon. Pass marker options to the tool to change
+the radii and colours, or `{ enabled: false }` to turn them off:
+
+```tsx
+new PolylineTool(undefined, { radius: 4, firstRadius: 7, color: '#00e5ff' });
+```
+
 ## Count scope
 
 The `countScope` property controls how annotations are counted against `maxCount`:

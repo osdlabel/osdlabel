@@ -6,6 +6,7 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Circle } from 'fabric';
+import { DEFAULT_POINT_RADIUS } from '@osdlabel/annotation';
 import { createTestKeyboardShortcuts } from '../test-helpers.js';
 
 describe('PointTool', () => {
@@ -50,6 +51,30 @@ describe('PointTool', () => {
       setSelectedAnnotation: vi.fn(),
       getAnnotation: vi.fn().mockReturnValue(undefined),
     };
+  });
+
+  describe('pointRadius (issue #156)', () => {
+    it('defaults to DEFAULT_POINT_RADIUS', () => {
+      tool = new PointTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
+
+      expect(mockCanvas.add.mock.calls[0][0].radius).toBe(DEFAULT_POINT_RADIUS);
+    });
+
+    it("honours the tool constraint's defaultStyle.pointRadius", () => {
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({ type, defaultStyle: { pointRadius: 12 } }),
+      };
+      tool = new PointTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
+
+      expect(mockCanvas.add.mock.calls[0][0].radius).toBe(12);
+    });
   });
 
   it('should create preview on pointer down and add to canvas', () => {

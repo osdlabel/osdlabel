@@ -5,11 +5,11 @@ import {
   type Point,
   type AnnotationStyle,
   createAnnotationId,
-  DEFAULT_ANNOTATION_STYLE,
   generateId,
 } from '@osdlabel/annotation';
 import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { getFabricOptions } from '../fabric-utils.js';
+import { getPreviewOptions } from '../preview-style.js';
 import type { ToolOverlay } from '../types.js';
 import type { ToolCallbacks } from './base-tool.js';
 import {
@@ -26,6 +26,8 @@ export class FreeHandPathTool extends BaseTool {
   readonly type: ToolType = 'freeHandPath';
   private preview: Polyline | null = null;
   private vertices: Point[] = [];
+  /** Style resolved when drawing started, reused for the commit. */
+  private style: AnnotationStyle | null = null;
   private isDrawing = false;
   private shiftHeld = false;
   private readonly minSampleDistancePx: number;
@@ -66,16 +68,14 @@ export class FreeHandPathTool extends BaseTool {
     this.shiftHeld = event.shiftKey;
     this.vertices = [{ x: imagePoint.x, y: imagePoint.y }];
 
-    this.preview = new Polyline([{ x: imagePoint.x, y: imagePoint.y }], {
-      fill: 'transparent',
-      stroke: 'rgba(0,0,0,0.5)',
-      strokeWidth: 2 / this.overlay.canvas.getZoom(),
-      strokeDashArray: [5 / this.overlay.canvas.getZoom(), 5 / this.overlay.canvas.getZoom()],
-      selectable: false,
-      evented: false,
-      strokeUniform: true,
-      objectCaching: false,
-    });
+    // Draw the preview in the style the finished annotation will have, so the
+    // stroke stays visible while it is being drawn (see issue #156).
+    this.style = this.resolveStyle();
+    this.preview = new Polyline(
+      [{ x: imagePoint.x, y: imagePoint.y }],
+      getPreviewOptions(this.style, this.overlay.canvas.getZoom()),
+    );
+    this.preview._readOnly = true;
     this.overlay.canvas.add(this.preview);
     this.overlay.canvas.requestRenderAll();
   }
@@ -149,12 +149,7 @@ export class FreeHandPathTool extends BaseTool {
       return;
     }
 
-    const toolConstraint = this.callbacks.getToolConstraint(this.type);
-    const style: AnnotationStyle = {
-      ...DEFAULT_ANNOTATION_STYLE,
-      ...toolConstraint?.defaultStyle,
-    };
-
+    const style = this.style ?? this.resolveStyle();
     const id = createAnnotationId(generateId());
     const options = getFabricOptions(style, id);
     const pts = this.vertices.map((p) => ({ x: p.x, y: p.y }));
@@ -193,6 +188,7 @@ export class FreeHandPathTool extends BaseTool {
 
     this.preview = null;
     this.vertices = [];
+    this.style = null;
     this.isDrawing = false;
   }
 
@@ -203,6 +199,7 @@ export class FreeHandPathTool extends BaseTool {
     }
     this.preview = null;
     this.vertices = [];
+    this.style = null;
     this.isDrawing = false;
   }
 }
