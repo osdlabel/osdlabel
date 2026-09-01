@@ -18,6 +18,15 @@ describe('getPreviewOptions', () => {
     expect(options.opacity).toBe(0.8);
   });
 
+  it('keeps the stroke width constant in screen pixels', () => {
+    const style: AnnotationStyle = { ...DEFAULT_ANNOTATION_STYLE, strokeWidth: 2 };
+
+    // An image wider than its viewport (the whole-slide / radiograph case)
+    // renders at zoom < 1; an image-space width would collapse to a hairline.
+    expect(getPreviewOptions(style, 0.1).strokeWidth).toBeCloseTo(20);
+    expect(getPreviewOptions(style, 4).strokeWidth).toBeCloseTo(0.5);
+  });
+
   it('leaves the preview unfilled and non-interactive', () => {
     const options = getPreviewOptions(DEFAULT_ANNOTATION_STYLE, 1);
 
@@ -38,9 +47,9 @@ describe('getPreviewOptions', () => {
   it('prefers an explicit strokeDashArray from the style', () => {
     const style: AnnotationStyle = { ...DEFAULT_ANNOTATION_STYLE, strokeDashArray: [2, 8] };
 
-    const options = getPreviewOptions(style, 4);
-
-    expect(options.strokeDashArray).toEqual([2, 8]);
+    expect(getPreviewOptions(style, 1).strokeDashArray).toEqual([2, 8]);
+    // …also converted to image space, so the pattern holds its screen rhythm.
+    expect(getPreviewOptions(style, 4).strokeDashArray).toEqual([0.5, 2]);
   });
 
   it('copies the style dash array rather than aliasing it', () => {

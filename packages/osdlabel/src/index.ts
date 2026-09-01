@@ -14,6 +14,7 @@ export type {
 export {
   createAnnotationId,
   DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_POINT_RADIUS,
   toolTypeToGeometryType,
 } from '@osdlabel/annotation';
 

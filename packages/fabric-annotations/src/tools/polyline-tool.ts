@@ -28,7 +28,7 @@ export class PolylineTool extends BaseTool {
   private preview: Polyline | null = null;
   /** Committed vertices (does not include the live cursor point) */
   private vertices: Point[] = [];
-  /** Style resolved when drawing started, reused for the commit. */
+  /** Style resolved when drawing started; drives the preview only. */
   private style: AnnotationStyle | null = null;
   private readonly editor: PolyVertexEditor;
   private readonly markers: VertexMarkerLayer;
@@ -202,7 +202,11 @@ export class PolylineTool extends BaseTool {
       return;
     }
 
-    const style = this.style ?? this.resolveStyle();
+    // Re-resolved rather than reusing the style cached for the preview: the
+    // active context can change mid-draw, and `finish()` reads the context id
+    // live, so the committed annotation must be styled by the same context that
+    // ends up owning it.
+    const style = this.resolveStyle();
     const id = createAnnotationId(generateId());
     const options = getFabricOptions(style, id);
     const pts = this.vertices.map((p) => ({ x: p.x, y: p.y }));

@@ -29,13 +29,20 @@ export interface PreviewOptions {
  * dashed and unfilled; the dash pattern comes from the style when it defines
  * one, otherwise from {@link DEFAULT_PREVIEW_DASH_SCREEN_PX}.
  *
+ * Stroke width and dash lengths are divided by `zoom` so they land on screen at
+ * the size {@link AnnotationStyle.strokeWidth} documents (screen pixels). A
+ * preview measured in image pixels instead would collapse to a sub-pixel
+ * hairline whenever the image is larger than its viewport — which is the normal
+ * case for the whole-slide and radiograph sources this library targets, and
+ * exactly the invisibility this preview is meant to cure.
+ *
  * Preview objects deliberately carry **no `id`** (that property is reserved for
  * annotation objects) — callers should also set `_readOnly = true` on the
  * created object so `FabricOverlay.setMode` keeps it inert.
  *
  * @param style Resolved style (`DEFAULT_ANNOTATION_STYLE` merged with the tool
  *   constraint's `defaultStyle`).
- * @param zoom Current canvas zoom, used to keep the default dash pattern
+ * @param zoom Current canvas zoom, used to keep stroke width and dash lengths
  *   constant in screen pixels.
  */
 export function getPreviewOptions(style: AnnotationStyle, zoom: number): PreviewOptions {
@@ -45,8 +52,10 @@ export function getPreviewOptions(style: AnnotationStyle, zoom: number): Preview
   return {
     fill: 'transparent',
     stroke: style.strokeColor,
-    strokeWidth: style.strokeWidth,
-    strokeDashArray: style.strokeDashArray ? [...style.strokeDashArray] : [dash, dash],
+    strokeWidth: style.strokeWidth / safeZoom,
+    strokeDashArray: style.strokeDashArray
+      ? style.strokeDashArray.map((segment) => segment / safeZoom)
+      : [dash, dash],
     opacity: style.opacity,
     selectable: false,
     evented: false,
