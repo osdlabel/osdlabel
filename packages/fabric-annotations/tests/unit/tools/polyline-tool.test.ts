@@ -5,7 +5,7 @@ import type { ToolCallbacks, AddAnnotationParams } from '../../../src/tools/base
 import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
-import { Polyline, Polygon } from 'fabric';
+import { Polyline, Polygon, Circle } from 'fabric';
 import { createTestKeyboardShortcuts } from '../test-helpers.js';
 
 describe('PolylineTool', () => {
@@ -55,6 +55,214 @@ describe('PolylineTool', () => {
       setSelectedAnnotation: vi.fn(),
       getAnnotation: vi.fn().mockReturnValue(undefined),
     };
+  });
+
+  describe('preview style (issue #156)', () => {
+    it("draws the preview in the tool constraint's defaultStyle", () => {
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({
+          type,
+          defaultStyle: { strokeColor: '#00e5ff', strokeWidth: 3 },
+        }),
+      };
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      const preview = mockCanvas.add.mock.calls[0][0];
+      expect(preview.stroke).toBe('#00e5ff');
+      expect(preview.strokeWidth).toBe(3);
+    });
+
+    it('keeps the preview dashed, non-interactive, id-less and read-only', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      const preview = mockCanvas.add.mock.calls[0][0];
+      expect(preview.strokeDashArray).toEqual([5, 5]);
+      expect(preview.selectable).toBe(false);
+      expect(preview.evented).toBe(false);
+      // `id` is reserved for annotation objects; previews must not carry one.
+      expect(preview.id).toBeUndefined();
+      expect(preview._readOnly).toBe(true);
+    });
+
+    it('honours an explicit strokeDashArray from the style', () => {
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({ type, defaultStyle: { strokeDashArray: [2, 8] } }),
+      };
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      expect(mockCanvas.add.mock.calls[0][0].strokeDashArray).toEqual([2, 8]);
+    });
+
+    it('scales the preview stroke to screen pixels', () => {
+      mockCanvas.getZoom.mockReturnValue(0.1);
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      // DEFAULT_ANNOTATION_STYLE.strokeWidth (2) at zoom 0.1 must still land as
+      // 2 screen px, not a 0.2 px hairline.
+      expect(mockCanvas.add.mock.calls[0][0].strokeWidth).toBeCloseTo(20);
+    });
+
+    it('styles the commit by the context active at finish, not at draw start', () => {
+      let activeStyle = { strokeColor: '#ff0000' };
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({ type, defaultStyle: activeStyle }),
+      };
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+
+      // The user switches annotation context mid-draw; finish() reads the
+      // context id live, so the style must follow it.
+      activeStyle = { strokeColor: '#0000ff' };
+      tool.onKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      expect(addedParams[0]!.fabricObject.stroke).toBe('#0000ff');
+    });
+
+    it('commits the annotation in the same style as the preview', () => {
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({ type, defaultStyle: { strokeColor: '#00e5ff' } }),
+      };
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      const preview = mockCanvas.add.mock.calls[0][0];
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+      tool.onKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      expect(addedParams[0]!.fabricObject.stroke).toBe(preview.stroke);
+    });
+  });
+
+  describe('vertex markers (issue #156)', () => {
+    const markersOf = (calls: unknown[][]): Circle[] =>
+      calls.map((call) => call[0]).filter((obj): obj is Circle => obj instanceof Circle);
+
+    it('draws one marker per committed vertex', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      expect(markersOf(mockCanvas.add.mock.calls)).toHaveLength(1);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+      const markers = markersOf(mockCanvas.add.mock.calls);
+      expect(markers).toHaveLength(2);
+      expect(markers[1]!.left).toBe(50);
+      expect(markers[1]!.top).toBe(10);
+    });
+
+    it('marks vertices as inert chrome, not annotations', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      const marker = markersOf(mockCanvas.add.mock.calls)[0]!;
+      expect(marker.id).toBeUndefined();
+      expect(marker._readOnly).toBe(true);
+      expect(marker.selectable).toBe(false);
+      expect(marker.evented).toBe(false);
+    });
+
+    it('draws the first vertex larger than the rest, as the close target', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+
+      const [first, second] = markersOf(mockCanvas.add.mock.calls);
+      expect(first!.radius).toBeGreaterThan(second!.radius);
+      // Hollow until closing is possible.
+      expect(first!.fill).toBe('transparent');
+    });
+
+    it('sizes markers in screen pixels, independent of zoom', () => {
+      mockCanvas.getZoom.mockReturnValue(4);
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+
+      // 5 screen px at zoom 4 → 1.25 image px.
+      expect(markersOf(mockCanvas.add.mock.calls)[0]!.radius).toBeCloseTo(1.25);
+    });
+
+    it('fills the first vertex once a click there would close the shape', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 100, y: 100 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 200, y: 100 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 200, y: 200 });
+
+      const first = markersOf(mockCanvas.add.mock.calls)[0]!;
+      expect(first.fill).toBe('transparent');
+
+      tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 102, y: 102 });
+      expect(first.fill).not.toBe('transparent');
+
+      tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 400, y: 400 });
+      expect(first.fill).toBe('transparent');
+    });
+
+    it('removes markers when the path is cancelled', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+      const markers = markersOf(mockCanvas.add.mock.calls);
+
+      tool.cancel();
+
+      const removed = mockCanvas.remove.mock.calls.map((call) => call[0]);
+      for (const marker of markers) expect(removed).toContain(marker);
+    });
+
+    it('removes markers when the path is committed', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+      const markers = markersOf(mockCanvas.add.mock.calls);
+
+      tool.onKeyDown({ key: 'Enter' } as KeyboardEvent);
+
+      const removed = mockCanvas.remove.mock.calls.map((call) => call[0]);
+      for (const marker of markers) expect(removed).toContain(marker);
+    });
+
+    it('draws no markers when they are disabled', () => {
+      tool = new PolylineTool({ longPressMs: 500, moveTolerancePx: 8 }, { enabled: false });
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
+
+      expect(markersOf(mockCanvas.add.mock.calls)).toHaveLength(0);
+    });
   });
 
   it('should start a preview path on first pointer down', () => {
@@ -125,8 +333,10 @@ describe('PolylineTool', () => {
 
     // Preview should be removed, final object added
     expect(mockCanvas.remove).toHaveBeenCalled();
-    // 2 adds: preview + final object
-    expect(mockCanvas.add).toHaveBeenCalledTimes(2);
+    // preview + one vertex marker per committed vertex + the final object
+    const added = mockCanvas.add.mock.calls.map((call) => call[0]);
+    expect(added).toHaveLength(4);
+    expect(added[added.length - 1]).toBe(params.fabricObject);
   });
 
   it('should finish open path on Enter key', () => {

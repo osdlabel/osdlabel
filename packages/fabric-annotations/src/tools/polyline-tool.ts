@@ -5,11 +5,12 @@ import {
   type Point,
   type AnnotationStyle,
   createAnnotationId,
-  DEFAULT_ANNOTATION_STYLE,
   generateId,
 } from '@osdlabel/annotation';
 import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { getFabricOptions } from '../fabric-utils.js';
+import { getPreviewOptions } from '../preview-style.js';
+import { VertexMarkerLayer, type VertexMarkerOptions } from '../vertex-markers.js';
 import type { ToolOverlay } from '../types.js';
 import type { ToolCallbacks } from './base-tool.js';
 import {
@@ -27,16 +28,21 @@ export class PolylineTool extends BaseTool {
   private preview: Polyline | null = null;
   /** Committed vertices (does not include the live cursor point) */
   private vertices: Point[] = [];
+  /** Style resolved when drawing started; drives the preview only. */
+  private style: AnnotationStyle | null = null;
   private readonly editor: PolyVertexEditor;
+  private readonly markers: VertexMarkerLayer;
 
   constructor(
     config: VertexEditConfig = {
       longPressMs: DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
       moveTolerancePx: DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
     },
+    markerOptions: VertexMarkerOptions = {},
   ) {
     super();
     this.editor = new PolyVertexEditor({ ...config, isDrawing: () => this.vertices.length > 0 });
+    this.markers = new VertexMarkerLayer(markerOptions);
   }
 
   activate(
@@ -67,26 +73,21 @@ export class PolylineTool extends BaseTool {
       // First point — start a new path
       this.vertices.push({ x: imagePoint.x, y: imagePoint.y });
 
+      // Draw the preview in the style the finished annotation will have, so the
+      // shape stays visible while it is being drawn (see issue #156).
+      this.style = this.resolveStyle();
       this.preview = new Polyline(
         [
           { x: imagePoint.x, y: imagePoint.y },
           { x: imagePoint.x, y: imagePoint.y },
         ],
-        {
-          fill: 'transparent',
-          stroke: 'rgba(0,0,0,0.5)',
-          strokeWidth: 2 / this.overlay.canvas.getZoom(),
-          strokeDashArray: [5 / this.overlay.canvas.getZoom(), 5 / this.overlay.canvas.getZoom()],
-          selectable: false,
-          evented: false,
-          strokeUniform: true,
-          objectCaching: false,
-        },
+        getPreviewOptions(this.style, this.overlay.canvas.getZoom()),
       );
+      this.preview._readOnly = true;
       this.overlay.canvas.add(this.preview);
     } else {
       // Check if clicking near the first point to close
-      if (this.vertices.length >= 3 && this.isNearFirstPoint(imagePoint)) {
+      if (this.canClose(imagePoint)) {
         this.finish(true);
         return;
       }
@@ -104,6 +105,7 @@ export class PolylineTool extends BaseTool {
       }
     }
 
+    this.syncMarkers(imagePoint);
     this.overlay.canvas.requestRenderAll();
   }
 
@@ -116,6 +118,7 @@ export class PolylineTool extends BaseTool {
       { x: imagePoint.x, y: imagePoint.y },
     ];
     this.preview.set({ points: previewPoints, dirty: true });
+    this.syncMarkers(imagePoint);
     this.overlay.canvas.requestRenderAll();
   }
 
@@ -143,6 +146,21 @@ export class PolylineTool extends BaseTool {
       }
     }
     return super.onKeyDown(event);
+  }
+
+  /**
+   * Redraws the per-vertex markers. The first marker is highlighted whenever a
+   * click at `imagePoint` would close the shape, since that 10px target is
+   * otherwise invisible.
+   */
+  private syncMarkers(imagePoint: Point): void {
+    if (!this.overlay || !this.style) return;
+    this.markers.sync(this.overlay, this.vertices, this.style, this.canClose(imagePoint));
+  }
+
+  /** Whether a click at `imagePoint` would close the path into a polygon. */
+  private canClose(imagePoint: Point): boolean {
+    return this.vertices.length >= 3 && this.isNearFirstPoint(imagePoint);
   }
 
   private isNearFirstPoint(imagePoint: Point): boolean {
@@ -184,20 +202,20 @@ export class PolylineTool extends BaseTool {
       return;
     }
 
-    const toolConstraint = this.callbacks.getToolConstraint(this.type);
-    const style: AnnotationStyle = {
-      ...DEFAULT_ANNOTATION_STYLE,
-      ...toolConstraint?.defaultStyle,
-    };
-
+    // Re-resolved rather than reusing the style cached for the preview: the
+    // active context can change mid-draw, and `finish()` reads the context id
+    // live, so the committed annotation must be styled by the same context that
+    // ends up owning it.
+    const style = this.resolveStyle();
     const id = createAnnotationId(generateId());
     const options = getFabricOptions(style, id);
     const pts = this.vertices.map((p) => ({ x: p.x, y: p.y }));
 
-    // Remove preview polyline
+    // Remove preview polyline and its vertex markers
     if (this.preview) {
       this.overlay.canvas.remove(this.preview);
     }
+    this.markers.clear();
 
     // Create the final object (Polygon for closed, Polyline for open)
     let finalObj: Polyline;
@@ -228,14 +246,17 @@ export class PolylineTool extends BaseTool {
 
     this.preview = null;
     this.vertices = [];
+    this.style = null;
   }
 
   cancel(): void {
+    this.markers.clear();
     if (this.overlay && this.preview) {
       this.overlay.canvas.remove(this.preview);
       this.overlay.canvas.requestRenderAll();
     }
     this.preview = null;
     this.vertices = [];
+    this.style = null;
   }
 }

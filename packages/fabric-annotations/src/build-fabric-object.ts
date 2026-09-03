@@ -1,9 +1,6 @@
 import { Rect, Circle, Line, Polyline, Polygon, type FabricObject } from 'fabric';
-import type { Geometry } from '@osdlabel/annotation';
+import { DEFAULT_POINT_RADIUS, type Geometry } from '@osdlabel/annotation';
 import type { FabricShapeOptions } from './fabric-utils.js';
-
-/** Screen-pixel radius used to render `point` geometry (mirrors PointTool). */
-const POINT_RADIUS = 5;
 
 /**
  * Construct a Fabric object from image-space {@link Geometry}. This is the
@@ -15,10 +12,14 @@ const POINT_RADIUS = 5;
  * geometry behaves identically to user-drawn geometry. The object is created
  * committed (`selectable`/`evented` true) — callers that need a preview object
  * should adjust those flags afterwards.
+ *
+ * @param pointRadius Radius (image pixels) for `point` geometry, mirroring
+ *   `AnnotationStyle.pointRadius`. Defaults to {@link DEFAULT_POINT_RADIUS}.
  */
 export function buildFabricObjectFromGeometry(
   geometry: Geometry,
   options: FabricShapeOptions,
+  pointRadius: number = DEFAULT_POINT_RADIUS,
 ): FabricObject {
   switch (geometry.type) {
     case 'rectangle':
@@ -56,7 +57,7 @@ export function buildFabricObjectFromGeometry(
         ...options,
         left: geometry.position.x,
         top: geometry.position.y,
-        radius: POINT_RADIUS,
+        radius: pointRadius,
         originX: 'center',
         originY: 'center',
         hasControls: false,

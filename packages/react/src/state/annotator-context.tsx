@@ -19,7 +19,7 @@ import type {
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
+import type { OsdAnnotation, OsdFields, VertexEditConfig, VertexMarkerOptions } from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -83,6 +83,7 @@ interface AnnotatorContextValue {
   fullscreenTarget: HTMLElement | (() => HTMLElement | null) | null | undefined;
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
+  vertexMarkerOptions: VertexMarkerOptions;
   activeImageId: ImageId | undefined;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -108,6 +109,17 @@ export interface AnnotatorProviderProps {
    * Defaults to {@link DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX}.
    */
   readonly vertexEditMoveTolerancePx?: number | undefined;
+  /**
+   * Appearance of the vertex markers drawn while a polyline is in progress.
+   * Radii and colours default to values derived from the tool's resolved style;
+   * pass `{ enabled: false }` to draw no markers.
+   *
+   * Compared field-by-field, so an inline object literal is safe to pass. A
+   * genuine value change still rebuilds the active tool (as `vertexEdit*` does),
+   * which discards an in-progress path — so drive these from constants or
+   * settled state, not from a value that animates while the user draws.
+   */
+  readonly vertexMarkers?: VertexMarkerOptions | undefined;
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
    * Element to display fullscreen when the view controls' fullscreen button is
@@ -147,6 +159,7 @@ export function AnnotatorProvider({
   keyboardShortcuts,
   vertexEditLongPressMs,
   vertexEditMoveTolerancePx,
+  vertexMarkers,
   shouldSkipKeyboardShortcutPredicate,
   fullscreenTarget,
   testMode = false,
@@ -217,6 +230,20 @@ export function AnnotatorProvider({
     }),
     [vertexEditLongPressMs, vertexEditMoveTolerancePx],
   );
+  // Depend on the individual fields, not the object identity, so callers can
+  // pass an inline literal without recreating the active tool on every render.
+  // Keep this list in sync with VertexMarkerOptions when fields are added.
+  const vertexMarkerOptions = useMemo<VertexMarkerOptions>(
+    () => ({ ...vertexMarkers }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      vertexMarkers?.enabled,
+      vertexMarkers?.radius,
+      vertexMarkers?.firstRadius,
+      vertexMarkers?.color,
+      vertexMarkers?.firstColor,
+    ],
+  );
 
   // Fire onAnnotationsChange when annotations change (skip initial render)
   const isFirstAnnotationRender = useRef(true);
@@ -264,6 +291,7 @@ export function AnnotatorProvider({
       fullscreenTarget,
       shortcuts: mergedShortcuts,
       vertexEditConfig,
+      vertexMarkerOptions,
       activeImageId,
       testMode,
       decorationProviders: stableDecorationProviders,
@@ -281,6 +309,7 @@ export function AnnotatorProvider({
       fullscreenTarget,
       mergedShortcuts,
       vertexEditConfig,
+      vertexMarkerOptions,
       activeImageId,
       testMode,
       stableDecorationProviders,

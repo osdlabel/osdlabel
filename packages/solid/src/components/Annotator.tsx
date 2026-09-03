@@ -140,6 +140,7 @@ const Annotator: Component<AnnotatorProps> = (props) => {
       keyboardShortcuts={props.keyboardShortcuts}
       vertexEditLongPressMs={props.vertexEditLongPressMs}
       vertexEditMoveTolerancePx={props.vertexEditMoveTolerancePx}
+      vertexMarkers={props.vertexMarkers}
       shouldSkipKeyboardShortcutPredicate={props.shouldSkipKeyboardShortcutPredicate}
       fullscreenTarget={props.fullscreenTarget}
       testMode={props.testMode}

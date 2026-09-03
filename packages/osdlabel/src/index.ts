@@ -14,6 +14,7 @@ export type {
 export {
   createAnnotationId,
   DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_POINT_RADIUS,
   toolTypeToGeometryType,
 } from '@osdlabel/annotation';
 
@@ -69,6 +70,11 @@ export {
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+  VertexMarkerLayer,
+  DEFAULT_VERTEX_MARKER_RADIUS_PX,
+  DEFAULT_FIRST_VERTEX_MARKER_RADIUS_PX,
+  getPreviewOptions,
+  DEFAULT_PREVIEW_DASH_SCREEN_PX,
 } from '@osdlabel/fabric-annotations';
 export type {
   ToolOverlay,
@@ -79,6 +85,8 @@ export type {
   AddAnnotationParams,
   PolyVertexEditorOptions,
   VertexEditConfig,
+  VertexMarkerOptions,
+  PreviewOptions,
 } from '@osdlabel/fabric-annotations';
 
 // Fabric-OSD overlay (re-exported from @osdlabel/fabric-osd)
