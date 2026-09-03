@@ -1,5 +1,6 @@
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { AnnotationState, ImageId, UIState, ViewerControlId } from '@osdlabel/viewer-api';
+import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import type {
   AnnotationContext,
@@ -40,6 +41,8 @@ export type UIAction =
   | { readonly type: 'SET_ACTIVE_VIEWER_CONTROL'; readonly payload: ViewerControlId | null }
   | { readonly type: 'SET_ACTIVE_CELL'; readonly payload: number }
   | { readonly type: 'SET_SELECTED_ANNOTATION'; readonly payload: AnnotationId | null }
+  | { readonly type: 'SET_BRUSH_RADIUS'; readonly payload: number }
+  | { readonly type: 'SET_BRUSH_ERASING'; readonly payload: boolean }
   | {
       readonly type: 'ASSIGN_IMAGE_TO_CELL';
       readonly payload: { readonly cellIndex: number; readonly imageId: ImageId };
@@ -164,6 +167,26 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       break;
     case 'SET_ACTIVE_CELL':
       draft.activeCellIndex = action.payload;
+      break;
+    case 'SET_BRUSH_RADIUS':
+      // Clamped here so every caller — toolbar, keyboard, host code — gets the
+      // same guarantee without repeating the bounds.
+      //
+      // NaN has to be screened before the clamp, not by it: it survives both
+      // Math.round and the min/max pair. A host binding a text field
+      // (`setBrushRadius(Number(value))`) would otherwise put NaN into state,
+      // and every subsequent stroke would silently no-op on the rasterizer's
+      // finiteness guards — with the resize keys unable to recover it, since
+      // they step from the current value.
+      if (Number.isFinite(action.payload)) {
+        draft.brushRadius = Math.min(
+          MAX_BRUSH_RADIUS,
+          Math.max(MIN_BRUSH_RADIUS, Math.round(action.payload)),
+        );
+      }
+      break;
+    case 'SET_BRUSH_ERASING':
+      draft.brushErasing = action.payload;
       break;
     case 'SET_SELECTED_ANNOTATION':
       draft.selectedAnnotationId = action.payload;

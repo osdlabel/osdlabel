@@ -228,3 +228,46 @@ describe('createDistanceProvider', () => {
     expect(label.text).toBe('Distance: 5.0 px');
   });
 });
+
+describe('mask annotations', () => {
+  const maskGeometry = {
+    type: 'mask',
+    origin: { x: 20, y: 40 },
+    width: 10,
+    height: 6,
+    pixelCount: 37,
+  } as const;
+
+  it('anchors a mask label at the centre of its bounding box', () => {
+    // A mask has no vertices to hang a label off, so the anchor is the box
+    // centre — deliberately, even though a concave mask may not contain it.
+    // Hard-coded rather than recomputed from the geometry: deriving the
+    // expectation would make the assertion pass for any anchor rule.
+    const provider = createMeasurementProvider({ area: true });
+    const a = ann('m1', 'segmentationBrush', maskGeometry);
+    const [d] = provider({ annotations: [a], selectedAnnotationId: null }) as [TextDecoration];
+
+    expect(d.anchor).toEqual({ x: 25, y: 43 });
+    expect(d.placement).toBe('center');
+  });
+
+  it('reports the exact painted-pixel count as the area', () => {
+    // The whole point of carrying `pixelCount`: a mask's area is exact, not
+    // the bounding box (60) and not a traced approximation.
+    const provider = createMeasurementProvider({ area: true });
+    const a = ann('m1', 'segmentationBrush', maskGeometry);
+    const [d] = provider({ annotations: [a], selectedAnnotationId: null }) as [TextDecoration];
+
+    expect(d.text).toContain('37');
+    expect(d.text).not.toContain('60');
+  });
+
+  it('emits no perimeter or length line for a mask', () => {
+    // Both are 0 for a mask, and a "P: 0 px" line would be worse than absent.
+    const provider = createMeasurementProvider({ perimeter: true, length: true, radius: true });
+    const a = ann('m1', 'segmentationBrush', maskGeometry);
+    const decorations = provider({ annotations: [a], selectedAnnotationId: null });
+
+    expect(decorations).toHaveLength(0);
+  });
+});

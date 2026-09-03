@@ -1,5 +1,6 @@
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ToolType } from '@osdlabel/annotation';
+import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
 import { preventButtonFocusSteal } from 'osdlabel';
 
 const TOOL_LABELS: Record<ToolType, string> = {
@@ -9,6 +10,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
   point: 'Point',
   polyline: 'Polyline',
   freeHandPath: 'Free Draw',
+  segmentationBrush: 'Brush',
 };
 
 export default function Toolbar() {
@@ -112,6 +114,58 @@ export default function Toolbar() {
           </button>
         );
       })}
+
+      {/* Brush options, shown only while the brush is the active tool */}
+      {uiState.activeTool === 'segmentationBrush' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <label
+            htmlFor="brush-radius"
+            style={{ color: '#bbb', fontSize: '12px', whiteSpace: 'nowrap' }}
+          >
+            Brush
+          </label>
+          <input
+            id="brush-radius"
+            data-testid="brush-radius"
+            type="range"
+            min={MIN_BRUSH_RADIUS}
+            max={MAX_BRUSH_RADIUS}
+            value={uiState.brushRadius}
+            onChange={(e) => actions.setBrushRadius(Number(e.currentTarget.value))}
+            // A focused input suppresses every keyboard shortcut, so after
+            // touching the slider `[`, `]`, `b` and Escape were all dead until
+            // the user clicked elsewhere — including the mid-stroke cancel.
+            // Focus is released on any pointer interaction, click included, so
+            // click-then-arrow-keys does not work; tabbing to it still does,
+            // which is the path where the arrow keys are the point.
+            onPointerUp={(e) => e.currentTarget.blur()}
+            style={{ width: '90px' }}
+          />
+          <span
+            data-testid="brush-radius-value"
+            style={{ color: '#fff', fontSize: '12px', minWidth: '34px' }}
+          >
+            {uiState.brushRadius}px
+          </span>
+          <button
+            data-testid="brush-eraser"
+            aria-pressed={uiState.brushErasing}
+            onClick={() => actions.setBrushErasing(!uiState.brushErasing)}
+            style={{
+              padding: '4px 10px',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              background: uiState.brushErasing ? '#2196F3' : '#333',
+              color: '#fff',
+              fontWeight: uiState.brushErasing ? 'bold' : 'normal',
+              fontSize: '13px',
+            }}
+          >
+            Erase
+          </button>
+        </div>
+      )}
 
       {/* Contextual action: convert the selected circle to its bounding rectangle */}
       {showConvertToRect && (

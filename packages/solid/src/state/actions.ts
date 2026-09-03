@@ -14,6 +14,7 @@ import {
   validateAddAnnotation,
   computeConstraintStatus,
   processConvertCircleToRectangle,
+  nextBrushRadius,
 } from 'osdlabel';
 
 export function createActions(
@@ -74,6 +75,23 @@ export function createActions(
   function setActiveTool(tool: ToolType | 'select' | null): void {
     setUIState(
       produce((draft) => applyUIAction(draft, { type: 'SET_ACTIVE_TOOL', payload: tool })),
+    );
+  }
+
+  function setBrushRadius(radius: number): void {
+    setUIState(
+      produce((draft) => applyUIAction(draft, { type: 'SET_BRUSH_RADIUS', payload: radius })),
+    );
+  }
+
+  /** Steps the brush radius proportionally; used by the resize shortcuts. */
+  function adjustBrushRadius(direction: 1 | -1): void {
+    setBrushRadius(nextBrushRadius(uiState.brushRadius, direction));
+  }
+
+  function setBrushErasing(erasing: boolean): void {
+    setUIState(
+      produce((draft) => applyUIAction(draft, { type: 'SET_BRUSH_ERASING', payload: erasing })),
     );
   }
 
@@ -245,6 +263,9 @@ export function createActions(
     convertAnnotation,
     deleteAnnotation,
     setActiveTool,
+    setBrushRadius,
+    adjustBrushRadius,
+    setBrushErasing,
     setActiveViewerControl,
     setActiveCell,
     setSelectedAnnotation,

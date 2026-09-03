@@ -85,8 +85,14 @@ export abstract class BaseTool implements AnnotationTool {
       this.shortcuts &&
       (event.key === this.shortcuts.delete || event.key === this.shortcuts.deleteAlt)
     ) {
-      this.deleteSelected();
-      return true;
+      // Claimed only when it actually deleted something. Returning `true`
+      // unconditionally made the key dead whenever Fabric has no active
+      // object but the app does have a selected annotation — which is *always*
+      // the case in `paint` mode, where every object is inert and the
+      // selection is discarded. The host's keyboard map deletes from
+      // `UIState.selectedAnnotationId` instead, but only if this lets the
+      // event through.
+      return this.deleteSelected();
     }
     return false;
   }
@@ -104,20 +110,24 @@ export abstract class BaseTool implements AnnotationTool {
   abstract onPointerUp(event: PointerEvent, imagePoint: Point): void;
   abstract cancel(): void;
 
-  private deleteSelected() {
-    if (!this.callbacks || !this.imageId || !this.overlay) return;
+  /** @returns whether anything was deleted. */
+  private deleteSelected(): boolean {
+    if (!this.callbacks || !this.imageId || !this.overlay) return false;
     const activeObjects = this.overlay.canvas.getActiveObjects().slice();
-    if (!activeObjects || activeObjects.length === 0) return;
+    if (activeObjects.length === 0) return false;
 
     // Discard selection first to prevent Fabric from errors when objects are removed
     this.overlay.canvas.discardActiveObject();
     this.overlay.canvas.requestRenderAll();
 
+    let deleted = false;
     for (const obj of activeObjects) {
       const annotationId = obj.id as AnnotationId | undefined;
       if (annotationId) {
         this.callbacks.deleteAnnotation(annotationId, this.imageId);
+        deleted = true;
       }
     }
+    return deleted;
   }
 }

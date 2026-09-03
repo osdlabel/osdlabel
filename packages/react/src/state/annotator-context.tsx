@@ -19,7 +19,7 @@ import type {
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
+import type { BrushOptions, OsdAnnotation, OsdFields, VertexEditConfig } from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -83,6 +83,7 @@ interface AnnotatorContextValue {
   fullscreenTarget: HTMLElement | (() => HTMLElement | null) | null | undefined;
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
+  brushOptions: BrushOptions;
   activeImageId: ImageId | undefined;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -108,6 +109,11 @@ export interface AnnotatorProviderProps {
    * Defaults to {@link DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX}.
    */
   readonly vertexEditMoveTolerancePx?: number | undefined;
+  /**
+   * Settings for the segmentation brush — the mask pixel cap and what to do
+   * when a stroke exceeds it. See {@link BrushOptions}.
+   */
+  readonly brushOptions?: BrushOptions | undefined;
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
    * Element to display fullscreen when the view controls' fullscreen button is
@@ -147,6 +153,7 @@ export function AnnotatorProvider({
   keyboardShortcuts,
   vertexEditLongPressMs,
   vertexEditMoveTolerancePx,
+  brushOptions: brushOptionsProp,
   shouldSkipKeyboardShortcutPredicate,
   fullscreenTarget,
   testMode = false,
@@ -217,6 +224,23 @@ export function AnnotatorProvider({
     }),
     [vertexEditLongPressMs, vertexEditMoveTolerancePx],
   );
+  // Stable identity, so an inline `brushOptions={{ ... }}` from the host does
+  // not bust the context value on every render and re-render every consumer.
+  //
+  // Memoising on the callback could never achieve that: a fresh arrow function
+  // each render *is* the unstable identity, so it was the memo's own dependency
+  // that kept invalidating it. The callback goes through a ref instead and only
+  // the primitive participates.
+  const maxPixels = brushOptionsProp?.maxPixels;
+  const onCapacityExceededRef = useRef(brushOptionsProp?.onCapacityExceeded);
+  onCapacityExceededRef.current = brushOptionsProp?.onCapacityExceeded;
+  const brushOptions = useMemo<BrushOptions>(
+    () => ({
+      maxPixels,
+      onCapacityExceeded: (error) => onCapacityExceededRef.current?.(error),
+    }),
+    [maxPixels],
+  );
 
   // Fire onAnnotationsChange when annotations change (skip initial render)
   const isFirstAnnotationRender = useRef(true);
@@ -264,6 +288,7 @@ export function AnnotatorProvider({
       fullscreenTarget,
       shortcuts: mergedShortcuts,
       vertexEditConfig,
+      brushOptions,
       activeImageId,
       testMode,
       decorationProviders: stableDecorationProviders,
@@ -281,6 +306,7 @@ export function AnnotatorProvider({
       fullscreenTarget,
       mergedShortcuts,
       vertexEditConfig,
+      brushOptions,
       activeImageId,
       testMode,
       stableDecorationProviders,

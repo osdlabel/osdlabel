@@ -1,6 +1,6 @@
 import type { Dispatch } from 'react';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
-import type { AnnotationState, ImageId, ViewerControlId } from '@osdlabel/viewer-api';
+import type { AnnotationState, ImageId, UIState, ViewerControlId } from '@osdlabel/viewer-api';
 import type {
   AnnotationContext,
   AnnotationContextId,
@@ -11,6 +11,7 @@ import {
   validateAddAnnotation,
   computeConstraintStatus,
   processConvertCircleToRectangle,
+  nextBrushRadius,
 } from 'osdlabel';
 
 export function createActions(
@@ -18,7 +19,7 @@ export function createActions(
   dispatchUI: Dispatch<UIAction>,
   dispatchContext: Dispatch<ContextAction>,
   getContextState: () => ContextState,
-  getUIState: () => { activeCellIndex: number },
+  getUIState: () => UIState,
   getAnnotationState: () => AnnotationState<OsdFields>,
 ) {
   function addAnnotation(annotation: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'>): void {
@@ -56,6 +57,19 @@ export function createActions(
 
   function setActiveTool(tool: ToolType | 'select' | null): void {
     dispatchUI({ type: 'SET_ACTIVE_TOOL', payload: tool });
+  }
+
+  function setBrushRadius(radius: number): void {
+    dispatchUI({ type: 'SET_BRUSH_RADIUS', payload: radius });
+  }
+
+  /** Steps the brush radius proportionally; used by the resize shortcuts. */
+  function adjustBrushRadius(direction: 1 | -1): void {
+    setBrushRadius(nextBrushRadius(getUIState().brushRadius, direction));
+  }
+
+  function setBrushErasing(erasing: boolean): void {
+    dispatchUI({ type: 'SET_BRUSH_ERASING', payload: erasing });
   }
 
   function setActiveViewerControl(control: ViewerControlId | null): void {
@@ -154,6 +168,9 @@ export function createActions(
     convertAnnotation,
     deleteAnnotation,
     setActiveTool,
+    setBrushRadius,
+    adjustBrushRadius,
+    setBrushErasing,
     setActiveViewerControl,
     setActiveCell,
     setSelectedAnnotation,

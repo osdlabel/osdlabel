@@ -1,0 +1,383 @@
+---
+title: Segmentation Brush
+description: Paint pixel masks with an adjustable brush, and control how they are stored and exported
+---
+
+Every other osdlabel tool produces **vector geometry** — a rectangle is four
+numbers, a polygon is a list of points. The segmentation brush produces
+**pixels**. You paint a region freehand, adjust the brush size, erase parts of
+it, and the result is a raster mask attached to the annotation.
+
+That difference runs deeper than the tool, so this guide covers both: how to use
+the brush, and how mask data is represented at each layer — which is what you
+need to know before you wire masks into a downstream system.
+
+Examples use `@osdlabel/solid`; the API is identical in `@osdlabel/react`.
+
+## Enabling the brush
+
+The brush is a tool like any other — add `segmentationBrush` to a context's
+`tools` and it appears in the toolbar:
+
+```tsx
+const contexts: AnnotationContext[] = [
+  {
+    id: createAnnotationContextId('lesion'),
+    label: 'Lesion',
+    tools: [{ type: 'segmentationBrush', maxCount: 5 }],
+  },
+];
+```
+
+`maxCount` limits how many mask **annotations** the context may hold, not how
+many strokes you may paint: refining the selected mask never creates an
+annotation, so it does not count against the limit.
+
+:::caution[Reaching `maxCount` locks the brush out entirely]
+The limit disables the brush and switches to the select tool, and a disabled
+tool cannot be reselected — so once you have painted `maxCount` masks, refining
+them becomes unreachable through the UI even though the tool itself would allow
+it. If your workflow is "paint `n` masks, then refine them", either leave
+`maxCount` unset or set it above `n`, and enforce the real count at review time.
+Tracked in [#154](https://github.com/osdlabel/osdlabel/issues/154).
+:::
+
+## Using it
+
+| Gesture                | Effect                                         |
+| ---------------------- | ---------------------------------------------- |
+| Drag                   | Paint                                          |
+| Alt + drag             | Erase                                          |
+| `Erase` toolbar toggle | Erase without holding a modifier               |
+| `]` / `[`              | Grow / shrink the brush                        |
+| Brush slider           | Set the radius directly                        |
+| `b`                    | Activate the brush                             |
+| `Escape` (mid-stroke)  | Abandon the stroke, leaving the mask unchanged |
+
+Alt-to-erase follows the convention in CVAT and QuPath. The toolbar toggle is
+sticky, for when you are erasing for a while.
+
+The mid-stroke cancel is bound to `polylineCancel` rather than `cancel` — the
+same key that abandons an in-progress polyline, since both mean "discard what I
+am drawing". Identical at the defaults; they differ only if you rebind one.
+
+### The radius is in image pixels
+
+Not screen pixels. A radius of 20 means 20 image pixels whether you are zoomed
+out to the whole slide or in at 40×, so the disc it paints is the same size on
+the image either way. This is what makes a mask reproducible: replaying the same
+strokes at a different zoom paints the same pixels. The cursor ring shows the true footprint, so it grows on screen as you
+zoom in.
+
+### Painting into an existing mask
+
+A stroke **refines the selected mask** if one is selected, and otherwise
+**starts a new one** — which is then selected, so the stroke after that
+continues refining it rather than stacking a second annotation.
+
+**To switch which mask you are refining, use the select tool.** While the brush
+is active nothing on the canvas is clickable — the overlay puts it in a `paint`
+mode where objects are inert, so that a stroke over a shape paints instead of
+dragging it. Press `v`, click the mask you want, then press `b` and keep
+painting. `Escape` between strokes clears the selection without leaving the
+brush, so the next stroke starts a fresh mask.
+
+Two consequences worth knowing:
+
+- Erasing a mask's last pixel deletes the annotation. An empty mask renders
+  nothing and cannot be clicked, so leaving it would strand an invisible
+  annotation that still counted against `maxCount`.
+- A mask selected in a _different_ annotation context is not a valid target.
+  Selection is global, but a stroke must not reach into a context you are not
+  working in — that annotation may not even be displayed. The brush starts a
+  new mask instead.
+
+## How a mask is stored
+
+Masks pass through three representations. The split is the point: what is fast
+to paint into is not what is compact to keep in state, and neither is what a
+downstream system wants to read.
+
+| Layer              | Form                                      | Why                                           |
+| ------------------ | ----------------------------------------- | --------------------------------------------- |
+| Painting (runtime) | mutable dense `Uint8Array` over the bbox  | fast stamping, no allocation per frame        |
+| Annotation state   | canonical RLE in `rawAnnotationData`      | immutable, cheap to diff, codec-independent   |
+| Export             | pluggable `MaskCodec` — COCO RLE built in | you pick the format; we are not locked to one |
+
+### Geometry is not the mask
+
+For every other tool, `annotation.geometry` _is_ the annotation — a rectangle's
+geometry reconstructs the rectangle exactly. Masks break that invariant:
+
+```ts
+interface MaskGeometry {
+  readonly type: 'mask';
+  readonly origin: Point; // bbox top-left, image-space px
+  readonly width: number; // bbox size, image px
+  readonly height: number;
+  readonly pixelCount: number; // set pixels — exact area, O(1)
+}
+```
+
+That is a **summary**, not the shape. The pixels live in
+`annotation.rawAnnotationData`. A mask is not reconstructible from its geometry
+alone.
+
+This is why anything that builds a shape _from_ geometry —
+`createAnnotationFromGeometry`, `buildFabricObjectFromGeometry` — takes
+`VectorGeometry` (`Exclude<Geometry, MaskGeometry>`). Passing a mask is a
+compile error, not a runtime surprise, and the error points at the mask-aware
+helpers:
+
+```ts
+import { createMaskAnnotation } from 'osdlabel';
+
+const annotation = createMaskAnnotation(snapshot, { imageId, contextId });
+```
+
+The snapshot must lie inside the image it names — integer box, integer origin,
+no overhang. A `BoundedDenseMaskBuffer` cannot produce anything else, because
+it clips every write to the image; a snapshot you assemble yourself can, and
+`createMaskAnnotation` throws a `RangeError` rather than accept it. That is
+deliberate: the same check runs on the way back in, so a mask admitted here
+would be one that disappears on reload.
+
+What geometry _does_ buy you is an exact area. `pixelCount` is the true count of
+set pixels, so a mask's area measurement is more accurate than a traced
+polygon's approximation of the same region.
+
+### The canonical payload
+
+State always holds osdlabel's own encoding, never a downstream one:
+
+```ts
+{
+  format: 'osdlabel-mask',
+  data: {
+    x, y, width, height,        // bounding box placement, image-space px
+    imageWidth, imageHeight,    // full image size, which COCO RLE needs
+    counts: '...',              // base64 LEB128 run lengths, row-major
+    fill: 'rgba(...)',          // optional tint; the Annotator does not write one
+  }
+}
+```
+
+Deliberately not COCO. Baking a downstream format into annotator state would
+contradict "open for extension", and COCO's column-major ordering and
+signed-delta string encoding would leak into painting, rendering, and every
+consumer that touches state. Conversion happens **only** at the serialization
+boundary.
+
+## Exporting
+
+`serialize` takes an optional codec that re-encodes mask payloads on the way
+out. Vector annotations are untouched:
+
+```ts
+import { serialize, cocoRleCodec } from 'osdlabel';
+
+const canonical = serialize(annotationState); // osdlabel's own encoding
+const coco = serialize(annotationState, { maskCodec: cocoRleCodec });
+```
+
+:::caution[This is not a COCO dataset document]
+`{ maskCodec: cocoRleCodec }` produces **osdlabel annotations whose mask
+payloads are COCO RLE segmentations**. It does not produce a COCO file — there
+are no `images`, `annotations`, or `categories` sections, and no category ids.
+Assembling a real COCO document from these segmentations is your job;
+`cocoBbox(snapshot)` and `cocoArea(snapshot)` give you the `bbox` and `area`
+fields to go with each one.
+:::
+
+Two COCO codecs ship built in:
+
+- `cocoRleCodec` — `counts` as the compressed string `pycocotools` emits.
+- `cocoRleUncompressedCodec` — `counts` as plain integers. Same ordering, easier
+  to eyeball.
+
+Both are column-major over the **full image** with `size: [imageHeight,
+imageWidth]`, per the COCO spec.
+
+### Verified against pycocotools
+
+The compressed codec is checked against the reference implementation:
+`packages/mask/tests/fixtures/pycocotools-golden.json` holds counts produced by
+`pycocotools.mask.encode`, and the codec reproduces them byte for byte.
+
+:::note[A `pycocotools` limitation, if your images are very large]
+`pycocotools` stores run lengths in a 32-bit unsigned array. A run longer than
+2³²−1 is silently truncated when it reads a mask back — the area survives, but
+the mask _moves_. A small mask at the centre of a 100000×100000 image comes
+back near the top-left corner.
+
+osdlabel encodes and decodes such runs correctly, and **does not refuse, clamp,
+or warn** about them: the output is valid COCO, and imposing a limit here would
+be wrong for consumers whose tooling reads wide counts. If you care, check it
+yourself before exporting:
+
+```ts
+import { isCocoInteropSafe } from 'osdlabel';
+
+if (!isCocoInteropSafe(snapshot)) {
+  // This image is large enough that pycocotools may misplace the mask.
+}
+```
+
+Since no run can exceed the image's total pixel count, any image of 2³²−1 pixels
+or fewer is always safe.
+:::
+
+## Importing
+
+Give `deserialize` a registry of codecs and it converts recognised foreign
+formats back to canonical before validating:
+
+```ts
+import { deserialize, createMaskCodecRegistry, cocoRleCodec } from 'osdlabel';
+
+const registry = createMaskCodecRegistry(cocoRleCodec);
+const { byImage } = deserialize(json, { maskCodecs: registry });
+```
+
+Every mask in the document is decoded on import — canonical ones included, not
+just the foreign formats a codec handles. That does three things: it converts
+what needs converting, it proves the payload is actually decodable rather than
+deferring the failure to render time, and it lets geometry be **recomputed from
+the pixels** instead of trusted from the document, so a stale or hand-written
+bounding box cannot surface as a wrong area or a misplaced selection box.
+
+Decoding is bounded. `maxMaskPixels` caps any single mask (64 megapixels, which
+is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
+document as a whole.
+
+:::caution[The defaults are not an adversarial boundary]
+Decode cost per pixel varies about fortyfold with a mask's run structure, so a
+budget generous enough for real documents still buys a crafted one seconds of
+blocking. The defaults resolve that conflict toward not breaking real work.
+**If you load documents you did not produce, set `maxTotalMaskPixels`
+explicitly** — sized to your own workflow, it turns the crafted case from a
+minute into milliseconds.
+:::
+
+```ts
+const { byImage, skipped } = deserialize(json, {
+  maskCodecs: registry,
+  maxMaskPixels: 4_000_000,
+  maxTotalMaskPixels: 16_000_000,
+});
+```
+
+A mask whose pixels cannot be decoded is **dropped, not fatal** — one corrupt
+annotation should not cost you the other forty in the file. `skipped` lists what
+was lost and why, and is empty on a clean load, so check it before treating an
+import as complete:
+
+```ts
+if (skipped.length > 0) {
+  console.warn(`${skipped.length} mask(s) could not be loaded`, skipped);
+}
+```
+
+Everything else still throws: a schema violation, or a document that blows the
+decode budget, is a property of the file rather than of one annotation in it,
+and loading part of it silently would be worse than refusing.
+
+Round-tripping through a codec is lossless for pixels but not for styling: the
+render tint is an osdlabel field that COCO has nowhere to put, so re-imported
+masks fall back to the default fill.
+
+## Writing your own codec
+
+`MaskCodec` is the extension point, in the same spirit as `DecorationProvider`:
+
+```ts
+interface MaskCodec<T = unknown> {
+  readonly format: string;
+  encode(mask: MaskSnapshot): T;
+  decode?(payload: T, options?: MaskDecodeOptions): MaskSnapshot;
+}
+
+interface MaskDecodeOptions {
+  /** Refuse to decode a mask larger than this, in pixels. */
+  readonly maxPixels?: number | undefined;
+}
+```
+
+A `MaskSnapshot` is a tightly-cropped, row-major `Uint8Array` over the mask's
+bounding box, plus the full image dimensions:
+
+```ts
+const pngCodec: MaskCodec<{ readonly png: string }> = {
+  format: 'png-base64',
+  encode: (snapshot) => ({ png: encodePng(snapshot) }),
+  decode: (payload, options) => {
+    const { width, height } = readPngHeader(payload.png);
+    // Check the ceiling BEFORE allocating or scanning — a payload names its own
+    // dimensions, so this is the only thing standing between an importer and a
+    // document that decides for itself how much work it is worth.
+    if (options?.maxPixels !== undefined && width * height > options.maxPixels) {
+      throw new RangeError(`mask of ${width}x${height} exceeds ${options.maxPixels} pixels`);
+    }
+    return decodePng(payload.png);
+  },
+};
+```
+
+:::caution[Honour `maxPixels`, or the import bounds do not apply to your format]
+`options` is optional, so a codec that ignores it still compiles — and then
+`deserialize`'s [`maxMaskPixels` and
+`maxTotalMaskPixels`](#importing) silently do not bind it. `deserialize` passes
+its **remaining budget** as `maxPixels`, so checking it before doing work is
+what makes those limits real. Check early: a codec that scans the payload first
+and validates after has already spent the cost the bound exists to prevent.
+:::
+
+Omit `decode` for an export-only format. Registering it in a
+`createMaskCodecRegistry(...)` is what makes `deserialize` able to read it back.
+
+## Memory and very large images
+
+Masks are stored cropped to the region you actually painted, growing on demand —
+the same model CVAT (bbox-cropped masks) and 3D Slicer (per-segment extent plus
+offset) settled on. Cost scales with what you paint, not with the size of the
+image, which is what makes painting on a deep-zoom slide affordable.
+
+There is a cap. `maxPixels` defaults to 64 megapixels (≈64 MB at one byte per
+pixel) and bounds the pathological case: strokes scattered across opposite
+corners of a huge image, whose bounding box is the whole image even though
+almost nothing is painted.
+
+```tsx
+<Annotator
+  brushOptions={{
+    maxPixels: 16 * 1024 * 1024,
+    onCapacityExceeded: (error) => toast(error.message),
+  }}
+/>
+```
+
+`maxPixels` **lowers** the cap; it cannot raise it. 64 megapixels is a ceiling
+the whole library shares — rendering, export, and the validation schema all
+enforce it, and the schema's copy is a module constant rather than a per-call
+option. A larger value is clamped, because honouring it would let you paint a
+mask that could not then be rendered, exported, or loaded back.
+
+A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
+before any pixel is written, so the mask is left exactly as it was rather than
+half-painted. `onCapacityExceeded` is your only chance to tell the user why
+nothing happened.
+
+## Not in this version
+
+- **Undo/redo.** osdlabel has no undo anywhere yet; the brush does not add one.
+  A stroke is committed on pointer-up, so `Escape` mid-stroke is the only way
+  back.
+- **Cross-annotation exclusivity.** Masks may overlap. Each annotation owns its
+  own pixels, which maps directly onto COCO instance segmentation; painting into
+  one never erases from another.
+- **Raising the 64-megapixel ceiling.** It is fixed for now, because the
+  validation schema enforces it as a module constant. Making it configurable
+  means threading a bound through validation, rendering, and export together.
+- **Sub-pixel or feathered edges.** Pixels are binary. The mask is rendered with
+  `imageSmoothing: false`, so it looks blocky at high zoom — which is honest
+  about what the data is.

@@ -11,7 +11,7 @@
       "inputs": ["src/**", "tsconfig*.json", "package.json"]
     },
     "test": {
-      "dependsOn": [],
+      "dependsOn": ["^build"],
       "inputs": ["src/**", "tests/unit/**", "package.json"]
     },
     "test:e2e": {

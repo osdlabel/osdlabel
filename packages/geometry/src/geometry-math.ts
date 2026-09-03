@@ -22,6 +22,9 @@ export function area(geometry: Geometry): number {
       return Math.PI * geometry.radius * geometry.radius;
     case 'polygon':
       return polygonShoelaceArea(geometry.points);
+    case 'mask':
+      // Exact: a painted mask knows precisely how many pixels it covers.
+      return geometry.pixelCount;
     case 'line':
     case 'point':
     case 'polyline':
@@ -44,6 +47,10 @@ export function perimeter(geometry: Geometry): number {
     case 'line':
     case 'point':
     case 'polyline':
+    // A mask's true perimeter would require tracing its contour, which this
+    // pure summary deliberately does not do; use the bounding box if an
+    // approximation is acceptable.
+    case 'mask':
       return 0;
   }
 }
@@ -64,6 +71,7 @@ export function length(geometry: Geometry): number {
     case 'polygon':
       return perimeter(geometry);
     case 'point':
+    case 'mask':
       return 0;
   }
 }
@@ -99,6 +107,13 @@ export function centroid(geometry: Geometry): Point {
     case 'polyline':
     case 'polygon':
       return pointsCentroid(geometry.points);
+    case 'mask':
+      // Bounding-box centre: adequate for anchoring a label, and far cheaper
+      // than a pixel-weighted centroid over the payload.
+      return {
+        x: geometry.origin.x + geometry.width / 2,
+        y: geometry.origin.y + geometry.height / 2,
+      };
   }
 }
 
@@ -124,6 +139,14 @@ export function boundingBox(geometry: Geometry): { readonly min: Point; readonly
     case 'polyline':
     case 'polygon':
       return pointsBoundingBox(geometry.points);
+    case 'mask':
+      return {
+        min: { x: geometry.origin.x, y: geometry.origin.y },
+        max: {
+          x: geometry.origin.x + geometry.width,
+          y: geometry.origin.y + geometry.height,
+        },
+      };
   }
 }
 
