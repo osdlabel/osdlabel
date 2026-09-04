@@ -41,9 +41,18 @@ describe('FabricOverlay mode switching', () => {
     tv.cleanup();
   });
 
-  /** Adds a plain annotation-like object to the overlay's canvas. */
+  /**
+   * Adds a plain annotation-like object to the overlay's canvas.
+   *
+   * Created inert on purpose: Fabric's own defaults are `selectable: true` and
+   * `evented: true`, so an object added with defaults already satisfies every
+   * assertion about annotation mode before `setMode` has run — deleting the
+   * whole `forEachObject` walk would leave those tests green.
+   */
   function addObject(readOnly = false): FabricObject {
     const rect = new Rect({ left: 0, top: 0, width: 10, height: 10 });
+    rect.selectable = false;
+    rect.evented = false;
     if (readOnly) rect._readOnly = true;
     overlay.canvas.add(rect);
     return rect;
@@ -164,6 +173,16 @@ describe('FabricOverlay mode switching', () => {
 
       expect(tv.setMouseNavEnabled.mock.calls.length).toBe(callsAfterFirst);
       expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('clears any in-flight pan gesture', () => {
+      // Ctrl/Cmd+drag panning sets this mid-gesture; switching mode must not
+      // leave the overlay believing a drag is still in progress.
+      overlay.setMode('annotation');
+      const priv = overlay as unknown as { _panGestureActive: boolean };
+      priv._panGestureActive = true;
+      overlay.setMode('navigation');
+      expect(priv._panGestureActive).toBe(false);
     });
 
     it('renders after a real mode change', () => {

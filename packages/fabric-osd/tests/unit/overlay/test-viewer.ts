@@ -3,7 +3,7 @@ import type OpenSeadragon from 'openseadragon';
 
 /**
  * A stub OpenSeadragon viewer that satisfies exactly the surface
- * {@link FabricOverlay}'s constructor and mode switching touch — a real DOM
+ * `FabricOverlay`'s constructor and mode switching touch — a real DOM
  * element for `canvas` (OSD's MouseTracker and Fabric both need one), a
  * viewport with the handful of methods the overlay calls, and spies for the
  * two things mode switching drives outwards (`setMouseNavEnabled`, handler

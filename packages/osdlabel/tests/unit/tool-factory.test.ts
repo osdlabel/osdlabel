@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ToolType } from '@osdlabel/annotation';
 import {
+  DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+  DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
   CircleTool,
   FreeHandPathTool,
   LineTool,
@@ -35,31 +37,42 @@ describe('createAnnotationTool', () => {
     expect(tool).toBeInstanceOf(Expected);
   });
 
-  it('does not return the same class for two different tool types', () => {
-    const classes = (Object.keys(EXPECTED) as (ToolType | 'select')[]).map(
-      (type) => createAnnotationTool(type)?.constructor,
-    );
-    expect(new Set(classes).size).toBe(classes.length);
-  });
-
   it('returns null for an unrecognized type', () => {
     expect(createAnnotationTool('nonsense' as ToolType)).toBeNull();
   });
 
-  it('constructs the vertex-editing tools without an options argument', () => {
-    // PolylineTool, FreeHandPathTool and SelectTool take a VertexEditConfig the
-    // factory defaults when `options` is omitted; a missing default would throw
-    // or produce a tool with an undefined config.
-    for (const type of ['polyline', 'freeHandPath', 'select'] as const) {
-      expect(() => createAnnotationTool(type)).not.toThrow();
-      expect(createAnnotationTool(type)).not.toBeNull();
+  // The three vertex-editing tools each declare their own VertexEditConfig
+  // default, so removing the factory's `?? { ... }` fallback changes nothing
+  // observable — the class default fires instead. What *is* worth asserting is
+  // that an explicitly-passed config actually reaches the editor, which is the
+  // only part of the options path a caller can depend on.
+  describe('vertexEdit options', () => {
+    /** The config the tool's PolyVertexEditor was constructed with. */
+    function editorConfig(tool: unknown): { longPressMs: number; moveTolerancePx: number } {
+      const { editor } = tool as {
+        editor: { longPressMs: number; moveTolerancePx: number };
+      };
+      return { longPressMs: editor.longPressMs, moveTolerancePx: editor.moveTolerancePx };
     }
-  });
 
-  it('accepts an explicit vertexEdit config', () => {
-    const tool = createAnnotationTool('select', {
-      vertexEdit: { longPressMs: 123, moveTolerancePx: 4 },
-    });
-    expect(tool).toBeInstanceOf(SelectTool);
+    it.each(['polyline', 'freeHandPath', 'select'] as const)(
+      'forwards an explicit config to the %s tool',
+      (type) => {
+        const tool = createAnnotationTool(type, {
+          vertexEdit: { longPressMs: 123, moveTolerancePx: 4 },
+        });
+        expect(editorConfig(tool)).toEqual({ longPressMs: 123, moveTolerancePx: 4 });
+      },
+    );
+
+    it.each(['polyline', 'freeHandPath', 'select'] as const)(
+      'applies the documented defaults to the %s tool when options are omitted',
+      (type) => {
+        expect(editorConfig(createAnnotationTool(type))).toEqual({
+          longPressMs: DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+          moveTolerancePx: DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+        });
+      },
+    );
   });
 });

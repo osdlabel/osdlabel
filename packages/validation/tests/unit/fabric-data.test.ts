@@ -176,7 +176,7 @@ describe('FabricRawAnnotationDataSchema', () => {
       expect(accepts({ ...CIRCLE, width: -1 })).toBe(false);
     });
 
-    it('rejects a width beyond MAX_COORDINATE on a non-rect type', () => {
+    it('rejects a height beyond MAX_COORDINATE on a non-rect type', () => {
       expect(accepts({ ...CIRCLE, height: MAX_COORDINATE + 1 })).toBe(false);
     });
 

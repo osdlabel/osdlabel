@@ -134,18 +134,22 @@ describe('DomDecoration through the real provider pipeline', () => {
     expect(wrapped(ctx([p1], { selectedAnnotationId: null }))).toBe(stable);
   });
 
-  it('produces stable ids across runs so the renderer can diff in place', () => {
-    // DecorationLayer diffs by id; an id that varies per invocation would make
-    // every frame a full teardown and rebuild.
-    const first = panelProvider(ctx([p1, p2])).map((d) => d.id);
-    const second = panelProvider(ctx([p1, p2])).map((d) => d.id);
+  it('gives built-in providers stable ids across runs so the renderer can diff', () => {
+    // DecorationLayer diffs by id, so an id that varies per invocation would
+    // force a full teardown and rebuild every frame. Asserted against the real
+    // createLabelProvider — asserting it of the test's own panelProvider would
+    // only be testing the fixture.
+    const provider = createLabelProvider<NoExt>();
+    const first = provider(ctx([p1, p2])).map((d) => d.id);
+    const second = provider(ctx([p1, p2])).map((d) => d.id);
+    expect(first).toHaveLength(2);
     expect(second).toEqual(first);
     expect(new Set(first).size).toBe(first.length);
   });
 
-  it('anchors at the annotation geometry, not a fixed origin', () => {
-    const moved = ann('a', 'point', { type: 'point', position: { x: 50, y: 60 } });
-    const [d] = panelProvider(ctx([moved]));
-    expect((d as DomDecoration).anchor).toEqual({ x: 50, y: 60 });
+  it('anchors built-in decorations at the annotation geometry', () => {
+    const moved = ann('a', 'point', { type: 'point', position: { x: 50, y: 60 } }, 'Moved');
+    const [d] = createLabelProvider<NoExt>()(ctx([moved]));
+    expect((d as TextDecoration).anchor).toEqual({ x: 50, y: 60 });
   });
 });
