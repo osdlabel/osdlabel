@@ -169,7 +169,7 @@ pnpm build          # Build all packages (annotation → viewer-api → geometry
 pnpm typecheck      # Type-check all packages (src AND test trees)
 pnpm test           # Run Vitest unit tests across all packages
 pnpm test:e2e       # Run Playwright E2E tests in apps/dev/
-pnpm lint           # Run ESLint across all packages
+pnpm lint           # BROKEN: no eslint.config.* exists in the repo; CI never runs it
 pnpm format         # Run Prettier across the workspace
 pnpm check-versions # Validate lockstep package versions
 pnpm docs:dev       # Start docs dev server (apps/docs)

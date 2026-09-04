@@ -21,7 +21,27 @@
     },
     "test": {
       "dependsOn": [],
-      "inputs": ["src/**", "tests/**", "vitest.config.*", "package.json"]
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "tsconfig*.json",
+        "vitest.config.*",
+        "vite.config.*",
+        "package.json"
+      ]
+    },
+    "@osdlabel/docs#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": [
+        "src/**",
+        "scripts/**",
+        "public/**",
+        "astro.config.*",
+        "package.json",
+        "$TURBO_ROOT$/packages/*/typedoc.json",
+        "$TURBO_ROOT$/packages/*/package.json"
+      ]
     },
     "test:e2e": {
       "dependsOn": ["^build"],
@@ -32,7 +52,13 @@
       "cache": false
     },
     "lint": {
-      "inputs": ["src/**", "tests/**", "eslint.config.*", "package.json"]
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "eslint.config.*",
+        "$TURBO_ROOT$/eslint.config.*",
+        "package.json"
+      ]
     }
   }
 }
