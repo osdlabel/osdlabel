@@ -76,6 +76,7 @@ describe('State Management', () => {
     actions.updateAnnotation(dummyAnnotationId, dummyImageId, patch);
 
     const updatedAnn = annotationState.byImage[dummyImageId]![dummyAnnotationId];
+    expect(updatedAnn).toBeDefined();
     expect(updatedAnn!.label).toBe('Updated Label');
     expect(updatedAnn!.updatedAt).not.toBe('');
 

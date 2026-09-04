@@ -3,9 +3,7 @@ import { withSelectionEmphasis } from '../../src/emphasis.js';
 import type { DecorationProvider } from '../../src/provider.js';
 import type { Decoration } from '../../src/decoration.js';
 
-import type { AnnotationId } from '@osdlabel/annotation';
-
-const annId = (s: string): AnnotationId => s as AnnotationId;
+import { annId, ctx } from './test-helpers.js';
 
 describe('withSelectionEmphasis', () => {
   it('returns original decorations when no annotation is selected', () => {
@@ -21,7 +19,7 @@ describe('withSelectionEmphasis', () => {
     const provider: DecorationProvider = vi.fn().mockReturnValue(baseDecorations);
     const wrapped = withSelectionEmphasis(provider, { selectedTextStyle: { zIndex: 10 } });
 
-    const result = wrapped({ annotations: [], selectedAnnotationId: null });
+    const result = wrapped(ctx([], { selectedAnnotationId: null }));
     expect(result).toBe(baseDecorations);
   });
 
@@ -38,7 +36,7 @@ describe('withSelectionEmphasis', () => {
     const provider: DecorationProvider = vi.fn().mockReturnValue(baseDecorations);
     const wrapped = withSelectionEmphasis(provider, { selectedTextStyle: { zIndex: 10 } });
 
-    const result = wrapped({ annotations: [], selectedAnnotationId: annId('a2') });
+    const result = wrapped(ctx([], { selectedAnnotationId: annId('a2') }));
     expect(result).toBe(baseDecorations);
   });
 
@@ -65,7 +63,7 @@ describe('withSelectionEmphasis', () => {
       selectedTextStyle: { zIndex: 10, color: 'blue' },
     });
 
-    const result = wrapped({ annotations: [], selectedAnnotationId: annId('a1') });
+    const result = wrapped(ctx([], { selectedAnnotationId: annId('a1') }));
     expect(result).not.toBe(baseDecorations);
     expect(result[0]).toEqual({
       id: '1',
@@ -94,7 +92,7 @@ describe('withSelectionEmphasis', () => {
       selectedLineStyle: { strokeWidth: 5, stroke: 'red' },
     });
 
-    const result = wrapped({ annotations: [], selectedAnnotationId: annId('a2') });
+    const result = wrapped(ctx([], { selectedAnnotationId: annId('a2') }));
     expect(result[0]).toEqual({
       id: '1',
       type: 'line',
