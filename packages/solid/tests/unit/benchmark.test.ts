@@ -7,7 +7,7 @@ import { createUIStore } from '../../src/state/ui-store';
 import { createContextStore } from '../../src/state/context-store';
 import { createAnnotationId } from '@osdlabel/annotation';
 import { createImageId } from '@osdlabel/viewer-api';
-import type { Annotation } from '@osdlabel/annotation';
+import type { OsdAnnotation } from 'osdlabel';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 
 describe('version counter', () => {
@@ -17,14 +17,21 @@ describe('version counter', () => {
   function createTestStore() {
     return createRoot((dispose) => {
       const { state: annotationState, setState: setAnnotationState } = createAnnotationStore();
-      const { setState: setUIState } = createUIStore();
+      const { state: uiState, setState: setUIState } = createUIStore();
       const { state: contextState, setState: setContextState } = createContextStore();
-      const actions = createActions(setAnnotationState, setUIState, setContextState, contextState);
+      const actions = createActions(
+        setAnnotationState,
+        setUIState,
+        setContextState,
+        contextState,
+        uiState,
+        annotationState,
+      );
       return { annotationState, actions, dispose };
     });
   }
 
-  function makeAnnotation(index: number): Omit<Annotation, 'createdAt' | 'updatedAt'> {
+  function makeAnnotation(index: number): Omit<OsdAnnotation, 'createdAt' | 'updatedAt'> {
     return {
       id: createAnnotationId(`ann${index}`),
       imageId,

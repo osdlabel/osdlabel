@@ -171,7 +171,7 @@ describe('PolyVertexEditor', () => {
     poly.__corner = 'p2';
     fire('mouse:down', { target: poly, viewportPoint: { x: 10, y: 10 } });
     // ...and Fabric clears __corner on the matching mouse:up.
-    poly.__corner = undefined;
+    delete poly.__corner;
 
     const before = poly.points.length;
     const consumed = editor.onKeyDown({ key: 'Backspace' } as KeyboardEvent);

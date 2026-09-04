@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
+import { createImageId } from '@osdlabel/viewer-api';
 import { useAnnotationTool } from '../../../src/hooks/useAnnotationTool.js';
-import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import { DEFAULT_KEYBOARD_SHORTCUTS } from '../../../src/hooks/useKeyboard.js';
 
 // Mock useAnnotator
@@ -76,9 +76,9 @@ describe('useAnnotationTool', () => {
   it('should register object:modified handler and update annotation', async () => {
     await new Promise<void>((resolve) => {
       createRoot((dispose) => {
-        const [overlay, setOverlay] = createSignal(mockOverlay);
-        const [imageId, setImageId] = createSignal('img-1');
-        const [isActive, setIsActive] = createSignal(true);
+        const [overlay] = createSignal(mockOverlay);
+        const [imageId] = createSignal(createImageId('img-1'));
+        const [isActive] = createSignal(true);
 
         useAnnotationTool(overlay, imageId, isActive);
 

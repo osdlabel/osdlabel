@@ -4,15 +4,47 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "inputs": ["src/**", "tsconfig*.json", "package.json"]
+      "inputs": [
+        "src/**",
+        "scripts/**",
+        "public/**",
+        "index.html",
+        "tsconfig*.json",
+        "vite.config.*",
+        "astro.config.*",
+        "package.json"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "tsconfig*.json", "package.json"]
+      "inputs": ["src/**", "tests/**", "tsconfig*.json", "package.json"]
     },
     "test": {
       "dependsOn": [],
-      "inputs": ["src/**", "tests/unit/**", "package.json"]
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "tsconfig*.json",
+        "vitest.config.*",
+        "vite.config.*",
+        "package.json"
+      ]
+    },
+    "@osdlabel/docs#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": [
+        "src/**",
+        "scripts/**",
+        "public/**",
+        "index.html",
+        "tsconfig*.json",
+        "vite.config.*",
+        "astro.config.*",
+        "package.json",
+        "$TURBO_ROOT$/packages/*/typedoc.json",
+        "$TURBO_ROOT$/packages/*/package.json"
+      ]
     },
     "test:e2e": {
       "dependsOn": ["^build"],
@@ -23,7 +55,13 @@
       "cache": false
     },
     "lint": {
-      "inputs": ["src/**", "tests/**", "package.json"]
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "eslint.config.*",
+        "$TURBO_ROOT$/eslint.config.*",
+        "package.json"
+      ]
     }
   }
 }

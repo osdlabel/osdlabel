@@ -1,34 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { Annotation, AnnotationId, ToolType } from '@osdlabel/annotation';
-import type { PixelSpacing } from '@osdlabel/viewer-api';
 import {
   createDistanceProvider,
   createLabelProvider,
   createMeasurementProvider,
 } from '../../src/built-in-providers.js';
+import type { PixelSpacing } from '@osdlabel/viewer-api';
 import type { LineDecoration, TextDecoration } from '../../src/decoration.js';
-
-function ann(
-  id: string,
-  toolType: ToolType,
-  geometry: Annotation['geometry'],
-  label?: string,
-): Annotation {
-  const base = {
-    id: id as AnnotationId,
-    geometry,
-    toolType,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  } as const;
-  return label !== undefined ? { ...base, label } : base;
-}
+import { ann, ctx, type NoExt } from './test-helpers.js';
 
 describe('createMeasurementProvider', () => {
   it('emits a single text decoration per annotation with requested metrics', () => {
-    const provider = createMeasurementProvider({ area: true, radius: true });
+    const provider = createMeasurementProvider<NoExt>({ area: true, radius: true });
     const a = ann('c1', 'circle', { type: 'circle', center: { x: 10, y: 10 }, radius: 5 });
-    const decorations = provider({ annotations: [a] });
+    const decorations = provider(ctx([a]));
     expect(decorations).toHaveLength(1);
     const d = decorations[0] as TextDecoration;
     expect(d.type).toBe('text');
@@ -40,10 +24,10 @@ describe('createMeasurementProvider', () => {
   });
 
   it('uses pixel spacing to render mm values', () => {
-    const provider = createMeasurementProvider({ area: true, radius: true });
+    const provider = createMeasurementProvider<NoExt>({ area: true, radius: true });
     const spacing: PixelSpacing = { x: 0.5, y: 0.5, unit: 'mm' };
     const a = ann('c1', 'circle', { type: 'circle', center: { x: 0, y: 0 }, radius: 4 });
-    const [d] = provider({ annotations: [a], pixelSpacing: spacing });
+    const [d] = provider(ctx([a], { pixelSpacing: spacing }));
     const text = (d as TextDecoration).text;
     expect(text).toContain('mm');
     // radius: 4 * 0.5 = 2.00 mm
@@ -53,16 +37,16 @@ describe('createMeasurementProvider', () => {
   });
 
   it('skips annotations whose geometry yields no requested metric', () => {
-    const provider = createMeasurementProvider({ area: true });
+    const provider = createMeasurementProvider<NoExt>({ area: true });
     const point = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const circle = ann('c1', 'circle', { type: 'circle', center: { x: 0, y: 0 }, radius: 3 });
-    const decorations = provider({ annotations: [point, circle] });
+    const decorations = provider(ctx([point, circle]));
     expect(decorations).toHaveLength(1);
     expect(decorations[0]!.relatedAnnotationIds).toEqual(['c1']);
   });
 
   it('produces stable, annotation-scoped ids for diffing', () => {
-    const provider = createMeasurementProvider({ area: true });
+    const provider = createMeasurementProvider<NoExt>({ area: true });
     const a = ann('rect-1', 'rectangle', {
       type: 'rectangle',
       origin: { x: 0, y: 0 },
@@ -70,41 +54,41 @@ describe('createMeasurementProvider', () => {
       height: 4,
       rotation: 0,
     });
-    const [d] = provider({ annotations: [a] });
+    const [d] = provider(ctx([a]));
     expect(d!.id).toBe('measurement:rect-1');
   });
 
   it('emits length for lines when length is requested', () => {
-    const provider = createMeasurementProvider({ length: true });
+    const provider = createMeasurementProvider<NoExt>({ length: true });
     const a = ann('l1', 'line', {
       type: 'line',
       start: { x: 0, y: 0 },
       end: { x: 3, y: 4 },
     });
-    const [d] = provider({ annotations: [a] });
+    const [d] = provider(ctx([a]));
     expect((d as TextDecoration).text).toContain('L: 5.00 px');
   });
 });
 
 describe('createLabelProvider', () => {
   it('renders annotation.label as a text decoration', () => {
-    const provider = createLabelProvider();
+    const provider = createLabelProvider<NoExt>();
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } }, 'tumor');
-    const [d] = provider({ annotations: [a] });
+    const [d] = provider(ctx([a]));
     expect((d as TextDecoration).text).toBe('tumor');
     expect(d!.id).toBe('label:p1');
   });
 
   it('skips annotations without a label', () => {
-    const provider = createLabelProvider();
+    const provider = createLabelProvider<NoExt>();
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
-    expect(provider({ annotations: [a] })).toEqual([]);
+    expect(provider(ctx([a]))).toEqual([]);
   });
 
   it('honors a custom extractor', () => {
-    const provider = createLabelProvider({ extract: () => 'CUSTOM' });
+    const provider = createLabelProvider<NoExt>({ extract: () => 'CUSTOM' });
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
-    const [d] = provider({ annotations: [a] });
+    const [d] = provider(ctx([a]));
     expect((d as TextDecoration).text).toBe('CUSTOM');
   });
 });
@@ -113,10 +97,10 @@ describe('createDistanceProvider', () => {
   it('emits a line + text decoration per pair', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
-    const provider = createDistanceProvider({
+    const provider = createDistanceProvider<NoExt>({
       pair: (anns) => (anns.length === 2 ? [{ a: anns[0]!, b: anns[1]! }] : []),
     });
-    const decorations = provider({ annotations: [a, b] });
+    const decorations = provider(ctx([a, b]));
     expect(decorations).toHaveLength(2);
     const line = decorations.find((d) => d.type === 'line') as LineDecoration;
     const label = decorations.find((d) => d.type === 'text') as TextDecoration;
@@ -133,10 +117,10 @@ describe('createDistanceProvider', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 6, y: 8 } });
     const spacing: PixelSpacing = { x: 0.5, y: 0.5, unit: 'mm' };
-    const provider = createDistanceProvider({
+    const provider = createDistanceProvider<NoExt>({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
     });
-    const decorations = provider({ annotations: [a, b], pixelSpacing: spacing });
+    const decorations = provider(ctx([a, b], { pixelSpacing: spacing }));
     const label = decorations.find((d) => d.type === 'text') as TextDecoration;
     // px distance 10, * 0.5 mm/px = 5 mm
     expect(label.text).toBe('5.00 mm');
@@ -157,10 +141,10 @@ describe('createDistanceProvider', () => {
       height: 2,
       rotation: 0,
     });
-    const provider = createDistanceProvider({
+    const provider = createDistanceProvider<NoExt>({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
     });
-    const decorations = provider({ annotations: [a, b] });
+    const decorations = provider(ctx([a, b]));
     const line = decorations.find((d) => d.type === 'line')!;
     const label = decorations.find((d) => d.type === 'text')!;
     expect(line.id).toBe('distance-line:rect-1-rect-2');
@@ -182,10 +166,10 @@ describe('createDistanceProvider', () => {
       height: 10,
       rotation: 0,
     });
-    const provider = createDistanceProvider({
+    const provider = createDistanceProvider<NoExt>({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]!, id: 'pairX' }],
     });
-    const [line] = provider({ annotations: [a, b] }) as [LineDecoration, TextDecoration];
+    const [line] = provider(ctx([a, b])) as [LineDecoration, TextDecoration];
     // Rectangle centroids at (5,5) and (105,5)
     expect(line.start).toEqual({ x: 5, y: 5 });
     expect(line.end).toEqual({ x: 105, y: 5 });
@@ -194,20 +178,20 @@ describe('createDistanceProvider', () => {
 
   it('emits no decorations when pair returns an empty list', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
-    const provider = createDistanceProvider({ pair: () => [] });
-    expect(provider({ annotations: [a] })).toEqual([]);
+    const provider = createDistanceProvider<NoExt>({ pair: () => [] });
+    expect(provider(ctx([a]))).toEqual([]);
   });
 
   it('honors dashed:false and a one-arg custom formatLine', () => {
     // The defaultFormatter second arg is optional; consumers can ignore it.
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
-    const provider = createDistanceProvider({
+    const provider = createDistanceProvider<NoExt>({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
       dashed: false,
       formatLine: (m) => `d=${m.value.toFixed(0)}${m.unit}`,
     });
-    const decorations = provider({ annotations: [a, b] });
+    const decorations = provider(ctx([a, b]));
     const line = decorations.find((d) => d.type === 'line') as LineDecoration;
     const label = decorations.find((d) => d.type === 'text') as TextDecoration;
     expect(line.dashed).toBe(false);
@@ -217,12 +201,12 @@ describe('createDistanceProvider', () => {
   it('passes a defaultFormatter to formatLine so consumers can wrap the standard output', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
-    const provider = createDistanceProvider({
+    const provider = createDistanceProvider<NoExt>({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
       format: { precision: 1 },
       formatLine: (m, fmt) => `Distance: ${fmt(m)}`,
     });
-    const decorations = provider({ annotations: [a, b] });
+    const decorations = provider(ctx([a, b]));
     const label = decorations.find((d) => d.type === 'text') as TextDecoration;
     // defaultFormatter uses options.format → precision 1 → "5.0 px"
     expect(label.text).toBe('Distance: 5.0 px');

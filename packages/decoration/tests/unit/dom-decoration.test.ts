@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AnnotationId } from '@osdlabel/annotation';
 import type { Decoration, DomDecoration, DecorationProvider } from '../../src/index.js';
-
-const annId = (s: string): AnnotationId => s as AnnotationId;
+import { ann, annId, ctx, type NoExt } from './test-helpers.js';
 
 describe('DomDecoration', () => {
   it('is part of the Decoration union and narrows on type', () => {
@@ -26,30 +24,20 @@ describe('DomDecoration', () => {
   it('can be produced by a consumer provider over annotations', () => {
     // A minimal consumer-authored provider that maps each annotation to a DOM
     // decoration anchored at the geometry's first point (point geometry here).
-    const provider: DecorationProvider = ({ annotations }) =>
+    const provider: DecorationProvider<NoExt> = ({ annotations }) =>
       annotations.map(
-        (ann): DomDecoration => ({
+        (a): DomDecoration => ({
           type: 'dom',
-          id: `panel:${ann.id}`,
-          relatedAnnotationIds: [ann.id],
-          anchor: ann.geometry.type === 'point' ? ann.geometry.position : { x: 0, y: 0 },
-          content: { annotationId: ann.id, label: ann.label },
+          id: `panel:${a.id}`,
+          relatedAnnotationIds: [a.id],
+          anchor: a.geometry.type === 'point' ? a.geometry.position : { x: 0, y: 0 },
+          content: { annotationId: a.id, label: a.label },
         }),
       );
 
-    const result = provider({
-      annotations: [
-        {
-          id: annId('a'),
-          toolType: 'point',
-          geometry: { type: 'point', position: { x: 3, y: 4 } },
-          createdAt: '2020-01-01T00:00:00.000Z',
-          updatedAt: '2020-01-01T00:00:00.000Z',
-          label: 'Cell',
-        },
-      ],
-      selectedAnnotationId: null,
-    });
+    const result = provider(
+      ctx([ann('a', 'point', { type: 'point', position: { x: 3, y: 4 } }, 'Cell')]),
+    );
 
     expect(result).toHaveLength(1);
     const dom = result[0] as DomDecoration;

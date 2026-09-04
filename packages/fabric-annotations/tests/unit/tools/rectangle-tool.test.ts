@@ -60,7 +60,7 @@ describe('RectangleTool', () => {
     tool.onPointerDown(event, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalled();
-    const addedObj = mockCanvas.add.mock.calls[0][0];
+    const addedObj = mockCanvas.add.mock.calls[0]![0];
     expect(addedObj).toBeInstanceOf(Rect);
     expect(addedObj.left).toBe(10);
     expect(addedObj.top).toBe(10);
@@ -74,7 +74,7 @@ describe('RectangleTool', () => {
     const event = { type: 'pointerdown' } as PointerEvent;
     tool.onPointerDown(event, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
 
     const moveEvent = { type: 'pointermove' } as PointerEvent;
     tool.onPointerMove(moveEvent, { x: 30, y: 40 });
@@ -118,7 +118,7 @@ describe('RectangleTool', () => {
     const event = { type: 'pointerdown' } as PointerEvent;
     tool.onPointerDown(event, { x: 30, y: 40 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
 
     const moveEvent = { type: 'pointermove' } as PointerEvent;
     tool.onPointerMove(moveEvent, { x: 10, y: 10 });
@@ -135,7 +135,7 @@ describe('RectangleTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
     expect(preview.id).toBeDefined();
     expect(typeof preview.id).toBe('string');
   });

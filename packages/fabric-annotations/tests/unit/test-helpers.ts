@@ -37,5 +37,9 @@ export function createTestKeyboardShortcuts(): KeyboardShortcutMap {
     toggleNegative: 'N',
     increaseExposure: 'E',
     decreaseExposure: 'D',
+    increaseContrast: 'C',
+    decreaseContrast: 'X',
+    nextContext: '.',
+    previousContext: ',',
   };
 }

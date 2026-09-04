@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_CELL_TRANSFORM, createImageId } from '../../src/index.js';
-import type { CellTransform, UIState, KeyboardShortcutMap, ImageId } from '../../src/index.js';
+import type { ImageId } from '../../src/index.js';
 
 describe('viewer-api types', () => {
   it('DEFAULT_CELL_TRANSFORM has correct defaults', () => {

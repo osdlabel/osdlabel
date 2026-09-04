@@ -65,7 +65,7 @@ describe('FreeHandPathTool', () => {
     tool.onPointerDown(downEvent, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalledTimes(1);
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
     expect(preview).toBeInstanceOf(Polyline);
 
     // Move to accumulate points
@@ -139,7 +139,7 @@ describe('FreeHandPathTool', () => {
     // Move far enough
     tool.onPointerMove({ type: 'pointermove', shiftKey: false } as PointerEvent, { x: 50, y: 50 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
     // Should have initial point + one far point + current cursor = 3 points
     expect(preview.points.length).toBe(3);
   });
@@ -156,7 +156,7 @@ describe('FreeHandPathTool', () => {
     // Move 25px total — above threshold, should be sampled
     tool.onPointerMove({ type: 'pointermove', shiftKey: false } as PointerEvent, { x: 25, y: 0 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
     expect(preview.points.length).toBe(3); // initial + one sampled point + current cursor
   });
 
