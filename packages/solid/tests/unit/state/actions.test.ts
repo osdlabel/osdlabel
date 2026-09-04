@@ -6,11 +6,10 @@ import { createUIStore } from '../../../src/state/ui-store';
 import { createContextStore, createConstraintStatus } from '../../../src/state/context-store';
 import { createActions } from '../../../src/state/actions';
 import { createAnnotationId } from '@osdlabel/annotation';
-import type { Annotation } from '@osdlabel/annotation';
+import type { OsdAnnotation } from 'osdlabel';
 import { createImageId } from '@osdlabel/viewer-api';
-import type { ImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
-import type { AnnotationContext, AnnotationContextId } from '@osdlabel/annotation-context';
+import type { AnnotationContext } from '@osdlabel/annotation-context';
 
 describe('State Management', () => {
   function createTestStore() {
@@ -25,6 +24,7 @@ describe('State Management', () => {
         setContextState,
         contextState,
         uiState,
+        annotationState,
       );
       // Assign image to cell 0 so constraint status has a currentImageId
       setUIState('gridAssignments', 0, dummyImageId);
@@ -39,7 +39,7 @@ describe('State Management', () => {
   const dummyImageId = createImageId('img1');
   const dummyContextId = createAnnotationContextId('ctx1');
 
-  const dummyAnnotation: Omit<Annotation, 'createdAt' | 'updatedAt'> = {
+  const dummyAnnotation: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'> = {
     id: dummyAnnotationId,
     imageId: dummyImageId,
     contextId: dummyContextId,
@@ -59,11 +59,11 @@ describe('State Management', () => {
 
     const imgAnns = annotationState.byImage[dummyImageId];
     expect(imgAnns).toBeDefined();
-    const ann = imgAnns[dummyAnnotationId];
+    const ann = imgAnns![dummyAnnotationId];
     expect(ann).toBeDefined();
-    expect(ann.id).toBe(dummyAnnotationId);
-    expect(ann.createdAt).not.toBe('');
-    expect(ann.updatedAt).not.toBe('');
+    expect(ann!.id).toBe(dummyAnnotationId);
+    expect(ann!.createdAt).not.toBe('');
+    expect(ann!.updatedAt).not.toBe('');
 
     dispose();
   });
@@ -75,9 +75,9 @@ describe('State Management', () => {
     const patch = { label: 'Updated Label' };
     actions.updateAnnotation(dummyAnnotationId, dummyImageId, patch);
 
-    const updatedAnn = annotationState.byImage[dummyImageId][dummyAnnotationId];
-    expect(updatedAnn.label).toBe('Updated Label');
-    expect(updatedAnn.updatedAt).not.toBe('');
+    const updatedAnn = annotationState.byImage[dummyImageId]![dummyAnnotationId];
+    expect(updatedAnn!.label).toBe('Updated Label');
+    expect(updatedAnn!.updatedAt).not.toBe('');
 
     dispose();
   });
@@ -88,8 +88,12 @@ describe('State Management', () => {
 
     actions.deleteAnnotation(dummyAnnotationId, dummyImageId);
 
+    // DELETE_ANNOTATION empties the bucket but never removes it, so assert the
+    // bucket still exists rather than letting `?.` swallow a regression that
+    // wiped the whole image entry.
     const imgAnns = annotationState.byImage[dummyImageId];
-    expect(imgAnns[dummyAnnotationId]).toBeUndefined();
+    expect(imgAnns).toBeDefined();
+    expect(imgAnns![dummyAnnotationId]).toBeUndefined();
 
     dispose();
   });
@@ -102,7 +106,7 @@ describe('State Management', () => {
   });
 
   it('Constraint logic correctly enables/disables tools', () => {
-    const { contextState, actions, constraintStatus, dispose } = createTestStore();
+    const { actions, constraintStatus, dispose } = createTestStore();
 
     const context: AnnotationContext = {
       id: dummyContextId,

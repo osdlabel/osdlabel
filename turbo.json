@@ -8,7 +8,7 @@
     },
     "typecheck": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "tsconfig*.json", "package.json"]
+      "inputs": ["src/**", "tests/**", "tsconfig*.json", "package.json"]
     },
     "test": {
       "dependsOn": [],

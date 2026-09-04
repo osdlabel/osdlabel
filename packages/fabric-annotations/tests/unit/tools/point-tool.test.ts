@@ -60,7 +60,7 @@ describe('PointTool', () => {
 
     // Preview is added to canvas
     expect(mockCanvas.add).toHaveBeenCalled();
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
     expect(preview).toBeInstanceOf(Circle);
     expect(preview.left).toBe(30);
     expect(preview.top).toBe(30);
@@ -75,7 +75,7 @@ describe('PointTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
 
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 30, y: 30 });
 
@@ -112,7 +112,7 @@ describe('PointTool', () => {
     tool.onPointerUp({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
 
     expect(addedParams).toHaveLength(1);
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
     expect(preview.left).toBe(50);
     expect(preview.top).toBe(50);
   });
@@ -138,7 +138,7 @@ describe('PointTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
 
-    const preview = mockCanvas.add.mock.calls[0][0] as Circle;
+    const preview = mockCanvas.add.mock.calls[0]![0] as Circle;
     expect(preview.hasControls).toBe(false);
   });
 

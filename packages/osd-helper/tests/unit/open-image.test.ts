@@ -9,7 +9,7 @@ function createMockViewer(): OpenSeadragon.Viewer {
 }
 
 function createSource(tileSource: string): ImageSource {
-  return { id: createImageId(), tileSource };
+  return { id: createImageId(`img:${tileSource}`), tileSource };
 }
 
 describe('openImage', () => {

@@ -60,7 +60,7 @@ describe('LineTool', () => {
     tool.onPointerDown(event, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalled();
-    const addedObj = mockCanvas.add.mock.calls[0][0];
+    const addedObj = mockCanvas.add.mock.calls[0]![0];
     expect(addedObj).toBeInstanceOf(Line);
     expect(addedObj.x1).toBe(10);
     expect(addedObj.y1).toBe(10);
@@ -74,7 +74,7 @@ describe('LineTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
 
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
 

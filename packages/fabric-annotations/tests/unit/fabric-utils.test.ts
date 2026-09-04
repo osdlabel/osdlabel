@@ -32,14 +32,10 @@ function makePointAnnotation(): OsdAnnotation {
     imageId: createImageId('img-1'),
     contextId: createAnnotationContextId('ctx-1'),
     geometry: { type: 'point', position: { x: 100, y: 200 } },
-    style: {
-      fillColor: '#ff0000',
-      strokeColor: '#000000',
-      strokeWidth: 1,
-      opacity: 1,
-    },
     rawAnnotationData: serializeFabricObject(circle),
-    type: 'point',
+    toolType: 'point',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
   };
 }
 
@@ -59,14 +55,10 @@ function makeCircleAnnotation(): OsdAnnotation {
     imageId: createImageId('img-1'),
     contextId: createAnnotationContextId('ctx-1'),
     geometry: { type: 'circle', center: { x: 50, y: 50 }, radius: 30 },
-    style: {
-      fillColor: '#00ff00',
-      strokeColor: '#000000',
-      strokeWidth: 1,
-      opacity: 1,
-    },
     rawAnnotationData: serializeFabricObject(circle),
-    type: 'circle',
+    toolType: 'circle',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
   };
 }
 

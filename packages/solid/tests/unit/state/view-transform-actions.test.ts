@@ -20,6 +20,7 @@ describe('View Transform Actions', () => {
         setContextState,
         contextState,
         uiState,
+        annotationState,
       );
 
       return { annotationState, uiState, setUIState, actions, dispose };

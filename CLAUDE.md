@@ -101,7 +101,11 @@ Key architectural rules:
 - Run `pnpm test:e2e` (Playwright) after implementing any UI interaction. For parallel worktree runs, use `PORT=5174 pnpm test:e2e` to avoid port conflicts (default: 5173).
 - Write tests for the module you just built before moving to the next task.
 - **For canvas E2E tests:** Use Playwright's `page.mouse.move()`, `page.mouse.down()`, `page.mouse.up()` for precise drawing simulation. Use `page.screenshot()` with `expect(screenshot).toMatchSnapshot()` for visual regression.
-- **Test files are excluded from `tsc --noEmit`** (each package's `tsconfig.json` excludes `tests/`), so Vitest's esbuild transpile is the only thing that touches them — strict-types violations in tests don't surface in CI. Treat the test files as if they WERE strict-checked: pass branded ids through the convention `const annId = (s: string): AnnotationId => s as AnnotationId;` (see `built-in-providers.test.ts`, `live-decoration-updates.test.ts`) rather than letting raw strings flow into `relatedAnnotationIds`, `id`, etc.
+- **Test trees ARE type-checked, under the same strict flags as `src`.** Each package has a `tsconfig.tests.json` (`extends ./tsconfig.json`, `include: ["src/**/*", "tests/**/*"]`, `noEmit`, and `rootDir: "."` — the `rootDir` override is mandatory, since `--noEmit` does _not_ suppress TS6059) and its `typecheck` script is `tsc -p tsconfig.tests.json`. `tsconfig.json` / `tsconfig.build.json` stay tests-free so TypeDoc and the publish build are unaffected. `turbo.json`'s `typecheck.inputs` includes `tests/**`; without it Turbo replays a cached green for test-only edits.
+- **`@ts-expect-error` is a real assertion now.** If one becomes unnecessary, `tsc` reports `TS2578 Unused '@ts-expect-error' directive` — investigate it, never suppress it. Keep passing branded ids through the convention `const annId = (s: string): AnnotationId => s as AnnotationId;` (see `packages/decoration/tests/unit/test-helpers.ts`).
+- **Bare `Annotation` is not constructible from an object literal.** Its default extension `Record<string, never>` maps every key to `never`, so it can be read but never built — `src/` only reads it, fixtures build it. In tests use an explicitly-empty extension: `type NoExt = Record<never, never>;` then `Annotation<NoExt>`. `E` is not reliably inferrable (it only ever appears inside an intersection or in return position), so pass it explicitly: `createMeasurementProvider<NoExt>(…)`, `enableLiveDecorationUpdates<NoExt>(…)`.
+- **Route `DecorationContext` construction through a helper.** `packages/decoration/tests/unit/test-helpers.ts` exports `ann()` and `ctx()`; using them means a new required field on `DecorationContext` breaks one call site instead of every test.
+- **`expect(x).toBeDefined()` does not narrow.** Under `noUncheckedIndexedAccess`, dereference with the repo's existing `!` idiom (`decorations[0]!`, `mock.calls[0]![0]`), not with a `toBeDefined()` call followed by a bare access.
 - **Node's test env (no `jsdom`) lacks `requestAnimationFrame`.** When unit-testing helpers that schedule via rAF (e.g. `enableLiveDecorationUpdates`), assign onto `globalThis` directly in `beforeEach` instead of `vi.spyOn(globalThis, 'requestAnimationFrame')` (which throws if the property is undefined): `(globalThis as unknown as { requestAnimationFrame: ... }).requestAnimationFrame = (cb) => { queue.push(cb); return queue.length; };`. Flush manually by iterating the queue.
 - **Per-frame DOM-write idempotence in the rendering loop.** `DecorationLayer`'s `applyTextStyle` guards `textContent` / `className` / `style.zIndex` writes with `!=` checks before assigning, because same-value writes can still invalidate text layout / style-recompute in some engines. New per-frame DOM writes added to the layer should follow the same `if (el.foo !== nextFoo) el.foo = nextFoo;` pattern.
 
@@ -161,7 +165,7 @@ Run from the workspace root — Turbo fans out to the correct packages:
 ```bash
 pnpm dev            # Start Vite dev server (apps/dev) with HMR into library source
 pnpm build          # Build all packages (annotation → viewer-api → geometry → annotation-context, decoration → validation → fabric-annotations → fabric-osd → osdlabel)
-pnpm typecheck      # Type-check all packages
+pnpm typecheck      # Type-check all packages (src AND test trees)
 pnpm test           # Run Vitest unit tests across all packages
 pnpm test:e2e       # Run Playwright E2E tests in apps/dev/
 pnpm lint           # Run ESLint across all packages
@@ -176,58 +180,63 @@ Per-package commands (run from within the package directory):
 ```bash
 # packages/annotation/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/viewer-api/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/annotation-context/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/geometry/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/decoration/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/validation/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/fabric-annotations/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/fabric-osd/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
+pnpm test         # vitest run
+
+# packages/osd-helper/
+pnpm build        # tsc -p tsconfig.build.json
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/osdlabel/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 
 # packages/solid/
 pnpm build        # vite build + tsc --emitDeclarationOnly
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (src + tests)
 pnpm test         # vitest run
 pnpm test:watch   # vitest (watch mode)
 
 # packages/react/
 pnpm build        # tsc -p tsconfig.build.json
-pnpm typecheck    # tsc --noEmit
+pnpm typecheck    # tsc -p tsconfig.tests.json (no tests/ dir yet — see #152)
 pnpm test         # vitest run
 
 # apps/dev/

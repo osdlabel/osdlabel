@@ -60,7 +60,7 @@ describe('CircleTool', () => {
     tool.onPointerDown(event, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalled();
-    const addedObj = mockCanvas.add.mock.calls[0][0];
+    const addedObj = mockCanvas.add.mock.calls[0]![0];
     expect(addedObj).toBeInstanceOf(Circle);
     expect(addedObj.left).toBe(10);
     expect(addedObj.top).toBe(10);
@@ -74,7 +74,7 @@ describe('CircleTool', () => {
     const event = { type: 'pointerdown' } as PointerEvent;
     tool.onPointerDown(event, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
 
     const moveEvent = { type: 'pointermove' } as PointerEvent;
     tool.onPointerMove(moveEvent, { x: 30, y: 30 });

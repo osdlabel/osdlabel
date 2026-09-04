@@ -65,7 +65,7 @@ describe('PolylineTool', () => {
     tool.onPointerDown(event, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalled();
-    const addedObj = mockCanvas.add.mock.calls[0][0];
+    const addedObj = mockCanvas.add.mock.calls[0]![0];
     expect(addedObj).toBeInstanceOf(Polyline);
     expect(addedObj.points.length).toBe(2);
     expect(addedObj.points[0]).toEqual({ x: 10, y: 10 });
@@ -78,7 +78,7 @@ describe('PolylineTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
 
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
 
@@ -96,7 +96,7 @@ describe('PolylineTool', () => {
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 50 });
 
-    const preview = mockCanvas.add.mock.calls[0][0];
+    const preview = mockCanvas.add.mock.calls[0]![0];
 
     expect(preview.points.length).toBe(3);
     expect(preview.points[0]).toEqual({ x: 10, y: 10 });

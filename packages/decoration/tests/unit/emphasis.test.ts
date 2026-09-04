@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { withSelectionEmphasis } from '../../src/emphasis.js';
-import type { DecorationProvider, DecorationContext } from '../../src/provider.js';
+import type { DecorationProvider } from '../../src/provider.js';
 import type { Decoration } from '../../src/decoration.js';
 
 import type { AnnotationId } from '@osdlabel/annotation';
