@@ -4,7 +4,16 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "inputs": ["src/**", "tsconfig*.json", "vite.config.*", "package.json"]
+      "inputs": [
+        "src/**",
+        "scripts/**",
+        "public/**",
+        "index.html",
+        "tsconfig*.json",
+        "vite.config.*",
+        "astro.config.*",
+        "package.json"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"],
@@ -23,7 +32,7 @@
       "cache": false
     },
     "lint": {
-      "inputs": ["src/**", "tests/**", "package.json"]
+      "inputs": ["src/**", "tests/**", "eslint.config.*", "package.json"]
     }
   }
 }
