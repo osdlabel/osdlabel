@@ -228,7 +228,13 @@ describe('computeViewportTransform', () => {
   });
 });
 
-describe('Coordinate conversion round-trip (OSD coordinate API, no flip)', () => {
+describe('Coordinate conversion round-trip (flip-aware helpers)', () => {
+  // The previous version of this block called the mock viewer's own
+  // imageToViewerElementCoordinates against its own viewerElementToImageCoordinates
+  // and asserted they inverted each other — it invoked no source function and
+  // would have passed with fabric-overlay.ts deleted. Round-trip through the
+  // real helpers instead, which is also where a flip bug would actually live:
+  // both compose the same mirror about x = W/2, so they must still invert.
   const configs = [
     { scale: 1, offsetX: 0, offsetY: 0, rotationDeg: 0 },
     { scale: 2, offsetX: 100, offsetY: -50, rotationDeg: 0 },
@@ -237,26 +243,35 @@ describe('Coordinate conversion round-trip (OSD coordinate API, no flip)', () =>
     { scale: 1.5, offsetX: -100, offsetY: 50, rotationDeg: 90 },
   ];
 
-  for (const config of configs) {
-    it(`round-trips correctly for scale=${config.scale}, offset=(${config.offsetX},${config.offsetY}), rotation=${config.rotationDeg}°`, () => {
-      const viewer = createMockViewer({ ...config, flip: false });
+  for (const flip of [false, true]) {
+    for (const config of configs) {
+      it(`round-trips for scale=${config.scale}, offset=(${config.offsetX},${config.offsetY}), rotation=${config.rotationDeg}\u00b0, flip=${flip}`, () => {
+        const viewer = createMockViewer({ ...config, flip });
+        const imagePoint = { x: 150, y: 250 };
 
-      const originalImagePoint = { x: 150, y: 250 };
+        const screenPoint = imageToScreenFlipAware(viewer, imagePoint);
+        const roundTripped = screenToImageFlipAware(viewer, screenPoint);
 
-      // image → screen via OSD
-      const screenPoint = viewer.viewport.imageToViewerElementCoordinates(
-        originalImagePoint as OpenSeadragon.Point,
-      );
-
-      // screen → image via OSD
-      const roundTripped = viewer.viewport.viewerElementToImageCoordinates(
-        screenPoint as OpenSeadragon.Point,
-      );
-
-      expect(roundTripped.x).toBeCloseTo(originalImagePoint.x, 6);
-      expect(roundTripped.y).toBeCloseTo(originalImagePoint.y, 6);
-    });
+        expect(roundTripped.x).toBeCloseTo(imagePoint.x, 6);
+        expect(roundTripped.y).toBeCloseTo(imagePoint.y, 6);
+      });
+    }
   }
+
+  it('actually mirrors x when flipped, rather than round-tripping trivially', () => {
+    // Guards the round-trip above: two mutually-inverse no-ops would satisfy it.
+    const imagePoint = { x: 150, y: 250 };
+    const unflipped = imageToScreenFlipAware(
+      createMockViewer({ scale: 1, offsetX: 0, offsetY: 0, rotationDeg: 0, flip: false }),
+      imagePoint,
+    );
+    const flipped = imageToScreenFlipAware(
+      createMockViewer({ scale: 1, offsetX: 0, offsetY: 0, rotationDeg: 0, flip: true }),
+      imagePoint,
+    );
+    expect(flipped.x).not.toBeCloseTo(unflipped.x, 6);
+    expect(flipped.y).toBeCloseTo(unflipped.y, 6);
+  });
 });
 
 describe('Flip matrix correctness', () => {

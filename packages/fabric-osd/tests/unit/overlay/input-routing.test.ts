@@ -1,240 +1,187 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Rect } from 'fabric';
+import type { FabricObject } from 'fabric';
+import { FabricOverlay } from '../../../src/overlay/fabric-overlay.js';
 import type { OverlayMode } from '../../../src/overlay/fabric-overlay.js';
+import { createTestViewer, type TestViewer } from './test-viewer.js';
 
 /**
- * Since FabricOverlay requires real DOM + OSD + Fabric, we test the mode
- * logic by creating a lightweight mock that mirrors the setMode behavior.
- * This verifies the routing contract without needing canvas support in jsdom.
+ * These tests drive the real `FabricOverlay`. The previous version of this file
+ * defined a `createMockOverlay()` that reimplemented `setMode` in the test and
+ * asserted against the reimplementation — its only import from source was
+ * `import type { OverlayMode }`, which is erased at runtime, so replacing
+ * `setMode`'s entire body with `this._mode = mode` left all 19 tests green.
  *
- * The overlay uses an OSD MouseTracker to route events:
- * - navigation: tracker disabled, OSD handles all input
- * - annotation: tracker enabled, all events forwarded to Fabric,
- *   objects are selectable/evented, Ctrl+drag or Command+drag pans OSD
+ * Only the OpenSeadragon viewer is stubbed (see `test-viewer.ts`); the overlay,
+ * its Fabric canvas and its mode switching are the genuine article.
  */
-
-interface MockState {
-  /** Whether the OSD MouseTracker is actively tracking events */
-  overlayTrackerTracking: boolean;
-  /** Whether Fabric's group-selection box is enabled */
-  fabricSelection: boolean;
-  /** Whether OSD pan/zoom via mouse is enabled */
-  osdMouseNavEnabled: boolean;
-  /** Whether Fabric objects are selectable */
-  objectsSelectable: boolean;
-  /** Whether Fabric objects receive pointer events */
-  objectsEvented: boolean;
-  /** Count of discardActiveObject() calls (a setMode side effect) */
-  discardActiveObjectCalls: number;
-}
-
-interface MockOverlay {
-  setMode(mode: OverlayMode): void;
-  getMode(): OverlayMode;
-}
-
-function createMockOverlay(): { overlay: MockOverlay; state: MockState } {
-  const state: MockState = {
-    overlayTrackerTracking: false,
-    fabricSelection: false,
-    osdMouseNavEnabled: true,
-    objectsSelectable: false,
-    objectsEvented: false,
-    discardActiveObjectCalls: 0,
-  };
-
-  let currentMode: OverlayMode = 'navigation';
-
-  function setMode(mode: OverlayMode): void {
-    // Mirrors the real FabricOverlay.setMode no-op guard: re-applying the
-    // current mode must not re-run side effects (discardActiveObject, object
-    // walks) that could clobber an in-progress gesture.
-    if (mode === currentMode) return;
-    currentMode = mode;
-
-    switch (mode) {
-      case 'navigation':
-        state.overlayTrackerTracking = false;
-        state.fabricSelection = false;
-        state.objectsSelectable = false;
-        state.objectsEvented = false;
-        state.osdMouseNavEnabled = true;
-        state.discardActiveObjectCalls += 1;
-        break;
-
-      case 'annotation':
-        state.overlayTrackerTracking = true;
-        state.fabricSelection = true;
-        state.objectsSelectable = true;
-        state.objectsEvented = true;
-        state.osdMouseNavEnabled = false;
-        break;
-
-      case 'customControl':
-        // Tracker intercepts so events reach the custom handler, but Fabric is
-        // fully inert and OSD mouse nav is disabled.
-        state.overlayTrackerTracking = true;
-        state.fabricSelection = false;
-        state.objectsSelectable = false;
-        state.objectsEvented = false;
-        state.osdMouseNavEnabled = false;
-        state.discardActiveObjectCalls += 1;
-        break;
-    }
-  }
-
-  function getMode(): OverlayMode {
-    return currentMode;
-  }
-
-  return { overlay: { setMode, getMode }, state };
-}
-
-describe('Input routing — setMode', () => {
-  let overlay: MockOverlay;
-  let state: MockState;
+describe('FabricOverlay mode switching', () => {
+  let tv: TestViewer;
+  let overlay: FabricOverlay;
 
   beforeEach(() => {
-    const mock = createMockOverlay();
-    overlay = mock.overlay;
-    state = mock.state;
+    tv = createTestViewer();
+    overlay = new FabricOverlay(tv.viewer);
+  });
+
+  afterEach(() => {
+    overlay.destroy();
+    tv.cleanup();
+  });
+
+  /** Adds a plain annotation-like object to the overlay's canvas. */
+  function addObject(readOnly = false): FabricObject {
+    const rect = new Rect({ left: 0, top: 0, width: 10, height: 10 });
+    if (readOnly) rect._readOnly = true;
+    overlay.canvas.add(rect);
+    return rect;
+  }
+
+  it('starts in navigation mode', () => {
+    expect(overlay.getMode()).toBe('navigation');
+  });
+
+  it.each<OverlayMode>(['navigation', 'annotation', 'customControl'])(
+    'getMode reports %s after setMode',
+    (mode) => {
+      // A different mode first, so setting `navigation` is not a no-op.
+      overlay.setMode(mode === 'navigation' ? 'annotation' : 'navigation');
+      overlay.setMode(mode);
+      expect(overlay.getMode()).toBe(mode);
+    },
+  );
+
+  describe('annotation mode', () => {
+    it('enables canvas selection and hands input to Fabric', () => {
+      overlay.setMode('annotation');
+      expect(overlay.canvas.selection).toBe(true);
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    });
+
+    it('makes ordinary objects interactive', () => {
+      const obj = addObject();
+      overlay.setMode('annotation');
+      expect(obj.selectable).toBe(true);
+      expect(obj.evented).toBe(true);
+    });
+
+    // The branch the old in-test mock never modelled: it set a single
+    // `objectsSelectable = true` for the whole canvas, so the entire read-only
+    // path — decoration lines, other contexts' annotations — was untested.
+    it('leaves _readOnly objects inert', () => {
+      const readOnly = addObject(true);
+      const normal = addObject();
+      overlay.setMode('annotation');
+      expect(readOnly.selectable).toBe(false);
+      expect(readOnly.evented).toBe(false);
+      expect(normal.selectable).toBe(true);
+      expect(normal.evented).toBe(true);
+    });
+
+    it('does not discard the active object', () => {
+      const spy = vi.spyOn(overlay.canvas, 'discardActiveObject');
+      overlay.setMode('annotation');
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 
   describe('navigation mode', () => {
-    it('disables overlay tracker (events fall through to OSD)', () => {
-      overlay.setMode('navigation');
-      expect(state.overlayTrackerTracking).toBe(false);
-    });
-
-    it('disables Fabric selection', () => {
-      overlay.setMode('navigation');
-      expect(state.fabricSelection).toBe(false);
-    });
-
-    it('makes objects non-selectable and non-evented', () => {
-      overlay.setMode('navigation');
-      expect(state.objectsSelectable).toBe(false);
-      expect(state.objectsEvented).toBe(false);
-    });
-
-    it('enables OSD mouse navigation', () => {
-      overlay.setMode('navigation');
-      expect(state.osdMouseNavEnabled).toBe(true);
-    });
-
-    it('reports correct mode', () => {
-      overlay.setMode('navigation');
-      expect(overlay.getMode()).toBe('navigation');
-    });
-  });
-
-  describe('annotation mode', () => {
-    it('enables overlay tracker (intercepts events for Fabric)', () => {
+    it('disables selection and returns input to OSD', () => {
       overlay.setMode('annotation');
-      expect(state.overlayTrackerTracking).toBe(true);
+      overlay.setMode('navigation');
+      expect(overlay.canvas.selection).toBe(false);
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
     });
 
-    it('enables Fabric selection (allows rubber-band and object selection)', () => {
+    it('makes every object inert, including ones that were interactive', () => {
+      const obj = addObject();
       overlay.setMode('annotation');
-      expect(state.fabricSelection).toBe(true);
+      expect(obj.selectable).toBe(true);
+      overlay.setMode('navigation');
+      expect(obj.selectable).toBe(false);
+      expect(obj.evented).toBe(false);
     });
 
-    it('makes objects selectable and evented', () => {
+    it('discards the active object', () => {
       overlay.setMode('annotation');
-      expect(state.objectsSelectable).toBe(true);
-      expect(state.objectsEvented).toBe(true);
-    });
-
-    it('disables OSD mouse navigation', () => {
-      overlay.setMode('annotation');
-      expect(state.osdMouseNavEnabled).toBe(false);
-    });
-
-    it('reports correct mode', () => {
-      overlay.setMode('annotation');
-      expect(overlay.getMode()).toBe('annotation');
+      const spy = vi.spyOn(overlay.canvas, 'discardActiveObject');
+      overlay.setMode('navigation');
+      expect(spy).toHaveBeenCalled();
     });
   });
 
   describe('customControl mode', () => {
-    it('enables overlay tracker so events reach the custom handler', () => {
+    it('disables selection and keeps OSD navigation off', () => {
       overlay.setMode('customControl');
-      expect(state.overlayTrackerTracking).toBe(true);
+      expect(overlay.canvas.selection).toBe(false);
+      // Distinguishes customControl from navigation: neither OSD nor Fabric
+      // reacts, so mouse nav stays disabled rather than being handed back.
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
     });
 
-    it('keeps Fabric inert (no selection, objects non-interactive)', () => {
+    it('makes every object inert regardless of _readOnly', () => {
+      const readOnly = addObject(true);
+      const normal = addObject();
+      overlay.setMode('annotation');
+      expect(normal.selectable).toBe(true);
       overlay.setMode('customControl');
-      expect(state.fabricSelection).toBe(false);
-      expect(state.objectsSelectable).toBe(false);
-      expect(state.objectsEvented).toBe(false);
+      expect(normal.selectable).toBe(false);
+      expect(normal.evented).toBe(false);
+      expect(readOnly.selectable).toBe(false);
     });
 
-    it('disables OSD mouse navigation', () => {
+    it('discards the active object', () => {
+      const spy = vi.spyOn(overlay.canvas, 'discardActiveObject');
       overlay.setMode('customControl');
-      expect(state.osdMouseNavEnabled).toBe(false);
-    });
-
-    it('reports correct mode', () => {
-      overlay.setMode('customControl');
-      expect(overlay.getMode()).toBe('customControl');
+      expect(spy).toHaveBeenCalled();
     });
   });
 
-  describe('mode transitions', () => {
-    it('correctly transitions from annotation to navigation', () => {
+  describe('transitions', () => {
+    it('is a no-op when the mode is unchanged', () => {
       overlay.setMode('annotation');
-      expect(state.osdMouseNavEnabled).toBe(false);
-      expect(state.overlayTrackerTracking).toBe(true);
-      expect(state.objectsSelectable).toBe(true);
+      const callsAfterFirst = tv.setMouseNavEnabled.mock.calls.length;
+      const spy = vi.spyOn(overlay.canvas, 'renderAll');
 
-      overlay.setMode('navigation');
-      expect(state.osdMouseNavEnabled).toBe(true);
-      expect(state.overlayTrackerTracking).toBe(false);
-      expect(state.objectsSelectable).toBe(false);
+      overlay.setMode('annotation');
+
+      expect(tv.setMouseNavEnabled.mock.calls.length).toBe(callsAfterFirst);
+      expect(spy).not.toHaveBeenCalled();
     });
 
-    it('correctly transitions from navigation to annotation', () => {
-      overlay.setMode('navigation');
-      expect(state.overlayTrackerTracking).toBe(false);
-      expect(state.osdMouseNavEnabled).toBe(true);
-
+    it('renders after a real mode change', () => {
+      const spy = vi.spyOn(overlay.canvas, 'renderAll');
       overlay.setMode('annotation');
-      expect(state.overlayTrackerTracking).toBe(true);
-      expect(state.osdMouseNavEnabled).toBe(false);
-      expect(state.fabricSelection).toBe(true);
-      expect(state.objectsSelectable).toBe(true);
-      expect(state.objectsEvented).toBe(true);
+      expect(spy).toHaveBeenCalled();
     });
 
-    it('does not re-run discardActiveObject side effect on redundant setMode', () => {
-      overlay.setMode('customControl');
-      const after = state.discardActiveObjectCalls;
-      expect(after).toBeGreaterThan(0);
+    it.each<[OverlayMode, OverlayMode]>([
+      ['navigation', 'annotation'],
+      ['annotation', 'customControl'],
+      ['customControl', 'navigation'],
+      ['navigation', 'customControl'],
+      ['customControl', 'annotation'],
+      ['annotation', 'navigation'],
+    ])('applies %s -> %s', (from, to) => {
+      overlay.setMode(from);
+      const obj = addObject();
+      overlay.setMode(to);
 
-      // Re-applying the same mode must be a true no-op (guards an in-progress
-      // custom-control drag from being clobbered).
-      overlay.setMode('customControl');
-      expect(state.discardActiveObjectCalls).toBe(after);
+      expect(overlay.getMode()).toBe(to);
+      expect(overlay.canvas.selection).toBe(to === 'annotation');
+      expect(obj.selectable).toBe(to === 'annotation');
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(to === 'navigation');
     });
+  });
 
-    it('handles repeated same-mode calls idempotently', () => {
-      overlay.setMode('annotation');
-      const snapshot = { ...state };
-      overlay.setMode('annotation');
-      expect(state).toEqual(snapshot);
-    });
-
-    it('handles rapid mode switching without inconsistency', () => {
-      overlay.setMode('annotation');
-      overlay.setMode('navigation');
-      overlay.setMode('annotation');
-      overlay.setMode('navigation');
-
-      expect(state.overlayTrackerTracking).toBe(false);
-      expect(state.fabricSelection).toBe(false);
-      expect(state.osdMouseNavEnabled).toBe(true);
-      expect(state.objectsSelectable).toBe(false);
-      expect(state.objectsEvented).toBe(false);
-      expect(overlay.getMode()).toBe('navigation');
+  describe('construction', () => {
+    it('honours the interactive option by starting in annotation mode', () => {
+      const other = createTestViewer();
+      const interactive = new FabricOverlay(other.viewer, { interactive: true });
+      expect(interactive.getMode()).toBe('annotation');
+      expect(other.setMouseNavEnabled).toHaveBeenCalledWith(false);
+      interactive.destroy();
+      other.cleanup();
     });
   });
 });
