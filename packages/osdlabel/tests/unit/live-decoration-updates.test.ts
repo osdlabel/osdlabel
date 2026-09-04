@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, AnnotationId } from '@osdlabel/annotation';
+import type { DecorationProvider } from '@osdlabel/decoration';
+import type { FabricOverlay } from '@osdlabel/fabric-osd';
+import type { PixelSpacing } from '@osdlabel/viewer-api';
+import type { FabricObject } from 'fabric';
+import { enableLiveDecorationUpdates } from '../../src/live-decoration-updates.js';
 
 /**
  * `Annotation`'s default extension is `Record<string, never>`, which maps every
  * key to `never` — readable, but not constructible from an object literal.
  */
 type NoExt = Record<never, never>;
-import type { DecorationProvider } from '@osdlabel/decoration';
-import type { FabricOverlay } from '@osdlabel/fabric-osd';
-import type { PixelSpacing } from '@osdlabel/viewer-api';
-import type { FabricObject } from 'fabric';
-import { enableLiveDecorationUpdates } from '../../src/live-decoration-updates.js';
 
 // Stub out the Fabric-coupled extractor so tests stay in pure JS land.
 // `target.__mockGeometry` is read back as the "live" geometry; `undefined`
