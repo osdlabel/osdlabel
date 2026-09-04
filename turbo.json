@@ -12,7 +12,7 @@
     },
     "test": {
       "dependsOn": [],
-      "inputs": ["src/**", "tests/**", "vitest.config.ts", "package.json"]
+      "inputs": ["src/**", "tests/**", "vitest.config.*", "package.json"]
     },
     "test:e2e": {
       "dependsOn": ["^build"],
