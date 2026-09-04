@@ -6,6 +6,18 @@ import type { OverlayMode } from '../../../src/overlay/fabric-overlay.js';
 import { createTestViewer, type TestViewer } from './test-viewer.js';
 
 /**
+ * Whether the overlay's OSD MouseTracker is intercepting pointer events.
+ * The tracker is private, but whether it is armed *is* the observable contract
+ * of each mode — it decides whether input reaches Fabric or falls through to
+ * OSD — so read it rather than leave the three `setTracking` calls uncovered.
+ */
+function isTracking(overlay: FabricOverlay): boolean {
+  return (
+    overlay as unknown as { _overlayTracker: { isTracking(): boolean } }
+  )._overlayTracker.isTracking();
+}
+
+/**
  * These tests drive the real `FabricOverlay`. The previous version of this file
  * defined a `createMockOverlay()` that reimplemented `setMode` in the test and
  * asserted against the reimplementation — its only import from source was
@@ -56,6 +68,7 @@ describe('FabricOverlay mode switching', () => {
       overlay.setMode('annotation');
       expect(overlay.canvas.selection).toBe(true);
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+      expect(isTracking(overlay)).toBe(true);
     });
 
     it('makes ordinary objects interactive', () => {
@@ -91,6 +104,8 @@ describe('FabricOverlay mode switching', () => {
       overlay.setMode('navigation');
       expect(overlay.canvas.selection).toBe(false);
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+      // Tracker disarmed: pointer events fall through to OSD.
+      expect(isTracking(overlay)).toBe(false);
     });
 
     it('makes every object inert, including ones that were interactive', () => {
@@ -115,8 +130,10 @@ describe('FabricOverlay mode switching', () => {
       overlay.setMode('customControl');
       expect(overlay.canvas.selection).toBe(false);
       // Distinguishes customControl from navigation: neither OSD nor Fabric
-      // reacts, so mouse nav stays disabled rather than being handed back.
+      // reacts, so mouse nav stays disabled rather than being handed back, and
+      // the tracker stays armed so events reach the custom handler.
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+      expect(isTracking(overlay)).toBe(true);
     });
 
     it('makes every object inert regardless of _readOnly', () => {
@@ -171,6 +188,7 @@ describe('FabricOverlay mode switching', () => {
       expect(overlay.canvas.selection).toBe(to === 'annotation');
       expect(obj.selectable).toBe(to === 'annotation');
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(to === 'navigation');
+      expect(isTracking(overlay)).toBe(to !== 'navigation');
     });
   });
 

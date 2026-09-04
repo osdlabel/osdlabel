@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { DecorationProvider, DomDecoration, TextDecoration } from '../../src/index.js';
+import type {
+  Decoration,
+  DecorationProvider,
+  DomDecoration,
+  TextDecoration,
+} from '../../src/index.js';
 import { composeProviders, createLabelProvider, withSelectionEmphasis } from '../../src/index.js';
 import { ann, annId, ctx, type NoExt } from './test-helpers.js';
 
@@ -45,19 +50,88 @@ describe('DomDecoration through the real provider pipeline', () => {
     expect(composeProviders<NoExt>([])(ctx([p1]))).toEqual([]);
   });
 
-  it('is carried through withSelectionEmphasis untouched when unrelated', () => {
-    // withSelectionEmphasis only elevates decorations whose relatedAnnotationIds
-    // include the selection; a DOM decoration for another annotation must come
-    // back by reference, or every downstream memo busts on each selection change.
-    const wrapped = withSelectionEmphasis<NoExt>(panelProvider, {
-      selectedTextStyle: { zIndex: 99 },
-    });
-    const plain = panelProvider(ctx([p1, p2], { selectedAnnotationId: annId('a') }));
-    const emphasised = wrapped(ctx([p1, p2], { selectedAnnotationId: annId('a') }));
+  it('passes DOM decorations through withSelectionEmphasis by reference', () => {
+    // Emphasis only restyles `text` and `line` decorations, so a `dom` one must
+    // come back as the *same object* even when it relates to the selection.
+    // Reference matters, not structure: DecorationLayer and the framework memos
+    // downstream compare by identity, so a needless copy busts them every frame.
+    const stable: readonly Decoration[] = [
+      {
+        type: 'dom',
+        id: 'panel:a',
+        relatedAnnotationIds: [annId('a')],
+        anchor: { x: 3, y: 4 },
+        content: { annotationId: annId('a') },
+      },
+      {
+        type: 'text',
+        id: 'text:b',
+        relatedAnnotationIds: [annId('b')],
+        anchor: { x: 9, y: 9 },
+        text: 'B',
+      },
+    ];
+    const fixed: DecorationProvider<NoExt> = () => stable;
+    const wrapped = withSelectionEmphasis<NoExt>(fixed, { selectedTextStyle: { zIndex: 99 } });
 
-    expect(emphasised).toHaveLength(2);
-    // 'b' is unrelated to the selection, so its decoration is structurally equal.
-    expect(emphasised[1]).toEqual(plain[1]);
+    const result = wrapped(ctx([p1, p2], { selectedAnnotationId: annId('a') }));
+
+    expect(result[0]).toBe(stable[0]);
+    expect(result[1]).toBe(stable[1]);
+  });
+
+  it('elevates a related text decoration while keeping the others identical', () => {
+    const stable: readonly Decoration[] = [
+      {
+        type: 'dom',
+        id: 'panel:a',
+        relatedAnnotationIds: [annId('a')],
+        anchor: { x: 3, y: 4 },
+        content: { annotationId: annId('a') },
+      },
+      {
+        type: 'text',
+        id: 'text:a',
+        relatedAnnotationIds: [annId('a')],
+        anchor: { x: 3, y: 4 },
+        text: 'A',
+      },
+      {
+        type: 'text',
+        id: 'text:b',
+        relatedAnnotationIds: [annId('b')],
+        anchor: { x: 9, y: 9 },
+        text: 'B',
+      },
+    ];
+    const fixed: DecorationProvider<NoExt> = () => stable;
+    const wrapped = withSelectionEmphasis<NoExt>(fixed, { selectedTextStyle: { zIndex: 99 } });
+
+    const result = wrapped(ctx([p1, p2], { selectedAnnotationId: annId('a') }));
+
+    // The related text decoration is replaced with a styled copy...
+    expect(result[1]).not.toBe(stable[1]);
+    expect((result[1] as TextDecoration).style?.zIndex).toBe(99);
+    // ...while the DOM decoration (not restyled) and the unrelated text
+    // decoration keep their identity.
+    expect(result[0]).toBe(stable[0]);
+    expect(result[2]).toBe(stable[2]);
+  });
+
+  it('returns the provider output unchanged when nothing is selected', () => {
+    const stable: readonly Decoration[] = [
+      {
+        type: 'text',
+        id: 't',
+        relatedAnnotationIds: [annId('a')],
+        anchor: { x: 0, y: 0 },
+        text: 'A',
+      },
+    ];
+    const wrapped = withSelectionEmphasis<NoExt>(() => stable, {
+      selectedTextStyle: { zIndex: 9 },
+    });
+    expect(wrapped(ctx([p1], { selectedAnnotationId: null }))).toBe(stable);
   });
 
   it('produces stable ids across runs so the renderer can diff in place', () => {
