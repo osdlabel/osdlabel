@@ -63,8 +63,12 @@ describe('FabricRawAnnotationDataSchema', () => {
 
     it('applies the type-specific rules to a capitalised type too', () => {
       // Guards against a normalizeType() that lowercases for the supported-type
-      // check but not for the per-type requirement checks.
+      // check but not for the per-type requirement checks: a capitalised circle
+      // missing its radius must still be rejected by validateCircleRequirements.
       expect(accepts({ type: 'Circle', left: 0, top: 0 })).toBe(false);
+      // Not a normalizeType guard — validateDimensionProps is type-independent,
+      // so this one holds whatever normalizeType does. Kept as a plain
+      // negative-width case.
       expect(accepts({ type: 'Rect', width: -1, height: 10 })).toBe(false);
     });
   });

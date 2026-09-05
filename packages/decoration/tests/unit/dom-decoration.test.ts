@@ -142,14 +142,18 @@ describe('DomDecoration through the real provider pipeline', () => {
     const provider = createLabelProvider<NoExt>();
     const first = provider(ctx([p1, p2])).map((d) => d.id);
     const second = provider(ctx([p1, p2])).map((d) => d.id);
-    expect(first).toHaveLength(2);
+    // Pin the shape, not just determinism: comparing two invocations of a pure
+    // function only catches nondeterminism, and would survive an id derived
+    // from something other than the annotation.
+    expect(first).toEqual(['label:a', 'label:b']);
     expect(second).toEqual(first);
     expect(new Set(first).size).toBe(first.length);
   });
 
   it('anchors built-in decorations at the annotation geometry', () => {
     const moved = ann('a', 'point', { type: 'point', position: { x: 50, y: 60 } }, 'Moved');
-    const [d] = createLabelProvider<NoExt>()(ctx([moved]));
-    expect((d as TextDecoration).anchor).toEqual({ x: 50, y: 60 });
+    const decorations = createLabelProvider<NoExt>()(ctx([moved]));
+    expect(decorations).toHaveLength(1);
+    expect((decorations[0]! as TextDecoration).anchor).toEqual({ x: 50, y: 60 });
   });
 });

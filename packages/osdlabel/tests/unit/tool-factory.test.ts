@@ -47,7 +47,16 @@ describe('createAnnotationTool', () => {
   // that an explicitly-passed config actually reaches the editor, which is the
   // only part of the options path a caller can depend on.
   describe('vertexEdit options', () => {
-    /** The config the tool's PolyVertexEditor was constructed with. */
+    /**
+     * The config the tool's PolyVertexEditor was constructed with.
+     *
+     * Reaches through two levels of `private readonly` (`Tool.editor`, then
+     * `PolyVertexEditor.longPressMs` / `moveTolerancePx`) because no public
+     * accessor exists — the only public seam is behavioural, needing fake
+     * timers and a synthetic long-press against a real canvas. Brittle by
+     * design: renaming either private turns this into a `TypeError` or an
+     * `undefined` mismatch, both of which fail loudly rather than pass.
+     */
     function editorConfig(tool: unknown): { longPressMs: number; moveTolerancePx: number } {
       const { editor } = tool as {
         editor: { longPressMs: number; moveTolerancePx: number };
