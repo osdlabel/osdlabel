@@ -1,5 +1,13 @@
 # @osdlabel/decoration
 
+## 0.9.0
+
+### Patch Changes
+
+- @osdlabel/annotation@0.9.0
+- @osdlabel/geometry@0.9.0
+- @osdlabel/viewer-api@0.9.0
+
 ## 0.8.1
 
 ### Patch Changes

@@ -1,5 +1,30 @@
 # @osdlabel/solid
 
+## 0.9.0
+
+### Minor Changes
+
+- 551e21f: Remove `buildToolCallbacks`, `ToolCallbackAccessors` and `ToolCallbackDispatchers`.
+
+  **Breaking.** These were exported from the `osdlabel` barrel (and transitively re-exported by `@osdlabel/solid` and `@osdlabel/react`) but had no callers anywhere — both framework hooks build their `ToolCallbacks` object inline in `useAnnotationTool`. `buildToolCallbacks` could not run, which is why mutating its `canAddAnnotation` to always return `true` survived the entire test suite.
+
+  If you were calling `buildToolCallbacks`, construct the `ToolCallbacks` object directly; `ToolCallbacks` itself is unchanged and still exported from `@osdlabel/fabric-annotations`.
+
+  `createAnnotationTool` is unaffected and now has direct test coverage asserting the concrete tool class returned for each `ToolType`.
+
+### Patch Changes
+
+- Updated dependencies [551e21f]
+  - osdlabel@0.9.0
+  - @osdlabel/annotation@0.9.0
+  - @osdlabel/annotation-context@0.9.0
+  - @osdlabel/decoration@0.9.0
+  - @osdlabel/fabric-annotations@0.9.0
+  - @osdlabel/fabric-osd@0.9.0
+  - @osdlabel/osd-helper@0.9.0
+  - @osdlabel/validation@0.9.0
+  - @osdlabel/viewer-api@0.9.0
+
 ## 0.8.1
 
 ### Patch Changes
