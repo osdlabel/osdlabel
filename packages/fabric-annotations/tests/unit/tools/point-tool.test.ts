@@ -60,7 +60,7 @@ describe('PointTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
 
-      expect(mockCanvas.add.mock.calls[0][0].radius).toBe(DEFAULT_POINT_RADIUS);
+      expect(mockCanvas.add.mock.calls[0]![0].radius).toBe(DEFAULT_POINT_RADIUS);
     });
 
     it("honours the tool constraint's defaultStyle.pointRadius", () => {
@@ -73,7 +73,7 @@ describe('PointTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
 
-      expect(mockCanvas.add.mock.calls[0][0].radius).toBe(12);
+      expect(mockCanvas.add.mock.calls[0]![0].radius).toBe(12);
     });
   });
 

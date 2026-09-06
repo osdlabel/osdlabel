@@ -71,7 +71,7 @@ describe('FreeHandPathTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-      const preview = mockCanvas.add.mock.calls[0][0];
+      const preview = mockCanvas.add.mock.calls[0]![0];
       expect(preview.stroke).toBe('#00e5ff');
       expect(preview.strokeWidth).toBe(3);
       expect(preview.id).toBeUndefined();
@@ -87,7 +87,7 @@ describe('FreeHandPathTool', () => {
       tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
-      const preview = mockCanvas.add.mock.calls[0][0];
+      const preview = mockCanvas.add.mock.calls[0]![0];
       tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 10 });
       tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
       tool.onPointerUp({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
