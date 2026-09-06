@@ -84,7 +84,9 @@ const CONTEXTS: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'polyline' },
+      // A visible defaultStyle so the harness dogfoods it reaching the
+      // in-progress preview and vertex markers, not just the committed shape.
+      { type: 'polyline', defaultStyle: { strokeColor: '#00e5ff', strokeWidth: 3 } },
       { type: 'freeHandPath' },
     ],
   },
