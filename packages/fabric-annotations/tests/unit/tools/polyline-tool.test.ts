@@ -71,7 +71,7 @@ describe('PolylineTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-      const preview = mockCanvas.add.mock.calls[0][0];
+      const preview = mockCanvas.add.mock.calls[0]![0];
       expect(preview.stroke).toBe('#00e5ff');
       expect(preview.strokeWidth).toBe(3);
     });
@@ -82,7 +82,7 @@ describe('PolylineTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-      const preview = mockCanvas.add.mock.calls[0][0];
+      const preview = mockCanvas.add.mock.calls[0]![0];
       expect(preview.strokeDashArray).toEqual([5, 5]);
       expect(preview.selectable).toBe(false);
       expect(preview.evented).toBe(false);
@@ -101,7 +101,7 @@ describe('PolylineTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-      expect(mockCanvas.add.mock.calls[0][0].strokeDashArray).toEqual([2, 8]);
+      expect(mockCanvas.add.mock.calls[0]![0].strokeDashArray).toEqual([2, 8]);
     });
 
     it('scales the preview stroke to screen pixels', () => {
@@ -113,7 +113,7 @@ describe('PolylineTool', () => {
 
       // DEFAULT_ANNOTATION_STYLE.strokeWidth (2) at zoom 0.1 must still land as
       // 2 screen px, not a 0.2 px hairline.
-      expect(mockCanvas.add.mock.calls[0][0].strokeWidth).toBeCloseTo(20);
+      expect(mockCanvas.add.mock.calls[0]![0].strokeWidth).toBeCloseTo(20);
     });
 
     it('styles the commit by the context active at finish, not at draw start', () => {
@@ -145,7 +145,7 @@ describe('PolylineTool', () => {
       tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
-      const preview = mockCanvas.add.mock.calls[0][0];
+      const preview = mockCanvas.add.mock.calls[0]![0];
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
       tool.onKeyDown({ key: 'Enter' } as KeyboardEvent);
 
