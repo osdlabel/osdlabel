@@ -2,14 +2,9 @@ import type { AnnotationId, Point, RectangleGeometry, ToolType } from '@osdlabel
 import { toolTypeToGeometryType } from '@osdlabel/annotation';
 import { circleToBoundingRectangle } from '@osdlabel/geometry';
 import type { ImageId, AnnotationState } from '@osdlabel/viewer-api';
-import type {
-  AnnotationContextId,
-  ConstraintStatus,
-  ContextState,
-} from '@osdlabel/annotation-context';
+import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type {
   AnnotationTool,
-  ToolCallbacks,
   AddAnnotationParams,
   FabricShapeOptions,
   FabricRawAnnotationData,
@@ -71,66 +66,6 @@ export function createAnnotationTool(
     default:
       return null;
   }
-}
-
-/**
- * Accessors that the tool callbacks read from to get current state.
- * Framework wrappers provide these (e.g., reading from SolidJS stores or React state).
- */
-export interface ToolCallbackAccessors {
-  readonly getContextState: () => ContextState;
-  readonly getAnnotationState: () => AnnotationState<OsdFields>;
-  readonly getConstraintStatus: () => ConstraintStatus;
-}
-
-/**
- * Dispatchers that the tool callbacks call to mutate state.
- */
-export interface ToolCallbackDispatchers {
-  readonly addAnnotation: (annotation: Parameters<ToolCallbacks['addAnnotation']>[0]) => void;
-  readonly updateAnnotation: (
-    id: AnnotationId,
-    imageId: ImageId,
-    fabricObject: FabricObject,
-  ) => void;
-  readonly deleteAnnotation: (id: AnnotationId, imageId: ImageId) => void;
-  readonly setSelectedAnnotation: (id: AnnotationId | null) => void;
-}
-
-/**
- * Builds a ToolCallbacks object from accessors and dispatchers.
- * Both SolidJS and React wrappers use this to create the callbacks that tools need.
- */
-export function buildToolCallbacks(
-  accessors: ToolCallbackAccessors,
-  dispatchers: ToolCallbackDispatchers,
-): ToolCallbacks {
-  return {
-    getActiveContextId: () => accessors.getContextState().activeContextId,
-    getToolConstraint: (toolType) => {
-      const contextState = accessors.getContextState();
-      const activeContextId = contextState.activeContextId;
-      if (!activeContextId) return undefined;
-      const activeContext = contextState.contexts.find((c) => c.id === activeContextId);
-      return activeContext?.tools.find((t) => t.type === toolType);
-    },
-    canAddAnnotation: (toolType: ToolType) => {
-      const status = accessors.getConstraintStatus();
-      return status[toolType].enabled;
-    },
-    addAnnotation: (params: AddAnnotationParams) => {
-      dispatchers.addAnnotation(params);
-    },
-    updateAnnotation: (id: AnnotationId, imageId: ImageId, fabricObject: FabricObject) => {
-      dispatchers.updateAnnotation(id, imageId, fabricObject);
-    },
-    deleteAnnotation: (id, imageId) => dispatchers.deleteAnnotation(id, imageId),
-    setSelectedAnnotation: (id) => dispatchers.setSelectedAnnotation(id),
-    getAnnotation: (id, imageId) => {
-      const imageAnns = accessors.getAnnotationState().byImage[imageId];
-      return imageAnns?.[id];
-    },
-  };
 }
 
 /**

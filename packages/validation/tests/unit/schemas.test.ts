@@ -113,6 +113,22 @@ describe('Validation Schemas', () => {
     it('rejects missing imageId', () => {
       expect(isValid(OsdAnnotationSchema, { ...validOsd, imageId: undefined })).toBe(false);
     });
+
+    // `imageId: undefined` above is rejected by the bare `v.string()`, so it
+    // never reaches the `minLength(1)` step — removing that pipe survived it.
+    it.each([['imageId'], ['contextId']])('rejects an empty %s', (field) => {
+      expect(isValid(OsdAnnotationSchema, { ...validOsd, [field]: '' })).toBe(false);
+    });
+
+    it.each([['createdAt'], ['updatedAt']])('rejects a missing %s', (field) => {
+      const withoutField: Record<string, unknown> = { ...validOsd };
+      delete withoutField[field];
+      expect(isValid(OsdAnnotationSchema, withoutField)).toBe(false);
+    });
+
+    it.each([['createdAt'], ['updatedAt']])('rejects a non-string %s', (field) => {
+      expect(isValid(OsdAnnotationSchema, { ...validOsd, [field]: 12345 })).toBe(false);
+    });
   });
 
   describe('RawAnnotationDataSchema', () => {

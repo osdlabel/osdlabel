@@ -32,7 +32,7 @@ npm install osdlabel fabric openseadragon valibot
 - Context cycling: `getCycledContextId`, `getSelectableContexts`
 - `createAnnotationFromGeometry` — builds a complete annotation (id, style, raw
   Fabric data) from a geometry
-- Tool factory: `createAnnotationTool`, `buildToolCallbacks`, and the pure
+- Tool factory: `createAnnotationTool` and the pure
   processors `processObjectModified`, `processToolAddAnnotation`,
   `processToolUpdateAnnotation`, `processConvertCircleToRectangle`
 - `VIEWER_CONTROL_SPECS` / `getToneValue` — the framework-agnostic registry of

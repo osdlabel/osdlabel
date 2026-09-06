@@ -197,18 +197,13 @@ export type { ContextCycleDirection } from './context-cycling.js';
 // Tool factory and helpers
 export {
   createAnnotationTool,
-  buildToolCallbacks,
   getScenePointFromEvent,
   processObjectModified,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
   processConvertCircleToRectangle,
 } from './tool-factory.js';
-export type {
-  ToolCallbackAccessors,
-  ToolCallbackDispatchers,
-  CreateAnnotationToolOptions,
-} from './tool-factory.js';
+export type { CreateAnnotationToolOptions } from './tool-factory.js';
 
 // Live decoration update wiring
 export { enableLiveDecorationUpdates } from './live-decoration-updates.js';
