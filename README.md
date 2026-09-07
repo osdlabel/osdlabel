@@ -1,5 +1,8 @@
 # osdlabel
 
+[![npm version](https://img.shields.io/npm/v/osdlabel.svg)](https://www.npmjs.com/package/osdlabel)
+[![license](https://img.shields.io/npm/l/osdlabel.svg)](./LICENSE)
+
 Web-based image annotation library with rich drawing controls, customizable annotation contexts, and built-in serialization.
 
 Powered by [OpenSeaDragon](https://openseadragon.github.io/) for deep zoom tiled image support and [Fabric.js](http://fabricjs.com/) v7 for interactive canvas rendering, with official UI bindings for [SolidJS](https://www.solidjs.com/) and [React](https://react.dev/). Draw rectangles, circles, lines, points, and freehand paths on gigapixel images with smooth pan and zoom.
@@ -29,11 +32,15 @@ Powered by [OpenSeaDragon](https://openseadragon.github.io/) for deep zoom tiled
 npm install @osdlabel/solid
 ```
 
+[`@osdlabel/solid` on npm](https://www.npmjs.com/package/@osdlabel/solid)
+
 ### React
 
 ```bash
 npm install @osdlabel/react
 ```
+
+[`@osdlabel/react` on npm](https://www.npmjs.com/package/@osdlabel/react)
 
 ## Quick Start
 
