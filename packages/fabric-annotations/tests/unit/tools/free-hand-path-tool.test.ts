@@ -78,6 +78,29 @@ describe('FreeHandPathTool', () => {
       expect(preview._readOnly).toBe(true);
     });
 
+    it('styles the commit by the context active at finish, not at draw start', () => {
+      let activeStyle = { strokeColor: '#ff0000' };
+      mockCallbacks = {
+        ...mockCallbacks,
+        getToolConstraint: (type) => ({ type, defaultStyle: activeStyle }),
+      };
+      tool = new FreeHandPathTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 10 });
+      tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
+
+      // The user switches annotation context mid-stroke; finish() reads the
+      // context id live, so the style must follow it rather than the one
+      // cached for the preview.
+      activeStyle = { strokeColor: '#0000ff' };
+      tool.onPointerUp({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
+
+      expect(addedParams).toHaveLength(1);
+      expect(addedParams[0]!.fabricObject.stroke).toBe('#0000ff');
+    });
+
     it('commits the annotation in the same style as the preview', () => {
       mockCallbacks = {
         ...mockCallbacks,
