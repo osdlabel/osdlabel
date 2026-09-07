@@ -24,6 +24,8 @@ jobs:
         run: pnpm install
       - name: Verify lockstep versions
         run: pnpm run check-versions
+      - name: Run lint
+        run: pnpm run lint
       - name: Run typecheck
         run: pnpm run typecheck
       - name: Verify build

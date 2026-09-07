@@ -28,7 +28,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.tests.json",
     "test": "vitest run",
-    "lint": "eslint src/ tests/"
+    "lint": "eslint ."
   },
   "peerDependencies": {
     "fabric": "catalog:peers",

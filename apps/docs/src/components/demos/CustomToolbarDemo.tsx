@@ -89,7 +89,7 @@ function CustomToolbar() {
 }
 
 function AppContent() {
-  const { uiState, actions, activeImageId } = useAnnotator();
+  const { actions, activeImageId } = useAnnotator();
 
   onMount(() => {
     actions.setContexts(contexts);

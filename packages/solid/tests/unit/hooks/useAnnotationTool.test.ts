@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
+import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import { createImageId } from '@osdlabel/viewer-api';
 import { useAnnotationTool } from '../../../src/hooks/useAnnotationTool.js';
 import { DEFAULT_KEYBOARD_SHORTCUTS } from '../../../src/hooks/useKeyboard.js';
@@ -44,10 +45,43 @@ vi.mock('@osdlabel/fabric-annotations', async () => {
   };
 });
 
+/**
+ * A Fabric-canvas stub. The hook itself only calls `on` and `off`; the rest are
+ * here because the tools it activates reach through to them, and because the
+ * stub predates this typing and dropping members would change what the tests
+ * exercise.
+ */
+interface MockCanvas {
+  on: ReturnType<typeof vi.fn>;
+  off: ReturnType<typeof vi.fn>;
+  setMode: ReturnType<typeof vi.fn>;
+  requestRenderAll: ReturnType<typeof vi.fn>;
+  discardActiveObject: ReturnType<typeof vi.fn>;
+  getObjects: ReturnType<typeof vi.fn>;
+  remove: ReturnType<typeof vi.fn>;
+  add: ReturnType<typeof vi.fn>;
+}
+
+/**
+ * An overlay stub, cast to `FabricOverlay` at the call site.
+ *
+ * The hook touches `canvas.on/off`, `setMode`, `screenToImage` and
+ * `setCustomControlHandler`. The last is absent deliberately: these tests run
+ * with `activeViewerControl: null`, so that branch is never entered, and adding
+ * it would imply coverage that does not exist.
+ */
+interface MockOverlay {
+  canvas: MockCanvas;
+  setMode: ReturnType<typeof vi.fn>;
+  screenToImage: ReturnType<typeof vi.fn>;
+}
+
 describe('useAnnotationTool', () => {
-  let mockOverlay: any;
-  let mockCanvas: any;
-  let listeners: Record<string, Function> = {};
+  // Structural stubs, not the real types: these stand in for a FabricOverlay
+  // and its canvas, and only the members the hook touches are present.
+  let mockOverlay: MockOverlay;
+  let mockCanvas: MockCanvas;
+  let listeners: Record<string, (...args: unknown[]) => unknown> = {};
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,7 +110,7 @@ describe('useAnnotationTool', () => {
   it('should register object:modified handler and update annotation', async () => {
     await new Promise<void>((resolve) => {
       createRoot((dispose) => {
-        const [overlay] = createSignal(mockOverlay);
+        const [overlay] = createSignal(mockOverlay as unknown as FabricOverlay);
         const [imageId] = createSignal(createImageId('img-1'));
         const [isActive] = createSignal(true);
 

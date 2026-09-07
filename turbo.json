@@ -58,10 +58,15 @@
       "inputs": [
         "src/**",
         "tests/**",
+        "scripts/**",
+        "*.config.*",
         "eslint.config.*",
         "$TURBO_ROOT$/eslint.config.*",
         "package.json"
       ]
+    },
+    "//#lint:root": {
+      "inputs": ["eslint.config.js", "scripts/**", "package.json"]
     }
   }
 }

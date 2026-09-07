@@ -301,13 +301,6 @@ test.describe('View Controls', () => {
       targetPosition: { x: 200, y: 200 },
     });
 
-    // Count objects
-    await page.evaluate(() => {
-      // @ts-ignore
-      const canvas = window.fabricCanvas; // We might need to expose this or just check DOM elements
-      return document.querySelectorAll('.upper-canvas').length;
-    });
-
     // Wait for the object to be added to state
     await page.waitForTimeout(100);
 

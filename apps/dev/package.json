@@ -9,7 +9,7 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "lint": "eslint src/ tests/"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@osdlabel/solid": "workspace:*",

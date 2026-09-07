@@ -44,7 +44,7 @@
     "typecheck": "tsc -p tsconfig.tests.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src/ tests/"
+    "lint": "eslint ."
   },
   "peerDependencies": {
     "fabric": "catalog:peers",
