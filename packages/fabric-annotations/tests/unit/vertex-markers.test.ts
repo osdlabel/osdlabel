@@ -35,6 +35,11 @@ describe('VertexMarkerLayer', () => {
     expect(markers).toHaveLength(2);
     expect(markers[1]!.left).toBe(50);
     expect(markers[1]!.top).toBe(20);
+    // Centred on the vertex — with the default origin a marker would render a
+    // radius off the point it is supposed to mark, which `left`/`top` alone
+    // cannot see.
+    expect(markers[1]!.originX).toBe('center');
+    expect(markers[1]!.originY).toBe('center');
   });
 
   it('reuses markers across syncs instead of re-adding them', () => {
@@ -69,6 +74,14 @@ describe('VertexMarkerLayer', () => {
 
     expect(added()[1]!.fill).toBe('#00e5ff');
     expect(added()[0]!.stroke).toBe('#00e5ff');
+  });
+
+  it('takes marker opacity from the resolved style', () => {
+    const layer = new VertexMarkerLayer();
+
+    layer.sync(overlay, vertices([10, 10]), { ...DEFAULT_ANNOTATION_STYLE, opacity: 0.4 });
+
+    expect(added()[0]!.opacity).toBe(0.4);
   });
 
   it('lets callers override radius and colour', () => {
