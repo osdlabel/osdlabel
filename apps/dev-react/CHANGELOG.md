@@ -1,5 +1,13 @@
 # @osdlabel/dev-react
 
+## 0.0.15
+
+### Patch Changes
+
+- Updated dependencies [b030137]
+  - osdlabel@0.10.0
+  - @osdlabel/react@0.10.0
+
 ## 0.0.14
 
 ### Patch Changes
