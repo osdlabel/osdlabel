@@ -1,5 +1,22 @@
 # @osdlabel/solid
 
+## 0.10.1
+
+### Patch Changes
+
+- 9b4dd4f: Replace an `as any` cast in `ContextSwitcher` with `createAnnotationContextId`.
+
+  Behaviour is unchanged — the factory is an identity cast — but the component no longer launders a raw `string` into a branded `AnnotationContextId`, which is the convention the rest of the codebase follows. Surfaced by enabling ESLint across the workspace for the first time.
+  - osdlabel@0.10.1
+  - @osdlabel/annotation@0.10.1
+  - @osdlabel/annotation-context@0.10.1
+  - @osdlabel/decoration@0.10.1
+  - @osdlabel/fabric-annotations@0.10.1
+  - @osdlabel/fabric-osd@0.10.1
+  - @osdlabel/osd-helper@0.10.1
+  - @osdlabel/validation@0.10.1
+  - @osdlabel/viewer-api@0.10.1
+
 ## 0.10.0
 
 ### Minor Changes
