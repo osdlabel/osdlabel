@@ -138,7 +138,7 @@ describe('useKeyboard', () => {
   it('should ignore events when target is INPUT, TEXTAREA, or contentEditable', () => {
     dispatchKeyDown('v', { tagName: 'INPUT' });
     dispatchKeyDown('v', { tagName: 'TEXTAREA' });
-    dispatchKeyDown('v', { isContentEditable: true } as any);
+    dispatchKeyDown('v', { isContentEditable: true });
 
     expect(mockActions.setActiveTool).not.toHaveBeenCalled();
   });
