@@ -1,5 +1,12 @@
 # @osdlabel/osd-helper
 
+## 0.10.1
+
+### Patch Changes
+
+- @osdlabel/annotation@0.10.1
+- @osdlabel/viewer-api@0.10.1
+
 ## 0.10.0
 
 ### Patch Changes

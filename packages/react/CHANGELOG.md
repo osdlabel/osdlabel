@@ -1,5 +1,19 @@
 # @osdlabel/react
 
+## 0.10.1
+
+### Patch Changes
+
+- osdlabel@0.10.1
+- @osdlabel/annotation@0.10.1
+- @osdlabel/annotation-context@0.10.1
+- @osdlabel/decoration@0.10.1
+- @osdlabel/fabric-annotations@0.10.1
+- @osdlabel/fabric-osd@0.10.1
+- @osdlabel/osd-helper@0.10.1
+- @osdlabel/validation@0.10.1
+- @osdlabel/viewer-api@0.10.1
+
 ## 0.10.0
 
 ### Minor Changes
