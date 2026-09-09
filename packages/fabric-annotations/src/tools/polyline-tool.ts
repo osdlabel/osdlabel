@@ -23,6 +23,15 @@ import {
 /** Distance in screen pixels to snap-close to the first point */
 const CLOSE_THRESHOLD_SCREEN_PX = 10;
 
+/**
+ * Screen-pixel bounds on where a double click's two presses can be, relative to
+ * the release point reported to {@link PolylineTool.onDoubleClick}. Composed
+ * from OpenSeadragon's defaults — 5 for the second press, 5 + 20 + 5 for the
+ * first — and derived in the OSD-Fabric integration guide.
+ */
+const SECOND_PRESS_SCREEN_PX = 5;
+const FIRST_PRESS_SCREEN_PX = 25;
+
 export class PolylineTool extends BaseTool {
   readonly type: ToolType = 'polyline';
   private preview: Polyline | null = null;
@@ -60,14 +69,8 @@ export class PolylineTool extends BaseTool {
     super.deactivate();
   }
 
-  onPointerDown(event: PointerEvent, imagePoint: Point): void {
+  onPointerDown(_event: PointerEvent, imagePoint: Point): void {
     if (!this.overlay) return;
-
-    // Handle double click to finish as open polyline
-    if (event.detail === 2) {
-      this.finish(false);
-      return;
-    }
 
     if (this.vertices.length === 0) {
       // First point — start a new path
@@ -126,6 +129,21 @@ export class PolylineTool extends BaseTool {
     // No-op — path tool uses click (not drag) to add points
   }
 
+  /**
+   * Finish the in-progress path as an *open* polyline, dropping the vertex the
+   * gesture's own second press added.
+   *
+   * The test is geometric, not a count: the gesture contributes two vertices,
+   * one, or none — a press landing on an existing annotation is suppressed by
+   * the hooks, and one may have closed the path — so popping unconditionally
+   * discards a point the user placed, and on a two-vertex path throws the whole
+   * path away.
+   */
+  onDoubleClick(_event: PointerEvent, imagePoint: Point): void {
+    if (this.gestureAddedBothVertices(imagePoint)) this.vertices.pop();
+    this.finish(false);
+  }
+
   onKeyDown(event: KeyboardEvent): boolean {
     if (this.editor.onKeyDown(event)) return true;
     const shortcuts = this.shortcuts;
@@ -161,6 +179,30 @@ export class PolylineTool extends BaseTool {
   /** Whether a click at `imagePoint` would close the path into a polygon. */
   private canClose(imagePoint: Point): boolean {
     return this.vertices.length >= 3 && this.isNearFirstPoint(imagePoint);
+  }
+
+  /**
+   * Whether *both* of this double click's presses landed on the canvas and so
+   * added a vertex — the only case in which one of them is an artefact.
+   *
+   * Both halves are load-bearing; each alone gets a real case wrong, and the
+   * integration guide sets out which. Screen space, like `isNearFirstPoint`,
+   * because the bounds are properties of the input device.
+   *
+   * Not exact: with the first press suppressed *and* the previous vertex within
+   * the first-press bound of the release, this drops the vertex the second
+   * press placed. A far narrower window than the count-based test it replaced.
+   */
+  private gestureAddedBothVertices(imagePoint: Point): boolean {
+    // Guard, not a decision: `finish` cancels a too-short path either way.
+    if (this.vertices.length < 2 || !this.overlay) return false;
+    const released = this.overlay.imageToScreen(imagePoint);
+    const last = this.overlay.imageToScreen(this.vertices[this.vertices.length - 1]!);
+    const previous = this.overlay.imageToScreen(this.vertices[this.vertices.length - 2]!);
+    return (
+      Math.hypot(last.x - released.x, last.y - released.y) <= SECOND_PRESS_SCREEN_PX &&
+      Math.hypot(previous.x - released.x, previous.y - released.y) <= FIRST_PRESS_SCREEN_PX
+    );
   }
 
   private isNearFirstPoint(imagePoint: Point): boolean {

@@ -229,11 +229,11 @@ at both ends and skipping contexts scoped to other images.
 
 ### Polyline drawing
 
-| Action      | Key      |
-| ----------- | -------- |
-| Finish path | `Enter`  |
-| Close path  | `c`      |
-| Cancel path | `Escape` |
+| Action      | Key      | Mouse                  |
+| ----------- | -------- | ---------------------- |
+| Finish path | `Enter`  | Double click           |
+| Close path  | `c`      | Click the first vertex |
+| Cancel path | `Escape` | —                      |
 
 ## Decorations & Measurements
 

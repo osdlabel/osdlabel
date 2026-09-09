@@ -11,14 +11,14 @@ osdlabel provides six geometric annotation tools:
 
 <MinimalViewerDemoWrapper />
 
-| Tool               | Shortcut | Geometry                        | Drawing action                                         |
-| ------------------ | -------- | ------------------------------- | ------------------------------------------------------ |
-| **Rectangle**      | `r`      | Origin, width, height, rotation | Click and drag to define opposite corners              |
-| **Circle**         | `c`      | Center, radius                  | Click and drag from center outward                     |
-| **Line**           | `l`      | Start point, end point          | Click and drag between endpoints                       |
-| **Point**          | `p`      | Single position                 | Single click to place                                  |
-| **Path**           | `d`      | Array of points, open/closed    | Click to add vertices, `Enter` to finish, `c` to close |
-| **Free Hand Path** | `f`      | Array of sampled points         | Click and drag to draw; release to commit              |
+| Tool               | Shortcut | Geometry                        | Drawing action                                                         |
+| ------------------ | -------- | ------------------------------- | ---------------------------------------------------------------------- |
+| **Rectangle**      | `r`      | Origin, width, height, rotation | Click and drag to define opposite corners                              |
+| **Circle**         | `c`      | Center, radius                  | Click and drag from center outward                                     |
+| **Line**           | `l`      | Start point, end point          | Click and drag between endpoints                                       |
+| **Point**          | `p`      | Single position                 | Single click to place                                                  |
+| **Path**           | `d`      | Array of points, open/closed    | Click to add vertices, double click or `Enter` to finish, `c` to close |
+| **Free Hand Path** | `f`      | Array of sampled points         | Click and drag to draw; release to commit                              |
 
 ## Drawing workflow
 
@@ -142,9 +142,12 @@ The polyline tool is multi-click (not drag-based):
 
 1. Press `d` to activate the polyline tool
 2. Click to place each vertex — a preview line follows the cursor
-3. Press `Enter` to finish as an open polyline
-4. Press `c` to close as a polygon
+3. Double click, or press `Enter`, to finish as an open polyline
+4. Press `c`, or click the first vertex, to close as a polygon
 5. Press `Escape` to cancel the polyline in progress
+
+The double click places its own final vertex where you click, so you do not
+need a separate click before it.
 
 Polylines require at least 2 points to be committed; polygons require at least 3.
 

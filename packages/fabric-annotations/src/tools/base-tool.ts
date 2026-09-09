@@ -61,6 +61,18 @@ export interface AnnotationTool {
   /** Handle pointer up — commit the annotation */
   onPointerUp(event: PointerEvent, imagePoint: Point): void;
 
+  /**
+   * Handle a double click. Optional — {@link BaseTool} supplies a no-op.
+   *
+   * Does not arrive through {@link onPointerDown}: `PointerEvent.detail` is 0
+   * on every forwarded event, so the overlay detects the gesture and reports it
+   * separately (issue #168).
+   *
+   * Fires last: both of the gesture's `onPointerDown`s and the second
+   * `onPointerUp` have already run by the time this is called.
+   */
+  onDoubleClick?(event: PointerEvent, imagePoint: Point): void;
+
   /** Handle key down - returns true if the key was consumed */
   onKeyDown(event: KeyboardEvent): boolean;
 
@@ -117,6 +129,9 @@ export abstract class BaseTool implements AnnotationTool {
     this.callbacks = null;
     this.shortcuts = null;
   }
+
+  /** No-op by default; tools with a double-click gesture override this. */
+  onDoubleClick(_event: PointerEvent, _imagePoint: Point): void {}
 
   abstract onPointerDown(event: PointerEvent, imagePoint: Point): void;
   abstract onPointerMove(event: PointerEvent, imagePoint: Point): void;
