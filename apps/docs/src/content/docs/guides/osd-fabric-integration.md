@@ -294,6 +294,8 @@ Events are forwarded by dispatching a synthetic `PointerEvent` on Fabric's upper
 
 A **re-entrancy guard** (`_forwarding` flag) prevents infinite loops: the synthetic event bubbles from Fabric's upper canvas up to the container div, where the MouseTracker would intercept it again. The guard ensures the bubbled-back event is ignored.
 
+That guard has a second, less obvious role: it is what makes double-click detection possible, below.
+
 ```ts
 private _forwardToFabric(type: string, originalEvent: PointerEvent): void {
   if (this._forwarding) return;  // Guard: ignore bubbled-back events
@@ -312,6 +314,52 @@ private _forwardToFabric(type: string, originalEvent: PointerEvent): void {
   }
 }
 ```
+
+### Double clicks
+
+Neither of the two obvious sources works here, and both are worth ruling out explicitly before reaching for them again.
+
+**Fabric's `mouse:dblclick`** is raised from a native `dblclick` listener on the upper canvas — but that canvas is `pointerEvents: 'none'`, so the browser's `dblclick` targets the container instead and the upper canvas only ever receives the synthetic _pointer_ events forwarded above. For the same reason `PointerEvent.detail` is `0` on every event a tool sees, so a tool cannot detect the gesture itself. Testing `event.detail === 2` in `onPointerDown` compiles, type-checks, and can never be true — that was [#168](https://github.com/osdlabel/osdlabel/issues/168).
+
+**The MouseTracker's own `dblClickHandler`** is worse: the synthetic event dispatched by `_forwardToFabric` bubbles back to the container the tracker is attached to, and OSD counts that copy as a second click. Every _single_ click fires it.
+
+**The container's native `dblclick`** does fire — that is where the browser's own event lands, and it carries the platform's timing and movement thresholds, which is genuinely attractive. It is rejected for a different reason: it is a bare notification. It does not say which two presses produced it, and its thresholds are not inspectable, so a tool that accumulated points on those presses cannot work out which of its vertices belong to the gesture. That correlation is the hard part of this problem (see below), and it is the one thing the platform event cannot give.
+
+So `FabricOverlay` pairs releases itself, in `_detectDoubleClick`, called from the `releaseHandler` — where the `_forwarding` guard has already excluded the synthetic copies, leaving exactly the real stream. Subscribe with `overlay.onDoubleClick(cb)`; the framework hooks route it to the active tool's optional `onDoubleClick`.
+
+#### The gates
+
+A release counts as a click only if it is _quick_ — close in time and space to **its own** press, so a drag is not a click — and two clicks pair only if they are close to **each other**. All four thresholds are read off the tracker rather than redeclared, so they follow OSD's defaults:
+
+| gate                       | threshold                                         | default        |
+| -------------------------- | ------------------------------------------------- | -------------- |
+| release → its own press    | `clickTimeThreshold` / `clickDistThreshold`       | 300 ms / 5 px  |
+| release → previous release | `dblClickTimeThreshold` / `dblClickDistThreshold` | 300 ms / 20 px |
+
+The tracker is constructed without `dblClick*` options, so a viewer-level override does not reach it. Ctrl/Cmd releases are excluded — that is the pan pass-through trigger, not a click. Bookkeeping runs even with no subscribers, so `_lastClick` always reflects the most recent click rather than whatever was left when the last subscriber went away.
+
+#### Pairing state and tool switches
+
+Subscribing resets any pending pairing, so a click made before the call cannot pair with the first click after it. The framework hooks resubscribe whenever the effect that owns the subscription re-runs — on a change of overlay, active cell, active viewer control, image, or tool — and `setMode` cannot cover the last of those, since switching tools stays in annotation mode and its own reset early-returns. Of those inputs, the tool switch is the only one that can plausibly land between the two clicks of a gesture; the rest require a separate user action.
+
+That trade is deliberate. A tool switch driven from _inside_ a click — a drawing tool hitting its constraint limit and reverting to select — also resubscribes, and swallows a pair that was genuinely in progress. Losing a double click there is the smaller harm; the alternative is a click made under the previous tool finishing and cancelling a path the user has only just started.
+
+Subscribers are dispatched from a snapshot of the set, with a membership check. A `Set` iterator visits entries added while it runs, so a callback that resubscribes synchronously would otherwise hand the gesture to a tool created after it; the membership check restores what live iteration gave for free, skipping a subscriber that was removed — by unsubscribing, or by `destroy()` — before the loop reached it. Membership is by identity, so re-subscribing the _same_ function reference mid-dispatch still receives the gesture; both framework hooks pass a fresh closure per subscription.
+
+#### What tools receive, and the vertex it costs them
+
+The gesture delivers both of its `pointerdown`s — and the second `pointerup`, so `onPointerUp` also precedes `onDoubleClick` — before the tool hears about the double click, so a tool that accumulates points on press has already picked up extra vertices. Not always two, though — which is what makes this subtle:
+
+- a press landing on an existing annotation is suppressed by the hooks and never reaches the tool;
+- a press may have closed the path instead.
+
+So the count is two, one, or none, and a tool cannot simply pop. `PolylineTool` establishes geometrically that _both_ presses landed, measuring the last two vertices against the release point reported to `onDoubleClick`. The bounds compose from the table above: the second press is within `clickDistThreshold` (5 px) of that release, and the first is at most that plus `dblClickDistThreshold` plus another 5 — 25 px — which also means the two presses can be up to 30 px apart while still pairing.
+
+Both halves of that test are load-bearing. Measuring only against the release pops the single vertex a gesture contributed when its _first_ press was suppressed; measuring only between the last two vertices misses a pair that drifted, and fires on two deliberate vertices that happen to sit close on screen.
+
+#### Touch
+
+Touch never reaches this layer. The synthetic `pointerdown` bubbles back to the container, OSD counts the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returns to zero contacts and `releaseHandler` is never called. That is a property of the forwarding design rather than of this pairing, and is tracked in [#175](https://github.com/osdlabel/osdlabel/issues/175).
 
 ## How annotations stay correct under rotation/flip
 

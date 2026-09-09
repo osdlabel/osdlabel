@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
+import type { AnnotationTool } from '@osdlabel/fabric-annotations';
 import { createImageId } from '@osdlabel/viewer-api';
 import { useAnnotationTool } from '../../../src/hooks/useAnnotationTool.js';
 import { DEFAULT_KEYBOARD_SHORTCUTS } from '../../../src/hooks/useKeyboard.js';
@@ -26,6 +27,7 @@ const mockState = {
   constraintStatus: () => ({
     select: { enabled: true },
     rectangle: { enabled: true },
+    polyline: { enabled: true },
   }),
   actions: mockActions,
   activeToolKeyHandlerRef: { handler: null },
@@ -35,6 +37,25 @@ const mockState = {
 vi.mock('../../../src/state/annotator-context.js', () => ({
   useAnnotator: () => mockState,
 }));
+
+/**
+ * Every tool the hook builds, in order. `createAnnotationTool` is wrapped, not
+ * replaced: the hook still gets a real tool, and the test can reach it.
+ */
+const createdTools: AnnotationTool[] = [];
+
+vi.mock('osdlabel', async () => {
+  const actual = (await vi.importActual('osdlabel')) as Record<string, unknown>;
+  const realFactory = actual.createAnnotationTool as (...args: never[]) => AnnotationTool | null;
+  return {
+    ...actual,
+    createAnnotationTool: (...args: never[]) => {
+      const tool = realFactory(...args);
+      if (tool) createdTools.push(tool);
+      return tool;
+    },
+  };
+});
 
 vi.mock('@osdlabel/fabric-annotations', async () => {
   const actual = await vi.importActual('@osdlabel/fabric-annotations');
@@ -70,10 +91,13 @@ interface MockCanvas {
  * with `activeViewerControl: null`, so that branch is never entered, and adding
  * it would imply coverage that does not exist.
  */
+type DoubleClickListener = (event: PointerEvent, imagePoint: { x: number; y: number }) => void;
+
 interface MockOverlay {
   canvas: MockCanvas;
   setMode: ReturnType<typeof vi.fn>;
   screenToImage: ReturnType<typeof vi.fn>;
+  onDoubleClick: ReturnType<typeof vi.fn>;
 }
 
 describe('useAnnotationTool', () => {
@@ -82,10 +106,12 @@ describe('useAnnotationTool', () => {
   let mockOverlay: MockOverlay;
   let mockCanvas: MockCanvas;
   let listeners: Record<string, (...args: unknown[]) => unknown> = {};
+  let doubleClickListeners: DoubleClickListener[] = [];
 
   beforeEach(() => {
     vi.clearAllMocks();
     listeners = {};
+    createdTools.length = 0;
     mockCanvas = {
       on: vi.fn((e, cb) => {
         listeners[e] = cb;
@@ -100,10 +126,18 @@ describe('useAnnotationTool', () => {
       remove: vi.fn(),
       add: vi.fn(),
     };
+    doubleClickListeners = [];
     mockOverlay = {
       canvas: mockCanvas,
       setMode: vi.fn(),
       screenToImage: vi.fn(),
+      // Mirrors FabricOverlay.onDoubleClick: registers and returns unsubscribe.
+      onDoubleClick: vi.fn((cb: DoubleClickListener) => {
+        doubleClickListeners.push(cb);
+        return () => {
+          doubleClickListeners = doubleClickListeners.filter((l) => l !== cb);
+        };
+      }),
     };
   });
 
@@ -144,6 +178,61 @@ describe('useAnnotationTool', () => {
           );
 
           dispose();
+          resolve();
+        }, 0);
+      });
+    });
+  });
+
+  /**
+   * The hook is the only thing joining `FabricOverlay.onDoubleClick` to the
+   * active tool. There is no Fabric canvas event to fall back on — see #168 —
+   * so if this wiring is dropped the gesture silently stops working, which is
+   * precisely the failure the issue describes.
+   */
+  it('routes the overlay double click to the active tool, and unsubscribes on cleanup', () => {
+    return new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        const [overlay] = createSignal(mockOverlay as unknown as FabricOverlay);
+        const [imageId] = createSignal(createImageId('img-1'));
+        const [isActive] = createSignal(true);
+
+        useAnnotationTool(overlay, imageId, isActive);
+        const previousTool = mockState.uiState.activeTool;
+        mockState.uiState.activeTool = 'polyline';
+
+        setTimeout(() => {
+          try {
+            expect(mockOverlay.onDoubleClick).toHaveBeenCalledWith(expect.any(Function));
+            expect(doubleClickListeners).toHaveLength(1);
+
+            // Drive a double click and assert it reaches the tool. Spying on
+            // the real PolylineTool instance the hook built is what makes this
+            // a wiring test rather than a test of the stub.
+            const tool = createdTools.at(-1);
+            expect(tool).toBeDefined();
+            const spy = vi.spyOn(tool!, 'onDoubleClick');
+
+            const point = { x: 12, y: 34 };
+            const event = { type: 'pointerup' } as PointerEvent;
+            doubleClickListeners[0]!(event, point);
+
+            expect(spy).toHaveBeenCalledWith(event, point);
+
+            dispose();
+            // The subscription is released with the effect, so a later double
+            // click cannot reach a deactivated tool.
+            expect(doubleClickListeners).toHaveLength(0);
+          } catch (error) {
+            // Reject rather than let the assertion escape the timer callback,
+            // where it would surface as a 5s timeout instead of a named failure.
+            mockState.uiState.activeTool = previousTool;
+            reject(error instanceof Error ? error : new Error(String(error)));
+            return;
+          }
+          // `mockState` is module-level; leaving it mutated would couple this
+          // test to whatever runs after it.
+          mockState.uiState.activeTool = previousTool;
           resolve();
         }, 0);
       });

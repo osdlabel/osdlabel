@@ -42,6 +42,7 @@ This is `osdlabel`, a DZI image annotation library built with SolidJS, Fabric.js
 - **Set `skipOffscreen: false`** when the viewportTransform includes rotation. Fabric's offscreen culling doesn't account for rotation and incorrectly hides visible objects.
 - **All Fabric API calls must go through the overlay interface** (`FabricOverlay`). Components should never import from `'fabric'` directly or access the Fabric canvas instance except through the overlay.
 - **`obj.id` is reserved for annotation objects.** It's how `ViewerCell` discriminates annotation objects from companion-layer objects on the same canvas (the clear filter is `obj => obj.id`, registered via `initFabricModule`'s `FabricObject.customProperties`). Non-annotation Fabric objects (decoration lines, drawing previews, future overlay graphics) MUST NOT carry an `id`. Use `_readOnly: true` so `FabricOverlay.setMode` keeps them inert (`selectable: false, evented: false`) in both navigation and annotation modes; do not register `_readOnly` as a serialized custom property.
+- **Fabric's `mouse:dblclick` never fires here, and `PointerEvent.detail` is always 0.** The Fabric canvas is `pointerEvents: 'none'` and every input is routed through an OSD `MouseTracker` on the container, so the browser's `dblclick` targets the container and the upper canvas only sees the synthetic pointer events `_forwardToFabric` dispatches. Testing `event.detail === 2` in `onPointerDown` compiles, type-checks, and can never be true (issue #168). Use `FabricOverlay.onDoubleClick(cb)`; tools receive it as the optional `AnnotationTool.onDoubleClick`. The gesture still delivers both `pointerdown`s first, so a tool that accumulates points on press must drop what they added — and not by counting, since a press landing on an existing annotation is suppressed. Detection deliberately avoids both the MouseTracker's own `dblClickHandler` and the container's native `dblclick` — the latter does fire, but carries no correlation to the presses that produced it — and touch cannot reach it at all (#175). See the "Double clicks" section of `apps/docs/src/content/docs/guides/osd-fabric-integration.md` for the derivation.
 - **`ActiveSelection` (multi-drag) limitation.** When the user drags a multi-select, Fabric fires `object:moving` with `target` set to the `ActiveSelection` group (which has no `id`). The group's children's `left`/`top` are reported relative to the group, not the canvas — so `getGeometryFromFabricObject` is exact for matrix-based shapes (line, polyline, polygon, all of which use `calcTransformMatrix`) but approximate for `left`/`top`-based ones (rectangle, circle, point). Live updates accept this caveat; the commit on mouse-up via `object:modified` is always correct because Fabric dissolves the `ActiveSelection` before firing it. Detect group targets via duck-typed `getObjects()` rather than coupling to Fabric's `type`-string casing.
 
 ### OpenSeaDragon
@@ -268,14 +269,14 @@ After completing each task file, verify the acceptance criteria listed at the bo
 ## Dependency Versions (pinned)
 
 ```
-solid-js@1.9.11
-fabric@7.1.0
+solid-js@^1.9.13
+fabric@7.4.0
 openseadragon@5.0.1
-typescript@5.7.3
-vite@6.1.0
-vitest@3.0.5
-@playwright/test@1.50.1
-vite-plugin-solid@2.11.0
+typescript@^5.9.3
+vite@^8.0.16
+vitest@^4.1.8
+@playwright/test@^1.60.0
+vite-plugin-solid@^2.11.12
 ```
 
 ## Quick Reference: Coordinate Systems

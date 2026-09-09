@@ -104,6 +104,7 @@ export type {
   DomDecorationEntry,
   CustomControlEvent,
   CustomControlHandler,
+  DoubleClickCallback,
   DragValueControlConfig,
   DragVectorControlConfig,
   DragAxisBehavior,

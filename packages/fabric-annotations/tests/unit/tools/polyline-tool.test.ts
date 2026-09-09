@@ -320,8 +320,13 @@ describe('PolylineTool', () => {
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 50 });
 
-    // Double click to finish
-    tool.onPointerDown({ type: 'pointerdown', detail: 2 } as PointerEvent, { x: 50, y: 50 });
+    // A double click delivers both of its pointerdowns before the overlay
+    // reports the gesture, so the second vertex at (50, 50) is the artefact
+    // onDoubleClick drops. Driving it in that order is the point: asserting
+    // against a hand-built `{ detail: 2 }` event is what hid #168, since no
+    // pointerdown the browser delivers here ever carries a non-zero `detail`.
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 50 });
+    tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
 
     expect(addedParams).toHaveLength(1);
     const params = addedParams[0]!;
@@ -333,9 +338,12 @@ describe('PolylineTool', () => {
 
     // Preview should be removed, final object added
     expect(mockCanvas.remove).toHaveBeenCalled();
-    // preview + one vertex marker per committed vertex + the final object
+    // preview + one vertex marker per press (three, including the double
+    // click's own second press) + the final object. The marker for the vertex
+    // `onDoubleClick` drops was still added while drawing, so it is counted
+    // here; `mockCanvas.remove` above is what clears the drawing chrome.
     const added = mockCanvas.add.mock.calls.map((call) => call[0]);
-    expect(added).toHaveLength(4);
+    expect(added).toHaveLength(5);
     expect(added[added.length - 1]).toBe(params.fabricObject);
   });
 
@@ -425,9 +433,244 @@ describe('PolylineTool', () => {
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 50 });
-    tool.onPointerDown({ type: 'pointerdown', detail: 2 } as PointerEvent, { x: 50, y: 50 });
+    tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
 
     expect(addedParams).toHaveLength(0);
+  });
+
+  it("drops the duplicate vertex the double click's own second press added", () => {
+    tool = new PolylineTool();
+    tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+    // Three deliberate vertices, then a double click at a fourth position:
+    // press, press (the artefact), then the gesture report.
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 10 });
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 70 });
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 40, y: 70 });
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 41, y: 71 });
+    tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 41, y: 71 });
+
+    expect(addedParams).toHaveLength(1);
+    // Four vertices, not five: the near-duplicate at (41, 71) is gone and the
+    // user's own fourth click at (40, 70) is the final one.
+    expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+      { x: 10, y: 10 },
+      { x: 90, y: 10 },
+      { x: 90, y: 70 },
+      { x: 40, y: 70 },
+    ]);
+  });
+
+  it('commits the shortest open polyline: one click, then a double click', () => {
+    tool = new PolylineTool();
+    tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+    // One deliberate vertex, then a double click elsewhere — three presses in
+    // total, one of which the gesture drops. Two vertices survive, which is
+    // exactly `finish`'s minimum for an open path.
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 10 });
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 91, y: 11 });
+    tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 91, y: 11 });
+
+    expect(addedParams).toHaveLength(1);
+    expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+      { x: 10, y: 10 },
+      { x: 90, y: 10 },
+    ]);
+  });
+
+  it('commits nothing when a double click lands on an idle canvas', () => {
+    tool = new PolylineTool();
+    tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+    // The real stream, which is the whole point: the overlay reports the
+    // gesture only *after* forwarding both of its presses, so the tool always
+    // has two vertices here — near-coincident, since the two clicks are within
+    // the double-click distance threshold. Calling `onDoubleClick` with no
+    // preceding press is a sequence the overlay cannot produce, and asserting
+    // against it is what let this commit a degenerate 1px polyline.
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 11, y: 11 });
+    tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 11, y: 11 });
+
+    expect(addedParams).toHaveLength(0);
+  });
+
+  /**
+   * A press that lands on an existing annotation is suppressed by the framework
+   * hooks and never reaches the tool, so a double click can arrive having
+   * contributed one vertex or none. Popping on a count rather than on geometry
+   * discards a vertex the user placed — and on a short path that drops it under
+   * `finish`'s minimum, throwing the whole path away.
+   */
+  describe("when the gesture's presses were suppressed", () => {
+    it('keeps every vertex when neither press reached the tool', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 70 });
+      // Both presses landed on an annotation: no vertex was added for either.
+      tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 90, y: 70 });
+
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+        { x: 10, y: 10 },
+        { x: 90, y: 10 },
+        { x: 90, y: 70 },
+      ]);
+    });
+
+    it('does not discard a short path when only one press reached the tool', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      // First press suppressed, second not: one vertex, far from the previous.
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 10 });
+      tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 90, y: 10 });
+
+      // Popping here would leave one vertex, and `finish` would cancel — losing
+      // the user's whole in-progress path rather than committing it.
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+        { x: 10, y: 10 },
+        { x: 90, y: 10 },
+      ]);
+    });
+  });
+
+  /**
+   * The two bounds are different sizes on purpose, and the gap between them is
+   * where the interesting cases live: 5px for the second press (which is
+   * pinned to its own release) and 25px for the first (which is three hops
+   * away). A vertex in that band came from the first press, not the second.
+   */
+  describe('distinguishes the two presses by their different bounds', () => {
+    it('keeps the finish vertex when only the first press reached the tool', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      // Second press suppressed. The first press's vertex is 15px from the
+      // release — beyond the second-press bound but inside the first's — so it
+      // is the point the user finished on and must survive.
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 0, y: 0 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 80, y: 0 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 85, y: 0 });
+      tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 100, y: 0 });
+
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+        { x: 0, y: 0 },
+        { x: 80, y: 0 },
+        { x: 85, y: 0 },
+      ]);
+    });
+
+    it('drops the duplicate at a drift only the composed bound allows', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      // 22px from the release: inside the first press's bound only because it
+      // composes `clickDistThreshold` (5) with `dblClickDistThreshold` (20).
+      // Reading the 20 alone — the bound the fix was written to correct — would
+      // reject this and leave the duplicate behind.
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 33, y: 70 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 55, y: 70 });
+      tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 55, y: 70 });
+
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+        { x: 10, y: 10 },
+        { x: 90, y: 10 },
+        { x: 33, y: 70 },
+      ]);
+    });
+
+    it('still drops the duplicate when the two presses drifted apart', () => {
+      tool = new PolylineTool();
+      tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+      // A jittery double click: the presses are 15px apart, well beyond what a
+      // naive "the last two vertices are basically the same point" test would
+      // accept, but both are inside their respective bounds.
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 90, y: 10 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 40, y: 70 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 55, y: 70 });
+      tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 55, y: 70 });
+
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+        { x: 10, y: 10 },
+        { x: 90, y: 10 },
+        { x: 40, y: 70 },
+      ]);
+    });
+  });
+
+  /**
+   * The thresholds are properties of the input device, so they are measured in
+   * screen space and must not scale with zoom. With the identity
+   * `imageToScreen` the rest of this file uses, comparing raw image
+   * coordinates instead would pass every other test — these two put a scale on
+   * the stub so the two spaces disagree.
+   */
+  describe('measures its thresholds in screen space', () => {
+    function scaleOverlay(factor: number): ToolOverlay {
+      return {
+        canvas: mockCanvas,
+        imageToScreen: vi.fn((p: { x: number; y: number }) => ({
+          x: p.x * factor,
+          y: p.y * factor,
+        })),
+      } as unknown as ToolOverlay;
+    }
+
+    it('drops the duplicate when zoomed out far enough to bring the pair together', () => {
+      tool = new PolylineTool();
+      tool.activate(scaleOverlay(0.1), imageId, mockCallbacks, mockShortcuts);
+
+      // The gesture's two presses are 30 *image* px apart — beyond the 25px
+      // first-press bound if that bound were read as image space, but only 3px
+      // apart on screen at this zoom.
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 0, y: 0 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 1000, y: 0 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 2000, y: 0 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 2030, y: 0 });
+      tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 2030, y: 0 });
+
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 2000, y: 0 },
+      ]);
+    });
+
+    it('keeps two deliberate vertices that are close in image space but not on screen', () => {
+      tool = new PolylineTool();
+      tool.activate(scaleOverlay(10), imageId, mockCallbacks, mockShortcuts);
+
+      // 3 image px apart — inside every threshold read as image space, but 30px
+      // apart on screen, so the pair is not this gesture's.
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 0, y: 0 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 100, y: 0 });
+      tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 103, y: 0 });
+      tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 103, y: 0 });
+
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 103, y: 0 },
+      ]);
+    });
   });
 
   it('should pass through keys when not drawing', () => {

@@ -195,13 +195,72 @@ test.describe('Polyline drawing feedback', () => {
     expect(committed.rawAnnotationData.data.stroke).toBe('#00e5ff');
   });
 
+  /**
+   * Double click to finish (issue #168).
+   *
+   * This gesture cannot be unit-tested honestly. It does not arrive through
+   * `onPointerDown` at all — input is routed by an OSD MouseTracker, so every
+   * forwarded `pointerdown` carries `detail: 0` — and the overlay pairs the two
+   * releases itself. A unit test can only assert against a hand-built event,
+   * which is exactly what let the broken `event.detail === 2` branch look
+   * covered for as long as it did. So the gesture is asserted here, against
+   * real browser input.
+   */
+  test('double click ends the path open, at the double-clicked point', async ({ page }) => {
+    const { first, third } = await drawL(page);
+
+    // Somewhere new, and well clear of the first vertex so the close target
+    // cannot be what finishes the path.
+    const finishAt = { x: third.x - 150, y: third.y + 40 };
+    await page.mouse.dblclick(finishAt.x, finishAt.y);
+    await page.waitForTimeout(300);
+
+    const annotations = await readAnnotations(page);
+    expect(annotations).toHaveLength(1);
+    const committed = annotations[0]!;
+    // Open, not closed: that is the whole point of the gesture.
+    expect(committed.geometry.type).toBe('polyline');
+    // The L's three vertices plus the double-clicked one — four, not five. The
+    // gesture delivers two pointerdowns, and the duplicate is dropped.
+    expect(committed.geometry.points).toHaveLength(4);
+    expect(committed.rawAnnotationData.data.stroke).toBe('#00e5ff');
+    // The drawing chrome is gone once the shape is committed.
+    expect(await hasPreviewColorNear(page, first.x, first.y - 5, 1)).toBe(false);
+  });
+
+  test('two slow clicks in one place do not finish the path', async ({ page }) => {
+    await drawL(page);
+    const box = await page.locator('canvas.upper-canvas').boundingBox();
+    if (!box) throw new Error('canvas not found');
+    const spot = {
+      x: Math.round(box.x + box.width * 0.2),
+      y: Math.round(box.y + box.height * 0.7),
+    };
+
+    // Same position, but beyond OSD's dblClickTimeThreshold (300ms). The
+    // overlay pairs releases by time and distance, and a regression that
+    // ignored the clock would read every click as a double click and finish
+    // the path on the first one.
+    await page.mouse.click(spot.x, spot.y);
+    await page.waitForTimeout(700);
+    await page.mouse.click(spot.x, spot.y);
+    await page.waitForTimeout(300);
+
+    expect(await readAnnotations(page)).toHaveLength(0);
+
+    // Positive control: the path really is still live, so the assertion above
+    // is about the clicks not finishing it rather than about there being
+    // nothing to finish.
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    expect(await readAnnotations(page)).toHaveLength(1);
+  });
+
   test('the finish shortcut ends the path open, leaving a polyline', async ({ page }) => {
     const { first } = await drawL(page);
 
     // Enter (DEFAULT_KEYBOARD_SHORTCUTS.polylineFinish) ends the path open.
-    // Double click does NOT — see #168: PolylineTool tests `event.detail === 2`,
-    // but it is driven from pointerdown, whose `detail` is 0 by spec, and OSD
-    // preventDefault()s it so no compatibility mousedown/click is generated.
+    // Double click does too, since #168 — covered separately below.
     await page.keyboard.press('Enter');
     await page.waitForTimeout(300);
 

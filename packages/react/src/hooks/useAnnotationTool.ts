@@ -209,6 +209,15 @@ export function useAnnotationTool(
       tool.onPointerUp(opt.e as PointerEvent, p);
     };
 
+    // Double clicks do not come through Fabric: input is routed by an OSD
+    // MouseTracker, so `detail` is 0 on every forwarded pointerdown and the
+    // browser's own dblclick never reaches Fabric's canvas (issue #168).
+    // Unconditional: a suppressed press adds no vertex, and the tool decides
+    // for itself whether the gesture contributed one.
+    const unsubscribeDoubleClick = overlay.onDoubleClick((e, p) => {
+      tool.onDoubleClick?.(e, p);
+    });
+
     overlay.canvas.on('mouse:down', handleDown);
     overlay.canvas.on('mouse:move', handleMove);
     overlay.canvas.on('mouse:up', handleUp);
@@ -217,6 +226,7 @@ export function useAnnotationTool(
       if (activeToolKeyHandlerRef.handler === keyHandler) {
         activeToolKeyHandlerRef.handler = null;
       }
+      unsubscribeDoubleClick();
       overlay.canvas.off('mouse:down', handleDown);
       overlay.canvas.off('mouse:move', handleMove);
       overlay.canvas.off('mouse:up', handleUp);

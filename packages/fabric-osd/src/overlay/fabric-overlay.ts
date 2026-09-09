@@ -52,6 +52,15 @@ export interface CustomControlHandler {
   onPointerUp?(event: CustomControlEvent): void;
 }
 
+/**
+ * Called on a double click in annotation mode, with the raw DOM event and the
+ * flip-aware image-space point it landed on.
+ *
+ * The argument order matches `AnnotationTool.onPointerDown(event, imagePoint)`
+ * so a tool method can be registered directly.
+ */
+export type DoubleClickCallback = (event: PointerEvent, imagePoint: Point) => void;
+
 /** Options for creating a FabricOverlay */
 export interface OverlayOptions {
   /** Initial interactive state (default: false) */
@@ -189,6 +198,20 @@ export class FabricOverlay {
 
   /** Callbacks fired at the end of every `sync()`. */
   private readonly _syncSubscribers = new Set<() => void>();
+
+  /** Callbacks fired on a double click in annotation mode. */
+  private readonly _doubleClickSubscribers = new Set<DoubleClickCallback>();
+
+  /** The press in progress, so a release can be qualified as a click. */
+  private _pendingPress: { time: number; x: number; y: number; pointerId: number } | null = null;
+
+  /** The previous completed click, for double-click detection. */
+  private _lastClick: {
+    time: number;
+    x: number;
+    y: number;
+    pointerType: string;
+  } | null = null;
 
   /** Tears down the device-pixel-ratio media-query observer. */
   private _disposeDevicePixelRatioObserver: (() => void) | null = null;
@@ -368,6 +391,25 @@ export class FabricOverlay {
     };
   }
 
+  /**
+   * Register a callback fired when a double click lands on the overlay in
+   * annotation mode. Returns an unsubscribe function.
+   *
+   * The gesture does not come from Fabric, and cannot: see the "Double clicks"
+   * section of the OSD-Fabric integration guide (issue #168).
+   *
+   * Subscribing resets any pending pairing, so a click made before this call
+   * cannot pair with the first after it — the hooks resubscribe whenever their
+   * effect re-runs, of which a tool change is the case `setMode` does not see.
+   */
+  onDoubleClick(callback: DoubleClickCallback): () => void {
+    this._lastClick = null;
+    this._doubleClickSubscribers.add(callback);
+    return () => {
+      this._doubleClickSubscribers.delete(callback);
+    };
+  }
+
   /** Apply a view transform (rotation/flip) to the OpenSeadragon viewer */
   applyViewTransform(transform: CellTransform): void {
     let rotation = transform.rotation;
@@ -443,6 +485,9 @@ export class FabricOverlay {
 
     this._mode = mode;
     this._panGestureActive = false;
+    // A click from the previous mode must not pair with one from the next.
+    this._pendingPress = null;
+    this._lastClick = null;
 
     switch (mode) {
       case 'navigation':
@@ -508,6 +553,9 @@ export class FabricOverlay {
   /** Clean up all event listeners and DOM elements */
   destroy(): void {
     this._customControlHandler = null;
+    this._doubleClickSubscribers.clear();
+    this._pendingPress = null;
+    this._lastClick = null;
     this._syncSubscribers.clear();
     this._disposeDevicePixelRatioObserver?.();
     this._disposeDevicePixelRatioObserver = null;
@@ -562,6 +610,77 @@ export class FabricOverlay {
       upperCanvas.dispatchEvent(syntheticEvent);
     } finally {
       this._forwarding = false;
+    }
+  }
+
+  /** Remember where and when a press started, for {@link _detectDoubleClick}. */
+  private _recordPress(originalEvent: PointerEvent): void {
+    const { x, y } = this._toElementPoint(originalEvent);
+    this._pendingPress = {
+      time: originalEvent.timeStamp,
+      x,
+      y,
+      pointerId: originalEvent.pointerId,
+    };
+  }
+
+  /**
+   * Qualify a release as a click, pair it with the previous one, and notify
+   * double-click subscribers.
+   *
+   * Must run from `releaseHandler`, behind the `_forwarding` guard: that is
+   * what keeps the synthetic copies `_forwardToFabric` dispatches out of the
+   * stream. The gates and their thresholds are documented in the "Double
+   * clicks" section of the OSD-Fabric integration guide.
+   */
+  private _detectDoubleClick(originalEvent: PointerEvent): void {
+    const press = this._pendingPress;
+    this._pendingPress = null;
+
+    // The pan pass-through trigger, not a click. Tested directly because
+    // `preProcessEventHandler` has already cleared `_panGestureActive` by now.
+    if (originalEvent.ctrlKey || originalEvent.metaKey) {
+      this._lastClick = null;
+      return;
+    }
+
+    const { x, y } = this._toElementPoint(originalEvent);
+    const time = originalEvent.timeStamp;
+
+    // No matching press (pressed elsewhere, released over us), or too far from
+    // its own press in time or space: a drag, not a click.
+    const isClick =
+      press !== null &&
+      press.pointerId === originalEvent.pointerId &&
+      time - press.time <= this._overlayTracker.clickTimeThreshold &&
+      Math.hypot(x - press.x, y - press.y) <= this._overlayTracker.clickDistThreshold;
+    if (!isClick) {
+      this._lastClick = null;
+      return;
+    }
+
+    const previous = this._lastClick;
+    this._lastClick = { time, x, y, pointerType: originalEvent.pointerType };
+
+    if (!previous) return;
+    // Mouse and pen only — touch cannot reach this layer at all (see #175).
+    if (previous.pointerType !== originalEvent.pointerType) return;
+    if (time - previous.time > this._overlayTracker.dblClickTimeThreshold) return;
+    if (Math.hypot(x - previous.x, y - previous.y) > this._overlayTracker.dblClickDistThreshold) {
+      return;
+    }
+
+    // Consume the pair, so a triple click fires once.
+    this._lastClick = null;
+
+    if (this._doubleClickSubscribers.size === 0) return;
+    const imagePoint = this.screenToImage({ x, y });
+    // Snapshot + membership check: a callback can subscribe or unsubscribe
+    // synchronously, and neither the additions nor the removals belong to this
+    // gesture. See the integration guide.
+    for (const callback of [...this._doubleClickSubscribers]) {
+      if (!this._doubleClickSubscribers.has(callback)) continue;
+      callback(originalEvent, imagePoint);
     }
   }
 
@@ -696,6 +815,7 @@ export class FabricOverlay {
         }
 
         if (this._panGestureActive) return;
+        this._recordPress(originalEvent);
         this._forwardToFabric(POINTER_DOWN, originalEvent);
       },
 
@@ -723,6 +843,7 @@ export class FabricOverlay {
 
         if (this._panGestureActive) return;
         this._forwardToFabric(POINTER_UP, originalEvent);
+        this._detectDoubleClick(originalEvent);
       },
 
       scrollHandler: (event: OpenSeadragon.MouseTrackerEvent) => {
