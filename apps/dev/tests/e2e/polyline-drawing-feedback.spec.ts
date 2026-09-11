@@ -95,7 +95,7 @@ test.describe('Polyline drawing feedback', () => {
     await page.goto('/');
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10000 });
     // Bundled local image, so the viewer opens without network access.
-    await page.getByTestId('filmstrip-item-jpg').click();
+    await page.getByTestId('filmstrip-item-tiled').click();
     await page.getByRole('combobox').selectOption({ label: 'General' });
     await page.locator('canvas.upper-canvas').waitFor({ state: 'attached', timeout: 15000 });
     await page.waitForTimeout(1000);

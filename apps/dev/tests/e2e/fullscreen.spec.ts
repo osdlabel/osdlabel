@@ -51,7 +51,7 @@ test.describe('Fullscreen', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('.openseadragon-canvas');
-    await page.getByTestId('filmstrip-item-jpg').click();
+    await page.getByTestId('filmstrip-item-tiled').click();
     await page.waitForFunction(() => {
       const el = document.querySelector('.openseadragon-canvas') as
         | (Element & { __osdViewer?: { isOpen?: () => boolean } })

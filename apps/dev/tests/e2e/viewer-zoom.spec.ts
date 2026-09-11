@@ -41,8 +41,8 @@ test.describe('Viewer zoom', () => {
     await page.goto('/');
     await page.waitForSelector('.openseadragon-canvas');
 
-    // Local JPG — no tile server needed.
-    await page.getByTestId('filmstrip-item-jpg').click();
+    // Local DZI — a vendored tile pyramid, so no tile server needed.
+    await page.getByTestId('filmstrip-item-tiled').click();
     await page.waitForFunction(() => {
       const el = document.querySelector('.openseadragon-canvas') as
         | (Element & { __osdViewer?: { isOpen?: () => boolean } })

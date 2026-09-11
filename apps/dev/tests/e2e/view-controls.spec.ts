@@ -367,9 +367,9 @@ test.describe('View Controls', () => {
     const cell0 = page.locator('[data-testid="grid-cell-0"]');
     const cell1 = page.locator('[data-testid="grid-cell-1"]');
 
-    // Assign 'highsmith' to cell 1
+    // Assign 'landscape' to cell 1
     await cell1.click();
-    const thumbnail = page.locator('[data-testid="filmstrip-item-highsmith"]');
+    const thumbnail = page.locator('[data-testid="filmstrip-item-landscape"]');
     await thumbnail.click();
 
     // 3. Select cell 0 and enable negative
@@ -401,8 +401,8 @@ test.describe('View Controls', () => {
     await expect(drawerCanvas).toHaveCSS('filter', 'invert(1)');
 
     // 2. Reassign different image to active cell
-    const thumbnailDuomo = page.locator('[data-testid="filmstrip-item-duomo"]');
-    await thumbnailDuomo.click();
+    const thumbnailPortrait = page.locator('[data-testid="filmstrip-item-portrait"]');
+    await thumbnailPortrait.click();
 
     // 3. Verify filter is reset
     await expect(drawerCanvas).toHaveCSS('filter', 'none');
@@ -420,7 +420,7 @@ test.describe('View Controls', () => {
     await cell1.click();
 
     // Assign an image to cell 1 so controls are enabled
-    const thumbnail = page.locator('[data-testid="filmstrip-item-highsmith"]');
+    const thumbnail = page.locator('[data-testid="filmstrip-item-landscape"]');
     await thumbnail.click();
 
     await page.locator('[data-testid="view-negative"]').click();

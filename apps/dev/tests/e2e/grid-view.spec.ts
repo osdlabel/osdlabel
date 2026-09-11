@@ -29,13 +29,13 @@ test.describe('Grid View', () => {
     await page.getByTestId('grid-selector-trigger').click();
     await page.getByTestId('grid-cell-2-1').click();
 
-    // First cell should already have Highsmith
+    // First cell should already have Landscape
     // Click cell 1 (the empty one) to activate it
     const placeholders = page.locator('text=Assign an image');
     await placeholders.first().click();
 
-    // Assign Duomo to cell 1 via filmstrip
-    await page.getByTestId('filmstrip-item-duomo').click();
+    // Assign Portrait to cell 1 via filmstrip
+    await page.getByTestId('filmstrip-item-portrait').click();
 
     // Both cells should now have images (no more placeholders)
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
@@ -52,7 +52,7 @@ test.describe('Grid View', () => {
     await page.getByTestId('grid-cell-1-1').click();
     await expect(page.getByTestId('grid-size')).toContainText('1x1');
 
-    // Cell 0 should still have the Highsmith image (no placeholder)
+    // Cell 0 should still have the Landscape image (no placeholder)
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
   });
 });

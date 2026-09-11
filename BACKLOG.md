@@ -64,9 +64,18 @@ issue.
 
 **Severity:** Low (developer experience)
 **Observed in:** Dev environment
-**Status:** Deferred
+**Status:** Superseded by #144
 
-**Description:**
+The demo no longer hardcodes a single DZI: it carries four local images of
+differing aspect ratios — three simple images plus a vendored Deep Zoom
+pyramid — selectable from the filmstrip, and
+`apps/dev/tests/e2e/offline.spec.ts` now _requires_ every image the dev app
+offers to be local. Adding the remote DZI URLs proposed below would fail that
+spec. `apps/dev/sample-data/README.md` describes the assets and that
+constraint; note that the scripts which produced them are not committed, so a
+new sample has to be produced from scratch.
+
+**Original description:**
 The demo application currently hardcodes a single DZI image (`highsmith`). To facilitate testing with various image types, aspect ratios, and edge cases, a dropdown selector should be added to the header to allow switching between multiple sample images.
 
 **Context:**

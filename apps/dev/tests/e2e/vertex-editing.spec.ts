@@ -26,7 +26,7 @@ test.describe('Polygon vertex editing', () => {
     await page.goto('/');
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10000 });
     // Load the bundled local image so the viewer opens without network access.
-    await page.getByTestId('filmstrip-item-jpg').click();
+    await page.getByTestId('filmstrip-item-tiled').click();
     // "General" context (index 2) includes the polyline tool.
     await page.selectOption('select', { index: 2 });
     const canvas = page.locator('canvas.upper-canvas');

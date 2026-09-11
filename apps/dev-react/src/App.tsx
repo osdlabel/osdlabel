@@ -47,27 +47,27 @@ const domBadgeProvider: DecorationProvider<OsdFields> = ({ annotations }) =>
     }),
   );
 
+/** Local images only, matching `apps/dev` — see the note there and issue #144. */
 const IMAGES: ImageSource[] = [
   {
-    id: createImageId('highsmith'),
-    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
-    label: 'Highsmith',
+    id: createImageId('landscape'),
+    tileSource: './sample-data/landscape.png',
+    label: 'Landscape',
   },
   {
-    id: createImageId('duomo'),
-    tileSource: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
-    label: 'Duomo',
+    id: createImageId('portrait'),
+    tileSource: './sample-data/portrait.png',
+    label: 'Portrait',
   },
   {
     id: createImageId('wide'),
-    tileSource:
-      'https://openseadragon.github.io/example-images/pnp/pan/6a32000/6a32400/6a32487.dzi',
+    tileSource: './sample-data/wide.png',
     label: 'Wide image',
   },
   {
-    id: createImageId('jpg'),
-    tileSource: './sample-data/test-image.jpg',
-    label: 'JPG image',
+    id: createImageId('tiled'),
+    tileSource: './sample-data/tiled.dzi',
+    label: 'Tiled (DZI)',
   },
 ];
 
@@ -75,7 +75,7 @@ const CONTEXTS: AnnotationContext[] = [
   {
     id: 'ctx-1' as AnnotationContextId,
     label: 'Fracture',
-    imageIds: [createImageId('highsmith'), createImageId('duomo')],
+    imageIds: [createImageId('landscape'), createImageId('portrait')],
     tools: [
       { type: 'line', maxCount: 3, countScope: 'per-image' },
       { type: 'rectangle', maxCount: 2 },
