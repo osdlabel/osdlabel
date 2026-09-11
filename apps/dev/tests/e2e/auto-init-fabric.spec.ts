@@ -14,7 +14,7 @@ import type { Page } from '@playwright/test';
  *   - serialize(): the current serialized annotation document
  *   - fabricCustomProperties(): a snapshot of FabricObject.customProperties
  *
- * Uses the bundled local image (`jpg`) so the test never depends on network
+ * Uses the bundled local image (`tiled`) so the test never depends on network
  * access to external DZI tile sources.
  */
 
@@ -40,10 +40,10 @@ function serializedAnnotations(page: Page): Promise<SerializedAnnotation[]> {
   );
 }
 
-/** Assign the local `jpg` image to the currently-active cell and wait for its overlay. */
+/** Assign the local `tiled` image to the currently-active cell and wait for its overlay. */
 async function assignLocalImageToActiveCell(page: Page): Promise<void> {
   const canvasCountBefore = await page.locator('canvas.upper-canvas').count();
-  await page.getByTestId('filmstrip-item-jpg').click();
+  await page.getByTestId('filmstrip-item-tiled').click();
   // Wait until a(nother) Fabric overlay canvas has mounted.
   await expect
     .poll(() => page.locator('canvas.upper-canvas').count(), { timeout: 15000 })

@@ -93,6 +93,47 @@ const startProbe = (page: import('@playwright/test').Page): Promise<void> =>
     requestAnimationFrame(sample);
   });
 
+/**
+ * Samples the probe must take *after* each resize before the next one starts.
+ *
+ * The liveness check used to be a single `frames > 20` at the end, which made
+ * the test a measurement of the host's frame rate rather than of alignment:
+ * headless Chromium delivers well under 60fps, and with a DZI in the viewer
+ * tile decode starves the rAF loop further — 3 of 8 repeats under two workers
+ * landed on 19 samples.
+ */
+const SAMPLES_PER_RESIZE = 3;
+
+/** Long enough to absorb a stall, short enough to fire before the test timeout. */
+const SAMPLE_WAIT_MS = 10_000;
+
+const framesSoFar = (page: import('@playwright/test').Page): Promise<number> =>
+  page.evaluate(() => window.__resizeProbe?.frames ?? 0);
+
+/**
+ * Resolve once the probe has taken `count` *further* samples beyond `from`.
+ *
+ * The delta matters. A cumulative threshold (wait for 3, then 6, then 9…)
+ * against a counter that has been running since `startProbe` is satisfied in
+ * advance by the samples taken during earlier steps — at 40fps the first
+ * 250 ms alone covers the whole budget — so every later wait returns
+ * instantly and the loop degrades to the bare timeout it replaced. Measuring
+ * from a snapshot taken immediately before each resize is what actually
+ * guarantees samples land after that resize.
+ *
+ * On a stall this rejects here rather than at an assertion after the loop, so
+ * the failure names the resize that stalled. Its own timeout is shorter than
+ * Playwright's test timeout so that it, not the generic timeout, is what fires.
+ */
+const awaitSamples = (
+  page: import('@playwright/test').Page,
+  from: number,
+  count: number,
+): Promise<unknown> =>
+  page.waitForFunction((n) => (window.__resizeProbe?.frames ?? 0) >= n, from + count, {
+    timeout: SAMPLE_WAIT_MS,
+  });
+
 const readProbe = (page: import('@playwright/test').Page): Promise<ProbeResult> =>
   page.evaluate(() => {
     const probe = window.__resizeProbe;
@@ -105,7 +146,7 @@ test.describe('Overlay alignment during resize', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('.openseadragon-canvas');
-    await page.getByTestId('filmstrip-item-jpg').click();
+    await page.getByTestId('filmstrip-item-tiled').click();
     await page.waitForFunction(() => {
       const el = document.querySelector('.openseadragon-canvas') as
         | (Element & { __osdViewer?: { isOpen?: () => boolean } })
@@ -129,17 +170,20 @@ test.describe('Overlay alignment during resize', () => {
       { width: 1280, height: 720 },
     ];
     for (const size of sizes) {
+      const before = await framesSoFar(page);
       await page.setViewportSize(size);
-      // Let OSD's ResizeObserver fire and its update loop run the resize.
+      // Let OSD's ResizeObserver fire and its update loop run the resize...
       await page.waitForTimeout(250);
+      // ...and don't move on until the probe has sampled *this* resize.
+      await awaitSamples(page, before, SAMPLES_PER_RESIZE);
     }
 
     const probe = await readProbe(page);
 
-    // Guard the premise: a probe that never ran would pass vacuously. Headless
-    // Chromium throttles rAF well below 60fps, so this is deliberately loose —
-    // it only has to prove the loop sampled across the resizes.
-    expect(probe.frames).toBeGreaterThan(20);
+    // The premise — that the probe actually ran — is guarded by the waits
+    // above, which reject at the resize that stalled. Asserting a frame floor
+    // here as well would be dead weight: the loop cannot reach this line
+    // without having cleared it.
     expect(probe.maxDiff).toBeLessThan(PROBE_TOLERANCE_PX);
   });
 });

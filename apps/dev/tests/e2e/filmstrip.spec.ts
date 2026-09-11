@@ -7,24 +7,24 @@ test.describe('Filmstrip', () => {
   });
 
   test('should display all available images', async ({ page }) => {
-    await expect(page.getByTestId('filmstrip-item-highsmith')).toBeVisible();
-    await expect(page.getByTestId('filmstrip-item-duomo')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-item-landscape')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toBeVisible();
     await expect(page.getByTestId('filmstrip-item-wide')).toBeVisible();
-    await expect(page.getByTestId('filmstrip-item-jpg')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-item-tiled')).toBeVisible();
   });
 
   test('should assign image to active cell on click', async ({ page }) => {
-    // Cell 0 starts with Highsmith. Click Duomo to change it.
-    await page.getByTestId('filmstrip-item-duomo').click();
+    // Cell 0 starts with Landscape. Click Portrait to change it.
+    await page.getByTestId('filmstrip-item-portrait').click();
 
     // Verify no placeholder (image was assigned)
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
   });
 
   test('should highlight assigned images', async ({ page }) => {
-    // Highsmith is assigned to cell 0, so it should have a highlighted border
-    const highsmithItem = page.getByTestId('filmstrip-item-highsmith');
-    const border = await highsmithItem.evaluate((el) => getComputedStyle(el).borderColor);
+    // Landscape is assigned to cell 0, so it should have a highlighted border
+    const landscapeItem = page.getByTestId('filmstrip-item-landscape');
+    const border = await landscapeItem.evaluate((el) => getComputedStyle(el).borderColor);
     // The assigned image should have the blue highlight border
     expect(border).toContain('rgb(33, 150, 243)'); // #2196F3
   });
@@ -37,20 +37,20 @@ test.describe('Filmstrip', () => {
     // Click the empty cell to make it active
     await page.locator('text=Assign an image').first().click();
 
-    // Assign Duomo to the second cell
-    await page.getByTestId('filmstrip-item-duomo').click();
+    // Assign Portrait to the second cell
+    await page.getByTestId('filmstrip-item-portrait').click();
 
     // Both cells should now have images
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
 
-    // Both Highsmith and Duomo should now be highlighted
-    const highsmithBorder = await page
-      .getByTestId('filmstrip-item-highsmith')
+    // Both Landscape and Portrait should now be highlighted
+    const landscapeBorder = await page
+      .getByTestId('filmstrip-item-landscape')
       .evaluate((el) => getComputedStyle(el).borderColor);
-    const duomoBorder = await page
-      .getByTestId('filmstrip-item-duomo')
+    const portraitBorder = await page
+      .getByTestId('filmstrip-item-portrait')
       .evaluate((el) => getComputedStyle(el).borderColor);
-    expect(highsmithBorder).toContain('rgb(33, 150, 243)');
-    expect(duomoBorder).toContain('rgb(33, 150, 243)');
+    expect(landscapeBorder).toContain('rgb(33, 150, 243)');
+    expect(portraitBorder).toContain('rgb(33, 150, 243)');
   });
 });

@@ -33,27 +33,42 @@ import { FabricObject } from 'fabric';
 // mounts, so this dev harness dogfoods that auto-registration. The E2E test
 // `auto-init-fabric.spec.ts` relies on this.
 
+/**
+ * Local images only. These were remote DZI tile sources until issue #144: the
+ * E2E suite could not run without network access, and 23 of its specs failed
+ * wherever `openseadragon.github.io` was unreachable.
+ *
+ * The three `.png` sources go through OSD's `type: 'image'` tile source (see
+ * `openImage`) and have distinct aspect ratios, so switching between them
+ * exercises different fit and zoom behaviour. `tiled.dzi` is a vendored Deep
+ * Zoom pyramid, so the DZI branch is exercised too — offline. Every asset is
+ * synthetic and carries no third-party licence; see `sample-data/README.md`.
+ *
+ * Do not add a remote source here: `offline.spec.ts` requires every image the
+ * filmstrip offers to be local. The docs demos keep their remote DZIs
+ * deliberately; that site is deployed and read online, and a live deep-zoom
+ * demo is the library's headline capability.
+ */
 const IMAGES: ImageSource[] = [
   {
-    id: createImageId('highsmith'),
-    tileSource: 'https://openseadragon.github.io/example-images/highsmith/highsmith.dzi',
-    label: 'Highsmith',
+    id: createImageId('landscape'),
+    tileSource: './sample-data/landscape.png',
+    label: 'Landscape',
   },
   {
-    id: createImageId('duomo'),
-    tileSource: 'https://openseadragon.github.io/example-images/duomo/duomo.dzi',
-    label: 'Duomo',
+    id: createImageId('portrait'),
+    tileSource: './sample-data/portrait.png',
+    label: 'Portrait',
   },
   {
     id: createImageId('wide'),
-    tileSource:
-      'https://openseadragon.github.io/example-images/pnp/pan/6a32000/6a32400/6a32487.dzi',
+    tileSource: './sample-data/wide.png',
     label: 'Wide image',
   },
   {
-    id: createImageId('jpg'),
-    tileSource: './sample-data/test-image.jpg',
-    label: 'JPG image',
+    id: createImageId('tiled'),
+    tileSource: './sample-data/tiled.dzi',
+    label: 'Tiled (DZI)',
   },
 ];
 
@@ -61,7 +76,7 @@ const CONTEXTS: AnnotationContext[] = [
   {
     id: 'ctx-1' as AnnotationContextId,
     label: 'Fracture',
-    imageIds: [createImageId('highsmith'), createImageId('duomo')],
+    imageIds: [createImageId('landscape'), createImageId('portrait')],
     tools: [
       { type: 'line', maxCount: 3, countScope: 'per-image' },
       { type: 'rectangle', maxCount: 2 },

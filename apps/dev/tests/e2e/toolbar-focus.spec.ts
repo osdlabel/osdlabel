@@ -23,7 +23,7 @@ test.describe('Toolbar focus', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('[data-testid="tool-navigate"]');
-    await page.getByTestId('filmstrip-item-jpg').click();
+    await page.getByTestId('filmstrip-item-tiled').click();
     await page.waitForFunction(() => {
       const el = document.querySelector('.openseadragon-canvas') as
         | (Element & { __osdViewer?: { isOpen?: () => boolean } })

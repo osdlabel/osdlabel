@@ -51,7 +51,7 @@ viewer.open({
 // Or open a simple image (useful for dev/testing — no tile server needed)
 viewer.open({
   type: 'image',
-  url: '/sample-data/test-image.jpg',
+  url: '/sample-data/landscape.png',
 });
 
 // Destroy (important for cleanup in SolidJS onCleanup)

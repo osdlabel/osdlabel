@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // The dev app has 3 contexts: Fracture (ctx-1), Pneumothorax (ctx-2), General (ctx-3).
-// Fracture is active by default, scoped to [highsmith, duomo].
+// Fracture is active by default, scoped to [landscape, portrait].
 // The "Show:" checkboxes control displayedContextIds via data-testid="display-ctx-{id}".
 
 test.describe('Displayed Contexts', () => {
@@ -41,7 +41,7 @@ test.describe('Displayed Contexts', () => {
     await canvas.waitFor({ state: 'attached', timeout: 15000 });
     await page.waitForTimeout(1000);
 
-    // Draw a rectangle in Fracture context on highsmith
+    // Draw a rectangle in Fracture context on landscape
     const rectButton = page.getByTestId('tool-rectangle');
     await rectButton.click();
 
