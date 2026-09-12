@@ -6,17 +6,16 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Rect } from 'fabric';
-import { createTestKeyboardShortcuts } from '../test-helpers.js';
+import {
+  createTestKeyboardShortcuts,
+  createMockCanvas,
+  type MockFabricCanvas,
+} from '../test-helpers.js';
 
 describe('RectangleTool', () => {
   let tool: RectangleTool;
   let mockOverlay: ToolOverlay;
-  let mockCanvas: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    requestRenderAll: ReturnType<typeof vi.fn>;
-    getZoom: ReturnType<typeof vi.fn>;
-  };
+  let mockCanvas: MockFabricCanvas;
   let mockCallbacks: ToolCallbacks;
   let addedParams: AddAnnotationParams[];
   const imageId = createImageId('test-image');
@@ -27,12 +26,7 @@ describe('RectangleTool', () => {
     vi.clearAllMocks();
     addedParams = [];
 
-    mockCanvas = {
-      add: vi.fn(),
-      remove: vi.fn(),
-      requestRenderAll: vi.fn(),
-      getZoom: vi.fn().mockReturnValue(1),
-    };
+    mockCanvas = createMockCanvas();
 
     mockOverlay = {
       canvas: mockCanvas,

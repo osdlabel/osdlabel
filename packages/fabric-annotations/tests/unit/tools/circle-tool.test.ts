@@ -6,17 +6,17 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Circle } from 'fabric';
-import { createTestKeyboardShortcuts } from '../test-helpers.js';
+import {
+  createTestKeyboardShortcuts,
+  createMockCanvas,
+  expectFabricInstance,
+  type MockFabricCanvas,
+} from '../test-helpers.js';
 
 describe('CircleTool', () => {
   let tool: CircleTool;
   let mockOverlay: ToolOverlay;
-  let mockCanvas: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    requestRenderAll: ReturnType<typeof vi.fn>;
-    getZoom: ReturnType<typeof vi.fn>;
-  };
+  let mockCanvas: MockFabricCanvas;
   let mockCallbacks: ToolCallbacks;
   let addedParams: AddAnnotationParams[];
   const imageId = createImageId('test-image');
@@ -27,12 +27,7 @@ describe('CircleTool', () => {
     vi.clearAllMocks();
     addedParams = [];
 
-    mockCanvas = {
-      add: vi.fn(),
-      remove: vi.fn(),
-      requestRenderAll: vi.fn(),
-      getZoom: vi.fn().mockReturnValue(1),
-    };
+    mockCanvas = createMockCanvas();
 
     mockOverlay = {
       canvas: mockCanvas,
@@ -60,8 +55,7 @@ describe('CircleTool', () => {
     tool.onPointerDown(event, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalled();
-    const addedObj = mockCanvas.add.mock.calls[0]![0];
-    expect(addedObj).toBeInstanceOf(Circle);
+    const addedObj = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Circle);
     expect(addedObj.left).toBe(10);
     expect(addedObj.top).toBe(10);
     expect(addedObj.radius).toBe(0);
@@ -74,7 +68,7 @@ describe('CircleTool', () => {
     const event = { type: 'pointerdown' } as PointerEvent;
     tool.onPointerDown(event, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0]![0];
+    const preview = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Circle);
 
     const moveEvent = { type: 'pointermove' } as PointerEvent;
     tool.onPointerMove(moveEvent, { x: 30, y: 30 });

@@ -6,17 +6,17 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Line } from 'fabric';
-import { createTestKeyboardShortcuts } from '../test-helpers.js';
+import {
+  createTestKeyboardShortcuts,
+  createMockCanvas,
+  expectFabricInstance,
+  type MockFabricCanvas,
+} from '../test-helpers.js';
 
 describe('LineTool', () => {
   let tool: LineTool;
   let mockOverlay: ToolOverlay;
-  let mockCanvas: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    requestRenderAll: ReturnType<typeof vi.fn>;
-    getZoom: ReturnType<typeof vi.fn>;
-  };
+  let mockCanvas: MockFabricCanvas;
   let mockCallbacks: ToolCallbacks;
   let addedParams: AddAnnotationParams[];
   const imageId = createImageId('test-image');
@@ -27,12 +27,7 @@ describe('LineTool', () => {
     vi.clearAllMocks();
     addedParams = [];
 
-    mockCanvas = {
-      add: vi.fn(),
-      remove: vi.fn(),
-      requestRenderAll: vi.fn(),
-      getZoom: vi.fn().mockReturnValue(1),
-    };
+    mockCanvas = createMockCanvas();
 
     mockOverlay = {
       canvas: mockCanvas,
@@ -60,8 +55,7 @@ describe('LineTool', () => {
     tool.onPointerDown(event, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalled();
-    const addedObj = mockCanvas.add.mock.calls[0]![0];
-    expect(addedObj).toBeInstanceOf(Line);
+    const addedObj = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Line);
     expect(addedObj.x1).toBe(10);
     expect(addedObj.y1).toBe(10);
     expect(addedObj.x2).toBe(10);
@@ -74,7 +68,7 @@ describe('LineTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0]![0];
+    const preview = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Line);
 
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
 

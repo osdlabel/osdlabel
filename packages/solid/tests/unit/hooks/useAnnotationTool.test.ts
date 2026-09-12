@@ -2,37 +2,45 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool } from '@osdlabel/fabric-annotations';
+import { version as FABRIC_VERSION } from 'fabric';
 import { createImageId } from '@osdlabel/viewer-api';
+import { createAnnotationId } from '@osdlabel/annotation';
+import { createAnnotationContextId } from '@osdlabel/annotation-context';
+import { createMockAnnotator } from './mock-annotator.js';
 import { useAnnotationTool } from '../../../src/hooks/useAnnotationTool.js';
-import { DEFAULT_KEYBOARD_SHORTCUTS } from '../../../src/hooks/useKeyboard.js';
 
-// Mock useAnnotator
-const mockActions = {
-  updateAnnotation: vi.fn(),
-  setActiveTool: vi.fn(),
-  addAnnotation: vi.fn(),
-  deleteAnnotation: vi.fn(),
-  setSelectedAnnotation: vi.fn(),
-};
-
-const mockState = {
-  uiState: {
-    activeTool: 'select',
-    activeViewerControl: null,
-    activeCellIndex: 0,
-    cellTransforms: {},
+/**
+ * The annotator context the hook sees. Built through `createMockAnnotator` so
+ * it is checked against the real context type — a plain object literal here is
+ * not, because `vi.mock` factory returns are unchecked, and this mock had in
+ * fact been running the hook with `vertexEditConfig` absent (#162).
+ */
+const mockState = createMockAnnotator({
+  contextState: {
+    activeContextId: createAnnotationContextId('ctx-1'),
+    contexts: [],
+    displayedContextIds: [],
   },
-  contextState: { activeContextId: 'ctx-1', contexts: [] },
-  annotationState: { byImage: { 'img-1': { 'ann-1': { geometry: { type: 'rectangle' } } } } },
-  constraintStatus: () => ({
-    select: { enabled: true },
-    rectangle: { enabled: true },
-    polyline: { enabled: true },
-  }),
-  actions: mockActions,
-  activeToolKeyHandlerRef: { handler: null },
-  shortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
+});
+mockState.uiState.activeTool = 'select';
+mockState.annotationState.byImage[createImageId('img-1')] = {
+  [createAnnotationId('ann-1')]: {
+    id: createAnnotationId('ann-1'),
+    imageId: createImageId('img-1'),
+    contextId: createAnnotationContextId('ctx-1'),
+    toolType: 'rectangle',
+    geometry: { type: 'rectangle', origin: { x: 0, y: 0 }, width: 10, height: 10, rotation: 0 },
+    rawAnnotationData: {
+      format: 'fabric',
+      fabricVersion: FABRIC_VERSION,
+      data: { type: 'Rect', left: 0, top: 0, width: 10, height: 10 },
+    },
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
 };
+
+const mockActions = mockState.actions;
 
 vi.mock('../../../src/state/annotator-context.js', () => ({
   useAnnotator: () => mockState,

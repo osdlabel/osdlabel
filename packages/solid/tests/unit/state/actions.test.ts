@@ -208,6 +208,127 @@ describe('State Management', () => {
     dispose();
   });
 
+  /**
+   * `convertAnnotation` had no coverage at all until now (#162): its only
+   * callers are the two framework `Toolbar` components, and `@osdlabel/react`
+   * has no tests (#152). It has four exits and three of them are silent
+   * no-ops, so a regression that simply stopped converting would have looked
+   * identical to a regression that converted the wrong thing.
+   */
+  describe('convertAnnotation', () => {
+    const circleId = createAnnotationId('circle1');
+
+    /** A circle at (50,50) r=10 — bounding box is therefore (40,40) 20x20. */
+    const circleAnnotation: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'> = {
+      ...dummyAnnotation,
+      id: circleId,
+      toolType: 'circle',
+      geometry: { type: 'circle', center: { x: 50, y: 50 }, radius: 10 },
+      rawAnnotationData: {
+        format: 'fabric' as const,
+        fabricVersion: FABRIC_VERSION,
+        data: { type: 'Circle', left: 40, top: 40, radius: 10 },
+      },
+    };
+
+    /** Allows both tools, so the constraint guard is open unless a test closes it. */
+    function withOpenContext(actions: ReturnType<typeof createTestStore>['actions']): void {
+      actions.setContexts([
+        {
+          id: dummyContextId,
+          label: 'Test Context',
+          tools: [{ type: 'rectangle' }, { type: 'circle' }],
+        },
+      ]);
+      actions.setActiveContext(dummyContextId);
+    }
+
+    it('converts a circle to its bounding rectangle in place', () => {
+      const { annotationState, actions, dispose } = createTestStore();
+      withOpenContext(actions);
+      actions.addAnnotation({ ...circleAnnotation, contextId: dummyContextId });
+
+      actions.convertAnnotation(circleId, dummyImageId);
+
+      const converted = annotationState.byImage[dummyImageId]?.[circleId];
+      expect(converted).toBeDefined();
+      expect(converted!.toolType).toBe('rectangle');
+      // The id is preserved — this is a conversion in place, not a
+      // delete-and-add, which is what the Toolbar's selection depends on.
+      expect(converted!.id).toBe(circleId);
+      expect(converted!.geometry).toEqual({
+        type: 'rectangle',
+        origin: { x: 40, y: 40 },
+        width: 20,
+        height: 20,
+        rotation: 0,
+      });
+      // The Fabric payload must be rebuilt too, or the canvas would repaint a
+      // circle from stale raw data on the next deserialize.
+      expect(converted!.rawAnnotationData.data.type).toBe('Rect');
+
+      dispose();
+    });
+
+    it('does nothing when the annotation does not exist', () => {
+      const { annotationState, actions, dispose } = createTestStore();
+      withOpenContext(actions);
+
+      const before = annotationState.changeCounter;
+      actions.convertAnnotation(circleId, dummyImageId);
+
+      expect(annotationState.byImage[dummyImageId]).toBeUndefined();
+      expect(annotationState.changeCounter).toBe(before);
+      dispose();
+    });
+
+    it('does nothing when the annotation is not a circle', () => {
+      const { annotationState, actions, dispose } = createTestStore();
+      withOpenContext(actions);
+      // dummyAnnotation is a rectangle.
+      actions.addAnnotation({ ...dummyAnnotation, contextId: dummyContextId });
+
+      const before = annotationState.changeCounter;
+      actions.convertAnnotation(dummyAnnotationId, dummyImageId);
+
+      const after = annotationState.byImage[dummyImageId]?.[dummyAnnotationId];
+      expect(after).toBeDefined();
+      expect(after!.geometry).toEqual(dummyAnnotation.geometry);
+      // Geometry alone does not pin this down: without the `!patch` guard the
+      // update still runs, spreading `null` over the annotation — leaving the
+      // geometry intact while bumping `updatedAt` and the change counter that
+      // downstream reactivity keys off. A no-op must be observably nothing.
+      expect(annotationState.changeCounter).toBe(before);
+      dispose();
+    });
+
+    it('does nothing when the context cannot hold another rectangle', () => {
+      const { annotationState, actions, dispose } = createTestStore();
+      // One rectangle allowed, and it is already spent by `dummyAnnotation`,
+      // so the guard must refuse to produce a second one.
+      actions.setContexts([
+        {
+          id: dummyContextId,
+          label: 'Test Context',
+          tools: [{ type: 'rectangle', maxCount: 1 }, { type: 'circle' }],
+        },
+      ]);
+      actions.setActiveContext(dummyContextId);
+      actions.addAnnotation({ ...dummyAnnotation, contextId: dummyContextId });
+      actions.addAnnotation({ ...circleAnnotation, contextId: dummyContextId });
+
+      const before = annotationState.changeCounter;
+      actions.convertAnnotation(circleId, dummyImageId);
+
+      const after = annotationState.byImage[dummyImageId]?.[circleId];
+      expect(after).toBeDefined();
+      expect(after!.toolType).toBe('circle');
+      expect(after!.geometry).toEqual(circleAnnotation.geometry);
+      expect(annotationState.changeCounter).toBe(before);
+      dispose();
+    });
+  });
+
   it('Constraint status handles no active context', () => {
     const { actions, constraintStatus, dispose } = createTestStore();
     actions.setActiveContext(null);

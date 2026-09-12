@@ -1,60 +1,38 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
 import { useKeyboard, DEFAULT_KEYBOARD_SHORTCUTS } from '../../../src/hooks/useKeyboard.js';
+import { createAnnotationId } from '@osdlabel/annotation';
+import { createImageId } from '@osdlabel/viewer-api';
+import { createAnnotationContextId, type AnnotationContext } from '@osdlabel/annotation-context';
+import type { ConstraintStatus } from 'osdlabel';
+import { createMockAnnotator } from './mock-annotator.js';
 
-// Mock annotator actions
-const mockActions = {
-  setActiveTool: vi.fn(),
-  setSelectedAnnotation: vi.fn(),
-  deleteAnnotation: vi.fn(),
-  setActiveCell: vi.fn(),
-  setGridDimensions: vi.fn(),
-  rotateActiveImageCW: vi.fn(),
-  rotateActiveImageCCW: vi.fn(),
-  flipActiveImageH: vi.fn(),
-  flipActiveImageV: vi.fn(),
-  resetActiveImageView: vi.fn(),
-  setActiveContext: vi.fn(),
-};
+const makeContext = (id: string): AnnotationContext => ({
+  id: createAnnotationContextId(id),
+  label: id,
+  tools: [],
+});
 
-// Mock UI state
-const mockUiState = {
-  selectedAnnotationId: null as string | null,
-  gridAssignments: [
-    'img-1',
-    'img-2',
-    'img-3',
-    'img-4',
-    'img-5',
-    'img-6',
-    'img-7',
-    'img-8',
-    'img-9',
-  ],
-  activeCellIndex: 0,
-  gridColumns: 1,
-  gridRows: 1,
-};
+/**
+ * The annotator context this hook sees, built through the shared factory so it
+ * is checked against the real type. Written as a bare object literal it was
+ * not: `vi.mock` factory returns are unchecked, so ids were plain strings and
+ * two thirds of the context was simply absent (#162).
+ */
+const mockState = createMockAnnotator({
+  contextState: {
+    contexts: [makeContext('ctx-a'), makeContext('ctx-b'), makeContext('ctx-c')],
+    activeContextId: createAnnotationContextId('ctx-a'),
+    displayedContextIds: [],
+  },
+});
 
-// Mock annotation-context state
-const makeContext = (id: string) => ({ id, label: id, tools: [] });
-
-const mockContextState = {
-  contexts: [makeContext('ctx-a'), makeContext('ctx-b'), makeContext('ctx-c')],
-  activeContextId: 'ctx-a' as string | null,
-  displayedContextIds: [],
-};
-
-// Mock context state
-const mockState = {
-  uiState: mockUiState,
-  contextState: mockContextState,
-  actions: mockActions,
-  activeImageId: () => mockUiState.gridAssignments[mockUiState.activeCellIndex],
-};
+const mockActions = mockState.actions;
+const mockUiState = mockState.uiState;
+mockUiState.gridAssignments = Array.from({ length: 9 }, (_, i) => createImageId(`img-${i + 1}`));
 
 // Default constraint status where all tools are enabled
-function makeConstraintStatus(overrides: Record<string, { enabled: boolean }> = {}) {
+function makeConstraintStatus(overrides: Partial<ConstraintStatus> = {}): ConstraintStatus {
   const allEnabled = { enabled: true, currentCount: 0, maxCount: null };
   return {
     rectangle: { ...allEnabled },
@@ -80,6 +58,7 @@ const mockConstraints = {
 vi.mock('../../../src/state/annotator-context.js', () => ({
   useAnnotator: () => ({
     ...mockState,
+    activeImageId: () => mockUiState.gridAssignments[mockUiState.activeCellIndex],
     constraintStatus: () => mockConstraintStatus,
   }),
 }));
@@ -112,8 +91,12 @@ describe('useKeyboard', () => {
     mockUiState.activeCellIndex = 0;
     mockUiState.gridColumns = 1;
     mockUiState.gridRows = 1;
-    mockContextState.contexts = [makeContext('ctx-a'), makeContext('ctx-b'), makeContext('ctx-c')];
-    mockContextState.activeContextId = 'ctx-a';
+    mockState.contextState.contexts = [
+      makeContext('ctx-a'),
+      makeContext('ctx-b'),
+      makeContext('ctx-c'),
+    ];
+    mockState.contextState.activeContextId = createAnnotationContextId('ctx-a');
     mockConstraintStatus = makeConstraintStatus();
     mockConstraints.isToolEnabled.mockImplementation((type: string) => {
       const status = mockConstraintStatus as Record<string, { enabled: boolean }>;
@@ -210,7 +193,7 @@ describe('useKeyboard', () => {
 
     it('should NOT set tool if isToolEnabled returns false', () => {
       mockConstraintStatus = makeConstraintStatus({
-        rectangle: { enabled: false },
+        rectangle: { enabled: false, currentCount: 1, maxCount: 1 },
       });
       mockConstraints.isToolEnabled.mockImplementation((tool: string) => tool !== 'rectangle');
 
@@ -271,7 +254,7 @@ describe('useKeyboard', () => {
 
   describe('Cancel / Escape Shortcut', () => {
     it('should deselect annotation if one is selected', () => {
-      mockUiState.selectedAnnotationId = 'ann-1';
+      mockUiState.selectedAnnotationId = createAnnotationId('ann-1');
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.cancel);
 
       expect(mockActions.setSelectedAnnotation).toHaveBeenCalledWith(null);
@@ -303,7 +286,7 @@ describe('useKeyboard', () => {
       it('should ignore Escape entirely', () => {
         // The browser exits fullscreen on Escape and cannot be stopped, so one
         // press must not also deselect.
-        mockUiState.selectedAnnotationId = 'ann-1';
+        mockUiState.selectedAnnotationId = createAnnotationId('ann-1');
         setFullscreenElement(document.createElement('div'));
 
         dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.cancel);
@@ -334,7 +317,7 @@ describe('useKeyboard', () => {
       });
 
       it('should still handle Escape once fullscreen has been left', () => {
-        mockUiState.selectedAnnotationId = 'ann-1';
+        mockUiState.selectedAnnotationId = createAnnotationId('ann-1');
         setFullscreenElement(null);
 
         dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.cancel);
@@ -346,7 +329,7 @@ describe('useKeyboard', () => {
 
   describe('Delete Shortcut', () => {
     it('should delete selected annotation on active cell image', () => {
-      mockUiState.selectedAnnotationId = 'ann-1';
+      mockUiState.selectedAnnotationId = createAnnotationId('ann-1');
       mockUiState.activeCellIndex = 0; // points to 'img-1'
 
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.delete);
@@ -356,7 +339,7 @@ describe('useKeyboard', () => {
     });
 
     it('should also work with deleteAlt shortcut', () => {
-      mockUiState.selectedAnnotationId = 'ann-2';
+      mockUiState.selectedAnnotationId = createAnnotationId('ann-2');
       mockUiState.activeCellIndex = 1; // points to 'img-2'
 
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.deleteAlt);
@@ -373,7 +356,7 @@ describe('useKeyboard', () => {
     });
 
     it('should do nothing if active image id is missing', () => {
-      mockUiState.selectedAnnotationId = 'ann-1';
+      mockUiState.selectedAnnotationId = createAnnotationId('ann-1');
       mockUiState.activeCellIndex = 10; // Out of bounds, undefined image
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.delete);
 
@@ -436,32 +419,32 @@ describe('useKeyboard', () => {
     });
 
     it('should activate the previous context', () => {
-      mockContextState.activeContextId = 'ctx-b';
+      mockState.contextState.activeContextId = createAnnotationContextId('ctx-b');
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.previousContext);
       expect(mockActions.setActiveContext).toHaveBeenCalledWith('ctx-a');
     });
 
     it('should wrap around past the last context', () => {
-      mockContextState.activeContextId = 'ctx-c';
+      mockState.contextState.activeContextId = createAnnotationContextId('ctx-c');
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
       expect(mockActions.setActiveContext).toHaveBeenCalledWith('ctx-a');
     });
 
     it('should do nothing when there is only one context', () => {
-      mockContextState.contexts = [makeContext('ctx-a')];
+      mockState.contextState.contexts = [makeContext('ctx-a')];
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
       expect(mockActions.setActiveContext).not.toHaveBeenCalled();
     });
 
     it('should do nothing when no contexts are configured', () => {
-      mockContextState.contexts = [];
-      mockContextState.activeContextId = null;
+      mockState.contextState.contexts = [];
+      mockState.contextState.activeContextId = null;
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
       expect(mockActions.setActiveContext).not.toHaveBeenCalled();
     });
 
     it('should not change the active tool or selection', () => {
-      mockUiState.selectedAnnotationId = 'ann-1';
+      mockUiState.selectedAnnotationId = createAnnotationId('ann-1');
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.nextContext);
 
       expect(mockActions.setActiveContext).toHaveBeenCalledWith('ctx-b');
