@@ -6,19 +6,17 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Polyline, Polygon, Circle } from 'fabric';
-import { createTestKeyboardShortcuts } from '../test-helpers.js';
+import {
+  createTestKeyboardShortcuts,
+  createMockCanvas,
+  expectFabricInstance,
+  type MockFabricCanvas,
+} from '../test-helpers.js';
 
 describe('PolylineTool', () => {
   let tool: PolylineTool;
   let mockOverlay: ToolOverlay;
-  let mockCanvas: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    requestRenderAll: ReturnType<typeof vi.fn>;
-    getZoom: ReturnType<typeof vi.fn>;
-    on: ReturnType<typeof vi.fn>;
-    off: ReturnType<typeof vi.fn>;
-  };
+  let mockCanvas: MockFabricCanvas;
   let mockCallbacks: ToolCallbacks;
   let addedParams: AddAnnotationParams[];
   const imageId = createImageId('test-image');
@@ -29,14 +27,7 @@ describe('PolylineTool', () => {
     vi.clearAllMocks();
     addedParams = [];
 
-    mockCanvas = {
-      add: vi.fn(),
-      remove: vi.fn(),
-      requestRenderAll: vi.fn(),
-      getZoom: vi.fn().mockReturnValue(1),
-      on: vi.fn(),
-      off: vi.fn(),
-    };
+    mockCanvas = createMockCanvas();
 
     mockOverlay = {
       canvas: mockCanvas,
@@ -71,6 +62,7 @@ describe('PolylineTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
+      expect(mockCanvas.add).toHaveBeenCalled();
       const preview = mockCanvas.add.mock.calls[0]![0];
       expect(preview.stroke).toBe('#00e5ff');
       expect(preview.strokeWidth).toBe(3);
@@ -82,6 +74,7 @@ describe('PolylineTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
+      expect(mockCanvas.add).toHaveBeenCalled();
       const preview = mockCanvas.add.mock.calls[0]![0];
       expect(preview.strokeDashArray).toEqual([5, 5]);
       expect(preview.selectable).toBe(false);
@@ -101,6 +94,7 @@ describe('PolylineTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
+      expect(mockCanvas.add).toHaveBeenCalled();
       expect(mockCanvas.add.mock.calls[0]![0].strokeDashArray).toEqual([2, 8]);
     });
 
@@ -113,6 +107,7 @@ describe('PolylineTool', () => {
 
       // DEFAULT_ANNOTATION_STYLE.strokeWidth (2) at zoom 0.1 must still land as
       // 2 screen px, not a 0.2 px hairline.
+      expect(mockCanvas.add).toHaveBeenCalled();
       expect(mockCanvas.add.mock.calls[0]![0].strokeWidth).toBeCloseTo(20);
     });
 
@@ -145,6 +140,7 @@ describe('PolylineTool', () => {
       tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      expect(mockCanvas.add).toHaveBeenCalled();
       const preview = mockCanvas.add.mock.calls[0]![0];
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 10 });
       tool.onKeyDown({ key: 'Enter' } as KeyboardEvent);
@@ -273,8 +269,7 @@ describe('PolylineTool', () => {
     tool.onPointerDown(event, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalled();
-    const addedObj = mockCanvas.add.mock.calls[0]![0];
-    expect(addedObj).toBeInstanceOf(Polyline);
+    const addedObj = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Polyline);
     expect(addedObj.points.length).toBe(2);
     expect(addedObj.points[0]).toEqual({ x: 10, y: 10 });
     expect(addedObj.points[1]).toEqual({ x: 10, y: 10 });
@@ -286,7 +281,8 @@ describe('PolylineTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
-    const preview = mockCanvas.add.mock.calls[0]![0];
+    expect(mockCanvas.add).toHaveBeenCalled();
+    const preview = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Polyline);
 
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
 
@@ -304,7 +300,8 @@ describe('PolylineTool', () => {
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 50 });
 
-    const preview = mockCanvas.add.mock.calls[0]![0];
+    expect(mockCanvas.add).toHaveBeenCalled();
+    const preview = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Polyline);
 
     expect(preview.points.length).toBe(3);
     expect(preview.points[0]).toEqual({ x: 10, y: 10 });

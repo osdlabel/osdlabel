@@ -7,17 +7,17 @@ import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Circle } from 'fabric';
 import { DEFAULT_POINT_RADIUS } from '@osdlabel/annotation';
-import { createTestKeyboardShortcuts } from '../test-helpers.js';
+import {
+  createTestKeyboardShortcuts,
+  createMockCanvas,
+  expectFabricInstance,
+  type MockFabricCanvas,
+} from '../test-helpers.js';
 
 describe('PointTool', () => {
   let tool: PointTool;
   let mockOverlay: ToolOverlay;
-  let mockCanvas: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    requestRenderAll: ReturnType<typeof vi.fn>;
-    getZoom: ReturnType<typeof vi.fn>;
-  };
+  let mockCanvas: MockFabricCanvas;
   let mockCallbacks: ToolCallbacks;
   let addedParams: AddAnnotationParams[];
   const imageId = createImageId('test-image');
@@ -28,12 +28,7 @@ describe('PointTool', () => {
     vi.clearAllMocks();
     addedParams = [];
 
-    mockCanvas = {
-      add: vi.fn(),
-      remove: vi.fn(),
-      requestRenderAll: vi.fn(),
-      getZoom: vi.fn().mockReturnValue(1),
-    };
+    mockCanvas = createMockCanvas();
 
     mockOverlay = {
       canvas: mockCanvas,
@@ -60,7 +55,12 @@ describe('PointTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
 
-      expect(mockCanvas.add.mock.calls[0]![0].radius).toBe(DEFAULT_POINT_RADIUS);
+      // Assert the call happened before indexing into it, so a tool that
+      // stopped adding a preview fails by name rather than by TypeError.
+      expect(mockCanvas.add).toHaveBeenCalled();
+      expect(expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Circle).radius).toBe(
+        DEFAULT_POINT_RADIUS,
+      );
     });
 
     it("honours the tool constraint's defaultStyle.pointRadius", () => {
@@ -73,7 +73,8 @@ describe('PointTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
 
-      expect(mockCanvas.add.mock.calls[0]![0].radius).toBe(12);
+      expect(mockCanvas.add).toHaveBeenCalled();
+      expect(expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Circle).radius).toBe(12);
     });
   });
 
@@ -100,6 +101,7 @@ describe('PointTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
+    expect(mockCanvas.add).toHaveBeenCalled();
     const preview = mockCanvas.add.mock.calls[0]![0];
 
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 30, y: 30 });
@@ -137,6 +139,7 @@ describe('PointTool', () => {
     tool.onPointerUp({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
 
     expect(addedParams).toHaveLength(1);
+    expect(mockCanvas.add).toHaveBeenCalled();
     const preview = mockCanvas.add.mock.calls[0]![0];
     expect(preview.left).toBe(50);
     expect(preview.top).toBe(50);
@@ -163,7 +166,8 @@ describe('PointTool', () => {
 
     tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 30, y: 30 });
 
-    const preview = mockCanvas.add.mock.calls[0]![0] as Circle;
+    expect(mockCanvas.add).toHaveBeenCalled();
+    const preview = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Circle);
     expect(preview.hasControls).toBe(false);
   });
 
