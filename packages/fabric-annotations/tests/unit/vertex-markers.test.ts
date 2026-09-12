@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Circle } from 'fabric';
 import { DEFAULT_ANNOTATION_STYLE, type Point } from '@osdlabel/annotation';
 import {
@@ -7,22 +7,21 @@ import {
   DEFAULT_FIRST_VERTEX_MARKER_RADIUS_PX,
 } from '../../src/vertex-markers.js';
 import type { ToolOverlay } from '../../src/types.js';
+import { createMockCanvas, expectFabricInstance, type MockFabricCanvas } from './test-helpers.js';
 
 describe('VertexMarkerLayer', () => {
-  let canvas: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    getZoom: ReturnType<typeof vi.fn>;
-  };
+  let canvas: MockFabricCanvas;
   let overlay: ToolOverlay;
 
-  const added = (): Circle[] => canvas.add.mock.calls.map((call) => call[0] as Circle);
-  const removed = (): Circle[] => canvas.remove.mock.calls.map((call) => call[0] as Circle);
+  const added = (): Circle[] =>
+    canvas.add.mock.calls.map((call) => expectFabricInstance(call[0], Circle));
+  const removed = (): Circle[] =>
+    canvas.remove.mock.calls.map((call) => expectFabricInstance(call[0], Circle));
   const vertices = (...points: readonly [number, number][]): Point[] =>
     points.map(([x, y]) => ({ x, y }));
 
   beforeEach(() => {
-    canvas = { add: vi.fn(), remove: vi.fn(), getZoom: vi.fn().mockReturnValue(1) };
+    canvas = createMockCanvas();
     overlay = { canvas, imageToScreen: (p: Point) => p } as unknown as ToolOverlay;
   });
 
@@ -156,7 +155,7 @@ describe('VertexMarkerLayer', () => {
     layer.sync(overlay, vertices([10, 10], [50, 20]), DEFAULT_ANNOTATION_STYLE);
     const firstOverlayMarkers = added();
 
-    const otherCanvas = { add: vi.fn(), remove: vi.fn(), getZoom: vi.fn().mockReturnValue(1) };
+    const otherCanvas = createMockCanvas();
     const otherOverlay = {
       canvas: otherCanvas,
       imageToScreen: (p: Point) => p,

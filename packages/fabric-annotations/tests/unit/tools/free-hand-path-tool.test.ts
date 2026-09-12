@@ -6,19 +6,17 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Polyline, Polygon } from 'fabric';
-import { createTestKeyboardShortcuts } from '../test-helpers.js';
+import {
+  createTestKeyboardShortcuts,
+  createMockCanvas,
+  expectFabricInstance,
+  type MockFabricCanvas,
+} from '../test-helpers.js';
 
 describe('FreeHandPathTool', () => {
   let tool: FreeHandPathTool;
   let mockOverlay: ToolOverlay;
-  let mockCanvas: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    requestRenderAll: ReturnType<typeof vi.fn>;
-    getZoom: ReturnType<typeof vi.fn>;
-    on: ReturnType<typeof vi.fn>;
-    off: ReturnType<typeof vi.fn>;
-  };
+  let mockCanvas: MockFabricCanvas;
   let mockCallbacks: ToolCallbacks;
   let addedParams: AddAnnotationParams[];
   const imageId = createImageId('test-image');
@@ -29,14 +27,7 @@ describe('FreeHandPathTool', () => {
     vi.clearAllMocks();
     addedParams = [];
 
-    mockCanvas = {
-      add: vi.fn(),
-      remove: vi.fn(),
-      requestRenderAll: vi.fn(),
-      getZoom: vi.fn().mockReturnValue(1),
-      on: vi.fn(),
-      off: vi.fn(),
-    };
+    mockCanvas = createMockCanvas();
 
     mockOverlay = {
       canvas: mockCanvas,
@@ -71,6 +62,7 @@ describe('FreeHandPathTool', () => {
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
 
+      expect(mockCanvas.add).toHaveBeenCalled();
       const preview = mockCanvas.add.mock.calls[0]![0];
       expect(preview.stroke).toBe('#00e5ff');
       expect(preview.strokeWidth).toBe(3);
@@ -110,6 +102,7 @@ describe('FreeHandPathTool', () => {
       tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
 
       tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+      expect(mockCanvas.add).toHaveBeenCalled();
       const preview = mockCanvas.add.mock.calls[0]![0];
       tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 10 });
       tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
@@ -128,8 +121,7 @@ describe('FreeHandPathTool', () => {
     tool.onPointerDown(downEvent, { x: 10, y: 10 });
 
     expect(mockCanvas.add).toHaveBeenCalledTimes(1);
-    const preview = mockCanvas.add.mock.calls[0]![0];
-    expect(preview).toBeInstanceOf(Polyline);
+    expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Polyline);
 
     // Move to accumulate points
     tool.onPointerMove({ type: 'pointermove', shiftKey: false } as PointerEvent, { x: 50, y: 10 });
@@ -202,7 +194,8 @@ describe('FreeHandPathTool', () => {
     // Move far enough
     tool.onPointerMove({ type: 'pointermove', shiftKey: false } as PointerEvent, { x: 50, y: 50 });
 
-    const preview = mockCanvas.add.mock.calls[0]![0];
+    expect(mockCanvas.add).toHaveBeenCalled();
+    const preview = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Polyline);
     // Should have initial point + one far point + current cursor = 3 points
     expect(preview.points.length).toBe(3);
   });
@@ -219,7 +212,8 @@ describe('FreeHandPathTool', () => {
     // Move 25px total — above threshold, should be sampled
     tool.onPointerMove({ type: 'pointermove', shiftKey: false } as PointerEvent, { x: 25, y: 0 });
 
-    const preview = mockCanvas.add.mock.calls[0]![0];
+    expect(mockCanvas.add).toHaveBeenCalled();
+    const preview = expectFabricInstance(mockCanvas.add.mock.calls[0]![0], Polyline);
     expect(preview.points.length).toBe(3); // initial + one sampled point + current cursor
   });
 
