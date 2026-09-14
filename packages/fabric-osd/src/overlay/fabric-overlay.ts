@@ -578,9 +578,11 @@ export class FabricOverlay {
    * Fabric's getPointer() reads clientX/clientY from the event, so
    * we forward those directly from the original DOM event.
    *
-   * A re-entrancy guard (`_forwarding`) prevents infinite recursion:
-   * the synthetic event bubbles from upperCanvasEl up to the Fabric
-   * container div, where the OSD MouseTracker would re-intercept it.
+   * A re-entrancy guard (`_forwarding`) prevents infinite recursion: a
+   * synthetic event that bubbles from upperCanvasEl reaches the Fabric
+   * container div, where the OSD MouseTracker would re-intercept it. Since
+   * #175 only the move and release bubble — see below for why the press does
+   * not, and why the other two still must.
    *
    * The guard keeps our own handlers off the bubbled copy, but it cannot keep
    * OSD's tracker off it: `onPointerDown` runs `updatePointerDown` — which
@@ -608,12 +610,9 @@ export class FabricOverlay {
     this._forwarding = true;
     try {
       const upperCanvas = this._fabricCanvas.upperCanvasEl;
-      // Only the press is kept out of the tracker's element, because only the
-      // press is double-counted — `addContact()` runs on `pointerdown` alone,
-      // and a doubled `pointerup` is absorbed by `removeContact()`'s floor at
-      // zero. Fabric hears `pointerdown` on the upper canvas itself, so it
-      // loses nothing; the release and move must keep bubbling to reach the
-      // document listeners Fabric installs once a drag starts.
+      // Withholding the press costs Fabric nothing: it binds `pointerdown` on
+      // the upper canvas itself, so the event arrives AT_TARGET. See the
+      // doc comment above for why the move and release must still bubble.
       const bubbles = type !== POINTER_DOWN;
       const syntheticEvent = new PointerEvent(type, {
         clientX: originalEvent.clientX,

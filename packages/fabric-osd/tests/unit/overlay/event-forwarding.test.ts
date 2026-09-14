@@ -15,7 +15,13 @@ import { createTestViewer, type TestViewer } from './test-viewer.js';
  * to it fails here first.
  */
 interface OverlayInternals {
-  _forwardToFabric(type: 'pointerdown' | 'pointermove' | 'pointerup', event: PointerEvent): void;
+  // Mirrors the source signature rather than just the types exercised below:
+  // `pointercancel` is forwarded by the same method, and a narrower type here
+  // would quietly outlive the reason it was narrowed.
+  _forwardToFabric(
+    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+    event: PointerEvent,
+  ): void;
 }
 
 const internals = (overlay: FabricOverlay): OverlayInternals =>
@@ -62,10 +68,15 @@ describe('synthetic event forwarding', () => {
   let tv: TestViewer;
   let overlay: FabricOverlay;
   let dispatched: PointerEvent[];
+  let realPointerEvent: unknown;
 
   beforeEach(() => {
-    (globalThis as unknown as { PointerEvent: typeof PointerEventPolyfill }).PointerEvent =
-      PointerEventPolyfill;
+    const g = globalThis as unknown as { PointerEvent: unknown };
+    // A plain assignment, so `vi.restoreAllMocks()` will not undo it; keep the
+    // original to put back in `afterEach`. jsdom leaves this undefined today,
+    // which is why the polyfill exists — restoring `undefined` is the point.
+    realPointerEvent = g.PointerEvent;
+    g.PointerEvent = PointerEventPolyfill;
     tv = createTestViewer();
     overlay = new FabricOverlay(tv.viewer);
     dispatched = [];
@@ -83,6 +94,7 @@ describe('synthetic event forwarding', () => {
     overlay.destroy();
     tv.cleanup();
     vi.restoreAllMocks();
+    (globalThis as unknown as { PointerEvent: unknown }).PointerEvent = realPointerEvent;
   });
 
   /**

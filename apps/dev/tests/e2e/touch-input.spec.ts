@@ -1,5 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-import type { CDPSession } from '@playwright/test';
+import { test, expect, type CDPSession, type Page } from '@playwright/test';
 
 /**
  * Touch input in annotation mode (issue #175).
@@ -237,10 +236,18 @@ test.describe('OSD gesture bookkeeping', () => {
     );
     await page.waitForTimeout(400);
 
+    // Anchor the absence claim to a presence claim. Without this the test
+    // stays green for the wrong reason if `touchDrag` ever stops reaching the
+    // tracker at all — a changed test id, a selector drift — and it would
+    // then name a mechanism it no longer observes.
+    expect(await readAnnotations(page)).toHaveLength(1);
+
     // With the count doubled, `updatePointerMove` takes its `contacts === 2`
-    // pinch branch and reads `currentPos` off a second gesture point that was
-    // never tracked — one synchronous `TypeError` per move, thrown during the
-    // gesture rather than after it. Drawing failing is the visible half of the
+    // branch and computes a two-finger centre point from `gPointArray[1]`,
+    // which was never tracked — one synchronous `TypeError` per move, thrown
+    // during the gesture rather than after it. (Not the pinch sub-branch
+    // below it: that one is gated on a `pinchHandler`, which this overlay's
+    // tracker does not register.) Drawing failing is the visible half of the
     // bug; this is the half that shows the contact list itself is wrong, so a
     // fix that restored drawing by some other route would still fail here.
     expect(pageErrors).toEqual([]);
@@ -299,7 +306,8 @@ test.describe('Forwarding regressions the touch fix could cause', () => {
     await page.waitForTimeout(400);
 
     const before = (await readAnnotations(page))[0];
-    expect(before?.geometry.origin).toBeDefined();
+    expect(before).toBeDefined();
+    expect(before!.geometry.origin).toBeDefined();
 
     // Drag the whole shape. Fabric relocates its `pointerup` / `pointermove`
     // listeners to the document once a drag starts, so a fix that stops the
@@ -314,7 +322,8 @@ test.describe('Forwarding regressions the touch fix could cause', () => {
     await page.waitForTimeout(500);
 
     const after = (await readAnnotations(page))[0];
-    expect(after?.geometry.origin).toBeDefined();
+    expect(after).toBeDefined();
+    expect(after!.geometry.origin).toBeDefined();
     expect(after!.geometry.origin!.x).toBeGreaterThan(before!.geometry.origin!.x + 20);
     expect(after!.geometry.origin!.y).toBeGreaterThan(before!.geometry.origin!.y + 20);
   });
@@ -347,6 +356,13 @@ test.describe('Forwarding regressions the touch fix could cause', () => {
     // the likeliest collateral damage: navigation mode returns before any
     // forwarding happens, so a fix reaching into the tracker or the contact
     // list rather than into the forwarding itself could break it.
-    expect(await centre()).not.toBe(before);
+    //
+    // Re-check the sentinel on this read too: `centre()` yields 'none' when
+    // the viewer element has gone, and 'none' differs from `before`, so the
+    // inequality alone would pass in exactly the world where nothing panned
+    // because nothing was there.
+    const after = await centre();
+    expect(after).not.toBe('none');
+    expect(after).not.toBe(before);
   });
 });

@@ -166,11 +166,15 @@ describe('FabricOverlay double-click detection', () => {
   });
 
   it('does not pair clicks from different pointer types', () => {
-    // Mouse and pen. Touch also reaches here since #175, and is covered end
-    // to end in `apps/dev/tests/e2e/touch-input.spec.ts`;
-    // so pairing with it would assert an impossible sequence.
+    // All three pairings are reachable: touch has reached this layer since
+    // #175, so mouse-then-touch is a real sequence a user can produce by
+    // switching input device mid-gesture, not a hypothetical.
     click(ORIGIN, 0, { pointerId: 1, pointerType: 'mouse' });
     click(ORIGIN, 100, { pointerId: 2, pointerType: 'pen' });
+    expect(onDoubleClick).not.toHaveBeenCalled();
+
+    click(ORIGIN, 200, { pointerId: 3, pointerType: 'mouse' });
+    click(ORIGIN, 300, { pointerId: 4, pointerType: 'touch' });
     expect(onDoubleClick).not.toHaveBeenCalled();
   });
 
