@@ -152,10 +152,11 @@ describe('FabricOverlay double-click detection', () => {
   });
 
   it("does not pair a release with another pointer's press", () => {
-    // Same pointerType, so this isolates the pointerId match. Defensive rather
-    // than routine — a mouse keeps one id, and multi-touch cannot reach here
-    // (see the pointer-type test) — but it is what stops a release consuming a
-    // press that was not its own.
+    // Same pointerType, so this isolates the pointerId match. Routine, not
+    // defensive: a mouse keeps one id, but a two-finger touch gesture reaches
+    // here with mismatched ids — the second finger's press overwrites the
+    // first's, and the first finger's release then arrives against it. This
+    // guard is what stops that release consuming a press that was not its own.
     internals(overlay)._recordPress(pointerEvent({ ...at(ORIGIN), timeStamp: 0, pointerId: 1 }));
     internals(overlay)._detectDoubleClick(
       pointerEvent({ ...at(ORIGIN), timeStamp: 10, pointerId: 2 }),

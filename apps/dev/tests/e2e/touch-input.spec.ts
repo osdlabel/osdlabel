@@ -5,11 +5,13 @@ import { test, expect, type CDPSession, type Page } from '@playwright/test';
  *
  * `FabricOverlay` routes all input through an OSD `MouseTracker` on the Fabric
  * container and forwards each event to Fabric by dispatching a synthetic
- * `PointerEvent` on the upper canvas. That synthetic event bubbles back to the
- * container, so OSD's tracker processes one real press twice.
- * `GesturePointList.addContact()` corrects the double count **only for mouse
- * and pen**, leaving touch at `contacts === 2` — and `releaseHandler` fires
- * only at `contacts === 0`.
+ * `PointerEvent` on the upper canvas. That synthetic event *used to* bubble
+ * back to the container for every type, so OSD's tracker processed one real
+ * press twice. `GesturePointList.addContact()` corrects the double count
+ * **only for mouse and pen**, leaving touch at `contacts === 2` — and
+ * `releaseHandler` fires only at `contacts === 0` for a pointer pressed in
+ * the tracker's own element. The press is now dispatched non-bubbling; these
+ * tests are what hold that in place.
  *
  * The tests are in three tiers, and the split is deliberate:
  *

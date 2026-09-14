@@ -159,7 +159,9 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  * Handles event routing between OSD and Fabric using an OSD MouseTracker
  * attached to Fabric's container element. Events are forwarded to Fabric
  * as synthetic PointerEvents with a re-entrancy guard to prevent infinite
- * recursion (dispatched events bubble back to the tracker's element).
+ * recursion (a dispatched event that bubbles reaches the tracker's element).
+ * The press is dispatched non-bubbling and the move and release are not —
+ * see {@link FabricOverlay._forwardToFabric} for why (#175).
  *
  * Three interaction modes:
  * - **navigation**: OSD handles all input, Fabric is display-only.
