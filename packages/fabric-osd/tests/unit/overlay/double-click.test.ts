@@ -166,7 +166,8 @@ describe('FabricOverlay double-click detection', () => {
   });
 
   it('does not pair clicks from different pointer types', () => {
-    // Mouse and pen, not touch: touch cannot reach this layer at all (#175),
+    // Mouse and pen. Touch also reaches here since #175, and is covered end
+    // to end in `apps/dev/tests/e2e/touch-input.spec.ts`;
     // so pairing with it would assert an impossible sequence.
     click(ORIGIN, 0, { pointerId: 1, pointerType: 'mouse' });
     click(ORIGIN, 100, { pointerId: 2, pointerType: 'pen' });

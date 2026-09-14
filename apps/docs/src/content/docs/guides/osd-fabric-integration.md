@@ -359,7 +359,7 @@ Both halves of that test are load-bearing. Measuring only against the release po
 
 #### Touch
 
-Touch never reaches this layer. The synthetic `pointerdown` bubbles back to the container, OSD counts the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returns to zero contacts and `releaseHandler` is never called. That is a property of the forwarding design rather than of this pairing, and is tracked in [#175](https://github.com/osdlabel/osdlabel/issues/175).
+Touch reaches this layer as of [#175](https://github.com/osdlabel/osdlabel/issues/175). It previously did not: the synthetic `pointerdown` bubbled back to the container, OSD counted the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returned to zero contacts and `releaseHandler`, which this detection runs from, was never called. The press is now dispatched non-bubbling, so the count is correct and a double tap pairs like a double click. That was a property of the forwarding design rather than of this pairing.
 
 ## How annotations stay correct under rotation/flip
 

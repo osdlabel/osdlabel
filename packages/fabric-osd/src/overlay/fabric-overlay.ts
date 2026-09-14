@@ -581,6 +581,24 @@ export class FabricOverlay {
    * A re-entrancy guard (`_forwarding`) prevents infinite recursion:
    * the synthetic event bubbles from upperCanvasEl up to the Fabric
    * container div, where the OSD MouseTracker would re-intercept it.
+   *
+   * The guard keeps our own handlers off the bubbled copy, but it cannot keep
+   * OSD's tracker off it: `onPointerDown` runs `updatePointerDown` — which
+   * calls `GesturePointList.addContact()` — *before* it honours
+   * `eventInfo.stopPropagation`, so one real press is counted twice
+   * (openseadragon.js, `onPointerDown`). `addContact()` clamps that back for
+   * mouse and pen only, which is why the bug is touch-only (#175) and why mouse
+   * input had been logging `Implausible contacts value` on every press.
+   *
+   * So the press is dispatched non-bubbling, which keeps it out of the
+   * tracker's element entirely. The release and move are not: Fabric moves its
+   * `pointerup` and `pointermove` listeners to the *document* on mousedown, so
+   * a non-bubbling release never reaches Fabric at all. That costs every
+   * gesture that commits on mouse-up — dragging an existing object and drawing
+   * a new one alike — which is why the asymmetry is load-bearing and not a
+   * stylistic choice. The release and move can bubble safely because only
+   * `pointerdown` adds a contact; a doubled `pointerup` is absorbed by
+   * `removeContact()`'s floor at zero.
    */
   private _forwardToFabric(
     type: typeof POINTER_DOWN | typeof POINTER_MOVE | typeof POINTER_UP | typeof POINTER_CANCEL,
@@ -590,6 +608,13 @@ export class FabricOverlay {
     this._forwarding = true;
     try {
       const upperCanvas = this._fabricCanvas.upperCanvasEl;
+      // Only the press is kept out of the tracker's element, because only the
+      // press is double-counted — `addContact()` runs on `pointerdown` alone,
+      // and a doubled `pointerup` is absorbed by `removeContact()`'s floor at
+      // zero. Fabric hears `pointerdown` on the upper canvas itself, so it
+      // loses nothing; the release and move must keep bubbling to reach the
+      // document listeners Fabric installs once a drag starts.
+      const bubbles = type !== POINTER_DOWN;
       const syntheticEvent = new PointerEvent(type, {
         clientX: originalEvent.clientX,
         clientY: originalEvent.clientY,
@@ -597,7 +622,7 @@ export class FabricOverlay {
         screenY: originalEvent.screenY,
         button: originalEvent.button,
         buttons: originalEvent.buttons,
-        bubbles: true,
+        bubbles,
         cancelable: true,
         pointerId: originalEvent.pointerId,
         pointerType: originalEvent.pointerType,
@@ -663,7 +688,9 @@ export class FabricOverlay {
     this._lastClick = { time, x, y, pointerType: originalEvent.pointerType };
 
     if (!previous) return;
-    // Mouse and pen only — touch cannot reach this layer at all (see #175).
+    // A pair must be the same pointer type. Touch reaches here since #175;
+    // before that the contact count never returned to zero, so the release
+    // this runs from was never delivered for touch at all.
     if (previous.pointerType !== originalEvent.pointerType) return;
     if (time - previous.time > this._overlayTracker.dblClickTimeThreshold) return;
     if (Math.hypot(x - previous.x, y - previous.y) > this._overlayTracker.dblClickDistThreshold) {
