@@ -292,9 +292,13 @@ A wheel event with no vertical delta produces no zoom at all — a purely horizo
 
 Events are forwarded by dispatching a synthetic `PointerEvent` on Fabric's upper canvas element. This is necessary because the original DOM event targets the MouseTracker's element, not Fabric's canvas.
 
-A **re-entrancy guard** (`_forwarding` flag) prevents infinite loops: the synthetic event bubbles from Fabric's upper canvas up to the container div, where the MouseTracker would intercept it again. The guard ensures the bubbled-back event is ignored.
+A **re-entrancy guard** (`_forwarding` flag) prevents infinite loops: a synthetic event that bubbles from Fabric's upper canvas reaches the container div, where the MouseTracker would intercept it again. The guard ensures the bubbled-back event is ignored.
 
 That guard has a second, less obvious role: it is what makes double-click detection possible, below.
+
+The guard is not enough on its own, which is why the press is dispatched **non-bubbling** while the move and release are not. OSD's `onPointerDown` calls `GesturePointList.addContact()` _before_ it honours `eventInfo.stopPropagation`, so the guard cannot keep the bubbled press out of OSD's contact bookkeeping — only not dispatching it into the container can. Fabric loses nothing, because it binds `pointerdown` on the upper canvas itself and the event arrives AT_TARGET.
+
+The move and release must keep bubbling. Fabric binds `pointerup` on the **document**, and moves `pointermove` from the canvas to the document for the duration of a press, so a non-bubbling release would never reach Fabric at all — costing every gesture that commits on mouse-up. Only `pointerdown` adds a contact, so only the press needs withholding; a doubled `pointerup` is absorbed by `removeContact()`'s floor at zero. See [#175](https://github.com/osdlabel/osdlabel/issues/175).
 
 ```ts
 private _forwardToFabric(type: string, originalEvent: PointerEvent): void {
@@ -305,7 +309,8 @@ private _forwardToFabric(type: string, originalEvent: PointerEvent): void {
       clientX: originalEvent.clientX,
       clientY: originalEvent.clientY,
       // ... all other properties copied from original
-      bubbles: true,
+      // Only the press is withheld from the container; see above.
+      bubbles: type !== 'pointerdown',
       cancelable: true,
     });
     this._fabricCanvas.upperCanvasEl.dispatchEvent(syntheticEvent);

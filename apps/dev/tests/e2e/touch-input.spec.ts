@@ -23,14 +23,15 @@ import { test, expect, type CDPSession, type Page } from '@playwright/test';
  *    tier 2 has papered over the bug.
  * 3. **Regression fence** — things that work today and that a plausible fix
  *    would break. The candidate fixes all involve keeping the synthetic event
- *    out of the container, and Fabric moves its `pointerup` / `pointermove`
- *    listeners to the *document* after a mousedown, so suppressing the release
- *    as well as the press costs every gesture that commits on mouse-up. That
- *    is measured, not assumed: with `bubbles: false` on the whole event, both
- *    symptom tests fail too, because a rectangle is committed on the release
- *    exactly as a drag is. What these fences add over the symptom tier is the
- *    *mouse* path and navigation mode, neither of which the touch symptoms
- *    exercise.
+ *    out of the container, and Fabric binds `pointerup` on the *document*
+ *    (relocating `pointermove` there for the duration of a press), so
+ *    suppressing the release as well as the press costs every gesture that
+ *    commits on mouse-up. That is measured, not assumed: with `bubbles:
+ *    false` on the whole event, both *drag* symptom tests fail too, because a
+ *    rectangle is committed on the release exactly as a drag is. The double
+ *    tap survives it, needing no Fabric-side release. What these fences add
+ *    over the symptom tier is the *mouse* path and navigation mode, neither
+ *    of which the touch symptoms exercise.
  *
  * The rest of the fence lives in existing specs and is not duplicated here:
  * `polyline-drawing-feedback.spec.ts` covers the double-click finish, whose
@@ -309,9 +310,9 @@ test.describe('Forwarding regressions the touch fix could cause', () => {
     expect(before).toBeDefined();
     expect(before!.geometry.origin).toBeDefined();
 
-    // Drag the whole shape. Fabric relocates its `pointerup` / `pointermove`
-    // listeners to the document once a drag starts, so a fix that stops the
-    // synthetic release bubbling leaves Fabric with a press and no mouse-up.
+    // Drag the whole shape. Fabric binds `pointerup` on the document, so a
+    // fix that stops the synthetic release bubbling leaves Fabric with a
+    // press and no mouse-up.
     // Drawing breaks on that too (it commits on the release); what this adds
     // is the mouse path, which no symptom test drives.
     await page.getByTestId('tool-select').click();

@@ -169,6 +169,12 @@ describe('FabricOverlay double-click detection', () => {
     // All three pairings are reachable: touch has reached this layer since
     // #175, so mouse-then-touch is a real sequence a user can produce by
     // switching input device mid-gesture, not a hypothetical.
+    //
+    // The touch pair is not redundant with the mouse/pen pair above it.
+    // Deleting the guard outright fails on mouse/pen first; what the touch
+    // pair catches is a guard *exempting* touch — which is a plausible way to
+    // "fix" #175 badly, by special-casing the pointer type instead of the
+    // contact count. Verified by both mutations.
     click(ORIGIN, 0, { pointerId: 1, pointerType: 'mouse' });
     click(ORIGIN, 100, { pointerId: 2, pointerType: 'pen' });
     expect(onDoubleClick).not.toHaveBeenCalled();

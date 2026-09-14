@@ -113,8 +113,8 @@ describe('synthetic event forwarding', () => {
   });
 
   /**
-   * The move and release must bubble. Fabric relocates its `pointermove` and
-   * `pointerup` listeners to the *document* once a press lands, so a
+   * The move and release must bubble. Fabric binds `pointerup` on the
+   * *document* and relocates `pointermove` there once a press lands, so a
    * non-bubbling copy reaches Fabric for the press and never for the release.
    * Only `pointerdown` adds a contact, so only the press needs withholding.
    */

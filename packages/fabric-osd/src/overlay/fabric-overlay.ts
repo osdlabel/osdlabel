@@ -593,9 +593,10 @@ export class FabricOverlay {
    * input had been logging `Implausible contacts value` on every press.
    *
    * So the press is dispatched non-bubbling, which keeps it out of the
-   * tracker's element entirely. The release and move are not: Fabric moves its
-   * `pointerup` and `pointermove` listeners to the *document* on mousedown, so
-   * a non-bubbling release never reaches Fabric at all. That costs every
+   * tracker's element entirely. The release and move are not: Fabric binds
+   * `pointerup` on the *document* and relocates `pointermove` there for the
+   * duration of a press, so a non-bubbling release never reaches Fabric at
+   * any point in the gesture. That costs every
    * gesture that commits on mouse-up — dragging an existing object and drawing
    * a new one alike — which is why the asymmetry is load-bearing and not a
    * stylistic choice. The release and move can bubble safely because only
