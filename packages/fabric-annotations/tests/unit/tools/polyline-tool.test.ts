@@ -311,23 +311,41 @@ describe('PolylineTool', () => {
     tool = new PolylineTool();
     tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
 
-    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+    const stamped = (): PointerEvent => {
+      const event = { type: 'pointerdown' } as PointerEvent;
+      mockOverlay.stampPress(event);
+      return event;
+    };
+
+    tool.onPointerDown(stamped(), { x: 10, y: 10 });
     tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 50, y: 50 });
-    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 50 });
+    const first = stamped();
+    tool.onPointerDown(first, { x: 50, y: 50 });
 
     // A double click delivers both of its pointerdowns before the overlay
     // reports the gesture, so the second vertex at (50, 50) is the artefact
     // onDoubleClick drops. Driving it in that order is the point: asserting
     // against a hand-built `{ detail: 2 }` event is what hid #168, since no
     // pointerdown the browser delivers here ever carries a non-zero `detail`.
-    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 50, y: 50 });
-    tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 });
+    const second = stamped();
+    tool.onPointerDown(second, { x: 50, y: 50 });
+    tool.onDoubleClick!({ type: 'pointerup' } as PointerEvent, { x: 50, y: 50 }, [
+      mockOverlay.seqOf(first)!,
+      mockOverlay.seqOf(second)!,
+    ]);
 
     expect(addedParams).toHaveLength(1);
     const params = addedParams[0]!;
 
     expect(params.type).toBe('polyline');
     expect(params.fabricObject).toBeInstanceOf(Polyline);
+    // Two vertices, not three: the duplicate the gesture's second press added
+    // is gone. Without this the test passed either way, and the committed path
+    // quietly gained a degenerate repeated vertex.
+    expect((params.fabricObject as Polyline).points).toEqual([
+      { x: 10, y: 10 },
+      { x: 50, y: 50 },
+    ]);
     // Should be open (not Polygon)
     expect(params.fabricObject).not.toBeInstanceOf(Polygon);
 

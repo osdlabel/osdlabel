@@ -18,11 +18,16 @@ import { createTestViewer, installPointerEventPolyfill, type TestViewer } from '
 interface OverlayInternals {
   _recordPress(event: PointerEvent): number;
   _detectDoubleClick(event: PointerEvent): void;
-  _forwardToFabric(
-    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
-    event: PointerEvent,
-    pressSeq?: number,
-  ): void;
+  /**
+   * The real OSD `MouseTracker` the overlay built. Driving its handlers runs
+   * the production call site, which is the point for the join test below:
+   * reconstructing that call in the test body would pin the two methods
+   * against each other while leaving the line that connects them uncovered.
+   */
+  _overlayTracker: {
+    pressHandler(event: { originalEvent: PointerEvent }): void;
+    releaseHandler(event: { originalEvent: PointerEvent }): void;
+  };
 }
 
 const internals = (overlay: FabricOverlay): OverlayInternals =>
@@ -127,16 +132,10 @@ describe('FabricOverlay double-click detection', () => {
       return true;
     });
 
-    // Drive press and release the way the tracker's handlers do: the sequence
-    // stamped on the forwarded event is whatever `_recordPress` returned.
+    const tracker = internals(overlay)._overlayTracker;
     const pressAndRelease = (time: number): void => {
-      const down = pointerEvent({ ...at(ORIGIN), timeStamp: time });
-      internals(overlay)._forwardToFabric(
-        'pointerdown',
-        down,
-        internals(overlay)._recordPress(down),
-      );
-      internals(overlay)._detectDoubleClick(pointerEvent({ ...at(ORIGIN), timeStamp: time }));
+      tracker.pressHandler({ originalEvent: pointerEvent({ ...at(ORIGIN), timeStamp: time }) });
+      tracker.releaseHandler({ originalEvent: pointerEvent({ ...at(ORIGIN), timeStamp: time }) });
     };
     pressAndRelease(0);
     pressAndRelease(100);
@@ -144,10 +143,12 @@ describe('FabricOverlay double-click detection', () => {
     expect(onDoubleClick).toHaveBeenCalledTimes(1);
     const pressSeqs = onDoubleClick.mock.calls[0]![2];
     expect(pressSeqs).toBeDefined();
-    expect(dispatched).toHaveLength(2);
+    // The handlers forward the releases too; only the presses carry a stamp.
+    const forwardedPresses = dispatched.filter((event) => event.type === 'pointerdown');
+    expect(forwardedPresses).toHaveLength(2);
     expect(pressSeqs).toEqual([
-      overlay.pressSeqOf(dispatched[0]!),
-      overlay.pressSeqOf(dispatched[1]!),
+      overlay.pressSeqOf(forwardedPresses[0]!),
+      overlay.pressSeqOf(forwardedPresses[1]!),
     ]);
   });
 

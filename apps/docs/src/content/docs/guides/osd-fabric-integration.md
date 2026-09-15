@@ -316,7 +316,7 @@ private _forwardToFabric(type: string, originalEvent: PointerEvent, pressSeq?: n
       cancelable: true,
     });
     // Presses carry their sequence, keyed on the event the tool receives.
-    if (pressSeq !== undefined) this.pressSeqByEvent.set(syntheticEvent, pressSeq);
+    if (pressSeq !== undefined) this._pressSeqByEvent.set(syntheticEvent, pressSeq);
     this._fabricCanvas.upperCanvasEl.dispatchEvent(syntheticEvent);
   } finally {
     this._forwarding = false;
