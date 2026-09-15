@@ -1945,6 +1945,9 @@ export const lineRatioHudProvider: DecorationProvider = ({ annotations }) => {
   const [first, second] = lines;
   const l1 = length(first!.geometry);
   const l2 = length(second!.geometry);
+  if (l1 === 0 || l2 === 0) {
+    return []; // a degenerate line would otherwise print Infinity / NaN
+  }
 
   const decoration: TextDecoration = {
     id: 'hud:ratio',
@@ -1960,7 +1963,7 @@ export const lineRatioHudProvider: DecorationProvider = ({ annotations }) => {
 };
 ```
 
-Because the anchor is `{ x: 1, y: 0 }` in `'cell'` space with `placement: 'top-right'`, the readout's top-right corner sits 8px in from the cell's own top-right corner, no matter how the user has panned, zoomed, rotated, or flipped the image underneath — only editing the annotations (or resizing the cell) moves it. Live drag updates work exactly as for image-anchored decorations: while the user drags an endpoint of `first` or `second`, `enableLiveDecorationUpdates` re-runs this provider against the live geometry every animation frame, so the ratio text updates mid-drag and the readout stays HUD-fixed throughout.
+Because the anchor is `{ x: 1, y: 0 }` in `'cell'` space with `placement: 'top-right'`, the readout's top-right corner sits 8px in from the cell's own top-right corner, no matter how the user has panned, zoomed, rotated, or flipped the image underneath — only editing the annotations (or resizing the cell) moves it. Live drag updates work exactly as for image-anchored decorations: while the user moves, scales, or rotates `first` or `second`, `enableLiveDecorationUpdates` re-runs this provider against the live geometry every animation frame, so the ratio text updates mid-drag and the readout stays HUD-fixed throughout. Vertex (endpoint) edits are committed on release, so for those the readout updates when the drag ends.
 
 ## Live updates during drag
 

@@ -11,7 +11,13 @@ import { test, expect, type Page, type Locator } from '@playwright/test';
  * rotates or flips — while still re-computing its text from live geometry.
  */
 
-/** Slack for "is pinned to the cell corner": the cell's 2px border plus the label's padding. */
+/**
+ * Slack for "is pinned to the cell corner". The corner check measures against
+ * the OSD canvas box — the element the decoration host is sized from — rather
+ * than the grid cell, whose 2px active-cell border would otherwise have to be
+ * folded into the budget. What is left is the provider's own 8px offset plus
+ * the label's padding.
+ */
 const CORNER_TOLERANCE_PX = 12;
 /** Slack for "did not move at all" comparisons of the same element across a view change. */
 const STATIC_TOLERANCE_PX = 1;
@@ -55,15 +61,39 @@ const drawLine = async (
   await page.waitForTimeout(400);
 };
 
-/** Assert the HUD sits in the cell's top-right corner, whatever the cell's size is. */
+/**
+ * Assert the HUD sits in the top-right of the cell's viewport, whatever its
+ * current size is. `anchorSpace: 'cell'` anchors are fractions of the
+ * decoration host, which spans the OSD canvas, so that box is the reference.
+ */
 const expectPinnedTopRight = async (page: Page): Promise<void> => {
-  const cell = await boxOf(page.getByTestId('grid-cell-0'));
+  const view = await canvasBox(page);
   const hud = await boxOf(page.locator(HUD_SELECTOR));
-  expect(Math.abs(cell.x + cell.width - (hud.x + hud.width))).toBeLessThanOrEqual(
+  expect(Math.abs(view.x + view.width - (hud.x + hud.width))).toBeLessThanOrEqual(
     CORNER_TOLERANCE_PX,
   );
-  expect(Math.abs(hud.y - cell.y)).toBeLessThanOrEqual(CORNER_TOLERANCE_PX);
+  expect(Math.abs(hud.y - view.y)).toBeLessThanOrEqual(CORNER_TOLERANCE_PX);
 };
+
+/**
+ * The annotation id of the cell's currently selected Fabric object, or `null`.
+ *
+ * Read through the overlay handle the dev app publishes in `testMode` (the same
+ * hook `resize-jitter.spec.ts` uses); a missing handle throws rather than
+ * reporting "nothing selected", so a broken hook cannot silently satisfy a
+ * negative assertion.
+ */
+const selectedAnnotationId = (page: Page): Promise<string | null> =>
+  page.evaluate(() => {
+    const el = document.querySelector('.openseadragon-canvas') as
+      | (Element & {
+          __osdOverlay?: { canvas?: { getActiveObject: () => { id?: string } | null } };
+        })
+      | null;
+    const canvas = el?.__osdOverlay?.canvas;
+    if (!canvas) throw new Error('overlay test hook not installed');
+    return canvas.getActiveObject()?.id ?? null;
+  });
 
 test.describe('Cell-anchored HUD decorations', () => {
   test.beforeEach(async ({ page }) => {
@@ -83,7 +113,10 @@ test.describe('Cell-anchored HUD decorations', () => {
     await drawLine(page, box, [120, 140], [320, 140]);
     await expect(hud).toHaveCount(0);
 
-    // Second line: length 200 vs length 100 → 2.00 / 0.50.
+    // Second line: length 200 vs length 100 → 2.00 / 0.50. The exact strings
+    // are safe because the ratio is scale-invariant (whatever image-space
+    // scale the viewport is at divides out) and both drawn lengths are whole
+    // CSS pixels, so the quotient is exact before rounding to 2 decimals.
     await drawLine(page, box, [120, 240], [220, 240]);
     await expect(hud).toHaveCount(1);
     await expect(hud).toBeVisible();
@@ -172,6 +205,10 @@ test.describe('Cell-anchored HUD decorations', () => {
     await page.getByTestId('tool-select').click();
     await page.mouse.click(box.x + 225, box.y + 225);
     await page.waitForTimeout(300);
+    // Fail here, as "nothing got selected", if the click missed the line —
+    // otherwise a missed click surfaces below as a bogus "the HUD never
+    // updated" product failure.
+    expect(await selectedAnnotationId(page)).not.toBeNull();
 
     await page.mouse.move(box.x + 300, box.y + 300);
     await page.mouse.down();
@@ -181,11 +218,11 @@ test.describe('Cell-anchored HUD decorations', () => {
     }
     // Read the live value while the pointer is still down: this is
     // `enableLiveDecorationUpdates` re-running the provider on `object:scaling`,
-    // before any state commit has happened.
-    await page.waitForTimeout(200);
+    // before any state commit has happened. Condition-driven rather than a
+    // fixed sleep, since the update lands on the next animation frame.
+    await expect.poll(() => hud.textContent(), { timeout: 2000 }).not.toBe(beforeDrag);
     const midDrag = await hud.textContent();
     expect(midDrag).toBeTruthy();
-    expect(midDrag).not.toBe(beforeDrag);
 
     await page.mouse.up();
     await page.waitForTimeout(500);
