@@ -161,10 +161,7 @@ describe('VertexMarkerLayer', () => {
     const firstOverlayMarkers = added();
 
     const otherCanvas = createMockCanvas();
-    const otherOverlay = {
-      canvas: otherCanvas,
-      imageToScreen: (p: Point) => p,
-    } as unknown as ToolOverlay;
+    const otherOverlay = createMockToolOverlay(otherCanvas);
     layer.sync(otherOverlay, vertices([10, 10]), DEFAULT_ANNOTATION_STYLE);
 
     expect(removed()).toEqual(firstOverlayMarkers);

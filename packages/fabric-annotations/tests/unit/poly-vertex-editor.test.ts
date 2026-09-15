@@ -3,6 +3,7 @@ import { Polygon, Polyline, type FabricObject, type Transform } from 'fabric';
 import { PolyVertexEditor } from '../../src/poly-vertex-editor.js';
 import { initFabricModule } from '../../src/fabric-module.js';
 import type { ToolOverlay } from '../../src/types.js';
+import { createMockToolOverlay } from './test-helpers.js';
 
 initFabricModule();
 
@@ -49,7 +50,7 @@ describe('PolyVertexEditor', () => {
       requestRenderAll: vi.fn(),
       fire: vi.fn(),
     };
-    overlay = { canvas } as unknown as ToolOverlay;
+    overlay = createMockToolOverlay(canvas);
     editor = new PolyVertexEditor({ longPressMs: 500, moveTolerancePx: 8 });
     editor.activate(overlay);
   });

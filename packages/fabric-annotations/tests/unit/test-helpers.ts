@@ -143,16 +143,29 @@ export function expectFabricInstance<T extends FabricObject>(
  * Returning a real `ToolOverlay` means a new member of the interface breaks
  * here, at one declaration, instead of in every suite that drives a tool.
  *
- * `pressSeqOf` mirrors the real overlay: each distinct event object it is asked
- * about gets the next sequence number, exactly as each forwarded press does.
+ * `pressSeqOf` mirrors the real overlay's *contract*, not merely its shape:
+ * only an event handed to `stampPress` gets a sequence, exactly as only a
+ * forwarded `pointerdown` does in production. Anything else — a move, a
+ * release, an event a test built and never stamped — reads `undefined`.
+ *
+ * Handing out a number for every event asked about would be friendlier and
+ * wrong: a tool that read a sequence from `onPointerMove` would pass here and
+ * get `undefined` in production, which is the failure direction tests exist to
+ * catch.
  */
 export interface MockToolOverlay extends ToolOverlay {
+  /** Record `event` as a forwarded press and return its sequence. */
+  stampPress(event: PointerEvent): number;
   /** The sequence already assigned to `event`, for assertions. */
   seqOf(event: PointerEvent): number | undefined;
 }
 
 export function createMockToolOverlay(
-  canvas: MockFabricCanvas,
+  // Deliberately loose: this field is cast either way (a partial mock is not a
+  // `Canvas`), and some suites build a canvas stub with a different surface.
+  // Every *other* member of the returned object is checked against
+  // `ToolOverlay`, which is the point of the helper.
+  canvas: object,
   imageToScreen: (point: Point) => Point = (point) => point,
 ): MockToolOverlay {
   const assigned = new WeakMap<PointerEvent, number>();
@@ -165,12 +178,10 @@ export function createMockToolOverlay(
     // which whole-object `as unknown as ToolOverlay` did not.
     canvas: canvas as unknown as Canvas,
     imageToScreen,
-    pressSeqOf(event: PointerEvent): number | undefined {
-      let seq = assigned.get(event);
-      if (seq === undefined) {
-        seq = ++next;
-        assigned.set(event, seq);
-      }
+    pressSeqOf: (event: PointerEvent): number | undefined => assigned.get(event),
+    stampPress: (event: PointerEvent): number => {
+      const seq = ++next;
+      assigned.set(event, seq);
       return seq;
     },
     seqOf: (event: PointerEvent): number | undefined => assigned.get(event),

@@ -149,7 +149,7 @@ export class PolylineTool extends BaseTool {
     _imagePoint: Point,
     pressSeqs?: readonly [number, number],
   ): void {
-    this.dropGestureVertices(pressSeqs);
+    this.dropGestureVertex(pressSeqs);
     this.finish(false);
   }
 
@@ -212,7 +212,7 @@ export class PolylineTool extends BaseTool {
    * never removed. That is the safe direction: a stray vertex is recoverable,
    * a silently deleted one is not.
    */
-  private dropGestureVertices(pressSeqs?: readonly [number, number]): void {
+  private dropGestureVertex(pressSeqs?: readonly [number, number]): void {
     if (!pressSeqs) return;
     const count = this.vertexSeqs.length;
     const [firstSeq, secondSeq] = pressSeqs;

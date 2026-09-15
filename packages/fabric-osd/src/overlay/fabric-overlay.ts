@@ -424,17 +424,6 @@ export class FabricOverlay {
   }
 
   /**
-   * Register a callback fired when a double click lands on the overlay in
-   * annotation mode. Returns an unsubscribe function.
-   *
-   * The gesture does not come from Fabric, and cannot: see the "Double clicks"
-   * section of the OSD-Fabric integration guide (issue #168).
-   *
-   * Subscribing resets any pending pairing, so a click made before this call
-   * cannot pair with the first after it — the hooks resubscribe whenever their
-   * effect re-runs, of which a tool change is the case `setMode` does not see.
-   */
-  /**
    * The press that produced a forwarded `pointerdown`, or `undefined` if this
    * event is not one the overlay forwarded as a press.
    *
@@ -447,6 +436,17 @@ export class FabricOverlay {
     return this._pressSeqByEvent.get(event);
   }
 
+  /**
+   * Register a callback fired when a double click lands on the overlay in
+   * annotation mode. Returns an unsubscribe function.
+   *
+   * The gesture does not come from Fabric, and cannot: see the "Double clicks"
+   * section of the OSD-Fabric integration guide (issue #168).
+   *
+   * Subscribing resets any pending pairing, so a click made before this call
+   * cannot pair with the first after it — the hooks resubscribe whenever their
+   * effect re-runs, of which a tool change is the case `setMode` does not see.
+   */
   onDoubleClick(callback: DoubleClickCallback): () => void {
     this._lastClick = null;
     this._doubleClickSubscribers.add(callback);
@@ -657,7 +657,7 @@ export class FabricOverlay {
       // the upper canvas itself, so the event arrives AT_TARGET. See the
       // doc comment above for why the move and release must still bubble.
       const bubbles = type !== POINTER_DOWN;
-      const syntheticEvent: PointerEvent = new PointerEvent(type, {
+      const syntheticEvent = new PointerEvent(type, {
         clientX: originalEvent.clientX,
         clientY: originalEvent.clientY,
         screenX: originalEvent.screenX,

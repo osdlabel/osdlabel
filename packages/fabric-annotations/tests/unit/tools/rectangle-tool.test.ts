@@ -10,6 +10,7 @@ import {
   createTestKeyboardShortcuts,
   createMockCanvas,
   type MockFabricCanvas,
+  createMockToolOverlay,
 } from '../test-helpers.js';
 
 describe('RectangleTool', () => {
@@ -28,9 +29,7 @@ describe('RectangleTool', () => {
 
     mockCanvas = createMockCanvas();
 
-    mockOverlay = {
-      canvas: mockCanvas,
-    } as unknown as ToolOverlay;
+    mockOverlay = createMockToolOverlay(mockCanvas);
 
     mockCallbacks = {
       getActiveContextId: () => contextId,

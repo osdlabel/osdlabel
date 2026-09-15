@@ -1,6 +1,8 @@
 ---
 '@osdlabel/fabric-osd': minor
 '@osdlabel/fabric-annotations': minor
+'@osdlabel/solid': minor
+'@osdlabel/react': minor
 ---
 
 Identify a double click's own vertices by press sequence instead of screen distance.
@@ -14,5 +16,7 @@ That was inexact in one narrow case: with the first press suppressed _and_ the p
 `pressSeqOf` is keyed on the synthetic event the overlay dispatches — the one a tool receives — and populated only for presses, so every other event returns `undefined`. `undefined` means "not a tracked press", never a stale number, and halts the scan rather than matching.
 
 Both additions are optional or additive: `DoubleClickCallback` and `AnnotationTool.onDoubleClick` gain a trailing optional parameter, which existing implementations remain assignable to. `ToolOverlay` gains a required `pressSeqOf`, so a custom implementation of that interface must add it — hence minor rather than patch.
+
+Both framework hooks relayed the double click as `(e, p) => tool.onDoubleClick?.(e, p)`, dropping the third argument, so the pair never reached the tool. Fixed in `@osdlabel/solid` and `@osdlabel/react`.
 
 `SECOND_PRESS_SCREEN_PX` and `FIRST_PRESS_SCREEN_PX` are gone from `@osdlabel/fabric-annotations`.

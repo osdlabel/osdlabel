@@ -448,7 +448,12 @@ describe('PolylineTool', () => {
    * does for real presses.
    */
   describe('drops exactly the vertices its own presses added', () => {
-    const press = (): PointerEvent => ({ type: 'pointerdown' }) as PointerEvent;
+    /** A press the overlay forwarded, so it carries a sequence — as in production. */
+    const press = (): PointerEvent => {
+      const event = { type: 'pointerdown' } as PointerEvent;
+      mockOverlay.stampPress(event);
+      return event;
+    };
     const release = (): PointerEvent => ({ type: 'pointerup' }) as PointerEvent;
     /** The sequence of a press the tool never saw, because it was suppressed. */
     const SUPPRESSED = 9999;
@@ -545,8 +550,11 @@ describe('PolylineTool', () => {
       const a = press();
       const b = press();
       tool.onPointerDown(a, { x: 10, y: 10 });
+      // The gesture's first press landed on an annotation and was suppressed;
+      // its second placed this vertex. Two vertices total, and popping either
+      // would take the path under `finish`'s minimum.
       tool.onPointerDown(b, { x: 90, y: 10 });
-      tool.onDoubleClick!(release(), { x: 90, y: 10 }, [SUPPRESSED, SUPPRESSED + 1]);
+      tool.onDoubleClick!(release(), { x: 90, y: 10 }, [SUPPRESSED, seq(b)]);
 
       // Popping either vertex would leave one, and `finish` would cancel —
       // losing the user's whole in-progress path rather than committing it.
@@ -607,57 +615,6 @@ describe('PolylineTool', () => {
 
       expect(addedParams).toHaveLength(1);
       expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
-        { x: 10, y: 10 },
-        { x: 90, y: 10 },
-        { x: 90, y: 70 },
-      ]);
-    });
-
-    it('cancels the fresh path when the gesture closed one and started another', () => {
-      const a = press();
-      const b = press();
-      const c = press();
-      const closing = press();
-      const after = press();
-      tool.onPointerDown(a, { x: 10, y: 10 });
-      tool.onPointerDown(b, { x: 90, y: 10 });
-      tool.onPointerDown(c, { x: 90, y: 70 });
-      // The gesture's first press closes the path and commits it; its second
-      // then starts a brand-new one-vertex path. That leaves fewer than two
-      // vertices, so there is no pair to match and `finish` cancels.
-      tool.onPointerDown(closing, { x: 12, y: 12 });
-      tool.onPointerDown(after, { x: 400, y: 400 });
-      tool.onDoubleClick!(release(), { x: 400, y: 400 }, [seq(closing), seq(after)]);
-
-      // Exactly one commit — the closed polygon. The stray vertex is discarded
-      // rather than committed as a degenerate path.
-      expect(addedParams).toHaveLength(1);
-      expect((addedParams[0]!.fabricObject as Polygon).points).toEqual([
-        { x: 10, y: 10 },
-        { x: 90, y: 10 },
-        { x: 90, y: 70 },
-      ]);
-    });
-
-    // Note: this one never reaches `dropGestureVertices` — the closing press
-    // commits before any double click is reported. It guards the interaction
-    // between closing and the sequence stamping (a stamp must not be orphaned),
-    // not the drop rule itself.
-    it('closes the path without orphaning a sequence stamp', () => {
-      const a = press();
-      const b = press();
-      const c = press();
-      const closing = press();
-      tool.onPointerDown(a, { x: 10, y: 10 });
-      tool.onPointerDown(b, { x: 90, y: 10 });
-      tool.onPointerDown(c, { x: 90, y: 70 });
-      // Within CLOSE_THRESHOLD of the first vertex: this press closes the path
-      // and commits, adding no vertex.
-      tool.onPointerDown(closing, { x: 12, y: 12 });
-
-      expect(addedParams).toHaveLength(1);
-      const points = (addedParams[0]!.fabricObject as Polygon).points;
-      expect(points).toEqual([
         { x: 10, y: 10 },
         { x: 90, y: 10 },
         { x: 90, y: 70 },

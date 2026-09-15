@@ -303,7 +303,7 @@ The symptom was touch-only because `addContact()` clamps an implausible count ba
 The move and release must keep bubbling. Fabric binds `pointerup` on the **document**, and moves `pointermove` from the canvas to the document for the duration of a press, so a non-bubbling release would never reach Fabric at all — costing every gesture that commits on mouse-up. Only `pointerdown` adds a contact, so only the press needs withholding; a doubled `pointerup` is absorbed by `removeContact()`'s floor at zero. See [#175](https://github.com/osdlabel/osdlabel/issues/175).
 
 ```ts
-private _forwardToFabric(type: string, originalEvent: PointerEvent): void {
+private _forwardToFabric(type: string, originalEvent: PointerEvent, pressSeq?: number): void {
   if (this._forwarding) return;  // Guard: ignore bubbled-back events
   this._forwarding = true;
   try {
@@ -315,6 +315,8 @@ private _forwardToFabric(type: string, originalEvent: PointerEvent): void {
       bubbles: type !== 'pointerdown',
       cancelable: true,
     });
+    // Presses carry their sequence, keyed on the event the tool receives.
+    if (pressSeq !== undefined) this.pressSeqByEvent.set(syntheticEvent, pressSeq);
     this._fabricCanvas.upperCanvasEl.dispatchEvent(syntheticEvent);
   } finally {
     this._forwarding = false;
@@ -366,7 +368,7 @@ The overlay therefore says which presses they were, rather than leaving the tool
 
 That makes all three counts one rule. A suppressed press never reached the tool, so no entry carries its sequence — and a gesture that contributed only one vertex leaves it alone, because that vertex is the endpoint the user asked for rather than an artefact. A press that closed the path added no entry to drop. There are no bounds to compose and no window in which a user's own vertex can be mistaken for the gesture's — which the previous screen-distance test did have, narrowly, when the first press was suppressed and the preceding vertex fell inside its bound ([#176](https://github.com/osdlabel/osdlabel/issues/176)).
 
-Two details carry the guarantee. `pressSeqOf` is keyed on the **synthetic** event the overlay dispatched — the one the tool actually receives — and is populated only for presses, so any other event returns `undefined`. And `undefined` means _not a tracked press_, never a stale number: it halts the scan rather than matching, so an entry the overlay did not place is never removed.
+Two details carry the guarantee. `pressSeqOf` is keyed on the **synthetic** event the overlay dispatched — the one the tool actually receives — and is populated only for presses, so any other event returns `undefined`. And `undefined` needs no special case: it fails the same equality check as any other non-match, so an entry the overlay did not place is never removed.
 
 #### Touch
 

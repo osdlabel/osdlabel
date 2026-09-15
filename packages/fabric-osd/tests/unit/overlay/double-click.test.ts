@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FabricOverlay } from '../../../src/overlay/fabric-overlay.js';
 import type { DoubleClickCallback } from '../../../src/overlay/fabric-overlay.js';
-import { createTestViewer, type TestViewer } from './test-viewer.js';
+import { createTestViewer, installPointerEventPolyfill, type TestViewer } from './test-viewer.js';
 
 /**
  * Double-click detection (issue #168).
@@ -16,8 +16,13 @@ import { createTestViewer, type TestViewer } from './test-viewer.js';
  * worthless (#162).
  */
 interface OverlayInternals {
-  _recordPress(event: PointerEvent): void;
+  _recordPress(event: PointerEvent): number;
   _detectDoubleClick(event: PointerEvent): void;
+  _forwardToFabric(
+    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+    event: PointerEvent,
+    pressSeq?: number,
+  ): void;
 }
 
 const internals = (overlay: FabricOverlay): OverlayInternals =>
@@ -58,7 +63,10 @@ describe('FabricOverlay double-click detection', () => {
   let overlay: FabricOverlay;
   let onDoubleClick: ReturnType<typeof vi.fn<DoubleClickCallback>>;
 
+  let restorePointerEvent: () => void;
+
   beforeEach(() => {
+    restorePointerEvent = installPointerEventPolyfill();
     tv = createTestViewer();
     overlay = new FabricOverlay(tv.viewer);
     overlay.setMode('annotation');
@@ -69,6 +77,7 @@ describe('FabricOverlay double-click detection', () => {
   afterEach(() => {
     overlay.destroy();
     tv.cleanup();
+    restorePointerEvent();
   });
 
   /** One press-and-release at a position and time, as the handlers deliver it. */
@@ -98,6 +107,50 @@ describe('FabricOverlay double-click detection', () => {
    * wrong one. Until this existed the ordering was pinned only by a browser
    * test, in a package whose own suite never loads a browser.
    */
+  /**
+   * The numbers reported to the callback must be the numbers `pressSeqOf`
+   * answers for the gesture's own presses. Those travel by two different
+   * routes — `_recordPress`'s *return* is what gets stamped on the forwarded
+   * event, while what it *stores* is what the pair is built from — so they can
+   * disagree while every other assertion in this file still passes. A tool
+   * matching reported numbers against stamped ones would then drop nothing,
+   * a failure previously visible only in the browser.
+   */
+  it('reports sequences that match what pressSeqOf answers for those presses', () => {
+    const dispatched: PointerEvent[] = [];
+    vi.spyOn(
+      (overlay as unknown as { _fabricCanvas: { upperCanvasEl: HTMLCanvasElement } })._fabricCanvas
+        .upperCanvasEl,
+      'dispatchEvent',
+    ).mockImplementation((event: Event) => {
+      dispatched.push(event as PointerEvent);
+      return true;
+    });
+
+    // Drive press and release the way the tracker's handlers do: the sequence
+    // stamped on the forwarded event is whatever `_recordPress` returned.
+    const pressAndRelease = (time: number): void => {
+      const down = pointerEvent({ ...at(ORIGIN), timeStamp: time });
+      internals(overlay)._forwardToFabric(
+        'pointerdown',
+        down,
+        internals(overlay)._recordPress(down),
+      );
+      internals(overlay)._detectDoubleClick(pointerEvent({ ...at(ORIGIN), timeStamp: time }));
+    };
+    pressAndRelease(0);
+    pressAndRelease(100);
+
+    expect(onDoubleClick).toHaveBeenCalledTimes(1);
+    const pressSeqs = onDoubleClick.mock.calls[0]![2];
+    expect(pressSeqs).toBeDefined();
+    expect(dispatched).toHaveLength(2);
+    expect(pressSeqs).toEqual([
+      overlay.pressSeqOf(dispatched[0]!),
+      overlay.pressSeqOf(dispatched[1]!),
+    ]);
+  });
+
   it('reports the two press sequences that formed the pair, in order', () => {
     click(ORIGIN, 0);
     click(ORIGIN, 100);
