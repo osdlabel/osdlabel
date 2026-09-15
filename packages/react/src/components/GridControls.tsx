@@ -148,9 +148,8 @@ export default function GridControls({ maxColumns, maxRows }: GridControlsProps)
   const changeGrid = (newCols: number, newRows: number) => {
     const cols = Math.max(1, Math.min(newCols, maxColumns));
     const rows = Math.max(1, Math.min(newRows, maxRows));
-    // SET_GRID_DIMENSIONS clamps the active cell into the resized grid, so
-    // there is nothing to correct here. (Reading `uiState` to do it in the
-    // component would also read a pre-dispatch snapshot in React.)
+    // SET_GRID_DIMENSIONS owns clamping the active cell into the resized grid.
+    // Doing it here would also read a pre-dispatch `uiState` snapshot.
     actions.setGridDimensions(cols, rows);
   };
 

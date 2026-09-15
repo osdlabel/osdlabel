@@ -18,10 +18,9 @@ const overlayDestroy = vi.fn();
 const layerDestroy = vi.fn();
 
 /**
- * Captures the OSD `'open'` handler so the test can fire it. `ViewerCell`
- * builds the `FabricOverlay` and `DecorationLayer` inside that handler, so
- * without firing it their teardown is unreachable and their spies can never
- * fail — which is exactly how the first version of this test missed them.
+ * Captures the OSD `'open'` handler so the test can fire it. `ViewerCell` builds
+ * the `FabricOverlay` and `DecorationLayer` inside that handler, so without
+ * firing it their teardown is unreachable and their spies can never fail.
  */
 const openHandlers: (() => void)[] = [];
 

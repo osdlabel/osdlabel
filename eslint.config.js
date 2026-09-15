@@ -162,6 +162,10 @@ export default [
   // A rule rather than a test because it also covers `packages/react`, which
   // has no test tree yet (#152), and because the fix is to reach for the
   // context value that is already in scope at every one of these call sites.
+  //
+  // It is a tripwire for the common spelling, not an exhaustive guard: the
+  // selector matches `x.gridAssignments[y.activeCellIndex]` and will not catch
+  // the same read through destructured or aliased locals.
   {
     files: [
       'packages/solid/src/**/*.{ts,tsx}',

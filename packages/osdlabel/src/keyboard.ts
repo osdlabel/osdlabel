@@ -185,6 +185,8 @@ export function mapKeyEventToActions(
   // filmstrip's clear affordance silently disappears with no visible cause.
   else if (gridCellShortcutIndex(key, shortcuts) >= 0) {
     const cellIndex = gridCellShortcutIndex(key, shortcuts);
+    // Screened against the grid: the digit names a fixed index, so on a
+    // smaller grid it can name a cell that does not exist.
     if (cellIndex < getGridCellCount(state)) {
       actions.push({ type: 'SET_ACTIVE_CELL', payload: cellIndex });
     }

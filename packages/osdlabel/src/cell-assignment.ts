@@ -3,11 +3,10 @@ import type { ImageId, UIState } from '@osdlabel/viewer-api';
 /**
  * The slice of {@link UIState} the cell-assignment helpers read.
  *
- * They take the state rather than pre-computed indices so a caller cannot
- * derive one of the inputs wrongly — an earlier revision had each framework's
- * filmstrip compute the cell count itself, and dropping `gridRows` from that
- * product silently disabled the clear affordance for every cell below the
- * first row.
+ * The helpers take this state rather than pre-computed indices so that no
+ * caller derives an input itself — in particular the cell count, which is
+ * `gridColumns * gridRows` and silently wrong for every cell below the first
+ * row if either factor is forgotten.
  */
 export type CellAssignmentView = Pick<
   UIState,
