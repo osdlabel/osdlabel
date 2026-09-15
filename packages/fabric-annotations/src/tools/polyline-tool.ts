@@ -31,12 +31,20 @@ export class PolylineTool extends BaseTool {
   /**
    * The press that placed each vertex, parallel to {@link vertices} (#176).
    *
-   * Parallel rather than an array of `{ point, seq }` so that
-   * `markers.sync(overlay, this.vertices, …)` keeps receiving the existing
-   * array — that redraw runs on every pointer move and is documented as
-   * allocation-free, which mapping a record array per frame would break.
-   * The pairing invariant is held by `pushVertex` / `popVertex` being the only
-   * mutators; index `i` of one always describes index `i` of the other.
+   * Parallel rather than an array of `{ point, seq }` to keep the change to
+   * the reads small: `markers.sync(overlay, this.vertices, …)` and the preview
+   * both take `Point[]` as they are.
+   *
+   * Not for allocation reasons — `onPointerMove` already builds a fresh array
+   * and a fresh object per vertex for the preview on every move, so one more
+   * `map` would add to a path that allocates rather than spoil one that does
+   * not. If this is ever revisited, `WeakMap<Point, number>` keyed on the
+   * vertex objects `pushVertex` creates is the better shape: the sequence
+   * travels with the vertex and there is no index pairing to maintain.
+   *
+   * Until then the pairing invariant is held by `pushVertex` / `popVertex`
+   * being the only mutators — index `i` of one always describes index `i` of
+   * the other — and a desync mutation fails the suite.
    */
   private vertexSeqs: (number | undefined)[] = [];
   /** Style resolved when drawing started; drives the preview only. */
