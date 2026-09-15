@@ -164,6 +164,43 @@ describe('State Management', () => {
     dispose();
   });
 
+  it('unassignImageFromCell empties the cell through the store proxy', () => {
+    const { uiState, actions, dispose } = createTestStore();
+    actions.assignImageToCell(1, dummyImageId);
+    expect(uiState.gridAssignments[1]).toBe(dummyImageId);
+
+    actions.unassignImageFromCell(1);
+
+    // Deleting a key inside `produce` has to survive Solid's store proxy, not
+    // just the plain-object reducer the osdlabel suite exercises. The key must
+    // be gone rather than left holding `undefined`, since the filmstrip
+    // highlight enumerates this record with `Object.values`.
+    expect(uiState.gridAssignments[1]).toBeUndefined();
+    expect(Object.keys(uiState.gridAssignments)).not.toContain('1');
+    // Cell 0 is seeded by createTestStore and must be untouched.
+    expect(uiState.gridAssignments[0]).toBe(dummyImageId);
+    dispose();
+  });
+
+  it('unassignImageFromCell preserves annotations for the removed image', () => {
+    const { annotationState, uiState, actions, dispose } = createTestStore();
+    actions.setActiveCell(0);
+    actions.assignImageToCell(0, dummyImageId);
+    actions.addAnnotation(dummyAnnotation);
+    expect(Object.keys(annotationState.byImage[dummyImageId] ?? {})).toHaveLength(1);
+
+    actions.unassignImageFromCell(0);
+
+    // `byImage` is keyed by ImageId and independent of grid placement, so
+    // clearing a cell must not lose the work done on that image.
+    expect(Object.keys(annotationState.byImage[dummyImageId] ?? {})).toHaveLength(1);
+    expect(uiState.gridAssignments[0]).toBeUndefined();
+
+    actions.assignImageToCell(0, dummyImageId);
+    expect(Object.keys(annotationState.byImage[dummyImageId] ?? {})).toHaveLength(1);
+    dispose();
+  });
+
   it('setGridDimensions updates grid dimensions', () => {
     const { uiState, actions, dispose } = createTestStore();
     actions.setGridDimensions(2, 2);

@@ -22,8 +22,9 @@ test.describe('Filmstrip', () => {
   });
 
   test('should highlight assigned images', async ({ page }) => {
-    // Landscape is assigned to cell 0, so it should have a highlighted border
+    // Landscape is assigned to cell 0, which is also the active cell.
     const landscapeItem = page.getByTestId('filmstrip-item-landscape');
+    await expect(landscapeItem).toHaveAttribute('data-assignment', 'active');
     const border = await landscapeItem.evaluate((el) => getComputedStyle(el).borderColor);
     // The assigned image should have the blue highlight border
     expect(border).toContain('rgb(33, 150, 243)'); // #2196F3
@@ -43,14 +44,61 @@ test.describe('Filmstrip', () => {
     // Both cells should now have images
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
 
-    // Both Landscape and Portrait should now be highlighted
-    const landscapeBorder = await page
-      .getByTestId('filmstrip-item-landscape')
-      .evaluate((el) => getComputedStyle(el).borderColor);
-    const portraitBorder = await page
-      .getByTestId('filmstrip-item-portrait')
-      .evaluate((el) => getComputedStyle(el).borderColor);
-    expect(landscapeBorder).toContain('rgb(33, 150, 243)');
-    expect(portraitBorder).toContain('rgb(33, 150, 243)');
+    // Both are assigned, but to different cells — and cell 1 is the active one.
+    // Portrait reads as 'active' (clicking it clears cell 1); Landscape reads as
+    // 'other' (clicking it assigns into cell 1, it does not clear cell 0).
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'other',
+    );
+  });
+
+  test('should unassign the active cell when its image is clicked again', async ({ page }) => {
+    const landscape = page.getByTestId('filmstrip-item-landscape');
+
+    // Cell 0 starts assigned to Landscape and active, so it offers the clear
+    // affordance.
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+    await expect(page.getByTestId('filmstrip-clear-landscape')).toBeVisible();
+    await expect(page.locator('text=Assign an image')).toHaveCount(0);
+
+    await landscape.click();
+
+    // The cell returns to the empty state every cell starts in.
+    await expect(page.locator('text=Assign an image')).toHaveCount(1);
+    await expect(landscape).toHaveAttribute('data-assignment', 'none');
+    await expect(page.getByTestId('filmstrip-clear-landscape')).toHaveCount(0);
+
+    // And the round trip works: clicking it again re-assigns.
+    await landscape.click();
+    await expect(page.locator('text=Assign an image')).toHaveCount(0);
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+  });
+
+  test('clicking an image assigned to another cell assigns rather than clears', async ({
+    page,
+  }) => {
+    // The regression the tri-state border exists to prevent: a highlighted
+    // thumbnail that belongs to a different cell must not read as "click to
+    // clear", and must not empty anything when clicked.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-1').click();
+
+    // Make the empty cell 1 active.
+    await page.locator('text=Assign an image').first().click();
+
+    const landscape = page.getByTestId('filmstrip-item-landscape');
+    await expect(landscape).toHaveAttribute('data-assignment', 'other');
+    await expect(page.getByTestId('filmstrip-clear-landscape')).toHaveCount(0);
+
+    await landscape.click();
+
+    // Landscape is now in both cells; nothing was cleared.
+    await expect(page.locator('text=Assign an image')).toHaveCount(0);
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
   });
 });

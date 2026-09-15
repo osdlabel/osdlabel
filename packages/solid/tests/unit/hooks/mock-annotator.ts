@@ -69,6 +69,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
       setActiveCell: vi.fn(),
       setSelectedAnnotation: vi.fn(),
       assignImageToCell: vi.fn(),
+      unassignImageFromCell: vi.fn(),
       setGridDimensions: vi.fn(),
       setContexts: vi.fn(),
       setActiveContext: vi.fn(),

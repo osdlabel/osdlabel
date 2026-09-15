@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { ToolType } from '@osdlabel/annotation';
+import type { AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { ViewerControlId } from '@osdlabel/viewer-api';
+import { createImageId, DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import { applyUIAction } from '../../src/actions.js';
 import { createInitialUIState } from '../../src/initial-state.js';
 
@@ -99,5 +100,100 @@ describe('applyUIAction — contrast', () => {
     applyUIAction(state, { type: 'RESET_VIEW', payload: { cellIndex: 2 } });
     expect(state.cellTransforms[2]?.contrast).toBe(0);
     expect(state.cellTransforms[2]?.exposure).toBe(0);
+  });
+});
+
+describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
+  const IMG_A = createImageId('img-a');
+  const IMG_B = createImageId('img-b');
+
+  it('returns the cell to the empty state, deleting the key rather than blanking it', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 0, imageId: IMG_A },
+    });
+    expect(state.gridAssignments[0]).toBe(IMG_A);
+
+    applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
+
+    expect(state.gridAssignments[0]).toBeUndefined();
+    // The distinction matters: `GridView` renders the placeholder on falsiness,
+    // but `Object.values(gridAssignments)` drives the filmstrip highlight, and a
+    // key left behind holding `undefined` would still be enumerated.
+    expect(Object.keys(state.gridAssignments)).toHaveLength(0);
+    expect(0 in state.gridAssignments).toBe(false);
+  });
+
+  it('drops the cell transform, mirroring the reset ASSIGN_IMAGE_TO_CELL performs', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 0, imageId: IMG_A },
+    });
+    applyUIAction(state, { type: 'TOGGLE_NEGATIVE', payload: { cellIndex: 0 } });
+    expect(state.cellTransforms[0]!.inverted).toBe(true);
+
+    applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
+
+    expect(state.cellTransforms[0]).toBeUndefined();
+  });
+
+  it('leaves other cells untouched', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 0, imageId: IMG_A },
+    });
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 1, imageId: IMG_B },
+    });
+
+    applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
+
+    expect(state.gridAssignments[0]).toBeUndefined();
+    expect(state.gridAssignments[1]).toBe(IMG_B);
+    expect(state.cellTransforms[1]).toBeDefined();
+  });
+
+  it('is a no-op on a cell that is already empty', () => {
+    const state = createInitialUIState();
+
+    expect(() =>
+      applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 3 } }),
+    ).not.toThrow();
+
+    expect(state.gridAssignments[3]).toBeUndefined();
+  });
+
+  it('leaves selectedAnnotationId alone, since another cell may still show that image', () => {
+    const state = createInitialUIState();
+    const selected = 'ann-1' as AnnotationId;
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 0, imageId: IMG_A },
+    });
+    applyUIAction(state, { type: 'SET_SELECTED_ANNOTATION', payload: selected });
+
+    applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
+
+    expect(state.selectedAnnotationId).toBe(selected);
+  });
+
+  it('round-trips: a re-assigned cell is indistinguishable from a freshly assigned one', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 0, imageId: IMG_A },
+    });
+    applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 0, imageId: IMG_A },
+    });
+
+    expect(state.gridAssignments[0]).toBe(IMG_A);
+    expect(state.cellTransforms[0]).toEqual(DEFAULT_CELL_TRANSFORM);
   });
 });

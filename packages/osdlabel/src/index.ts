@@ -203,6 +203,10 @@ export type { KeyboardMappingState } from './keyboard.js';
 export { getSelectableContexts, getCycledContextId } from './context-cycling.js';
 export type { ContextCycleDirection } from './context-cycling.js';
 
+// Filmstrip cell-assignment state
+export { getCellAssignmentState } from './filmstrip-assignment.js';
+export type { AssignmentState } from './filmstrip-assignment.js';
+
 // Tool factory and helpers
 export {
   createAnnotationTool,

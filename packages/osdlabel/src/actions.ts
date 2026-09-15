@@ -45,6 +45,10 @@ export type UIAction =
       readonly payload: { readonly cellIndex: number; readonly imageId: ImageId };
     }
   | {
+      readonly type: 'UNASSIGN_IMAGE_FROM_CELL';
+      readonly payload: { readonly cellIndex: number };
+    }
+  | {
       readonly type: 'SET_GRID_DIMENSIONS';
       readonly payload: { readonly columns: number; readonly rows: number };
     }
@@ -172,6 +176,20 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       const { cellIndex, imageId } = action.payload;
       draft.gridAssignments[cellIndex] = imageId;
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
+      break;
+    }
+    case 'UNASSIGN_IMAGE_FROM_CELL': {
+      const { cellIndex } = action.payload;
+      // Returns the cell to the empty state every cell starts in (see
+      // `createInitialUIState`), which `GridView` already renders as the
+      // "Assign an image" placeholder. Dropping the transform mirrors
+      // ASSIGN_IMAGE_TO_CELL, which resets it on every assignment.
+      delete draft.gridAssignments[cellIndex];
+      delete draft.cellTransforms[cellIndex];
+      // `selectedAnnotationId` is deliberately left alone: it is global rather
+      // than per-cell, so another cell may still be displaying the image whose
+      // annotation is selected. Every read of it is already guarded by an
+      // active-image lookup, and re-assigning the image restores the selection.
       break;
     }
     case 'SET_GRID_DIMENSIONS': {

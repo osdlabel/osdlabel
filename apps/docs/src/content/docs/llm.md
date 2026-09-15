@@ -493,7 +493,7 @@ You **must never** modify the stores directly. All mutations must go through the
 The `actions` object provides methods for:
 
 - **Annotations**: `addAnnotation`, `updateAnnotation`, `deleteAnnotation`, `loadAnnotations`
-- **UI**: `setActiveTool`, `setActiveCell`, `setSelectedAnnotation`, `assignImageToCell`, `setGridDimensions`
+- **UI**: `setActiveTool`, `setActiveCell`, `setSelectedAnnotation`, `assignImageToCell`, `unassignImageFromCell`, `setGridDimensions`
 - **Contexts**: `setContexts`, `setActiveContext`, `setDisplayedContexts`
 
 ## `useConstraints`
@@ -797,7 +797,15 @@ The `Filmstrip` component shows thumbnails of all available images and allows dr
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
-Click an image in the filmstrip to assign it to the currently active grid cell. Images already assigned to cells are highlighted with a blue border.
+Click an image in the filmstrip to assign it to the currently active grid cell. Clicking the image that the active cell is already showing clears that cell instead, returning it to the empty "Assign an image" placeholder.
+
+The border reflects which of those two a click will do:
+
+| Border                        | Meaning                      | Clicking it                     |
+| ----------------------------- | ---------------------------- | ------------------------------- |
+| Bright blue, with a `✕` badge | Shown in the **active** cell | Clears the active cell          |
+| Muted blue                    | Shown in **another** cell    | Assigns it into the active cell |
+| Grey                          | Not shown anywhere           | Assigns it into the active cell |
 
 ## Assigning images to cells
 
@@ -806,9 +814,14 @@ const { actions } = useAnnotator();
 
 // Assign an image to cell 0
 actions.assignImageToCell(0, createImageId('my-image'));
+
+// Clear cell 0, returning it to the empty placeholder
+actions.unassignImageFromCell(0);
 ```
 
 Each cell can display one image at a time. Multiple cells can show the same image, but annotations are shared (stored by image ID, not by cell).
+
+Clearing a cell affects only that cell's assignment and view transform. Annotations are stored by image ID, so they survive a clear and reappear if the image is assigned again.
 
 ## Using the all-in-one Annotator
 

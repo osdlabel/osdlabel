@@ -105,6 +105,14 @@ export function createActions(
     );
   }
 
+  function unassignImageFromCell(cellIndex: number): void {
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex } }),
+      ),
+    );
+  }
+
   function setGridDimensions(columns: number, rows: number): void {
     setUIState(
       produce((draft) =>
@@ -249,6 +257,7 @@ export function createActions(
     setActiveCell,
     setSelectedAnnotation,
     assignImageToCell,
+    unassignImageFromCell,
     setGridDimensions,
     setContexts,
     setActiveContext,

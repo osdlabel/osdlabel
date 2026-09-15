@@ -74,6 +74,10 @@ export function createActions(
     dispatchUI({ type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex, imageId } });
   }
 
+  function unassignImageFromCell(cellIndex: number): void {
+    dispatchUI({ type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex } });
+  }
+
   function setGridDimensions(columns: number, rows: number): void {
     dispatchUI({ type: 'SET_GRID_DIMENSIONS', payload: { columns, rows } });
   }
@@ -158,6 +162,7 @@ export function createActions(
     setActiveCell,
     setSelectedAnnotation,
     assignImageToCell,
+    unassignImageFromCell,
     setGridDimensions,
     setContexts,
     setActiveContext,

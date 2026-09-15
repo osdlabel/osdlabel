@@ -267,8 +267,10 @@ test.describe('View Controls', () => {
     // Assign images to both cells by clicking thumbnails in filmstrip
     const thumbnails = page.locator('[data-testid^="filmstrip-item-"]');
 
-    // Cell 0 is active by default. Assign first image.
-    await thumbnails.nth(0).click();
+    // Cell 0 is active by default and the app already seeds it with the first
+    // image, so it needs no click here — clicking that thumbnail would now
+    // clear the cell rather than re-assign it.
+    await expect(thumbnails.nth(0)).toHaveAttribute('data-assignment', 'active');
 
     // Rotate cell 0
     await page.locator('[data-testid="view-rotate-cw"]').click();
