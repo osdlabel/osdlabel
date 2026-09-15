@@ -29,6 +29,9 @@ export type CellAssignmentView = Pick<
  */
 export type CellAssignmentState = 'active' | 'other' | 'none';
 
+/** The grid's size, as {@link getGridCellCount} needs it. */
+export type GridDimensions = Pick<UIState, 'gridColumns' | 'gridRows'>;
+
 /**
  * What a click on a filmstrip thumbnail should do.
  *
@@ -41,9 +44,15 @@ export type FilmstripClickAction =
   | { readonly type: 'unassign'; readonly cellIndex: number }
   | { readonly type: 'noop' };
 
-/** Number of cells the grid currently renders. */
-export function getGridCellCount(view: CellAssignmentView): number {
-  return view.gridColumns * view.gridRows;
+/**
+ * Number of cells the grid currently renders.
+ *
+ * Takes only the dimensions so every caller that needs the count — including
+ * the keyboard mapper, which has no grid assignments — can share it rather than
+ * multiplying the two fields itself.
+ */
+export function getGridCellCount(grid: GridDimensions): number {
+  return grid.gridColumns * grid.gridRows;
 }
 
 /** Whether the active cell index addresses a cell that is actually on screen. */
@@ -81,6 +90,21 @@ export function getCellAssignmentState(
     return 'active';
   }
   return isShownInAnyCell(view, imageId) ? 'other' : 'none';
+}
+
+/**
+ * The image displayed in the active cell, or `undefined` when no visible cell
+ * is active.
+ *
+ * Scoped to the grid for the same reason the state derivation is: assignments
+ * for cells pruned by a shrink are deliberately kept, so reading
+ * `gridAssignments[activeCellIndex]` directly can name an image that no cell on
+ * screen is showing. Everything keyed on "the active image" — tool constraints,
+ * the toolbar's selected-annotation lookup, and the Delete shortcut — would
+ * then act on an image the user cannot see.
+ */
+export function getActiveCellImageId(view: CellAssignmentView): ImageId | undefined {
+  return hasVisibleActiveCell(view) ? view.gridAssignments[view.activeCellIndex] : undefined;
 }
 
 /**

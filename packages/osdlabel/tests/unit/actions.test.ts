@@ -119,10 +119,10 @@ describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
     applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
 
     expect(state.gridAssignments[0]).toBeUndefined();
-    // Delete, not blank. Consumers read this record both by index and by
-    // enumeration (`Object.keys` here, and serialization of UI state), so a key
-    // left behind holding `undefined` is a cell that still exists as far as any
-    // enumerating consumer is concerned.
+    // Delete, not blank. No consumer enumerates this record today — every read
+    // is by cell index — but it is public state on a `Record<number, ImageId>`,
+    // and an absent cell is what we mean. A key left holding `undefined` would
+    // make any future enumerating reader see a cell that is not there.
     expect(Object.keys(state.gridAssignments)).toHaveLength(0);
     expect(0 in state.gridAssignments).toBe(false);
   });

@@ -28,6 +28,7 @@ import {
   createInitialUIState,
   createInitialContextState,
   computeConstraintStatus,
+  getActiveCellImageId,
 } from 'osdlabel';
 import { annotationReducer, uiReducer, contextReducer } from './reducer.js';
 import { createActions } from './actions.js';
@@ -207,9 +208,13 @@ export function AnnotatorProvider({
     [],
   );
 
+  // Destructured so the dep list names exactly what the helper reads: depending
+  // on the whole `uiState` would bust this memo (and `constraintStatus` below)
+  // on every unrelated UI action, since Immer replaces the root reference.
+  const { gridAssignments, activeCellIndex, gridColumns, gridRows } = uiState;
   const activeImageId = useMemo(
-    () => uiState.gridAssignments[uiState.activeCellIndex],
-    [uiState.gridAssignments, uiState.activeCellIndex],
+    () => getActiveCellImageId({ gridAssignments, activeCellIndex, gridColumns, gridRows }),
+    [gridAssignments, activeCellIndex, gridColumns, gridRows],
   );
 
   const constraintStatus = useMemo(

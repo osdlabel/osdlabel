@@ -26,10 +26,22 @@ export default function Filmstrip({ images, position }: FilmstripProps) {
   // active cell, which is easy to get silently wrong here.
   const handleClick = (image: ImageSource) => {
     const action = resolveFilmstripClick(uiState, image.id);
-    if (action.type === 'unassign') {
-      actions.unassignImageFromCell(action.cellIndex);
-    } else if (action.type === 'assign') {
-      actions.assignImageToCell(action.cellIndex, action.imageId);
+    switch (action.type) {
+      case 'unassign':
+        actions.unassignImageFromCell(action.cellIndex);
+        break;
+      case 'assign':
+        actions.assignImageToCell(action.cellIndex, action.imageId);
+        break;
+      case 'noop':
+        // No visible cell is active, so there is nothing to act on.
+        break;
+      default: {
+        // Adding a variant without handling it here is a compile error, the
+        // same guarantee the palettes get from being keyed on the state union.
+        const exhaustive: never = action;
+        void exhaustive;
+      }
     }
   };
 

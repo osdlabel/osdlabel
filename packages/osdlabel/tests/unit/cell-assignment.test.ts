@@ -201,4 +201,19 @@ describe('cell-assignment palette', () => {
       luminance(CELL_ASSIGNMENT_BORDER_COLOR.none),
     );
   });
+
+  it('orders the placeholder backgrounds the same way as the borders', () => {
+    // Distinctness alone lets 'other' and 'none' swap here too, which would
+    // paint an unused image in the "in use elsewhere" tint. This is the
+    // rendered branch whenever an image has no thumbnail.
+    const blue = (hex: string): number =>
+      parseInt(hex.slice(5, 7), 16) - parseInt(hex.slice(1, 3), 16);
+
+    expect(blue(CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND.active)).toBeGreaterThan(
+      blue(CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND.other),
+    );
+    expect(blue(CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND.other)).toBeGreaterThan(
+      blue(CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND.none),
+    );
+  });
 });

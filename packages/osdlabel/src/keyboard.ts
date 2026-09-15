@@ -6,6 +6,7 @@ import type {
   ConstraintStatus,
 } from '@osdlabel/annotation-context';
 import type { UIAction, AnnotationAction, ContextAction } from './actions.js';
+import { getGridCellCount } from './cell-assignment.js';
 import { getCycledContextId } from './context-cycling.js';
 
 export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
@@ -74,16 +75,6 @@ export interface KeyboardMappingState {
 }
 
 /**
- * Pure function that maps a keyboard event to zero or more actions.
- * Returns null if the event should be ignored (e.g., typing in an input).
- * Returns an empty array if the key doesn't match any shortcut.
- *
- * The caller is responsible for:
- * 1. Checking shouldSkipTarget
- * 2. Passing the event to activeToolKeyHandler first
- * 3. Dispatching the returned actions
- */
-/**
  * Cell-selection shortcut names, in cell-index order: `GRID_CELL_SHORTCUTS[i]`
  * selects cell `i`.
  */
@@ -99,6 +90,21 @@ const GRID_CELL_SHORTCUTS = [
   'gridCell9',
 ] as const satisfies readonly (keyof KeyboardShortcutMap)[];
 
+/** The cell a grid-cell shortcut key selects, or -1 if `key` is not one. */
+function gridCellShortcutIndex(key: string, shortcuts: KeyboardShortcutMap): number {
+  return GRID_CELL_SHORTCUTS.findIndex((name) => key === shortcuts[name]);
+}
+
+/**
+ * Pure function that maps a keyboard event to zero or more actions.
+ * Returns null if the event should be ignored (e.g., typing in an input).
+ * Returns an empty array if the key doesn't match any shortcut.
+ *
+ * The caller is responsible for:
+ * 1. Checking shouldSkipTarget
+ * 2. Passing the event to activeToolKeyHandler first
+ * 3. Dispatching the returned actions
+ */
 export function mapKeyEventToActions(
   key: string,
   shiftKey: boolean,
@@ -177,9 +183,9 @@ export function mapKeyEventToActions(
   // against the current grid: activating a cell the grid does not render leaves
   // every action keyed on the active cell editing offscreen state, and the
   // filmstrip's clear affordance silently disappears with no visible cause.
-  else if (GRID_CELL_SHORTCUTS.some((name) => key === shortcuts[name])) {
-    const cellIndex = GRID_CELL_SHORTCUTS.findIndex((name) => key === shortcuts[name]);
-    if (cellIndex < state.gridColumns * state.gridRows) {
+  else if (gridCellShortcutIndex(key, shortcuts) >= 0) {
+    const cellIndex = gridCellShortcutIndex(key, shortcuts);
+    if (cellIndex < getGridCellCount(state)) {
       actions.push({ type: 'SET_ACTIVE_CELL', payload: cellIndex });
     }
   }

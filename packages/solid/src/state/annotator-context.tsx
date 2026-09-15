@@ -8,6 +8,7 @@ import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-contex
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
 import type { OsdAnnotation, OsdFields, VertexEditConfig, VertexMarkerOptions } from 'osdlabel';
 import {
+  getActiveCellImageId,
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
@@ -152,7 +153,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     uiState,
     annotationState,
   );
-  const activeImageId = () => uiState.gridAssignments[uiState.activeCellIndex];
+  const activeImageId = () => getActiveCellImageId(uiState);
   const constraintStatus = createConstraintStatus(contextState, annotationState, activeImageId);
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };

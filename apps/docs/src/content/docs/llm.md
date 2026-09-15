@@ -413,7 +413,7 @@ A tool selector that respects the active context's constraints and shows availab
 
 ### Filmstrip
 
-A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail assigns that image to the active cell.
+A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail assigns that image to the active cell — or clears the cell, if it is the image that cell is already showing. See [Viewer grid](/guides/viewer-grid/) for the border states that tell the two apart.
 
 ```tsx
 
@@ -1259,24 +1259,24 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 
 ## Default shortcuts
 
-| Key                    | Action                                    |
-| ---------------------- | ----------------------------------------- |
-| `v`                    | Select tool                               |
-| `r`                    | Rectangle tool                            |
-| `c`                    | Circle tool                               |
-| `l`                    | Line tool                                 |
-| `p`                    | Point tool                                |
-| `d`                    | Polyline (draw) tool                      |
-| `f`                    | Free hand path tool                       |
-| `Escape`               | Deselect annotation, then deactivate tool |
-| `Delete` / `Backspace` | Delete selected annotation                |
-| `1`–`9`                | Activate grid cell by position            |
-| `=` / `+`              | Add a grid column                         |
-| `-`                    | Remove a grid column                      |
-| `]`                    | Add a grid row                            |
-| `[`                    | Remove a grid row                         |
-| `.` / `>`              | Activate the next annotation context      |
-| `,` / `<`              | Activate the previous annotation context  |
+| Key                    | Action                                                                |
+| ---------------------- | --------------------------------------------------------------------- |
+| `v`                    | Select tool                                                           |
+| `r`                    | Rectangle tool                                                        |
+| `c`                    | Circle tool                                                           |
+| `l`                    | Line tool                                                             |
+| `p`                    | Point tool                                                            |
+| `d`                    | Polyline (draw) tool                                                  |
+| `f`                    | Free hand path tool                                                   |
+| `Escape`               | Deselect annotation, then deactivate tool                             |
+| `Delete` / `Backspace` | Delete selected annotation                                            |
+| `1`–`9`                | Activate grid cell by position (ignored if the grid has no such cell) |
+| `=` / `+`              | Add a grid column                                                     |
+| `-`                    | Remove a grid column                                                  |
+| `]`                    | Add a grid row                                                        |
+| `[`                    | Remove a grid row                                                     |
+| `.` / `>`              | Activate the next annotation context                                  |
+| `,` / `<`              | Activate the previous annotation context                              |
 
 ### Annotation context cycling
 

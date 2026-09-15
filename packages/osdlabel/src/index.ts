@@ -205,6 +205,7 @@ export type { ContextCycleDirection } from './context-cycling.js';
 
 // Grid cell assignment: state, click resolution, and the shared palette
 export {
+  getActiveCellImageId,
   getCellAssignmentState,
   getGridCellCount,
   resolveFilmstripClick,
@@ -215,6 +216,7 @@ export {
 export type {
   CellAssignmentState,
   CellAssignmentView,
+  GridDimensions,
   FilmstripClickAction,
 } from './cell-assignment.js';
 
