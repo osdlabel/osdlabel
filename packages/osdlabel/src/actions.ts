@@ -169,9 +169,13 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
     case 'SET_ACTIVE_CELL':
       // Deliberately unvalidated against the current grid size: callers may
       // restore a saved active cell before sizing the grid, and
-      // SET_GRID_DIMENSIONS clamps whatever it finds. Input that is not already
-      // known to name a real cell is screened where it enters — see the
-      // cell-selection shortcuts in `mapKeyEventToActions`.
+      // SET_GRID_DIMENSIONS clamps whatever it finds.
+      //
+      // The library's own entry points screen their input before dispatching
+      // here — see the cell-selection shortcuts in `mapKeyEventToActions`. A
+      // host calling `setActiveCell` directly is not screened, which is why
+      // reads of the active image go through `getActiveCellImageId` rather
+      // than indexing `gridAssignments` themselves.
       draft.activeCellIndex = action.payload;
       break;
     case 'SET_SELECTED_ANNOTATION':
