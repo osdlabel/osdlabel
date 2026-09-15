@@ -15,7 +15,7 @@ That was inexact in one narrow case: with the first press suppressed _and_ the p
 
 `pressSeqOf` is keyed on the synthetic event the overlay dispatches — the one a tool receives — and populated only for presses, so every other event returns `undefined`. `undefined` needs no special case: it fails the same equality check as any other non-match, so a vertex the overlay did not place is never removed.
 
-Both additions are optional or additive: `DoubleClickCallback` and `AnnotationTool.onDoubleClick` gain a trailing optional parameter, which existing implementations remain assignable to. `ToolOverlay` gains a required `pressSeqOf`, so a custom implementation of that interface must add it — hence minor rather than patch.
+Both additions are optional or additive: `DoubleClickCallback` and `AnnotationTool.onDoubleClick` gain a trailing optional parameter, which existing implementations remain assignable to. `ToolOverlay` gains a required `pressSeqOf`, so a custom implementation of that interface must add it — hence minor rather than patch. Adding it is a one-liner: an overlay that does not forward presses can `return undefined`, which every consumer already has to handle, and which means "not a tracked press" — the tool then drops nothing rather than dropping the wrong thing.
 
 Both framework hooks relayed the double click as `(e, p) => tool.onDoubleClick?.(e, p)`, dropping the third argument, so the pair never reached the tool. Fixed in `@osdlabel/solid` and `@osdlabel/react`.
 
