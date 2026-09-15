@@ -2,7 +2,12 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { DecorationLayer } from '../../../src/decoration/decoration-layer.js';
 import type { FabricOverlay } from '../../../src/overlay/fabric-overlay.js';
 import type { AnnotationId } from '@osdlabel/annotation';
-import type { Decoration, DomDecoration } from '@osdlabel/decoration';
+import type {
+  Decoration,
+  DomDecoration,
+  TextDecoration,
+  TextPlacement,
+} from '@osdlabel/decoration';
 import type { DomDecorationEntry } from '../../../src/decoration/decoration-layer.js';
 
 /**
@@ -58,6 +63,33 @@ const domDeco = (id: string, overrides: Partial<DomDecoration> = {}): DomDecorat
   relatedAnnotationIds: [annId(id)],
   anchor: { x: 10, y: 20 },
   content: { id },
+  ...overrides,
+});
+
+/**
+ * jsdom reports 0 for `clientWidth`/`clientHeight` on every element, so the
+ * cell-space anchor math (`anchor.x * hostEl.clientWidth`) needs the host's box
+ * stubbed. The host is the div the layer appends on construction.
+ */
+function hostElementOf(hostParent: HTMLElement): HTMLElement {
+  const el = hostParent.querySelector('[data-osdlabel="decoration-layer"]');
+  expect(el).not.toBeNull();
+  return el as HTMLElement;
+}
+
+function setHostSize(hostParent: HTMLElement, width: number, height: number): void {
+  const host = hostElementOf(hostParent);
+  Object.defineProperty(host, 'clientWidth', { value: width, configurable: true });
+  Object.defineProperty(host, 'clientHeight', { value: height, configurable: true });
+}
+
+const cellText = (id: string, overrides: Partial<TextDecoration> = {}): TextDecoration => ({
+  type: 'text',
+  id,
+  relatedAnnotationIds: [annId(id)],
+  text: id,
+  anchor: { x: 1, y: 0 },
+  anchorSpace: 'cell',
   ...overrides,
 });
 
@@ -353,5 +385,256 @@ describe('DecorationLayer', () => {
       expect(hostParent.querySelector('[data-osdlabel="decoration-dom"]')).toBeNull();
       expect(calls).toEqual([0, 1, 0]);
     });
+  });
+});
+
+/** Expected `placementTranslate` suffix per placement, for all nine values. */
+const PLACEMENT_SUFFIX: Readonly<Record<TextPlacement, string>> = {
+  'top-left': 'translate3d(0, 0, 0)',
+  'top-right': 'translate3d(-100%, 0, 0)',
+  'bottom-left': 'translate3d(0, -100%, 0)',
+  'bottom-right': 'translate3d(-100%, -100%, 0)',
+  center: 'translate3d(-50%, -50%, 0)',
+  top: 'translate3d(-50%, 0, 0)',
+  bottom: 'translate3d(-50%, -100%, 0)',
+  left: 'translate3d(0, -50%, 0)',
+  right: 'translate3d(-100%, -50%, 0)',
+};
+
+const ALL_PLACEMENTS = Object.keys(PLACEMENT_SUFFIX) as readonly TextPlacement[];
+
+describe('DecorationLayer — cell-anchored decorations', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('L1: positions a cell-space text decoration from the host box, without imageToScreen', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+
+    layer.setDecorations([cellText('hud', { anchor: { x: 1, y: 0 } })]);
+
+    const el = hostParent.querySelector('[data-decoration-id="hud"]') as HTMLElement;
+    expect(el).not.toBeNull();
+    expect(el.style.transform).toContain('translate3d(400px, 0px, 0)');
+    expect(overlay.imageToScreen).not.toHaveBeenCalled();
+    layer.destroy();
+  });
+
+  it('L2: positions a cell-space dom decoration the same way', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+
+    layer.setDecorations([domDeco('hud-dom', { anchor: { x: 1, y: 0 }, anchorSpace: 'cell' })]);
+
+    const el = hostParent.querySelector('[data-decoration-id="hud-dom"]') as HTMLElement;
+    expect(el).not.toBeNull();
+    expect(el.style.transform).toContain('translate3d(400px, 0px, 0)');
+    expect(overlay.imageToScreen).not.toHaveBeenCalled();
+    layer.destroy();
+  });
+
+  it('L3: mixed list — image-space goes through imageToScreen, cell-space does not', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+
+    layer.setDecorations([
+      {
+        type: 'text',
+        id: 'img',
+        relatedAnnotationIds: [annId('img')],
+        text: 'image-space',
+        anchor: { x: 5, y: 7 },
+      },
+      cellText('cell', { anchor: { x: 0.5, y: 1 } }),
+    ]);
+
+    const imgEl = hostParent.querySelector('[data-decoration-id="img"]') as HTMLElement;
+    const cellEl = hostParent.querySelector('[data-decoration-id="cell"]') as HTMLElement;
+    expect(imgEl.style.transform).toContain('translate3d(10px, 14px, 0)');
+    expect(cellEl.style.transform).toContain('translate3d(200px, 300px, 0)');
+
+    const calls = (overlay.imageToScreen as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![0]).toEqual({ x: 5, y: 7 });
+    layer.destroy();
+  });
+
+  it('L4: applies the screen-px offset in cell space', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+
+    layer.setDecorations([cellText('hud', { anchor: { x: 1, y: 1 }, offset: { x: -8, y: -8 } })]);
+
+    const el = hostParent.querySelector('[data-decoration-id="hud"]') as HTMLElement;
+    expect(el.style.transform).toContain('translate3d(392px, 292px, 0)');
+    layer.destroy();
+  });
+
+  // L5 + L6: all nine placements (the three new corners plus the six existing
+  // ones) produce the right alignment suffix, in both anchor spaces.
+  it.each(ALL_PLACEMENTS)('L5/L6: placement %s in image space', (placement) => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    layer.setDecorations([
+      {
+        type: 'text',
+        id: 'p',
+        relatedAnnotationIds: [annId('p')],
+        text: 'p',
+        anchor: { x: 5, y: 7 },
+        placement,
+      },
+    ]);
+    const el = hostParent.querySelector('[data-decoration-id="p"]') as HTMLElement;
+    expect(el.style.transform).toBe(`translate3d(10px, 14px, 0) ${PLACEMENT_SUFFIX[placement]}`);
+    layer.destroy();
+  });
+
+  it.each(ALL_PLACEMENTS)('L5/L6: placement %s in cell space', (placement) => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+    layer.setDecorations([cellText('p', { anchor: { x: 1, y: 0 }, placement })]);
+    const el = hostParent.querySelector('[data-decoration-id="p"]') as HTMLElement;
+    expect(el.style.transform).toBe(`translate3d(400px, 0px, 0) ${PLACEMENT_SUFFIX[placement]}`);
+    expect(overlay.imageToScreen).not.toHaveBeenCalled();
+    layer.destroy();
+  });
+
+  it('L7: onSync after a host resize repositions cell-space and re-queries image-space', () => {
+    const { overlay, hostParent, syncSubscribers } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+
+    layer.setDecorations([
+      {
+        type: 'text',
+        id: 'img',
+        relatedAnnotationIds: [annId('img')],
+        text: 'image-space',
+        anchor: { x: 1, y: 1 },
+      },
+      cellText('cell', { anchor: { x: 1, y: 1 } }),
+    ]);
+    const imgEl = hostParent.querySelector('[data-decoration-id="img"]') as HTMLElement;
+    const cellEl = hostParent.querySelector('[data-decoration-id="cell"]') as HTMLElement;
+    expect(imgEl.style.transform).toContain('translate3d(2px, 2px, 0)');
+    expect(cellEl.style.transform).toContain('translate3d(400px, 300px, 0)');
+
+    // The cell grew and the viewport transform changed with it.
+    setHostSize(hostParent, 800, 600);
+    (overlay.imageToScreen as ReturnType<typeof vi.fn>).mockImplementation(
+      (p: { x: number; y: number }) => ({ x: p.x * 3, y: p.y * 3 }),
+    );
+    (overlay.imageToScreen as ReturnType<typeof vi.fn>).mockClear();
+    for (const cb of syncSubscribers) cb();
+
+    expect(cellEl.style.transform).toContain('translate3d(800px, 600px, 0)');
+    expect(imgEl.style.transform).toContain('translate3d(3px, 3px, 0)');
+    expect(overlay.imageToScreen).toHaveBeenCalledTimes(1);
+    layer.destroy();
+  });
+
+  it('L8: switching anchorSpace for the same id reuses the element and switches space', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+
+    layer.setDecorations([cellText('switcher', { anchor: { x: 1, y: 0 } })]);
+    const first = hostParent.querySelector('[data-decoration-id="switcher"]') as HTMLElement;
+    expect(first.style.transform).toContain('translate3d(400px, 0px, 0)');
+
+    layer.setDecorations([
+      {
+        type: 'text',
+        id: 'switcher',
+        relatedAnnotationIds: [annId('switcher')],
+        text: 'switcher',
+        anchor: { x: 5, y: 7 },
+        anchorSpace: 'image',
+      },
+    ]);
+    const second = hostParent.querySelector('[data-decoration-id="switcher"]') as HTMLElement;
+    expect(second).toBe(first);
+    expect(second.style.transform).toContain('translate3d(10px, 14px, 0)');
+    layer.destroy();
+  });
+
+  it('L8: switching a dom decoration between spaces does not notify subscribers', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+    const calls: number[] = [];
+    layer.onDomDecorations((entries) => calls.push(entries.length));
+    expect(calls).toEqual([0]);
+
+    layer.setDecorations([domDeco('d', { anchor: { x: 1, y: 0 }, anchorSpace: 'cell' })]);
+    const el = hostParent.querySelector('[data-decoration-id="d"]') as HTMLElement;
+    expect(el.style.transform).toContain('translate3d(400px, 0px, 0)');
+    expect(calls).toEqual([0, 1]);
+
+    layer.setDecorations([domDeco('d', { anchor: { x: 5, y: 7 } })]);
+    expect(hostParent.querySelector('[data-decoration-id="d"]')).toBe(el);
+    expect(el.style.transform).toContain('translate3d(10px, 14px, 0)');
+    // Membership did not change, so no notification.
+    expect(calls).toEqual([0, 1]);
+    layer.destroy();
+  });
+
+  it('L9: omitting anchorSpace behaves exactly like an explicit image space', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+
+    layer.setDecorations([
+      {
+        type: 'text',
+        id: 'omitted',
+        relatedAnnotationIds: [annId('omitted')],
+        text: 'o',
+        anchor: { x: 5, y: 7 },
+        offset: { x: 3, y: -1 },
+        placement: 'center',
+      },
+      {
+        type: 'text',
+        id: 'explicit',
+        relatedAnnotationIds: [annId('explicit')],
+        text: 'e',
+        anchor: { x: 5, y: 7 },
+        anchorSpace: 'image',
+        offset: { x: 3, y: -1 },
+        placement: 'center',
+      },
+    ]);
+
+    const omitted = hostParent.querySelector('[data-decoration-id="omitted"]') as HTMLElement;
+    const explicit = hostParent.querySelector('[data-decoration-id="explicit"]') as HTMLElement;
+    expect(omitted.style.transform).toBe(explicit.style.transform);
+    expect(omitted.style.transform).toBe('translate3d(13px, 13px, 0) translate3d(-50%, -50%, 0)');
+    layer.destroy();
+  });
+
+  it('L10: destroy removes cell-space text and dom elements', () => {
+    const { overlay, hostParent } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+    layer.setDecorations([
+      cellText('hud'),
+      domDeco('hud-dom', { anchor: { x: 0, y: 1 }, anchorSpace: 'cell' }),
+    ]);
+    expect(hostParent.querySelectorAll('[data-osdlabel="decoration-text"]')).toHaveLength(1);
+    expect(hostParent.querySelectorAll('[data-osdlabel="decoration-dom"]')).toHaveLength(1);
+
+    layer.destroy();
+
+    expect(hostParent.querySelector('[data-osdlabel="decoration-layer"]')).toBeNull();
+    expect(hostParent.querySelector('[data-osdlabel="decoration-text"]')).toBeNull();
+    expect(hostParent.querySelector('[data-osdlabel="decoration-dom"]')).toBeNull();
   });
 });

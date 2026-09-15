@@ -1,6 +1,7 @@
 import { Line as FabricLine } from 'fabric';
 import type {
   Decoration,
+  DecorationAnchorSpace,
   DomDecoration,
   LineDecoration,
   TextDecoration,
@@ -224,10 +225,10 @@ export class DecorationLayer {
     for (const d of this._decorations) {
       if (d.type === 'text') {
         const el = this._textEls.get(d.id);
-        if (el) this._positionEl(el, d.anchor, d.offset, d.placement);
+        if (el) this._positionEl(el, d.anchor, d.offset, d.placement, d.anchorSpace);
       } else if (d.type === 'dom') {
         const el = this._domEntries.get(d.id)?.element;
-        if (el) this._positionEl(el, d.anchor, d.offset, d.placement);
+        if (el) this._positionEl(el, d.anchor, d.offset, d.placement, d.anchorSpace);
       }
     }
   }
@@ -237,12 +238,24 @@ export class DecorationLayer {
     anchor: Point,
     offset: { readonly x: number; readonly y: number } | undefined,
     placement: TextPlacement | undefined,
+    anchorSpace: DecorationAnchorSpace | undefined,
   ): void {
-    const screen = this._overlay.imageToScreen(anchor);
+    // Cell-space anchors are fractions of the host element's box (which is
+    // `inset:0` inside the cell), so they never touch the viewport transform.
+    const screen =
+      anchorSpace === 'cell'
+        ? {
+            x: anchor.x * this._hostEl.clientWidth,
+            y: anchor.y * this._hostEl.clientHeight,
+          }
+        : this._overlay.imageToScreen(anchor);
     const offsetX = offset?.x ?? 0;
     const offsetY = offset?.y ?? 0;
     const align = placementTranslate(placement);
-    el.style.transform = `translate3d(${screen.x + offsetX}px, ${screen.y + offsetY}px, 0) translate3d(${align.x}, ${align.y}, 0)`;
+    const nextTransform = `translate3d(${screen.x + offsetX}px, ${screen.y + offsetY}px, 0) translate3d(${align.x}, ${align.y}, 0)`;
+    if (el.style.transform !== nextTransform) {
+      el.style.transform = nextTransform;
+    }
   }
 
   // ── Line decorations (Fabric) ─────────────────────────────────────────
@@ -366,6 +379,12 @@ function placementTranslate(placement: TextPlacement | undefined): {
       return { x: '0', y: '-50%' };
     case 'right':
       return { x: '-100%', y: '-50%' };
+    case 'top-right':
+      return { x: '-100%', y: '0' };
+    case 'bottom-left':
+      return { x: '0', y: '-100%' };
+    case 'bottom-right':
+      return { x: '-100%', y: '-100%' };
     case 'top-left':
     case undefined:
       return { x: '0', y: '0' };
