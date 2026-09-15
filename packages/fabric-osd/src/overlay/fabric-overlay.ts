@@ -159,7 +159,8 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  * Handles event routing between OSD and Fabric using an OSD MouseTracker
  * attached to Fabric's container element. Events are forwarded to Fabric
  * as synthetic PointerEvents with a re-entrancy guard to prevent infinite
- * recursion (dispatched events bubble back to the tracker's element).
+ * recursion (a dispatched event that bubbles reaches the tracker's element).
+ * The press is dispatched non-bubbling; see {@link FabricOverlay._forwardToFabric}.
  *
  * Three interaction modes:
  * - **navigation**: OSD handles all input, Fabric is display-only.
@@ -578,9 +579,19 @@ export class FabricOverlay {
    * Fabric's getPointer() reads clientX/clientY from the event, so
    * we forward those directly from the original DOM event.
    *
-   * A re-entrancy guard (`_forwarding`) prevents infinite recursion:
-   * the synthetic event bubbles from upperCanvasEl up to the Fabric
+   * A re-entrancy guard (`_forwarding`) prevents infinite recursion: a
+   * synthetic event that bubbles from upperCanvasEl reaches the Fabric
    * container div, where the OSD MouseTracker would re-intercept it.
+   *
+   * **The invariant: the press does not bubble; the move and release do.**
+   * A bubbled press reaches OSD's contact bookkeeping, which the guard cannot
+   * prevent; a non-bubbling release never reaches Fabric at all, because
+   * Fabric binds `pointerup` on the document. Both halves are load-bearing.
+   *
+   * The derivation — why the guard is insufficient, why the bug was touch-only,
+   * and why a doubled release is harmless — is in the "Forwarding to Fabric"
+   * section of `apps/docs/src/content/docs/guides/osd-fabric-integration.md`.
+   * See #175.
    */
   private _forwardToFabric(
     type: typeof POINTER_DOWN | typeof POINTER_MOVE | typeof POINTER_UP | typeof POINTER_CANCEL,
@@ -590,6 +601,10 @@ export class FabricOverlay {
     this._forwarding = true;
     try {
       const upperCanvas = this._fabricCanvas.upperCanvasEl;
+      // Withholding the press costs Fabric nothing: it binds `pointerdown` on
+      // the upper canvas itself, so the event arrives AT_TARGET. See the
+      // doc comment above for why the move and release must still bubble.
+      const bubbles = type !== POINTER_DOWN;
       const syntheticEvent = new PointerEvent(type, {
         clientX: originalEvent.clientX,
         clientY: originalEvent.clientY,
@@ -597,7 +612,7 @@ export class FabricOverlay {
         screenY: originalEvent.screenY,
         button: originalEvent.button,
         buttons: originalEvent.buttons,
-        bubbles: true,
+        bubbles,
         cancelable: true,
         pointerId: originalEvent.pointerId,
         pointerType: originalEvent.pointerType,
@@ -663,7 +678,9 @@ export class FabricOverlay {
     this._lastClick = { time, x, y, pointerType: originalEvent.pointerType };
 
     if (!previous) return;
-    // Mouse and pen only — touch cannot reach this layer at all (see #175).
+    // A pair must be the same pointer type. Touch reaches here since #175;
+    // before that the contact count never returned to zero, so the release
+    // this runs from was never delivered for touch at all.
     if (previous.pointerType !== originalEvent.pointerType) return;
     if (time - previous.time > this._overlayTracker.dblClickTimeThreshold) return;
     if (Math.hypot(x - previous.x, y - previous.y) > this._overlayTracker.dblClickDistThreshold) {

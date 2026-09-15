@@ -152,10 +152,11 @@ describe('FabricOverlay double-click detection', () => {
   });
 
   it("does not pair a release with another pointer's press", () => {
-    // Same pointerType, so this isolates the pointerId match. Defensive rather
-    // than routine — a mouse keeps one id, and multi-touch cannot reach here
-    // (see the pointer-type test) — but it is what stops a release consuming a
-    // press that was not its own.
+    // Same pointerType, so this isolates the pointerId match. Routine, not
+    // defensive: a mouse keeps one id, but a two-finger touch gesture reaches
+    // here with mismatched ids — the second finger's press overwrites the
+    // first's, and the first finger's release then arrives against it. This
+    // guard is what stops that release consuming a press that was not its own.
     internals(overlay)._recordPress(pointerEvent({ ...at(ORIGIN), timeStamp: 0, pointerId: 1 }));
     internals(overlay)._detectDoubleClick(
       pointerEvent({ ...at(ORIGIN), timeStamp: 10, pointerId: 2 }),
@@ -166,10 +167,21 @@ describe('FabricOverlay double-click detection', () => {
   });
 
   it('does not pair clicks from different pointer types', () => {
-    // Mouse and pen, not touch: touch cannot reach this layer at all (#175),
-    // so pairing with it would assert an impossible sequence.
+    // All three pairings are reachable: touch has reached this layer since
+    // #175, so mouse-then-touch is a real sequence a user can produce by
+    // switching input device mid-gesture, not a hypothetical.
+    //
+    // The touch pair is not redundant with the mouse/pen pair above it.
+    // Deleting the guard outright fails on mouse/pen first; what the touch
+    // pair catches is a guard *exempting* touch — which is a plausible way to
+    // "fix" #175 badly, by special-casing the pointer type instead of the
+    // contact count. Verified by both mutations.
     click(ORIGIN, 0, { pointerId: 1, pointerType: 'mouse' });
     click(ORIGIN, 100, { pointerId: 2, pointerType: 'pen' });
+    expect(onDoubleClick).not.toHaveBeenCalled();
+
+    click(ORIGIN, 200, { pointerId: 3, pointerType: 'mouse' });
+    click(ORIGIN, 300, { pointerId: 4, pointerType: 'touch' });
     expect(onDoubleClick).not.toHaveBeenCalled();
   });
 
