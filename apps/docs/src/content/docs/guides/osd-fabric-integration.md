@@ -298,6 +298,8 @@ That guard has a second, less obvious role: it is what makes double-click detect
 
 The guard is not enough on its own, which is why the press is dispatched **non-bubbling** while the move and release are not. OSD's `onPointerDown` calls `GesturePointList.addContact()` _before_ it honours `eventInfo.stopPropagation`, so the guard cannot keep the bubbled press out of OSD's contact bookkeeping — only not dispatching it into the container can. Fabric loses nothing, because it binds `pointerdown` on the upper canvas itself and the event arrives AT_TARGET.
 
+The symptom was touch-only because `addContact()` clamps an implausible count back to one for `"mouse"` and `"pen"` and warns, but not for `"touch"`. Mouse input therefore worked while logging `GesturePointList.addContact() Implausible contacts value` on every press in annotation mode; touch was left at two contacts, and OSD's handlers key off exact counts.
+
 The move and release must keep bubbling. Fabric binds `pointerup` on the **document**, and moves `pointermove` from the canvas to the document for the duration of a press, so a non-bubbling release would never reach Fabric at all — costing every gesture that commits on mouse-up. Only `pointerdown` adds a contact, so only the press needs withholding; a doubled `pointerup` is absorbed by `removeContact()`'s floor at zero. See [#175](https://github.com/osdlabel/osdlabel/issues/175).
 
 ```ts

@@ -160,8 +160,7 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  * attached to Fabric's container element. Events are forwarded to Fabric
  * as synthetic PointerEvents with a re-entrancy guard to prevent infinite
  * recursion (a dispatched event that bubbles reaches the tracker's element).
- * The press is dispatched non-bubbling and the move and release are not —
- * see {@link FabricOverlay._forwardToFabric} for why (#175).
+ * The press is dispatched non-bubbling; see {@link FabricOverlay._forwardToFabric}.
  *
  * Three interaction modes:
  * - **navigation**: OSD handles all input, Fabric is display-only.
@@ -582,28 +581,17 @@ export class FabricOverlay {
    *
    * A re-entrancy guard (`_forwarding`) prevents infinite recursion: a
    * synthetic event that bubbles from upperCanvasEl reaches the Fabric
-   * container div, where the OSD MouseTracker would re-intercept it. Since
-   * #175 only the move and release bubble — see below for why the press does
-   * not, and why the other two still must.
+   * container div, where the OSD MouseTracker would re-intercept it.
    *
-   * The guard keeps our own handlers off the bubbled copy, but it cannot keep
-   * OSD's tracker off it: `onPointerDown` runs `updatePointerDown` — which
-   * calls `GesturePointList.addContact()` — *before* it honours
-   * `eventInfo.stopPropagation`, so one real press is counted twice
-   * (openseadragon.js, `onPointerDown`). `addContact()` clamps that back for
-   * mouse and pen only, which is why the bug is touch-only (#175) and why mouse
-   * input had been logging `Implausible contacts value` on every press.
+   * **The invariant: the press does not bubble; the move and release do.**
+   * A bubbled press reaches OSD's contact bookkeeping, which the guard cannot
+   * prevent; a non-bubbling release never reaches Fabric at all, because
+   * Fabric binds `pointerup` on the document. Both halves are load-bearing.
    *
-   * So the press is dispatched non-bubbling, which keeps it out of the
-   * tracker's element entirely. The release and move are not: Fabric binds
-   * `pointerup` on the *document* and relocates `pointermove` there for the
-   * duration of a press, so a non-bubbling release never reaches Fabric at
-   * any point in the gesture. That costs every
-   * gesture that commits on mouse-up — dragging an existing object and drawing
-   * a new one alike — which is why the asymmetry is load-bearing and not a
-   * stylistic choice. The release and move can bubble safely because only
-   * `pointerdown` adds a contact; a doubled `pointerup` is absorbed by
-   * `removeContact()`'s floor at zero.
+   * The derivation — why the guard is insufficient, why the bug was touch-only,
+   * and why a doubled release is harmless — is in the "Forwarding to Fabric"
+   * section of `apps/docs/src/content/docs/guides/osd-fabric-integration.md`.
+   * See #175.
    */
   private _forwardToFabric(
     type: typeof POINTER_DOWN | typeof POINTER_MOVE | typeof POINTER_UP | typeof POINTER_CANCEL,
