@@ -138,11 +138,11 @@ export class PolylineTool extends BaseTool {
    * Finish the in-progress path as an *open* polyline, dropping the vertex the
    * gesture's own second press added.
    *
-   * The test is geometric, not a count: the gesture contributes two vertices,
-   * one, or none — a press landing on an existing annotation is suppressed by
-   * the hooks, and one may have closed the path — so popping unconditionally
-   * discards a point the user placed, and on a two-vertex path throws the whole
-   * path away.
+   * The vertex is identified by the press that placed it, not by a count and
+   * not by geometry: the gesture contributes two vertices, one, or none — a
+   * press landing on an existing annotation is suppressed by the hooks, and one
+   * may have closed the path — so popping unconditionally discards a point the
+   * user placed, and on a two-vertex path throws the whole path away.
    */
   onDoubleClick(
     _event: PointerEvent,
@@ -206,17 +206,19 @@ export class PolylineTool extends BaseTool {
    *
    * Matching on the press sequence makes each of those the same rule, with no
    * screen-distance bounds and no window in which a user's own vertex can be
-   * mistaken for the gesture's. `pressSeqs` is absent, and a stamp is
-   * `undefined`, exactly when the press was not one the overlay forwarded —
-   * including every event a unit test builds by hand — and nothing is dropped
-   * then, which is the safe direction: a stray vertex is recoverable, a
-   * silently deleted one is not.
+   * mistaken for the gesture's. A vertex whose press the overlay never
+   * forwarded carries no stamp, and `undefined` needs no special case — it
+   * fails the same equality check as any other non-match, so such a vertex is
+   * never removed. That is the safe direction: a stray vertex is recoverable,
+   * a silently deleted one is not.
    */
   private dropGestureVertices(pressSeqs?: readonly [number, number]): void {
     if (!pressSeqs) return;
     const count = this.vertexSeqs.length;
-    if (count < 2) return;
     const [firstSeq, secondSeq] = pressSeqs;
+    // No length guard is needed: an out-of-range index yields `undefined`,
+    // which never equals a numeric sequence, so a path too short to hold a
+    // pair falls out of the checks below.
     if (this.vertexSeqs[count - 1] !== secondSeq) return;
     if (this.vertexSeqs[count - 2] !== firstSeq) return;
     this.popVertex();

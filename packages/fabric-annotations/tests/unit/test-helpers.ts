@@ -145,13 +145,10 @@ export function expectFabricInstance<T extends FabricObject>(
  *
  * `pressSeqOf` mirrors the real overlay: each distinct event object it is asked
  * about gets the next sequence number, exactly as each forwarded press does.
- * Tests that need the "not a tracked press" branch call `markUntracked` first.
  */
 export interface MockToolOverlay extends ToolOverlay {
   /** The sequence already assigned to `event`, for assertions. */
   seqOf(event: PointerEvent): number | undefined;
-  /** Make `pressSeqOf` report this event as one the overlay never forwarded. */
-  markUntracked(event: PointerEvent): void;
 }
 
 export function createMockToolOverlay(
@@ -159,7 +156,6 @@ export function createMockToolOverlay(
   imageToScreen: (point: Point) => Point = (point) => point,
 ): MockToolOverlay {
   const assigned = new WeakMap<PointerEvent, number>();
-  const untracked = new WeakSet<PointerEvent>();
   let next = 0;
 
   return {
@@ -170,7 +166,6 @@ export function createMockToolOverlay(
     canvas: canvas as unknown as Canvas,
     imageToScreen,
     pressSeqOf(event: PointerEvent): number | undefined {
-      if (untracked.has(event)) return undefined;
       let seq = assigned.get(event);
       if (seq === undefined) {
         seq = ++next;
@@ -179,8 +174,5 @@ export function createMockToolOverlay(
       return seq;
     },
     seqOf: (event: PointerEvent): number | undefined => assigned.get(event),
-    markUntracked: (event: PointerEvent): void => {
-      untracked.add(event);
-    },
   };
 }

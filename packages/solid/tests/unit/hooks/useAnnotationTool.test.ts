@@ -99,7 +99,11 @@ interface MockCanvas {
  * with `activeViewerControl: null`, so that branch is never entered, and adding
  * it would imply coverage that does not exist.
  */
-type DoubleClickListener = (event: PointerEvent, imagePoint: { x: number; y: number }) => void;
+type DoubleClickListener = (
+  event: PointerEvent,
+  imagePoint: { x: number; y: number },
+  pressSeqs?: readonly [number, number],
+) => void;
 
 interface MockOverlay {
   canvas: MockCanvas;

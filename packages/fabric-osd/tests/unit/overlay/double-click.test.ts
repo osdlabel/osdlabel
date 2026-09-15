@@ -91,6 +91,25 @@ describe('FabricOverlay double-click detection', () => {
     expect(onDoubleClick).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * The pair is what lets a tool identify the vertices its own presses added
+   * (#176), and the order carries the meaning: the first press placed a real
+   * vertex, the second a duplicate. Reversing it would make a tool drop the
+   * wrong one. Until this existed the ordering was pinned only by a browser
+   * test, in a package whose own suite never loads a browser.
+   */
+  it('reports the two press sequences that formed the pair, in order', () => {
+    click(ORIGIN, 0);
+    click(ORIGIN, 100);
+
+    expect(onDoubleClick).toHaveBeenCalledTimes(1);
+    const pressSeqs = onDoubleClick.mock.calls[0]![2];
+    expect(pressSeqs).toBeDefined();
+    const [first, second] = pressSeqs!;
+    // Monotonic and strictly increasing: the earlier press is reported first.
+    expect(second).toBe(first + 1);
+  });
+
   it('reports the image point the second click landed on', () => {
     // Offset inside the 20px pair threshold, so the two positions differ and
     // reporting the *first* click's would fail. Identical positions would let

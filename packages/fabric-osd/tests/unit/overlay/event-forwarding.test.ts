@@ -21,6 +21,7 @@ interface OverlayInternals {
   _forwardToFabric(
     type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
     event: PointerEvent,
+    pressSeq?: number,
   ): void;
 }
 
@@ -110,6 +111,27 @@ describe('synthetic event forwarding', () => {
     expect(dispatched).toHaveLength(1);
     expect(dispatched[0]!.type).toBe('pointerdown');
     expect(dispatched[0]!.bubbles).toBe(false);
+  });
+
+  /**
+   * The press sequence is stamped on the event the *tool* sees — the synthetic
+   * one — and only for presses (#176). Keying the original event instead would
+   * make every `pressSeqOf` lookup return undefined, and stamping moves or
+   * releases would hand a tool a number for an event that placed nothing.
+   */
+  it('stamps the forwarded press, and only the press', () => {
+    const originalPress = pointerEvent('pointerdown');
+    internals(overlay)._forwardToFabric('pointerdown', originalPress, 42);
+    internals(overlay)._forwardToFabric('pointermove', pointerEvent('pointermove'));
+
+    expect(dispatched).toHaveLength(2);
+    const [syntheticPress, syntheticMove] = dispatched;
+    expect(overlay.pressSeqOf(syntheticPress!)).toBe(42);
+    // The move carries no sequence...
+    expect(overlay.pressSeqOf(syntheticMove!)).toBeUndefined();
+    // ...and neither does the original the overlay received, which is not the
+    // object any tool is handed.
+    expect(overlay.pressSeqOf(originalPress)).toBeUndefined();
   });
 
   /**

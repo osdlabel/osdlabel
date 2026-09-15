@@ -63,10 +63,11 @@ export type DoubleClickCallback = (
   event: PointerEvent,
   imagePoint: Point,
   /**
-   * The press sequence numbers of the two presses that formed this pair, so a
-   * tool that accumulates on press can drop exactly the vertices this gesture
-   * created. Absent when either press was not forwarded (see
-   * {@link FabricOverlay.pressSeqOf}).
+   * The press sequence numbers of the two presses that formed this pair, in
+   * order, so a tool that accumulates on press can identify the vertices this
+   * gesture created. The overlay always supplies them — both presses are
+   * recorded before either release can qualify — so the parameter is optional
+   * only to keep existing two-parameter callbacks assignable.
    */
   pressSeqs?: readonly [number, number],
 ) => void;
@@ -639,6 +640,14 @@ export class FabricOverlay {
   private _forwardToFabric(
     type: typeof POINTER_DOWN | typeof POINTER_MOVE | typeof POINTER_UP | typeof POINTER_CANCEL,
     originalEvent: PointerEvent,
+    /**
+     * The sequence to stamp on the dispatched event, passed by the one caller
+     * that has just produced it. Taking it as a parameter rather than reading
+     * `_pendingPress` means there is no ordering between this method and
+     * `_recordPress` to get wrong: a caller that does not supply one stamps
+     * nothing, instead of silently stamping the *previous* press's number.
+     */
+    pressSeq?: number,
   ): void {
     if (this._forwarding) return;
     this._forwarding = true;
@@ -665,11 +674,10 @@ export class FabricOverlay {
         altKey: originalEvent.altKey,
         metaKey: originalEvent.metaKey,
       });
-      // Only presses get a sequence, and it is keyed on the synthetic event
-      // because that is the one the tool receives. Keying `originalEvent`
-      // instead would make every `pressSeqOf` lookup return undefined.
-      if (type === POINTER_DOWN && this._pendingPress) {
-        this._pressSeqByEvent.set(syntheticEvent, this._pendingPress.seq);
+      // Keyed on the synthetic event because that is the one the tool
+      // receives; keying `originalEvent` would make every lookup undefined.
+      if (pressSeq !== undefined) {
+        this._pressSeqByEvent.set(syntheticEvent, pressSeq);
       }
       upperCanvas.dispatchEvent(syntheticEvent);
     } finally {
@@ -678,7 +686,7 @@ export class FabricOverlay {
   }
 
   /** Remember where and when a press started, for {@link _detectDoubleClick}. */
-  private _recordPress(originalEvent: PointerEvent): void {
+  private _recordPress(originalEvent: PointerEvent): number {
     const { x, y } = this._toElementPoint(originalEvent);
     this._pendingPress = {
       time: originalEvent.timeStamp,
@@ -687,6 +695,7 @@ export class FabricOverlay {
       pointerId: originalEvent.pointerId,
       seq: ++this._pressSeq,
     };
+    return this._pendingPress.seq;
   }
 
   /**
@@ -885,8 +894,7 @@ export class FabricOverlay {
         }
 
         if (this._panGestureActive) return;
-        this._recordPress(originalEvent);
-        this._forwardToFabric(POINTER_DOWN, originalEvent);
+        this._forwardToFabric(POINTER_DOWN, originalEvent, this._recordPress(originalEvent));
       },
 
       moveHandler: (event: OpenSeadragon.MouseTrackerEvent) => {

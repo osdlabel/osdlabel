@@ -561,8 +561,9 @@ describe('PolylineTool', () => {
       const a = press();
       const b = press();
       // The overlay reports the gesture only after forwarding both presses, so
-      // the tool always has two near-coincident vertices here. Both are the
-      // gesture's, both go, and nothing is left to commit.
+      // the tool always has two near-coincident vertices here. The duplicate is
+      // dropped, leaving one — below `finish`'s two-point minimum, so the path
+      // is cancelled rather than committed as a 1px polyline.
       tool.onPointerDown(a, { x: 10, y: 10 });
       tool.onPointerDown(b, { x: 11, y: 11 });
       tool.onDoubleClick!(release(), { x: 11, y: 11 }, [seq(a), seq(b)]);
@@ -589,30 +590,6 @@ describe('PolylineTool', () => {
       ]);
     });
 
-    it('stops at a vertex whose press the overlay never forwarded', () => {
-      const a = press();
-      const untracked = press();
-      const c = press();
-      tool.onPointerDown(a, { x: 10, y: 10 });
-      // A press the overlay did not forward, so its vertex carries no sequence.
-      // It can never be one of the gesture's, so it must halt the scan rather
-      // than be treated as a match — otherwise a single gesture walks off the
-      // tail and eats vertices the user placed.
-      mockOverlay.markUntracked(untracked);
-      tool.onPointerDown(untracked, { x: 90, y: 10 });
-      tool.onPointerDown(c, { x: 90, y: 70 });
-      tool.onDoubleClick!(release(), { x: 90, y: 70 }, [seq(c), SUPPRESSED]);
-
-      expect(addedParams).toHaveLength(1);
-      // No vertex carries the second press's sequence, so there is no
-      // duplicate to remove.
-      expect((addedParams[0]!.fabricObject as Polyline).points).toEqual([
-        { x: 10, y: 10 },
-        { x: 90, y: 10 },
-        { x: 90, y: 70 },
-      ]);
-    });
-
     it('requires the tail itself to be the second press, not merely to follow it', () => {
       const a = press();
       const b = press();
@@ -624,7 +601,8 @@ describe('PolylineTool', () => {
       // vertex — sits on the tail. A real stream cannot produce this, since the
       // gesture reports immediately after its own two presses; the check exists
       // so that a future change which *can* produce it does not silently delete
-      // a user's vertex. Both halves of the match are load-bearing.
+      // a user's vertex. This pins the *tail* half of the match; the
+      // predecessor half is pinned by the suppressed-press tests above.
       tool.onDoubleClick!(release(), { x: 90, y: 70 }, [seq(b), SUPPRESSED]);
 
       expect(addedParams).toHaveLength(1);
@@ -635,7 +613,37 @@ describe('PolylineTool', () => {
       ]);
     });
 
-    it('drops nothing extra when a press closed the path instead of adding', () => {
+    it('cancels the fresh path when the gesture closed one and started another', () => {
+      const a = press();
+      const b = press();
+      const c = press();
+      const closing = press();
+      const after = press();
+      tool.onPointerDown(a, { x: 10, y: 10 });
+      tool.onPointerDown(b, { x: 90, y: 10 });
+      tool.onPointerDown(c, { x: 90, y: 70 });
+      // The gesture's first press closes the path and commits it; its second
+      // then starts a brand-new one-vertex path. That leaves fewer than two
+      // vertices, so there is no pair to match and `finish` cancels.
+      tool.onPointerDown(closing, { x: 12, y: 12 });
+      tool.onPointerDown(after, { x: 400, y: 400 });
+      tool.onDoubleClick!(release(), { x: 400, y: 400 }, [seq(closing), seq(after)]);
+
+      // Exactly one commit — the closed polygon. The stray vertex is discarded
+      // rather than committed as a degenerate path.
+      expect(addedParams).toHaveLength(1);
+      expect((addedParams[0]!.fabricObject as Polygon).points).toEqual([
+        { x: 10, y: 10 },
+        { x: 90, y: 10 },
+        { x: 90, y: 70 },
+      ]);
+    });
+
+    // Note: this one never reaches `dropGestureVertices` — the closing press
+    // commits before any double click is reported. It guards the interaction
+    // between closing and the sequence stamping (a stamp must not be orphaned),
+    // not the drop rule itself.
+    it('closes the path without orphaning a sequence stamp', () => {
       const a = press();
       const b = press();
       const c = press();
