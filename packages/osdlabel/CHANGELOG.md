@@ -1,5 +1,19 @@
 # osdlabel
 
+## 0.12.0
+
+### Patch Changes
+
+- Updated dependencies [9d54b96]
+  - @osdlabel/fabric-osd@0.12.0
+  - @osdlabel/fabric-annotations@0.12.0
+  - @osdlabel/annotation@0.12.0
+  - @osdlabel/annotation-context@0.12.0
+  - @osdlabel/decoration@0.12.0
+  - @osdlabel/geometry@0.12.0
+  - @osdlabel/validation@0.12.0
+  - @osdlabel/viewer-api@0.12.0
+
 ## 0.11.1
 
 ### Patch Changes
