@@ -214,8 +214,10 @@ export function useAnnotationTool(
     // browser's own dblclick never reaches Fabric's canvas (issue #168).
     // Unconditional: a suppressed press adds no vertex, and the tool decides
     // for itself whether the gesture contributed one.
-    const unsubscribeDoubleClick = overlay.onDoubleClick((e, p) => {
-      tool.onDoubleClick?.(e, p);
+    const unsubscribeDoubleClick = overlay.onDoubleClick((e, p, pressSeqs) => {
+      // The pair must be relayed: it is the only way the tool can tell which
+      // vertices this gesture's own presses added (#176).
+      tool.onDoubleClick?.(e, p, pressSeqs);
     });
 
     overlay.canvas.on('mouse:down', handleDown);

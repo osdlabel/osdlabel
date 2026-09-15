@@ -230,9 +230,13 @@ describe('useAnnotationTool', () => {
 
             const point = { x: 12, y: 34 };
             const event = { type: 'pointerup' } as PointerEvent;
-            doubleClickListeners[0]!(event, point);
+            // The press pair is relayed too: without it the tool cannot tell
+            // which vertices the gesture's own presses added (#176), and a
+            // hook that drops the argument fails only in E2E.
+            const pressSeqs = [7, 8] as const;
+            doubleClickListeners[0]!(event, point, pressSeqs);
 
-            expect(spy).toHaveBeenCalledWith(event, point);
+            expect(spy).toHaveBeenCalledWith(event, point, pressSeqs);
 
             dispose();
             // The subscription is released with the effect, so a later double

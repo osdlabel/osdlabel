@@ -7,7 +7,12 @@ import {
   DEFAULT_FIRST_VERTEX_MARKER_RADIUS_PX,
 } from '../../src/vertex-markers.js';
 import type { ToolOverlay } from '../../src/types.js';
-import { createMockCanvas, expectFabricInstance, type MockFabricCanvas } from './test-helpers.js';
+import {
+  createMockCanvas,
+  createMockToolOverlay,
+  expectFabricInstance,
+  type MockFabricCanvas,
+} from './test-helpers.js';
 
 describe('VertexMarkerLayer', () => {
   let canvas: MockFabricCanvas;
@@ -22,7 +27,7 @@ describe('VertexMarkerLayer', () => {
 
   beforeEach(() => {
     canvas = createMockCanvas();
-    overlay = { canvas, imageToScreen: (p: Point) => p } as unknown as ToolOverlay;
+    overlay = createMockToolOverlay(canvas);
   });
 
   it('adds one marker per vertex, positioned in image space', () => {

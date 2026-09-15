@@ -360,9 +360,13 @@ The gesture delivers both of its `pointerdown`s — and the second `pointerup`, 
 - a press landing on an existing annotation is suppressed by the hooks and never reaches the tool;
 - a press may have closed the path instead.
 
-So the count is two, one, or none, and a tool cannot simply pop. `PolylineTool` establishes geometrically that _both_ presses landed, measuring the last two vertices against the release point reported to `onDoubleClick`. The bounds compose from the table above: the second press is within `clickDistThreshold` (5 px) of that release, and the first is at most that plus `dblClickDistThreshold` plus another 5 — 25 px — which also means the two presses can be up to 30 px apart while still pairing.
+So the count is two, one, or none, and a tool cannot simply pop.
 
-Both halves of that test are load-bearing. Measuring only against the release pops the single vertex a gesture contributed when its _first_ press was suppressed; measuring only between the last two vertices misses a pair that drifted, and fires on two deliberate vertices that happen to sit close on screen.
+The overlay therefore says which presses they were, rather than leaving the tool to infer it. Every forwarded `pointerdown` carries a monotonic **press sequence**, readable with `ToolOverlay.pressSeqOf(event)`, and `onDoubleClick` receives the pair of sequences that formed the gesture. A tool that accumulates on press stamps each entry with the sequence that placed it, and drops the tail entry only when it carries the _second_ press's sequence and the entry before it carries the first's. The path therefore still ends at the double-clicked point: the gesture's first press places a real vertex, and only its second is redundant.
+
+That makes all three counts one rule. A suppressed press never reached the tool, so no entry carries its sequence — and a gesture that contributed only one vertex leaves it alone, because that vertex is the endpoint the user asked for rather than an artefact. A press that closed the path added no entry to drop. There are no bounds to compose and no window in which a user's own vertex can be mistaken for the gesture's — which the previous screen-distance test did have, narrowly, when the first press was suppressed and the preceding vertex fell inside its bound ([#176](https://github.com/osdlabel/osdlabel/issues/176)).
+
+Two details carry the guarantee. `pressSeqOf` is keyed on the **synthetic** event the overlay dispatched — the one the tool actually receives — and is populated only for presses, so any other event returns `undefined`. And `undefined` means _not a tracked press_, never a stale number: it halts the scan rather than matching, so an entry the overlay did not place is never removed.
 
 #### Touch
 

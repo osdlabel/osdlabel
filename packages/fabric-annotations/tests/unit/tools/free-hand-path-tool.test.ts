@@ -11,6 +11,7 @@ import {
   createMockCanvas,
   expectFabricInstance,
   type MockFabricCanvas,
+  createMockToolOverlay,
 } from '../test-helpers.js';
 
 describe('FreeHandPathTool', () => {
@@ -29,10 +30,7 @@ describe('FreeHandPathTool', () => {
 
     mockCanvas = createMockCanvas();
 
-    mockOverlay = {
-      canvas: mockCanvas,
-      imageToScreen: vi.fn((p: { x: number; y: number }) => p),
-    } as unknown as ToolOverlay;
+    mockOverlay = createMockToolOverlay(mockCanvas);
 
     mockCallbacks = {
       getActiveContextId: () => contextId,
