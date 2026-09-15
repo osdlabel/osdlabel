@@ -37,6 +37,12 @@ interface MutableDomEntry {
 
 type DomDecorationsCallback = (entries: readonly DomDecorationEntry[]) => void;
 
+/** Host box measured once per reposition pass, only when a cell-space anchor needs it. */
+interface HostSize {
+  readonly width: number;
+  readonly height: number;
+}
+
 const DEFAULT_TEXT_COLOR = '#ffffff';
 const DEFAULT_FONT_SIZE_PX = 12;
 const DEFAULT_FONT_FAMILY = 'sans-serif';
@@ -69,6 +75,14 @@ export class DecorationLayer {
   private readonly _lineObjects = new Map<string, FabricLine>();
   private readonly _domEntries = new Map<string, MutableDomEntry>();
   private readonly _domSubscribers = new Set<DomDecorationsCallback>();
+  /**
+   * Last transform string written per element. Compared instead of reading
+   * `el.style.transform` back, because the CSSOM reserializes the value
+   * (`0` becomes `0px`) so a readback never equals the authored string and the
+   * idempotence guard would silently write every frame.
+   */
+  private readonly _lastTransform = new WeakMap<HTMLElement, string>();
+  private readonly _hostResizeObserver: ResizeObserver | undefined;
   private _decorations: readonly Decoration[] = [];
   private _destroyed = false;
 
@@ -84,6 +98,16 @@ export class DecorationLayer {
     overlay.overlayElement.appendChild(this._hostEl);
 
     this._unsubscribeSync = overlay.onSync(() => this._reposition());
+
+    // Cell-space anchors are fractions of the host's box. OSD raises `sync` on
+    // its own `resize`, but not when the host first receives a size after
+    // being laid out late (e.g. a cell inside a hidden panel), so observe the
+    // host directly where the platform allows it.
+    this._hostResizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => this._reposition())
+        : undefined;
+    this._hostResizeObserver?.observe(this._hostEl);
   }
 
   /** Replace the current decorations. Diffed by id for stable element reuse. */
@@ -116,6 +140,7 @@ export class DecorationLayer {
     if (this._destroyed) return;
     this._destroyed = true;
     this._unsubscribeSync();
+    this._hostResizeObserver?.disconnect();
     for (const obj of this._lineObjects.values()) {
       this._overlay.canvas.remove(obj);
     }
@@ -222,14 +247,19 @@ export class DecorationLayer {
   // ── Screen positioning (text + DOM share the same anchor model) ────────
 
   private _reposition(): void {
+    if (this._destroyed) return;
+    // Measure the host once, before any transform write in this pass, so a
+    // cell-space decoration never forces a synchronous layout mid-loop. The
+    // read is skipped entirely when no decoration needs it.
+    let hostSize: HostSize | undefined;
     for (const d of this._decorations) {
-      if (d.type === 'text') {
-        const el = this._textEls.get(d.id);
-        if (el) this._positionEl(el, d.anchor, d.offset, d.placement, d.anchorSpace);
-      } else if (d.type === 'dom') {
-        const el = this._domEntries.get(d.id)?.element;
-        if (el) this._positionEl(el, d.anchor, d.offset, d.placement, d.anchorSpace);
+      if (d.type !== 'text' && d.type !== 'dom') continue;
+      const el = d.type === 'text' ? this._textEls.get(d.id) : this._domEntries.get(d.id)?.element;
+      if (!el) continue;
+      if (d.anchorSpace === 'cell') {
+        hostSize ??= { width: this._hostEl.clientWidth, height: this._hostEl.clientHeight };
       }
+      this._positionEl(el, d.anchor, d.offset, d.placement, d.anchorSpace, hostSize);
     }
   }
 
@@ -239,21 +269,20 @@ export class DecorationLayer {
     offset: { readonly x: number; readonly y: number } | undefined,
     placement: TextPlacement | undefined,
     anchorSpace: DecorationAnchorSpace | undefined,
+    hostSize: HostSize | undefined,
   ): void {
     // Cell-space anchors are fractions of the host element's box (which is
     // `inset:0` inside the cell), so they never touch the viewport transform.
     const screen =
-      anchorSpace === 'cell'
-        ? {
-            x: anchor.x * this._hostEl.clientWidth,
-            y: anchor.y * this._hostEl.clientHeight,
-          }
+      anchorSpace === 'cell' && hostSize !== undefined
+        ? { x: anchor.x * hostSize.width, y: anchor.y * hostSize.height }
         : this._overlay.imageToScreen(anchor);
     const offsetX = offset?.x ?? 0;
     const offsetY = offset?.y ?? 0;
     const align = placementTranslate(placement);
     const nextTransform = `translate3d(${screen.x + offsetX}px, ${screen.y + offsetY}px, 0) translate3d(${align.x}, ${align.y}, 0)`;
-    if (el.style.transform !== nextTransform) {
+    if (this._lastTransform.get(el) !== nextTransform) {
+      this._lastTransform.set(el, nextTransform);
       el.style.transform = nextTransform;
     }
   }

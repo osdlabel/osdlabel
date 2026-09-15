@@ -637,4 +637,64 @@ describe('DecorationLayer — cell-anchored decorations', () => {
     expect(hostParent.querySelector('[data-osdlabel="decoration-text"]')).toBeNull();
     expect(hostParent.querySelector('[data-osdlabel="decoration-dom"]')).toBeNull();
   });
+
+  it('L11: skips the transform write when the position is unchanged (layer-owned cache, not CSSOM readback)', () => {
+    const { overlay, hostParent, syncSubscribers } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    setHostSize(hostParent, 400, 300);
+    layer.setDecorations([cellText('hud'), textDeco('img')]);
+    const hud = hostParent.querySelector<HTMLElement>('[data-decoration-id="hud"]')!;
+    const img = hostParent.querySelector<HTMLElement>('[data-decoration-id="img"]')!;
+    expect(hud.style.transform).toContain('translate3d(400px, 0px, 0)');
+
+    // Simulate the browser reserializing the value: a readback that no longer
+    // equals the authored string must not defeat the guard.
+    hud.style.transform = 'reserialized-by-cssom';
+    img.style.transform = 'reserialized-by-cssom';
+    for (const cb of syncSubscribers) cb();
+    expect(hud.style.transform).toBe('reserialized-by-cssom');
+    expect(img.style.transform).toBe('reserialized-by-cssom');
+
+    // A real change still writes.
+    setHostSize(hostParent, 800, 300);
+    for (const cb of syncSubscribers) cb();
+    expect(hud.style.transform).toContain('translate3d(800px, 0px, 0)');
+    layer.destroy();
+  });
+
+  it('L12: a host that measures 0 on first position catches up when the host is resized', () => {
+    // jsdom has no ResizeObserver; install a minimal one so the layer's
+    // host observation path is exercised the way a browser would drive it.
+    const callbacks = new Set<() => void>();
+    class FakeResizeObserver {
+      private readonly _cb: () => void;
+      constructor(cb: () => void) {
+        this._cb = cb;
+        callbacks.add(cb);
+      }
+      observe(): void {}
+      disconnect(): void {
+        callbacks.delete(this._cb);
+      }
+    }
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResizeObserver;
+    try {
+      const { overlay, hostParent } = createMockOverlay();
+      const layer = new DecorationLayer(overlay);
+      setHostSize(hostParent, 0, 0);
+      layer.setDecorations([cellText('hud')]);
+      const hud = hostParent.querySelector<HTMLElement>('[data-decoration-id="hud"]')!;
+      expect(hud.style.transform).toContain('translate3d(0px, 0px, 0)');
+      expect(callbacks.size).toBe(1);
+
+      setHostSize(hostParent, 640, 480);
+      for (const cb of callbacks) cb();
+      expect(hud.style.transform).toContain('translate3d(640px, 0px, 0)');
+
+      layer.destroy();
+      expect(callbacks.size).toBe(0);
+    } finally {
+      delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+    }
+  });
 });
