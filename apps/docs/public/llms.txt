@@ -1781,16 +1781,17 @@ export const rectanglePath: DecorationProvider = ({ annotations }) => {
 
 ## TextDecoration anatomy
 
-| Field                  | Type                       | Notes                                                                                          |
-| ---------------------- | -------------------------- | ---------------------------------------------------------------------------------------------- |
-| `id`                   | `string`                   | Stable across recomputations.                                                                  |
-| `type`                 | `'text'`                   | Discriminator.                                                                                 |
-| `text`                 | `string`                   | Newlines (`\n`) are honored (`white-space: pre`).                                              |
-| `anchor`               | `Point`                    | **Image-space**. Transformed by `imageToScreen` on every frame.                                |
-| `offset`               | `{ x: number; y: number }` | **Screen-space pixels** added to the anchor's screen position.                                 |
-| `placement`            | `TextPlacement`            | How the element sits relative to its anchor: `'top-left'` (default), `'center'`, `'top'`, etc. |
-| `style`                | `TextDecorationStyle`      | See style fields below.                                                                        |
-| `relatedAnnotationIds` | `readonly AnnotationId[]`  | Drives lifecycle and selection emphasis.                                                       |
+| Field                  | Type                       | Notes                                                                                                                     |
+| ---------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `id`                   | `string`                   | Stable across recomputations.                                                                                             |
+| `type`                 | `'text'`                   | Discriminator.                                                                                                            |
+| `text`                 | `string`                   | Newlines (`\n`) are honored (`white-space: pre`).                                                                         |
+| `anchor`               | `Point`                    | Coordinates in the space named by `anchorSpace` (image-space by default).                                                 |
+| `anchorSpace`          | `DecorationAnchorSpace`    | `'image'` (default) or `'cell'`. See [Cell-anchored readouts](#cell-anchored-readouts-hud) below.                         |
+| `offset`               | `{ x: number; y: number }` | **Screen-space pixels** added to the anchor's screen position.                                                            |
+| `placement`            | `TextPlacement`            | How the element sits relative to its anchor: `'top-left'` (default), `'center'`, `'top-right'`, etc. — nine values total. |
+| `style`                | `TextDecorationStyle`      | See style fields below.                                                                                                   |
+| `relatedAnnotationIds` | `readonly AnnotationId[]`  | Drives lifecycle and selection emphasis.                                                                                  |
 
 **`offset` vs. `placement`:** placement is the _semantic_ anchor (where on the element's box the anchor point lands); offset is a pixel-precise _nudge_ applied after that. Use `placement: 'center'` to drop a label in the middle of a shape; use `offset: { x: 8, y: 0 }` to push a label 8 px right of its anchor.
 
@@ -1903,18 +1904,69 @@ If you emit `type: 'dom'` decorations but **don't** pass `renderDomDecoration`, 
 
 ### DomDecoration anatomy
 
-| Field                  | Type                       | Notes                                                                           |
-| ---------------------- | -------------------------- | ------------------------------------------------------------------------------- |
-| `id`                   | `string`                   | Stable across recomputations; also the portal key.                              |
-| `type`                 | `'dom'`                    | Discriminator.                                                                  |
-| `anchor`               | `Point`                    | **Image-space**. Transformed by `imageToScreen` every frame.                    |
-| `offset`               | `{ x: number; y: number }` | **Screen-space pixels** added to the anchor's screen position.                  |
-| `placement`            | `TextPlacement`            | How the host sits relative to its anchor (`'top-left'` default, `'center'`, …). |
-| `content`              | `unknown`                  | Stable config the render-prop interprets. Not per-frame data.                   |
-| `style`                | `DomDecorationStyle`       | See below.                                                                      |
-| `relatedAnnotationIds` | `readonly AnnotationId[]`  | Drives lifecycle and selection emphasis.                                        |
+| Field                  | Type                       | Notes                                                                                             |
+| ---------------------- | -------------------------- | ------------------------------------------------------------------------------------------------- |
+| `id`                   | `string`                   | Stable across recomputations; also the portal key.                                                |
+| `type`                 | `'dom'`                    | Discriminator.                                                                                    |
+| `anchor`               | `Point`                    | Coordinates in the space named by `anchorSpace` (image-space by default).                         |
+| `anchorSpace`          | `DecorationAnchorSpace`    | `'image'` (default) or `'cell'`. See [Cell-anchored readouts](#cell-anchored-readouts-hud) below. |
+| `offset`               | `{ x: number; y: number }` | **Screen-space pixels** added to the anchor's screen position.                                    |
+| `placement`            | `TextPlacement`            | How the host sits relative to its anchor (`'top-left'` default, `'center'`, …).                   |
+| `content`              | `unknown`                  | Stable config the render-prop interprets. Not per-frame data.                                     |
+| `style`                | `DomDecorationStyle`       | See below.                                                                                        |
+| `relatedAnnotationIds` | `readonly AnnotationId[]`  | Drives lifecycle and selection emphasis.                                                          |
 
 **`DomDecorationStyle` fields:** `className`, `zIndex`, `width` / `height` (fixed screen-px, otherwise sizes to content), and `pointerEvents` — defaults to `'auto'` so content is interactive; set `'none'` for purely-visual overlays that should let clicks fall through to the canvas.
+
+## Cell-anchored readouts (HUD)
+
+`TextDecoration` and `DomDecoration` both accept an optional `anchorSpace`:
+
+```ts
+/** Coordinate space a text/DOM decoration's `anchor` is expressed in. */
+type DecorationAnchorSpace = 'image' | 'cell';
+```
+
+By default (`'image'`, or `anchorSpace` omitted) `anchor` is an image-pixel coordinate, projected through the viewport on every frame — the decoration pans, zooms, rotates, and flips with the image, same as every example so far.
+
+`anchorSpace: 'cell'` switches `anchor` to a **fraction of the cell's own size**: `{ x: 0, y: 0 }` is the cell's top-left corner, `{ x: 1, y: 1 }` its bottom-right, `{ x: 1, y: 0 }` its top-right, and so on. A cell-space anchor is fixed in the cell's viewport — it is untouched by pan, zoom, rotate, or flip, which makes it the right tool for a heads-up readout that should always sit in, say, the top-right corner of the view regardless of what the user does to the image underneath. `offset` (still screen-px) and `placement` apply identically in both spaces, so the same corner-alignment vocabulary you already use for image-anchored labels works here too.
+
+`placement` has three additional corner values beyond the six above, so the full set is now nine: `'top-left'` (default), `'top-right'`, `'bottom-left'`, `'bottom-right'`, `'center'`, `'top'`, `'bottom'`, `'left'`, `'right'`. The semantics are the same "which point of the element's own box lands on the anchor" rule — `'top-right'` pins the element's top-right corner to the anchor, `'bottom-left'` its bottom-left corner, `'bottom-right'` its bottom-right corner.
+
+Stacking multiple HUD readouts is the consumer's job, not the library's — there is no automatic HUD layout manager. Emit either one text decoration with `\n`-separated lines, or one `DomDecoration` that lays out several readouts itself. This keeps the renderer's per-frame work at a single position write instead of a collision-avoiding layout pass over an unbounded number of items.
+
+### Example: a ratio readout pinned to the corner
+
+A provider that, once at least two lines are drawn, renders the ratio of their lengths pinned to the cell's top-right corner:
+
+```ts
+
+export const lineRatioHudProvider: DecorationProvider = ({ annotations }) => {
+  const lines = annotations.filter(
+    (a) => a.geometry.type === 'line' || a.geometry.type === 'polyline',
+  );
+  if (lines.length < 2) {
+    return [];
+  }
+  const [first, second] = lines;
+  const l1 = length(first!.geometry);
+  const l2 = length(second!.geometry);
+
+  const decoration: TextDecoration = {
+    id: 'hud:ratio',
+    type: 'text',
+    anchorSpace: 'cell',
+    anchor: { x: 1, y: 0 },
+    placement: 'top-right',
+    offset: { x: -8, y: 8 },
+    text: `L1/L2 ratio: ${(l1 / l2).toFixed(2)}\nL2/L1 ratio: ${(l2 / l1).toFixed(2)}`,
+    relatedAnnotationIds: [first!.id, second!.id],
+  };
+  return [decoration];
+};
+```
+
+Because the anchor is `{ x: 1, y: 0 }` in `'cell'` space with `placement: 'top-right'`, the readout's top-right corner sits 8px in from the cell's own top-right corner, no matter how the user has panned, zoomed, rotated, or flipped the image underneath — only editing the annotations (or resizing the cell) moves it. Live drag updates work exactly as for image-anchored decorations: while the user drags an endpoint of `first` or `second`, `enableLiveDecorationUpdates` re-runs this provider against the live geometry every animation frame, so the ratio text updates mid-drag and the readout stays HUD-fixed throughout.
 
 ## Live updates during drag
 
