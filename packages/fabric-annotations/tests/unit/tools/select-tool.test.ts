@@ -7,7 +7,7 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { FabricObject } from 'fabric';
-import { createTestKeyboardShortcuts } from '../test-helpers.js';
+import { createTestKeyboardShortcuts, createMockToolOverlay } from '../test-helpers.js';
 
 describe('SelectTool', () => {
   let tool: SelectTool;
@@ -48,9 +48,7 @@ describe('SelectTool', () => {
       remove: vi.fn(),
     };
 
-    mockOverlay = {
-      canvas: mockCanvas,
-    } as unknown as ToolOverlay;
+    mockOverlay = createMockToolOverlay(mockCanvas);
 
     mockCallbacks = {
       getActiveContextId: () => contextId,

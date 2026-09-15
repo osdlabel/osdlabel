@@ -71,7 +71,12 @@ export interface AnnotationTool {
    * Fires last: both of the gesture's `onPointerDown`s and the second
    * `onPointerUp` have already run by the time this is called.
    */
-  onDoubleClick?(event: PointerEvent, imagePoint: Point): void;
+  onDoubleClick?(
+    event: PointerEvent,
+    imagePoint: Point,
+    /** Sequences of the two presses that formed the pair; see {@link ToolOverlay.pressSeqOf}. */
+    pressSeqs?: readonly [number, number],
+  ): void;
 
   /** Handle key down - returns true if the key was consumed */
   onKeyDown(event: KeyboardEvent): boolean;

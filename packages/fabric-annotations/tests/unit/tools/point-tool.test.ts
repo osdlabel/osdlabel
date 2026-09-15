@@ -12,6 +12,7 @@ import {
   createMockCanvas,
   expectFabricInstance,
   type MockFabricCanvas,
+  createMockToolOverlay,
 } from '../test-helpers.js';
 
 describe('PointTool', () => {
@@ -30,9 +31,7 @@ describe('PointTool', () => {
 
     mockCanvas = createMockCanvas();
 
-    mockOverlay = {
-      canvas: mockCanvas,
-    } as unknown as ToolOverlay;
+    mockOverlay = createMockToolOverlay(mockCanvas);
 
     mockCallbacks = {
       getActiveContextId: () => contextId,

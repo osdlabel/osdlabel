@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FabricOverlay } from '../../../src/overlay/fabric-overlay.js';
 import type { DoubleClickCallback } from '../../../src/overlay/fabric-overlay.js';
-import { createTestViewer, type TestViewer } from './test-viewer.js';
+import { createTestViewer, installPointerEventPolyfill, type TestViewer } from './test-viewer.js';
 
 /**
  * Double-click detection (issue #168).
@@ -16,8 +16,18 @@ import { createTestViewer, type TestViewer } from './test-viewer.js';
  * worthless (#162).
  */
 interface OverlayInternals {
-  _recordPress(event: PointerEvent): void;
+  _recordPress(event: PointerEvent): number;
   _detectDoubleClick(event: PointerEvent): void;
+  /**
+   * The real OSD `MouseTracker` the overlay built. Driving its handlers runs
+   * the production call site, which is the point for the join test below:
+   * reconstructing that call in the test body would pin the two methods
+   * against each other while leaving the line that connects them uncovered.
+   */
+  _overlayTracker: {
+    pressHandler(event: { originalEvent: PointerEvent }): void;
+    releaseHandler(event: { originalEvent: PointerEvent }): void;
+  };
 }
 
 const internals = (overlay: FabricOverlay): OverlayInternals =>
@@ -58,7 +68,10 @@ describe('FabricOverlay double-click detection', () => {
   let overlay: FabricOverlay;
   let onDoubleClick: ReturnType<typeof vi.fn<DoubleClickCallback>>;
 
+  let restorePointerEvent: () => void;
+
   beforeEach(() => {
+    restorePointerEvent = installPointerEventPolyfill();
     tv = createTestViewer();
     overlay = new FabricOverlay(tv.viewer);
     overlay.setMode('annotation');
@@ -69,6 +82,7 @@ describe('FabricOverlay double-click detection', () => {
   afterEach(() => {
     overlay.destroy();
     tv.cleanup();
+    restorePointerEvent();
   });
 
   /** One press-and-release at a position and time, as the handlers deliver it. */
@@ -89,6 +103,65 @@ describe('FabricOverlay double-click detection', () => {
     expect(onDoubleClick).not.toHaveBeenCalled();
     click(ORIGIN, 100);
     expect(onDoubleClick).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The pair is what lets a tool identify the vertices its own presses added
+   * (#176), and the order carries the meaning: the first press placed a real
+   * vertex, the second a duplicate. Reversing it would make a tool drop the
+   * wrong one. Until this existed the ordering was pinned only by a browser
+   * test, in a package whose own suite never loads a browser.
+   */
+  /**
+   * The numbers reported to the callback must be the numbers `pressSeqOf`
+   * answers for the gesture's own presses. Those travel by two different
+   * routes — `_recordPress`'s *return* is what gets stamped on the forwarded
+   * event, while what it *stores* is what the pair is built from — so they can
+   * disagree while every other assertion in this file still passes. A tool
+   * matching reported numbers against stamped ones would then drop nothing,
+   * a failure previously visible only in the browser.
+   */
+  it('reports sequences that match what pressSeqOf answers for those presses', () => {
+    const dispatched: PointerEvent[] = [];
+    vi.spyOn(
+      (overlay as unknown as { _fabricCanvas: { upperCanvasEl: HTMLCanvasElement } })._fabricCanvas
+        .upperCanvasEl,
+      'dispatchEvent',
+    ).mockImplementation((event: Event) => {
+      dispatched.push(event as PointerEvent);
+      return true;
+    });
+
+    const tracker = internals(overlay)._overlayTracker;
+    const pressAndRelease = (time: number): void => {
+      tracker.pressHandler({ originalEvent: pointerEvent({ ...at(ORIGIN), timeStamp: time }) });
+      tracker.releaseHandler({ originalEvent: pointerEvent({ ...at(ORIGIN), timeStamp: time }) });
+    };
+    pressAndRelease(0);
+    pressAndRelease(100);
+
+    expect(onDoubleClick).toHaveBeenCalledTimes(1);
+    const pressSeqs = onDoubleClick.mock.calls[0]![2];
+    expect(pressSeqs).toBeDefined();
+    // The handlers forward the releases too; only the presses carry a stamp.
+    const forwardedPresses = dispatched.filter((event) => event.type === 'pointerdown');
+    expect(forwardedPresses).toHaveLength(2);
+    expect(pressSeqs).toEqual([
+      overlay.pressSeqOf(forwardedPresses[0]!),
+      overlay.pressSeqOf(forwardedPresses[1]!),
+    ]);
+  });
+
+  it('reports the two press sequences that formed the pair, in order', () => {
+    click(ORIGIN, 0);
+    click(ORIGIN, 100);
+
+    expect(onDoubleClick).toHaveBeenCalledTimes(1);
+    const pressSeqs = onDoubleClick.mock.calls[0]![2];
+    expect(pressSeqs).toBeDefined();
+    const [first, second] = pressSeqs!;
+    // Monotonic and strictly increasing: the earlier press is reported first.
+    expect(second).toBe(first + 1);
   });
 
   it('reports the image point the second click landed on', () => {

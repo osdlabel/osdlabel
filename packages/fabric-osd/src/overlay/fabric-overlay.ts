@@ -59,7 +59,18 @@ export interface CustomControlHandler {
  * The argument order matches `AnnotationTool.onPointerDown(event, imagePoint)`
  * so a tool method can be registered directly.
  */
-export type DoubleClickCallback = (event: PointerEvent, imagePoint: Point) => void;
+export type DoubleClickCallback = (
+  event: PointerEvent,
+  imagePoint: Point,
+  /**
+   * The press sequence numbers of the two presses that formed this pair, in
+   * order, so a tool that accumulates on press can identify the vertices this
+   * gesture created. The overlay always supplies them — both presses are
+   * recorded before either release can qualify — so the parameter is optional
+   * only to keep existing two-parameter callbacks assignable.
+   */
+  pressSeqs?: readonly [number, number],
+) => void;
 
 /** Options for creating a FabricOverlay */
 export interface OverlayOptions {
@@ -204,7 +215,13 @@ export class FabricOverlay {
   private readonly _doubleClickSubscribers = new Set<DoubleClickCallback>();
 
   /** The press in progress, so a release can be qualified as a click. */
-  private _pendingPress: { time: number; x: number; y: number; pointerId: number } | null = null;
+  private _pendingPress: {
+    time: number;
+    x: number;
+    y: number;
+    pointerId: number;
+    seq: number;
+  } | null = null;
 
   /** The previous completed click, for double-click detection. */
   private _lastClick: {
@@ -212,7 +229,21 @@ export class FabricOverlay {
     x: number;
     y: number;
     pointerType: string;
+    seq: number;
   } | null = null;
+
+  /**
+   * Monotonic press counter, and the map from each forwarded `pointerdown` to
+   * the press that produced it.
+   *
+   * Tools identify a double click's own vertices by these numbers rather than
+   * by measuring screen distance (#176). The map is keyed on the *synthetic*
+   * event — the one a tool actually receives — and populated only for presses,
+   * so a lookup for any other event is `undefined`, which callers must read as
+   * "not a tracked press" rather than as a sequence.
+   */
+  private _pressSeq = 0;
+  private readonly _pressSeqByEvent = new WeakMap<PointerEvent, number>();
 
   /** Tears down the device-pixel-ratio media-query observer. */
   private _disposeDevicePixelRatioObserver: (() => void) | null = null;
@@ -390,6 +421,19 @@ export class FabricOverlay {
     return () => {
       this._syncSubscribers.delete(callback);
     };
+  }
+
+  /**
+   * The press that produced a forwarded `pointerdown`, or `undefined` if this
+   * event is not one the overlay forwarded as a press.
+   *
+   * Pure: the same event always yields the same answer, so a caller never has
+   * to reason about when it asks. `undefined` means "not a tracked press" —
+   * never a stale number — which is the correct reading for a move, a release,
+   * and for the synthetic events tests construct by hand.
+   */
+  pressSeqOf(event: PointerEvent): number | undefined {
+    return this._pressSeqByEvent.get(event);
   }
 
   /**
@@ -596,6 +640,14 @@ export class FabricOverlay {
   private _forwardToFabric(
     type: typeof POINTER_DOWN | typeof POINTER_MOVE | typeof POINTER_UP | typeof POINTER_CANCEL,
     originalEvent: PointerEvent,
+    /**
+     * The sequence to stamp on the dispatched event, passed by the one caller
+     * that has just produced it. Taking it as a parameter rather than reading
+     * `_pendingPress` means there is no ordering between this method and
+     * `_recordPress` to get wrong: a caller that does not supply one stamps
+     * nothing, instead of silently stamping the *previous* press's number.
+     */
+    pressSeq?: number,
   ): void {
     if (this._forwarding) return;
     this._forwarding = true;
@@ -622,6 +674,11 @@ export class FabricOverlay {
         altKey: originalEvent.altKey,
         metaKey: originalEvent.metaKey,
       });
+      // Keyed on the synthetic event because that is the one the tool
+      // receives; keying `originalEvent` would make every lookup undefined.
+      if (pressSeq !== undefined) {
+        this._pressSeqByEvent.set(syntheticEvent, pressSeq);
+      }
       upperCanvas.dispatchEvent(syntheticEvent);
     } finally {
       this._forwarding = false;
@@ -629,14 +686,16 @@ export class FabricOverlay {
   }
 
   /** Remember where and when a press started, for {@link _detectDoubleClick}. */
-  private _recordPress(originalEvent: PointerEvent): void {
+  private _recordPress(originalEvent: PointerEvent): number {
     const { x, y } = this._toElementPoint(originalEvent);
     this._pendingPress = {
       time: originalEvent.timeStamp,
       x,
       y,
       pointerId: originalEvent.pointerId,
+      seq: ++this._pressSeq,
     };
+    return this._pendingPress.seq;
   }
 
   /**
@@ -675,7 +734,7 @@ export class FabricOverlay {
     }
 
     const previous = this._lastClick;
-    this._lastClick = { time, x, y, pointerType: originalEvent.pointerType };
+    this._lastClick = { time, x, y, pointerType: originalEvent.pointerType, seq: press.seq };
 
     if (!previous) return;
     // A pair must be the same pointer type. Touch reaches here since #175;
@@ -695,9 +754,12 @@ export class FabricOverlay {
     // Snapshot + membership check: a callback can subscribe or unsubscribe
     // synchronously, and neither the additions nor the removals belong to this
     // gesture. See the integration guide.
+    // The release is neither of the two presses, so a subscriber cannot recover
+    // the pair from `originalEvent`; only the overlay knows it.
+    const pressSeqs: readonly [number, number] = [previous.seq, press.seq];
     for (const callback of [...this._doubleClickSubscribers]) {
       if (!this._doubleClickSubscribers.has(callback)) continue;
-      callback(originalEvent, imagePoint);
+      callback(originalEvent, imagePoint, pressSeqs);
     }
   }
 
@@ -832,8 +894,7 @@ export class FabricOverlay {
         }
 
         if (this._panGestureActive) return;
-        this._recordPress(originalEvent);
-        this._forwardToFabric(POINTER_DOWN, originalEvent);
+        this._forwardToFabric(POINTER_DOWN, originalEvent, this._recordPress(originalEvent));
       },
 
       moveHandler: (event: OpenSeadragon.MouseTrackerEvent) => {
