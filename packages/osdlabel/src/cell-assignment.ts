@@ -1,4 +1,18 @@
-import type { ImageId } from '@osdlabel/viewer-api';
+import type { ImageId, UIState } from '@osdlabel/viewer-api';
+
+/**
+ * The slice of {@link UIState} the cell-assignment helpers read.
+ *
+ * They take the state rather than pre-computed indices so a caller cannot
+ * derive one of the inputs wrongly — an earlier revision had each framework's
+ * filmstrip compute the cell count itself, and dropping `gridRows` from that
+ * product silently disabled the clear affordance for every cell below the
+ * first row.
+ */
+export type CellAssignmentView = Pick<
+  UIState,
+  'gridAssignments' | 'activeCellIndex' | 'gridColumns' | 'gridRows'
+>;
 
 /**
  * How a filmstrip image relates to the grid cell the user is currently acting
@@ -15,26 +29,40 @@ import type { ImageId } from '@osdlabel/viewer-api';
  */
 export type CellAssignmentState = 'active' | 'other' | 'none';
 
-/** What a click on a filmstrip thumbnail should do. */
+/**
+ * What a click on a filmstrip thumbnail should do.
+ *
+ * `'noop'` covers an active cell index that is outside the grid — reachable
+ * because the cell-selection shortcuts accept any digit regardless of grid
+ * size. Acting on it would write state for a cell nobody can see.
+ */
 export type FilmstripClickAction =
   | { readonly type: 'assign'; readonly cellIndex: number; readonly imageId: ImageId }
-  | { readonly type: 'unassign'; readonly cellIndex: number };
+  | { readonly type: 'unassign'; readonly cellIndex: number }
+  | { readonly type: 'noop' };
+
+/** Number of cells the grid currently renders. */
+export function getGridCellCount(view: CellAssignmentView): number {
+  return view.gridColumns * view.gridRows;
+}
+
+/** Whether the active cell index addresses a cell that is actually on screen. */
+function hasVisibleActiveCell(view: CellAssignmentView): boolean {
+  return view.activeCellIndex >= 0 && view.activeCellIndex < getGridCellCount(view);
+}
 
 /**
  * Whether `imageId` occupies any cell inside the visible grid.
  *
- * Scanning indices below `cellCount` rather than enumerating the record matters:
- * `SET_GRID_DIMENSIONS` deliberately leaves assignments for pruned cells in
- * place so a shrink/expand round trip restores them, so the record outlives the
- * grid and `Object.values` would count a cell nobody can see.
+ * Scanning indices below the cell count rather than enumerating the record
+ * matters: `SET_GRID_DIMENSIONS` deliberately leaves assignments for pruned
+ * cells in place so a shrink/expand round trip restores them, so the record
+ * outlives the grid and enumeration would count a cell nobody can see.
  */
-function isShownInAnyCell(
-  gridAssignments: Readonly<Record<number, ImageId>>,
-  imageId: ImageId,
-  cellCount: number,
-): boolean {
+function isShownInAnyCell(view: CellAssignmentView, imageId: ImageId): boolean {
+  const cellCount = getGridCellCount(view);
   for (let index = 0; index < cellCount; index += 1) {
-    if (gridAssignments[index] === imageId) return true;
+    if (view.gridAssignments[index] === imageId) return true;
   }
   return false;
 }
@@ -44,22 +72,15 @@ function isShownInAnyCell(
  *
  * Framework-agnostic so the SolidJS and React filmstrips share one definition
  * of the three states rather than each re-deriving them.
- *
- * `cellCount` is the number of cells the grid currently renders
- * (`gridColumns * gridRows`). An `activeCellIndex` outside it cannot be acted
- * on, so no image reports `'active'` against it — otherwise the filmstrip would
- * offer a clear affordance for a cell that is not on screen.
  */
 export function getCellAssignmentState(
-  gridAssignments: Readonly<Record<number, ImageId>>,
-  activeCellIndex: number,
+  view: CellAssignmentView,
   imageId: ImageId,
-  cellCount: number,
 ): CellAssignmentState {
-  if (activeCellIndex >= 0 && activeCellIndex < cellCount) {
-    if (gridAssignments[activeCellIndex] === imageId) return 'active';
+  if (hasVisibleActiveCell(view) && view.gridAssignments[view.activeCellIndex] === imageId) {
+    return 'active';
   }
-  return isShownInAnyCell(gridAssignments, imageId, cellCount) ? 'other' : 'none';
+  return isShownInAnyCell(view, imageId) ? 'other' : 'none';
 }
 
 /**
@@ -68,19 +89,23 @@ export function getCellAssignmentState(
  * anything else assigns into it.
  *
  * Pure and shared so both framework filmstrips route a click through one tested
- * decision — in particular one that always names the *active* cell, which a
- * component computing the index itself can silently get wrong.
+ * decision — in particular one that always names the *active* cell, and that
+ * refuses to act at all when no visible cell is active.
  */
 export function resolveFilmstripClick(
-  gridAssignments: Readonly<Record<number, ImageId>>,
-  activeCellIndex: number,
+  view: CellAssignmentView,
   imageId: ImageId,
-  cellCount: number,
 ): FilmstripClickAction {
-  const state = getCellAssignmentState(gridAssignments, activeCellIndex, imageId, cellCount);
+  // Guarded for the same reason `getCellAssignmentState` never reports
+  // `'active'` for an off-grid index: otherwise a click would write an
+  // assignment for an invisible cell, changing nothing on screen until a later
+  // grid resize made the image appear from nowhere.
+  if (!hasVisibleActiveCell(view)) return { type: 'noop' };
+
+  const state = getCellAssignmentState(view, imageId);
   return state === 'active'
-    ? { type: 'unassign', cellIndex: activeCellIndex }
-    : { type: 'assign', cellIndex: activeCellIndex, imageId };
+    ? { type: 'unassign', cellIndex: view.activeCellIndex }
+    : { type: 'assign', cellIndex: view.activeCellIndex, imageId };
 }
 
 /**
@@ -88,9 +113,11 @@ export function resolveFilmstripClick(
  * click will act on; the muted blue means "in use, but in another cell".
  *
  * These live here, rather than in each framework's `Filmstrip`, so the two
- * cannot drift into disagreeing about what a colour means — the same reason
- * `VIEWER_CONTROL_SPECS` is shared. Keying them on {@link CellAssignmentState}
- * also makes a newly added state a compile error at every map.
+ * cannot drift into disagreeing about what a colour means — `osdlabel` is the
+ * only package both UI packages depend on, so it is the only place they can
+ * share from. Keying them on {@link CellAssignmentState} also makes a newly
+ * added state a compile error at every map. Note the copy below is not
+ * localizable yet; there is no i18n seam in the library.
  */
 export const CELL_ASSIGNMENT_BORDER_COLOR: Readonly<Record<CellAssignmentState, string>> = {
   active: '#2196F3',

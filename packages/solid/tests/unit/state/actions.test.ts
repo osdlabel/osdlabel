@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { version as FABRIC_VERSION } from 'fabric';
 import { createRoot } from 'solid-js';
-import { unwrap } from 'solid-js/store';
 import { createAnnotationStore } from '../../../src/state/annotation-store';
 import { createUIStore } from '../../../src/state/ui-store';
 import { createContextStore, createConstraintStatus } from '../../../src/state/context-store';
@@ -174,12 +173,14 @@ describe('State Management', () => {
 
     // Deleting a key inside `produce` has to survive Solid's store proxy, not
     // just the plain-object reducer the osdlabel suite exercises.
+    //
+    // This cannot distinguish delete from a blanking write, and does not try
+    // to: Solid normalises `= undefined` into a delete inside `setProperty`,
+    // before the write reaches the underlying object, so neither the proxy nor
+    // `unwrap` can tell them apart. The delete-vs-blank guarantee is pinned on
+    // the plain-object reducer in `osdlabel`'s own suite instead.
     expect(uiState.gridAssignments[1]).toBeUndefined();
-    // Read through `unwrap`: the store proxy normalises an `undefined` write
-    // into a delete, so asserting key absence against the proxy would pass even
-    // if the reducer blanked the key instead of deleting it. The raw object is
-    // what actually distinguishes the two.
-    expect(Object.keys(unwrap(uiState.gridAssignments))).not.toContain('1');
+    expect(Object.keys(uiState.gridAssignments)).not.toContain('1');
     // Cell 0 is seeded by createTestStore and must be untouched.
     expect(uiState.gridAssignments[0]).toBe(dummyImageId);
     dispose();

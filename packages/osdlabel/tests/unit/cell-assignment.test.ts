@@ -3,81 +3,104 @@ import type { ImageId } from '@osdlabel/viewer-api';
 import { createImageId } from '@osdlabel/viewer-api';
 import {
   getCellAssignmentState,
+  getGridCellCount,
   resolveFilmstripClick,
   CELL_ASSIGNMENT_BORDER_COLOR,
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
+  type CellAssignmentView,
 } from '../../src/cell-assignment.js';
 
 const IMG_A = createImageId('img-a');
 const IMG_B = createImageId('img-b');
 const IMG_C = createImageId('img-c');
 
-const assignments = (entries: Record<number, ImageId>): Readonly<Record<number, ImageId>> =>
-  entries;
+/** A view with a 1-row grid wide enough for the given assignments by default. */
+const view = (
+  gridAssignments: Record<number, ImageId>,
+  activeCellIndex: number,
+  gridColumns: number,
+  gridRows = 1,
+): CellAssignmentView => ({ gridAssignments, activeCellIndex, gridColumns, gridRows });
+
+describe('getGridCellCount', () => {
+  it('multiplies both dimensions', () => {
+    // Dropping either factor is the regression: a filmstrip that used only
+    // `gridColumns` silently disabled the clear affordance for every cell
+    // below the first row.
+    expect(getGridCellCount(view({}, 0, 2, 2))).toBe(4);
+    expect(getGridCellCount(view({}, 0, 3, 1))).toBe(3);
+    expect(getGridCellCount(view({}, 0, 1, 3))).toBe(3);
+  });
+});
 
 describe('getCellAssignmentState', () => {
   it("reports 'active' for the image in the active cell", () => {
-    expect(getCellAssignmentState(assignments({ 0: IMG_A, 1: IMG_B }), 0, IMG_A, 2)).toBe('active');
+    expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_B }, 0, 2), IMG_A)).toBe('active');
   });
 
   it("reports 'other' for an image displayed only in a non-active cell", () => {
-    expect(getCellAssignmentState(assignments({ 0: IMG_A, 1: IMG_B }), 0, IMG_B, 2)).toBe('other');
+    expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_B }, 0, 2), IMG_B)).toBe('other');
   });
 
   it("reports 'none' for an image displayed nowhere", () => {
-    expect(getCellAssignmentState(assignments({ 0: IMG_A, 1: IMG_B }), 0, IMG_C, 2)).toBe('none');
+    expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_B }, 0, 2), IMG_C)).toBe('none');
   });
 
   it("prefers 'active' when the same image fills both the active cell and another", () => {
     // Otherwise the clear affordance would vanish whenever the user put the
     // same image side by side with itself.
-    expect(getCellAssignmentState(assignments({ 0: IMG_A, 1: IMG_A }), 0, IMG_A, 2)).toBe('active');
+    expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_A }, 0, 2), IMG_A)).toBe('active');
   });
 
   it("reports 'none' for every image when the active cell is empty", () => {
-    expect(getCellAssignmentState(assignments({}), 0, IMG_A, 1)).toBe('none');
+    expect(getCellAssignmentState(view({}, 0, 1), IMG_A)).toBe('none');
   });
 
   it("reports 'other' when the active cell is empty but another cell shows the image", () => {
     // The active cell holding nothing must not make a used image look free —
     // the click assigns, and the border has to say so.
-    expect(getCellAssignmentState(assignments({ 1: IMG_A }), 0, IMG_A, 2)).toBe('other');
+    expect(getCellAssignmentState(view({ 1: IMG_A }, 0, 2), IMG_A)).toBe('other');
   });
 
-  describe('assignments that outlive a grid shrink', () => {
+  it('counts cells in rows below the first', () => {
+    // A view that only multiplied columns would treat cell 3 as out of grid.
+    expect(getCellAssignmentState(view({ 3: IMG_A }, 3, 2, 2), IMG_A)).toBe('active');
+    expect(getCellAssignmentState(view({ 3: IMG_A }, 0, 2, 2), IMG_A)).toBe('other');
+  });
+
+  describe('cells outside the grid', () => {
     // SET_GRID_DIMENSIONS deliberately keeps assignments for pruned cells so a
     // shrink/expand round trip restores them. They must not be reported as
     // visible, or the filmstrip describes cells nobody can see.
     it("does not report 'other' for an image held only by a pruned cell", () => {
-      expect(getCellAssignmentState(assignments({ 0: IMG_A, 1: IMG_B }), 0, IMG_B, 1)).toBe('none');
+      expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_B }, 0, 1), IMG_B)).toBe('none');
     });
 
-    it("does not report 'active' when activeCellIndex itself is outside the grid", () => {
-      // The reducer clamps activeCellIndex, but the helper must not depend on
-      // that: a stale index would otherwise render a clear affordance for an
-      // offscreen cell, and clicking it would change nothing visible.
-      expect(getCellAssignmentState(assignments({ 0: IMG_A, 1: IMG_B }), 1, IMG_B, 1)).toBe('none');
+    it("does not report 'active' when activeCellIndex is outside the grid", () => {
+      expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_B }, 1, 1), IMG_B)).toBe('none');
+    });
+
+    it("does not report 'active' for a negative activeCellIndex", () => {
+      expect(getCellAssignmentState(view({ 0: IMG_A }, -1, 1), IMG_A)).toBe('other');
     });
 
     it('still reports an image that a visible cell also holds', () => {
-      expect(getCellAssignmentState(assignments({ 0: IMG_A, 1: IMG_A }), 1, IMG_A, 1)).toBe(
-        'other',
-      );
+      expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_A }, 1, 1), IMG_A)).toBe('other');
     });
   });
 });
 
 describe('resolveFilmstripClick', () => {
   it('unassigns the active cell when it already shows the clicked image', () => {
-    expect(resolveFilmstripClick(assignments({ 0: IMG_A }), 0, IMG_A, 1)).toEqual({
+    expect(resolveFilmstripClick(view({ 0: IMG_A }, 0, 1), IMG_A)).toEqual({
       type: 'unassign',
       cellIndex: 0,
     });
   });
 
   it('assigns into the active cell when the image is shown elsewhere', () => {
-    expect(resolveFilmstripClick(assignments({ 0: IMG_A, 1: IMG_B }), 1, IMG_A, 2)).toEqual({
+    expect(resolveFilmstripClick(view({ 0: IMG_A, 1: IMG_B }, 1, 2), IMG_A)).toEqual({
       type: 'assign',
       cellIndex: 1,
       imageId: IMG_A,
@@ -85,7 +108,7 @@ describe('resolveFilmstripClick', () => {
   });
 
   it('assigns into the active cell when the image is shown nowhere', () => {
-    expect(resolveFilmstripClick(assignments({}), 0, IMG_A, 1)).toEqual({
+    expect(resolveFilmstripClick(view({}, 0, 1), IMG_A)).toEqual({
       type: 'assign',
       cellIndex: 0,
       imageId: IMG_A,
@@ -97,17 +120,42 @@ describe('resolveFilmstripClick', () => {
   // wipe a cell the user was not acting on. Every E2E path happens to run with
   // the active cell at 0, so only an explicit non-zero case pins it.
   it('always names the ACTIVE cell, never cell 0, when clearing', () => {
-    expect(resolveFilmstripClick(assignments({ 0: IMG_A, 1: IMG_B }), 1, IMG_B, 2)).toEqual({
+    expect(resolveFilmstripClick(view({ 0: IMG_A, 1: IMG_B }, 1, 2), IMG_B)).toEqual({
       type: 'unassign',
       cellIndex: 1,
     });
   });
 
   it('always names the ACTIVE cell, never cell 0, when assigning', () => {
-    expect(resolveFilmstripClick(assignments({ 0: IMG_A }), 2, IMG_C, 4)).toEqual({
+    expect(resolveFilmstripClick(view({ 0: IMG_A }, 2, 4), IMG_C)).toEqual({
       type: 'assign',
       cellIndex: 2,
       imageId: IMG_C,
+    });
+  });
+
+  it('clears a bottom-row cell, which needs both grid dimensions to be visible', () => {
+    expect(resolveFilmstripClick(view({ 3: IMG_A }, 3, 2, 2), IMG_A)).toEqual({
+      type: 'unassign',
+      cellIndex: 3,
+    });
+  });
+
+  describe('when no visible cell is active', () => {
+    // Reachable from the default 1x1 grid by one keypress: the cell-selection
+    // shortcuts map digits 1-9 to an index regardless of grid size. Assigning
+    // there writes state nobody can see, which then materialises out of nowhere
+    // when the grid is next widened.
+    it('does nothing for an active index past the end of the grid', () => {
+      expect(resolveFilmstripClick(view({ 0: IMG_A }, 8, 1), IMG_B)).toEqual({ type: 'noop' });
+    });
+
+    it('does nothing for a negative active index', () => {
+      expect(resolveFilmstripClick(view({ 0: IMG_A }, -1, 1), IMG_B)).toEqual({ type: 'noop' });
+    });
+
+    it('does nothing when the grid has no cells at all', () => {
+      expect(resolveFilmstripClick(view({}, 0, 0, 0), IMG_A)).toEqual({ type: 'noop' });
     });
   });
 });
@@ -117,19 +165,40 @@ describe('cell-assignment palette', () => {
   // apart. Collapsing two of them re-introduces the misleading highlight the
   // change set out to remove, and nothing else in the suite would notice.
   it('renders the three states distinguishably', () => {
-    const borders = Object.values(CELL_ASSIGNMENT_BORDER_COLOR);
-    expect(new Set(borders).size).toBe(borders.length);
-
-    const backgrounds = Object.values(CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND);
-    expect(new Set(backgrounds).size).toBe(backgrounds.length);
-
-    const titles = Object.values(CELL_ASSIGNMENT_TITLE);
-    expect(new Set(titles).size).toBe(titles.length);
+    for (const map of [
+      CELL_ASSIGNMENT_BORDER_COLOR,
+      CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
+      CELL_ASSIGNMENT_TITLE,
+    ]) {
+      const values = Object.values(map);
+      expect(new Set(values).size).toBe(values.length);
+    }
   });
 
-  it('describes only the active state as clearing the cell', () => {
+  // Distinctness alone would let 'other' and 'none' swap: an unused image would
+  // render in "in use elsewhere" blue and be tooltipped as shown in another
+  // cell. Pin each state to its meaning, not just to being different.
+  it('maps each state to copy describing what its click does', () => {
     expect(CELL_ASSIGNMENT_TITLE.active).toMatch(/remove/i);
-    expect(CELL_ASSIGNMENT_TITLE.other).not.toMatch(/remove/i);
-    expect(CELL_ASSIGNMENT_TITLE.none).not.toMatch(/remove/i);
+    expect(CELL_ASSIGNMENT_TITLE.other).toMatch(/another cell/i);
+    expect(CELL_ASSIGNMENT_TITLE.none).not.toMatch(/remove|another cell/i);
+  });
+
+  it('reserves the brightest border for the cell a click acts on', () => {
+    // 'active' is the only state whose click changes the cell in front of the
+    // user, so it gets the strongest signal; 'none' the weakest.
+    const luminance = (hex: string): number => {
+      const full =
+        hex.length === 4 ? `#${hex[1]!}${hex[1]!}${hex[2]!}${hex[2]!}${hex[3]!}${hex[3]!}` : hex;
+      const n = parseInt(full.slice(1), 16);
+      return ((n >> 16) & 0xff) * 0.299 + ((n >> 8) & 0xff) * 0.587 + (n & 0xff) * 0.114;
+    };
+
+    expect(luminance(CELL_ASSIGNMENT_BORDER_COLOR.active)).toBeGreaterThan(
+      luminance(CELL_ASSIGNMENT_BORDER_COLOR.other),
+    );
+    expect(luminance(CELL_ASSIGNMENT_BORDER_COLOR.other)).toBeGreaterThan(
+      luminance(CELL_ASSIGNMENT_BORDER_COLOR.none),
+    );
   });
 });

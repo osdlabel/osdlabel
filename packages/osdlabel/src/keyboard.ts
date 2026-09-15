@@ -83,6 +83,22 @@ export interface KeyboardMappingState {
  * 2. Passing the event to activeToolKeyHandler first
  * 3. Dispatching the returned actions
  */
+/**
+ * Cell-selection shortcut names, in cell-index order: `GRID_CELL_SHORTCUTS[i]`
+ * selects cell `i`.
+ */
+const GRID_CELL_SHORTCUTS = [
+  'gridCell1',
+  'gridCell2',
+  'gridCell3',
+  'gridCell4',
+  'gridCell5',
+  'gridCell6',
+  'gridCell7',
+  'gridCell8',
+  'gridCell9',
+] as const satisfies readonly (keyof KeyboardShortcutMap)[];
+
 export function mapKeyEventToActions(
   key: string,
   shiftKey: boolean,
@@ -157,16 +173,16 @@ export function mapKeyEventToActions(
     }
   }
 
-  // Grid Cells
-  else if (key === shortcuts.gridCell1) actions.push({ type: 'SET_ACTIVE_CELL', payload: 0 });
-  else if (key === shortcuts.gridCell2) actions.push({ type: 'SET_ACTIVE_CELL', payload: 1 });
-  else if (key === shortcuts.gridCell3) actions.push({ type: 'SET_ACTIVE_CELL', payload: 2 });
-  else if (key === shortcuts.gridCell4) actions.push({ type: 'SET_ACTIVE_CELL', payload: 3 });
-  else if (key === shortcuts.gridCell5) actions.push({ type: 'SET_ACTIVE_CELL', payload: 4 });
-  else if (key === shortcuts.gridCell6) actions.push({ type: 'SET_ACTIVE_CELL', payload: 5 });
-  else if (key === shortcuts.gridCell7) actions.push({ type: 'SET_ACTIVE_CELL', payload: 6 });
-  else if (key === shortcuts.gridCell8) actions.push({ type: 'SET_ACTIVE_CELL', payload: 7 });
-  else if (key === shortcuts.gridCell9) actions.push({ type: 'SET_ACTIVE_CELL', payload: 8 });
+  // Grid Cells. The digit maps to a fixed index, so it has to be screened
+  // against the current grid: activating a cell the grid does not render leaves
+  // every action keyed on the active cell editing offscreen state, and the
+  // filmstrip's clear affordance silently disappears with no visible cause.
+  else if (GRID_CELL_SHORTCUTS.some((name) => key === shortcuts[name])) {
+    const cellIndex = GRID_CELL_SHORTCUTS.findIndex((name) => key === shortcuts[name]);
+    if (cellIndex < state.gridColumns * state.gridRows) {
+      actions.push({ type: 'SET_ACTIVE_CELL', payload: cellIndex });
+    }
+  }
   // Grid Columns
   else if (
     key === shortcuts.increaseGridColumns ||

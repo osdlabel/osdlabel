@@ -1,4 +1,4 @@
-import { For, Show } from 'solid-js';
+import { For, Show, createMemo } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
@@ -19,25 +19,18 @@ export interface FilmstripProps {
 const Filmstrip: Component<FilmstripProps> = (props) => {
   const { uiState, actions } = useAnnotator();
 
-  const cellCount = () => uiState.gridColumns * uiState.gridRows;
-
   const assignmentState = (imageId: ImageId): CellAssignmentState =>
-    getCellAssignmentState(uiState.gridAssignments, uiState.activeCellIndex, imageId, cellCount());
+    getCellAssignmentState(uiState, imageId);
 
   // Clicking the image already in the active cell clears that cell; anything
   // else assigns into it. The decision lives in `resolveFilmstripClick` so both
   // frameworks share one tested rule — in particular one that always names the
   // active cell, which is easy to get silently wrong here.
   const handleClick = (image: ImageSource) => {
-    const action = resolveFilmstripClick(
-      uiState.gridAssignments,
-      uiState.activeCellIndex,
-      image.id,
-      cellCount(),
-    );
+    const action = resolveFilmstripClick(uiState, image.id);
     if (action.type === 'unassign') {
       actions.unassignImageFromCell(action.cellIndex);
-    } else {
+    } else if (action.type === 'assign') {
       actions.assignImageToCell(action.cellIndex, action.imageId);
     }
   };
@@ -61,7 +54,7 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
     >
       <For each={[...props.images]}>
         {(image) => {
-          const state = () => assignmentState(image.id);
+          const state = createMemo(() => assignmentState(image.id));
 
           return (
             <div

@@ -201,16 +201,31 @@ describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
 });
 
 describe('applyUIAction — SET_GRID_DIMENSIONS keeps the active cell in range', () => {
-  it('clamps activeCellIndex when the grid shrinks past it', () => {
+  it('clamps activeCellIndex to the last cell when the grid shrinks past it', () => {
     const state = createInitialUIState();
-    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
-    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 1 });
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 3, rows: 3 } });
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 8 });
 
-    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 1, rows: 1 } });
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
 
-    // Without this the keyboard grid shortcuts, which dispatch straight to the
-    // reducer rather than through GridControls, leave the active cell pointing
+    // 3 rather than 0: shrinking from 3x3 to 2x2 distinguishes "clamp to the
+    // last cell" from "reset to the first", which a 2x1 -> 1x1 shrink cannot.
+    // Without any clamp the keyboard grid shortcuts, which dispatch straight to
+    // the reducer rather than through GridControls, leave the active cell
     // offscreen — and every action keyed on it then edits invisible state.
+    expect(state.activeCellIndex).toBe(3);
+  });
+
+  it('never leaves activeCellIndex negative, even for a zero-cell grid', () => {
+    const state = createInitialUIState();
+
+    // `setGridDimensions` is public and unvalidated, so a 0-cell grid is
+    // reachable. A one-sided clamp would write -1 here — and since -1 is never
+    // greater than any later maxIndex, growing the grid would never repair it.
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 0, rows: 0 } });
+    expect(state.activeCellIndex).toBe(0);
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
     expect(state.activeCellIndex).toBe(0);
   });
 

@@ -236,3 +236,48 @@ describe('Delete over a cell with no image', () => {
     ).toEqual([]);
   });
 });
+
+describe('cell-selection shortcuts are screened against the grid', () => {
+  const grid = (gridColumns: number, gridRows: number): KeyboardMappingState => ({
+    ...STATE,
+    gridColumns,
+    gridRows,
+  });
+
+  it('selects a cell that the grid renders', () => {
+    expect(
+      mapKeyEventToActions('4', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(2, 2), ALL_ENABLED),
+    ).toEqual([{ type: 'SET_ACTIVE_CELL', payload: 3 }]);
+  });
+
+  it('emits nothing for a digit past the end of the grid', () => {
+    // The default grid is 1x1, so `2` names a cell nobody can see. Letting it
+    // through leaves every action keyed on the active cell editing offscreen
+    // state, and the filmstrip's clear affordance vanishes with no visible
+    // cause.
+    expect(
+      mapKeyEventToActions('2', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(1, 1), ALL_ENABLED),
+    ).toEqual([]);
+
+    expect(
+      mapKeyEventToActions('9', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(1, 1), ALL_ENABLED),
+    ).toEqual([]);
+  });
+
+  it('counts rows as well as columns when deciding what exists', () => {
+    // A guard that only looked at `gridColumns` would reject cell 2 on a 2x2.
+    expect(
+      mapKeyEventToActions('3', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(2, 2), ALL_ENABLED),
+    ).toEqual([{ type: 'SET_ACTIVE_CELL', payload: 2 }]);
+
+    expect(
+      mapKeyEventToActions('3', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(2, 1), ALL_ENABLED),
+    ).toEqual([]);
+  });
+
+  it('always allows the first cell', () => {
+    expect(
+      mapKeyEventToActions('1', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(1, 1), ALL_ENABLED),
+    ).toEqual([{ type: 'SET_ACTIVE_CELL', payload: 0 }]);
+  });
+});

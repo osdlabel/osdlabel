@@ -167,6 +167,11 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       }
       break;
     case 'SET_ACTIVE_CELL':
+      // Deliberately unvalidated against the current grid size: callers may
+      // restore a saved active cell before sizing the grid, and
+      // SET_GRID_DIMENSIONS clamps whatever it finds. Input that is not already
+      // known to name a real cell is screened where it enters — see the
+      // cell-selection shortcuts in `mapKeyEventToActions`.
       draft.activeCellIndex = action.payload;
       break;
     case 'SET_SELECTED_ANNOTATION':
@@ -222,9 +227,12 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       // shrink/expand round trip is expected to restore what those cells were
       // showing. Consumers that must ignore them scope by the cell count
       // instead (see `getCellAssignmentState`).
-      if (draft.activeCellIndex > maxIndex) {
-        draft.activeCellIndex = maxIndex;
-      }
+      //
+      // Clamped from both ends. A `maxIndex` of -1 (a zero-cell grid, which
+      // `setGridDimensions` accepts unvalidated) would otherwise write -1, and
+      // because a one-sided `>` check never fires against a negative index,
+      // growing the grid again would never repair it.
+      draft.activeCellIndex = Math.max(0, Math.min(draft.activeCellIndex, maxIndex));
       break;
     }
     case 'ROTATE_CW': {

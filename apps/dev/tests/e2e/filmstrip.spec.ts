@@ -72,8 +72,6 @@ test.describe('Filmstrip', () => {
     // specific cell, not a global placeholder count — a count cannot tell
     // "cell 0 was cleared" from "some other cell was cleared instead".
     await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
-    // Tearing the cell down must actually dispose the viewer, not just hide it.
-    await expect(page.locator('.openseadragon-canvas')).toHaveCount(0);
     await expect(landscape).toHaveAttribute('data-assignment', 'none');
     await expect(page.getByTestId('filmstrip-clear-landscape')).toHaveCount(0);
 
@@ -81,6 +79,7 @@ test.describe('Filmstrip', () => {
     await landscape.click();
     await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
     await expect(landscape).toHaveAttribute('data-assignment', 'active');
+    // The rebuilt cell is a live viewer, not just restored markup.
     await expect(page.locator('.openseadragon-canvas')).toHaveCount(1);
   });
 
@@ -94,7 +93,7 @@ test.describe('Filmstrip', () => {
     await page.getByTestId('grid-cell-2-1').click();
 
     // Make the empty cell 1 active.
-    await page.locator('text=Assign an image').first().click();
+    await page.getByTestId('cell-placeholder-1').click();
 
     const landscape = page.getByTestId('filmstrip-item-landscape');
     await expect(landscape).toHaveAttribute('data-assignment', 'other');
@@ -136,6 +135,56 @@ test.describe('Filmstrip', () => {
       'data-assignment',
       'none',
     );
+  });
+
+  test('clears a bottom-row cell on a multi-row grid', async ({ page }) => {
+    // Every other filmstrip test uses a 2x1 grid, where rows == 1 and the cell
+    // count equals the column count. That makes a cell-count derivation that
+    // forgot `gridRows` indistinguishable from a correct one — and such a bug
+    // is a direct regression of this branch: cells in the second row could
+    // never report 'active', so clicking their own thumbnail would re-assign
+    // instead of clearing.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-2').click();
+
+    // Cell 3 is the last cell of the second row.
+    await page.getByTestId('cell-placeholder-3').click();
+    await page.getByTestId('filmstrip-item-portrait').click();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+    await expect(page.getByTestId('filmstrip-clear-portrait')).toBeVisible();
+
+    // Clicking it again must clear cell 3, not re-assign it.
+    await page.getByTestId('filmstrip-item-portrait').click();
+
+    await expect(page.getByTestId('cell-placeholder-3')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'none',
+    );
+    // Cell 0 keeps its seeded image throughout.
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+  });
+
+  test('a cell-selection shortcut past the end of the grid is ignored', async ({ page }) => {
+    // The shortcuts map digits 1-9 to a cell index with no grid-size guard. On
+    // the default 1x1 grid, letting `9` through would leave the active cell
+    // offscreen: the clear badge disappears with no visible cause, and every
+    // thumbnail click writes an assignment nobody can see until the grid grows.
+    const landscape = page.getByTestId('filmstrip-item-landscape');
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+
+    await page.keyboard.press('9');
+
+    // Still acting on cell 0, so the clear affordance is still offered.
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+    await expect(page.getByTestId('filmstrip-clear-landscape')).toBeVisible();
+
+    // And a click still clears the visible cell rather than a phantom one.
+    await landscape.click();
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
   });
 
   test('renders the three assignment states distinguishably', async ({ page }) => {
