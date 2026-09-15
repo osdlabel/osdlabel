@@ -17,8 +17,18 @@ const viewerDestroy = vi.fn();
 const overlayDestroy = vi.fn();
 const layerDestroy = vi.fn();
 
+/**
+ * Captures the OSD `'open'` handler so the test can fire it. `ViewerCell`
+ * builds the `FabricOverlay` and `DecorationLayer` inside that handler, so
+ * without firing it their teardown is unreachable and their spies can never
+ * fail — which is exactly how the first version of this test missed them.
+ */
+const openHandlers: (() => void)[] = [];
+
 const fakeViewer = {
-  addHandler: vi.fn(),
+  addHandler: vi.fn((event: string, handler: () => void) => {
+    if (event === 'open') openHandlers.push(handler);
+  }),
   removeHandler: vi.fn(),
   destroy: viewerDestroy,
   world: { getItemCount: () => 0, getItemAt: () => undefined },
@@ -30,7 +40,18 @@ vi.mock('openseadragon', () => ({ default: () => fakeViewer }));
 vi.mock('@osdlabel/fabric-osd', () => ({
   FabricOverlay: class {
     destroy = overlayDestroy;
-    canvas = { getObjects: () => [], remove: vi.fn(), add: vi.fn() };
+    canvas = {
+      getObjects: () => [],
+      remove: vi.fn(),
+      add: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      requestRenderAll: vi.fn(),
+      discardActiveObject: vi.fn(),
+      setActiveObject: vi.fn(),
+    };
+    applyViewTransform = vi.fn();
+    applyImageFilters = vi.fn();
     onSync = () => () => {};
     setMode = vi.fn();
     overlayElement = null;
@@ -38,7 +59,7 @@ vi.mock('@osdlabel/fabric-osd', () => ({
   DecorationLayer: class {
     destroy = layerDestroy;
     setDecorations = vi.fn();
-    setDomDecorationRenderer = vi.fn();
+    onDomDecorations = vi.fn(() => () => {});
   },
 }));
 
@@ -70,10 +91,11 @@ describe('ViewerCell teardown', () => {
     viewerDestroy.mockClear();
     overlayDestroy.mockClear();
     layerDestroy.mockClear();
+    openHandlers.length = 0;
   });
 
-  it('destroys the OSD viewer when the cell unmounts', () => {
-    const dispose = createRoot((disposeFn) => {
+  const mountCell = (): (() => void) =>
+    createRoot((disposeFn) => {
       createComponent(ViewerCell, {
         imageSource: { id: createImageId('img-1'), tileSource: 'x.png' },
         isActive: true,
@@ -83,12 +105,32 @@ describe('ViewerCell teardown', () => {
       return disposeFn;
     });
 
+  it('destroys the OSD viewer when the cell unmounts', () => {
+    const dispose = mountCell();
+
     expect(viewerDestroy).not.toHaveBeenCalled();
 
     dispose();
 
     // Without this the viewer's rAF update loop, MouseTracker handlers and
     // tile requests outlive every cleared cell.
+    expect(viewerDestroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('destroys the Fabric overlay and decoration layer too', () => {
+    const dispose = mountCell();
+
+    // The overlay and layer only exist once OSD reports the image open.
+    expect(openHandlers).toHaveLength(1);
+    openHandlers[0]!();
+
+    dispose();
+
+    // `FabricOverlay.destroy` disposes the Fabric canvas, removes its element,
+    // destroys a MouseTracker and a devicePixelRatio observer, and unhooks six
+    // OSD handlers. Leaking that per cleared cell is the whole risk here.
+    expect(overlayDestroy).toHaveBeenCalledTimes(1);
+    expect(layerDestroy).toHaveBeenCalledTimes(1);
     expect(viewerDestroy).toHaveBeenCalledTimes(1);
   });
 });

@@ -99,9 +99,13 @@ export function getCellAssignmentState(
  * Scoped to the grid for the same reason the state derivation is: assignments
  * for cells pruned by a shrink are deliberately kept, so reading
  * `gridAssignments[activeCellIndex]` directly can name an image that no cell on
- * screen is showing. Everything keyed on "the active image" — tool constraints,
- * the toolbar's selected-annotation lookup, and the Delete shortcut — would
- * then act on an image the user cannot see.
+ * screen is showing.
+ *
+ * Both framework contexts expose this as `activeImageId`, and everything keyed
+ * on "the active image" reads it from there — tool constraints, the toolbar's
+ * selected-annotation lookup behind Convert-to-Rect, the Delete shortcut, and
+ * the status bar. Deriving it locally instead reintroduces the hazard: the
+ * action would target an image the user cannot see.
  */
 export function getActiveCellImageId(view: CellAssignmentView): ImageId | undefined {
   return hasVisibleActiveCell(view) ? view.gridAssignments[view.activeCellIndex] : undefined;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ImageId } from '@osdlabel/viewer-api';
 import { createImageId } from '@osdlabel/viewer-api';
 import {
+  getActiveCellImageId,
   getCellAssignmentState,
   getGridCellCount,
   resolveFilmstripClick,
@@ -88,6 +89,38 @@ describe('getCellAssignmentState', () => {
     it('still reports an image that a visible cell also holds', () => {
       expect(getCellAssignmentState(view({ 0: IMG_A, 1: IMG_A }, 1, 1), IMG_A)).toBe('other');
     });
+  });
+});
+
+describe('getActiveCellImageId', () => {
+  it('returns the image the active cell shows', () => {
+    expect(getActiveCellImageId(view({ 0: IMG_A, 1: IMG_B }, 1, 2))).toBe(IMG_B);
+  });
+
+  it('returns undefined when the active cell is empty', () => {
+    expect(getActiveCellImageId(view({ 1: IMG_B }, 0, 2))).toBeUndefined();
+  });
+
+  it('counts rows, so a bottom-row cell resolves', () => {
+    expect(getActiveCellImageId(view({ 3: IMG_A }, 3, 2, 2))).toBe(IMG_A);
+  });
+
+  // The reason this helper exists rather than reading `gridAssignments`
+  // directly: SET_GRID_DIMENSIONS keeps assignments for cells a shrink pruned,
+  // so an out-of-grid active cell otherwise names an image no cell on screen is
+  // showing. Everything keyed on "the active image" — tool constraints, the
+  // toolbar's Convert-to-Rect lookup, the Delete shortcut — would then act on
+  // an annotation the user cannot see.
+  it('returns undefined for an active cell the grid no longer renders', () => {
+    expect(getActiveCellImageId(view({ 0: IMG_A, 1: IMG_B }, 1, 1))).toBeUndefined();
+  });
+
+  it('returns undefined for a negative active cell index', () => {
+    expect(getActiveCellImageId(view({ 0: IMG_A }, -1, 1))).toBeUndefined();
+  });
+
+  it('returns undefined when the grid renders no cells at all', () => {
+    expect(getActiveCellImageId(view({ 0: IMG_A }, 0, 0, 0))).toBeUndefined();
   });
 });
 

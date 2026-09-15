@@ -12,7 +12,8 @@ const TOOL_LABELS: Record<ToolType, string> = {
 };
 
 export default function Toolbar() {
-  const { uiState, contextState, annotationState, constraintStatus, actions } = useAnnotator();
+  const { uiState, contextState, annotationState, constraintStatus, actions, activeImageId } =
+    useAnnotator();
 
   const activeContext = (() => {
     if (!contextState.activeContextId) return undefined;
@@ -26,7 +27,11 @@ export default function Toolbar() {
   const selectedAnnotation = (() => {
     const id = uiState.selectedAnnotationId;
     if (!id) return undefined;
-    const imageId = uiState.gridAssignments[uiState.activeCellIndex];
+    // Via the context, so this is scoped to the visible grid: reading
+    // `gridAssignments[activeCellIndex]` directly can name an image held only
+    // by a cell a shrink pruned, and "Convert to Rect" would then offer to
+    // mutate an annotation nobody can see.
+    const imageId = activeImageId;
     if (!imageId) return undefined;
     return annotationState.byImage[imageId]?.[id];
   })();
