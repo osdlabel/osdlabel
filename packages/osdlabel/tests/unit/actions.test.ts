@@ -210,9 +210,9 @@ describe('applyUIAction — SET_GRID_DIMENSIONS keeps the active cell in range',
 
     // 3 rather than 0: shrinking from 3x3 to 2x2 distinguishes "clamp to the
     // last cell" from "reset to the first", which a 2x1 -> 1x1 shrink cannot.
-    // Without any clamp the keyboard grid shortcuts, which dispatch straight to
-    // the reducer rather than through GridControls, leave the active cell
-    // offscreen — and every action keyed on it then edits invisible state.
+    // This reducer is the only clamp, so without it a shrink from any caller
+    // leaves the active cell offscreen — and every action keyed on it then
+    // edits invisible state.
     expect(state.activeCellIndex).toBe(3);
   });
 

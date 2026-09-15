@@ -150,4 +150,35 @@ export default [
       'no-unassigned-vars': 'off',
     },
   },
+
+  // The active cell can point outside the grid: `setActiveCell` is public and
+  // unvalidated, and `SET_GRID_DIMENSIONS` deliberately keeps assignments for
+  // cells a shrink pruned. Reading `gridAssignments[activeCellIndex]` directly
+  // therefore yields an image no visible cell is showing, and whatever acts on
+  // it — tool constraints, Convert-to-Rect, the Delete shortcut — acts on an
+  // annotation the user cannot see. `getActiveCellImageId` scopes the read;
+  // both framework contexts expose the result as `activeImageId`.
+  //
+  // A rule rather than a test because it also covers `packages/react`, which
+  // has no test tree yet (#152), and because the fix is to reach for the
+  // context value that is already in scope at every one of these call sites.
+  {
+    files: [
+      'packages/solid/src/**/*.{ts,tsx}',
+      'packages/react/src/**/*.{ts,tsx}',
+      'apps/dev/src/**/*.{ts,tsx}',
+      'apps/dev-react/src/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[computed=true][object.property.name="gridAssignments"][property.property.name="activeCellIndex"]',
+          message:
+            "Read the active cell's image through `activeImageId` from useAnnotator() (backed by getActiveCellImageId), not by indexing gridAssignments — the active cell can be outside the grid.",
+        },
+      ],
+    },
+  },
 ];

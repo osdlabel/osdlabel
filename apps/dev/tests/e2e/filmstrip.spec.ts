@@ -169,10 +169,11 @@ test.describe('Filmstrip', () => {
   });
 
   test('a cell-selection shortcut past the end of the grid is ignored', async ({ page }) => {
-    // The shortcuts map digits 1-9 to a cell index with no grid-size guard. On
-    // the default 1x1 grid, letting `9` through would leave the active cell
-    // offscreen: the clear badge disappears with no visible cause, and every
-    // thumbnail click writes an assignment nobody can see until the grid grows.
+    // The shortcuts map each digit to a fixed cell index, so they have to be
+    // screened against the grid. On the default 1x1 grid, letting `9` through
+    // would leave the active cell offscreen: the clear badge disappears with no
+    // visible cause, and every thumbnail click writes an assignment nobody can
+    // see until the grid grows.
     const landscape = page.getByTestId('filmstrip-item-landscape');
     await expect(landscape).toHaveAttribute('data-assignment', 'active');
 

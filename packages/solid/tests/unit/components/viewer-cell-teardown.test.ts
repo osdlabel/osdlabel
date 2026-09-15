@@ -127,7 +127,7 @@ describe('ViewerCell teardown', () => {
     dispose();
 
     // `FabricOverlay.destroy` disposes the Fabric canvas, removes its element,
-    // destroys a MouseTracker and a devicePixelRatio observer, and unhooks six
+    // destroys a MouseTracker and a devicePixelRatio observer, and unhooks its
     // OSD handlers. Leaking that per cleared cell is the whole risk here.
     expect(overlayDestroy).toHaveBeenCalledTimes(1);
     expect(layerDestroy).toHaveBeenCalledTimes(1);

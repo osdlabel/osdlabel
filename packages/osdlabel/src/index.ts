@@ -207,6 +207,7 @@ export type { ContextCycleDirection } from './context-cycling.js';
 export {
   getActiveCellImageId,
   getCellAssignmentState,
+  hasVisibleActiveCell,
   getGridCellCount,
   resolveFilmstripClick,
   CELL_ASSIGNMENT_BORDER_COLOR,

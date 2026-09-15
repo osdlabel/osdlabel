@@ -197,10 +197,13 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       delete draft.cellTransforms[cellIndex];
       // `selectedAnnotationId` is deliberately left alone: it is global rather
       // than per-cell, so another cell may still be displaying the image whose
-      // annotation is selected. Every read of it is guarded by an active-image
-      // lookup — `mapKeyEventToActions` gates DELETE_ANNOTATION on
+      // annotation is selected. The read that could destroy something is
+      // guarded: `mapKeyEventToActions` gates DELETE_ANNOTATION on
       // `activeImageId`, so Delete over an emptied active cell is a no-op
-      // rather than deleting something invisible.
+      // rather than deleting something invisible. Other readers are
+      // non-destructive — the Escape branch only clears the selection, and each
+      // `ViewerCell` passes the id into its own `DecorationContext` so the
+      // annotation still draws as selected in whatever cell shows its image.
       //
       // Note this leaves the id naming an annotation that shows no Fabric
       // selection handles until it is selected again: re-assigning the image
@@ -221,11 +224,11 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
           delete draft.cellTransforms[index];
         }
       }
-      // Keep the active cell inside the grid. `GridControls` clamps too, but it
-      // is a component: the keyboard path (`mapKeyEventToActions` for the grid
-      // shortcuts) dispatches straight here, so without this a shrink can leave
-      // `activeCellIndex` pointing at a cell nobody can see — and every action
-      // keyed on the active cell then edits offscreen state.
+      // Keep the active cell inside the grid. This is the only clamp: the
+      // `GridControls` components used to repeat it, which left two owners for
+      // one invariant and, in React, read a pre-dispatch snapshot. Without it a
+      // shrink leaves `activeCellIndex` pointing at a cell nobody can see — and
+      // every action keyed on the active cell then edits offscreen state.
       //
       // Assignments for pruned cells are deliberately NOT removed: a
       // shrink/expand round trip is expected to restore what those cells were

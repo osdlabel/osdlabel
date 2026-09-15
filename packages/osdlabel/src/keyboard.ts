@@ -97,8 +97,8 @@ function gridCellShortcutIndex(key: string, shortcuts: KeyboardShortcutMap): num
 
 /**
  * Pure function that maps a keyboard event to zero or more actions.
- * Returns null if the event should be ignored (e.g., typing in an input).
- * Returns an empty array if the key doesn't match any shortcut.
+ * Returns an empty array if the key doesn't match any shortcut, or if the
+ * shortcut it matches has nothing to do in the current state.
  *
  * The caller is responsible for:
  * 1. Checking shouldSkipTarget

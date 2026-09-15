@@ -5,6 +5,7 @@ import {
   getActiveCellImageId,
   getCellAssignmentState,
   getGridCellCount,
+  hasVisibleActiveCell,
   resolveFilmstripClick,
   CELL_ASSIGNMENT_BORDER_COLOR,
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
@@ -92,6 +93,29 @@ describe('getCellAssignmentState', () => {
   });
 });
 
+describe('hasVisibleActiveCell', () => {
+  it('is true for a cell the grid renders', () => {
+    expect(hasVisibleActiveCell(view({}, 0, 1))).toBe(true);
+    expect(hasVisibleActiveCell(view({}, 3, 2, 2))).toBe(true);
+  });
+
+  it('is false past the end of the grid, for a negative index, and for no cells', () => {
+    // Each of these means no click can do anything, so the filmstrip stops
+    // advertising one rather than offering a tooltip for a no-op.
+    expect(hasVisibleActiveCell(view({}, 1, 1))).toBe(false);
+    expect(hasVisibleActiveCell(view({}, -1, 1))).toBe(false);
+    expect(hasVisibleActiveCell(view({}, 0, 0, 0))).toBe(false);
+  });
+
+  it('agrees with resolveFilmstripClick about when nothing can happen', () => {
+    // The tooltip and the click must not disagree: whenever this is false the
+    // resolver must refuse, and whenever it is true the resolver must act.
+    for (const v of [view({}, 0, 1), view({ 0: IMG_A }, 1, 1), view({}, -1, 2)]) {
+      expect(resolveFilmstripClick(v, IMG_A).type === 'noop').toBe(!hasVisibleActiveCell(v));
+    }
+  });
+});
+
 describe('getActiveCellImageId', () => {
   it('returns the image the active cell shows', () => {
     expect(getActiveCellImageId(view({ 0: IMG_A, 1: IMG_B }, 1, 2))).toBe(IMG_B);
@@ -175,10 +199,11 @@ describe('resolveFilmstripClick', () => {
   });
 
   describe('when no visible cell is active', () => {
-    // Reachable from the default 1x1 grid by one keypress: the cell-selection
-    // shortcuts map digits 1-9 to an index regardless of grid size. Assigning
-    // there writes state nobody can see, which then materialises out of nowhere
-    // when the grid is next widened.
+    // Not reachable through the library's own input — the cell-selection
+    // shortcuts are screened against the grid size — but `setActiveCell` is
+    // public and unvalidated, so a host restoring a saved layout can land here.
+    // Assigning then writes state nobody can see, which materialises out of
+    // nowhere when the grid is next widened.
     it('does nothing for an active index past the end of the grid', () => {
       expect(resolveFilmstripClick(view({ 0: IMG_A }, 8, 1), IMG_B)).toEqual({ type: 'noop' });
     });

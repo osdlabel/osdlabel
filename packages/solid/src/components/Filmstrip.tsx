@@ -4,12 +4,16 @@ import { useAnnotator } from '../state/annotator-context.js';
 import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
 import {
   getCellAssignmentState,
+  hasVisibleActiveCell,
   resolveFilmstripClick,
   CELL_ASSIGNMENT_BORDER_COLOR,
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
   type CellAssignmentState,
 } from 'osdlabel';
+
+/** Shown when no visible cell is active, so no click can do anything. */
+const NO_ACTIVE_CELL_TITLE = 'Select a grid cell first';
 
 export interface FilmstripProps {
   readonly images: readonly ImageSource[];
@@ -21,6 +25,12 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
 
   const assignmentState = (imageId: ImageId): CellAssignmentState =>
     getCellAssignmentState(uiState, imageId);
+
+  // With no visible active cell there is nothing for a click to act on, so the
+  // thumbnails must stop advertising one. Offering a tooltip and a pointer
+  // cursor for a click that does nothing is the same misleading affordance the
+  // tri-state border exists to remove.
+  const canAct = () => hasVisibleActiveCell(uiState);
 
   // Clicking the image already in the active cell clears that cell; anything
   // else assigns into it. The decision lives in `resolveFilmstripClick` so both
@@ -72,7 +82,7 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
             <div
               data-testid={`filmstrip-item-${image.id}`}
               data-assignment={state()}
-              title={CELL_ASSIGNMENT_TITLE[state()]}
+              title={canAct() ? CELL_ASSIGNMENT_TITLE[state()] : NO_ACTIVE_CELL_TITLE}
               onClick={() => handleClick(image)}
               style={{
                 [isVertical() ? 'width' : 'height']: '100%',
@@ -81,7 +91,7 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                 border: `2px solid ${CELL_ASSIGNMENT_BORDER_COLOR[state()]}`,
                 'border-radius': '4px',
                 overflow: 'hidden',
-                cursor: 'pointer',
+                cursor: canAct() ? 'pointer' : 'default',
                 position: 'relative',
                 'box-sizing': 'border-box',
               }}

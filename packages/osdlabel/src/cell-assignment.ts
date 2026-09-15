@@ -35,9 +35,11 @@ export type GridDimensions = Pick<UIState, 'gridColumns' | 'gridRows'>;
 /**
  * What a click on a filmstrip thumbnail should do.
  *
- * `'noop'` covers an active cell index that is outside the grid — reachable
- * because the cell-selection shortcuts accept any digit regardless of grid
- * size. Acting on it would write state for a cell nobody can see.
+ * `'noop'` covers an active cell index that is outside the grid. The library's
+ * own entry points cannot produce that — the cell-selection shortcuts are
+ * screened against the grid size — but `setActiveCell` is public and
+ * unvalidated, so a host can. Acting on it would write state for a cell nobody
+ * can see, which only surfaces when the grid is later widened.
  */
 export type FilmstripClickAction =
   | { readonly type: 'assign'; readonly cellIndex: number; readonly imageId: ImageId }
@@ -55,8 +57,14 @@ export function getGridCellCount(grid: GridDimensions): number {
   return grid.gridColumns * grid.gridRows;
 }
 
-/** Whether the active cell index addresses a cell that is actually on screen. */
-function hasVisibleActiveCell(view: CellAssignmentView): boolean {
+/**
+ * Whether the active cell index addresses a cell that is actually on screen.
+ *
+ * When this is false nothing in the filmstrip can act — {@link
+ * resolveFilmstripClick} returns `'noop'` — so the UI should say so rather than
+ * keep offering a click that does nothing.
+ */
+export function hasVisibleActiveCell(view: CellAssignmentView): boolean {
   return view.activeCellIndex >= 0 && view.activeCellIndex < getGridCellCount(view);
 }
 
@@ -141,9 +149,9 @@ export function resolveFilmstripClick(
  * click will act on; the muted blue means "in use, but in another cell".
  *
  * These live here, rather than in each framework's `Filmstrip`, so the two
- * cannot drift into disagreeing about what a colour means — `osdlabel` is the
- * only package both UI packages depend on, so it is the only place they can
- * share from. Keying them on {@link CellAssignmentState} also makes a newly
+ * cannot drift into disagreeing about what a colour means, for the same reason
+ * `VIEWER_CONTROL_SPECS` is shared from here. Keying them on
+ * {@link CellAssignmentState} also makes a newly
  * added state a compile error at every map. Note the copy below is not
  * localizable yet; there is no i18n seam in the library.
  */
