@@ -68,15 +68,20 @@ test.describe('Filmstrip', () => {
 
     await landscape.click();
 
-    // The cell returns to the empty state every cell starts in.
-    await expect(page.locator('text=Assign an image')).toHaveCount(1);
+    // The cell returns to the empty state every cell starts in. Assert the
+    // specific cell, not a global placeholder count — a count cannot tell
+    // "cell 0 was cleared" from "some other cell was cleared instead".
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+    // Tearing the cell down must actually dispose the viewer, not just hide it.
+    await expect(page.locator('.openseadragon-canvas')).toHaveCount(0);
     await expect(landscape).toHaveAttribute('data-assignment', 'none');
     await expect(page.getByTestId('filmstrip-clear-landscape')).toHaveCount(0);
 
     // And the round trip works: clicking it again re-assigns.
     await landscape.click();
-    await expect(page.locator('text=Assign an image')).toHaveCount(0);
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
     await expect(landscape).toHaveAttribute('data-assignment', 'active');
+    await expect(page.locator('.openseadragon-canvas')).toHaveCount(1);
   });
 
   test('clicking an image assigned to another cell assigns rather than clears', async ({
@@ -100,5 +105,59 @@ test.describe('Filmstrip', () => {
     // Landscape is now in both cells; nothing was cleared.
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
     await expect(landscape).toHaveAttribute('data-assignment', 'active');
+  });
+
+  test('clears the ACTIVE cell, not cell 0, when a later cell is active', async ({ page }) => {
+    // Every other unassign path runs with cell 0 active, so a filmstrip that
+    // cleared the wrong index — hardcoded 0, or any stale index — would pass
+    // the rest of this suite untouched.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-1').click();
+
+    // Activate the empty cell 1 and give it its own image.
+    await page.getByTestId('cell-placeholder-1').click();
+    await page.getByTestId('filmstrip-item-portrait').click();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+
+    // Clear cell 1 by clicking its own thumbnail again.
+    await page.getByTestId('filmstrip-item-portrait').click();
+
+    // Cell 1 is empty and cell 0 is untouched.
+    await expect(page.getByTestId('cell-placeholder-1')).toBeVisible();
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'other',
+    );
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'none',
+    );
+  });
+
+  test('renders the three assignment states distinguishably', async ({ page }) => {
+    // The tri-state border is the whole reason the toggle is safe to offer.
+    // If 'other' rendered like 'active', the misleading highlight this change
+    // set out to remove would be back, and every state assertion above would
+    // still pass.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-1').click();
+    await page.getByTestId('cell-placeholder-1').click();
+    await page.getByTestId('filmstrip-item-portrait').click();
+
+    const borderOf = (id: string) =>
+      page.getByTestId(`filmstrip-item-${id}`).evaluate((el) => getComputedStyle(el).borderColor);
+
+    // portrait = active (cell 1), landscape = other (cell 0), wide = none.
+    const [active, other, none] = await Promise.all([
+      borderOf('portrait'),
+      borderOf('landscape'),
+      borderOf('wide'),
+    ]);
+
+    expect(new Set([active, other, none]).size).toBe(3);
   });
 });

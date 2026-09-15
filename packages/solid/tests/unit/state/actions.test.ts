@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { version as FABRIC_VERSION } from 'fabric';
 import { createRoot } from 'solid-js';
+import { unwrap } from 'solid-js/store';
 import { createAnnotationStore } from '../../../src/state/annotation-store';
 import { createUIStore } from '../../../src/state/ui-store';
 import { createContextStore, createConstraintStatus } from '../../../src/state/context-store';
@@ -172,11 +173,13 @@ describe('State Management', () => {
     actions.unassignImageFromCell(1);
 
     // Deleting a key inside `produce` has to survive Solid's store proxy, not
-    // just the plain-object reducer the osdlabel suite exercises. The key must
-    // be gone rather than left holding `undefined`, since the filmstrip
-    // highlight enumerates this record with `Object.values`.
+    // just the plain-object reducer the osdlabel suite exercises.
     expect(uiState.gridAssignments[1]).toBeUndefined();
-    expect(Object.keys(uiState.gridAssignments)).not.toContain('1');
+    // Read through `unwrap`: the store proxy normalises an `undefined` write
+    // into a delete, so asserting key absence against the proxy would pass even
+    // if the reducer blanked the key instead of deleting it. The raw object is
+    // what actually distinguishes the two.
+    expect(Object.keys(unwrap(uiState.gridAssignments))).not.toContain('1');
     // Cell 0 is seeded by createTestStore and must be untouched.
     expect(uiState.gridAssignments[0]).toBe(dummyImageId);
     dispose();
@@ -187,17 +190,23 @@ describe('State Management', () => {
     actions.setActiveCell(0);
     actions.assignImageToCell(0, dummyImageId);
     actions.addAnnotation(dummyAnnotation);
-    expect(Object.keys(annotationState.byImage[dummyImageId] ?? {})).toHaveLength(1);
+    expect(annotationState.byImage[dummyImageId]).toBeDefined();
+    expect(Object.keys(annotationState.byImage[dummyImageId]!)).toHaveLength(1);
 
     actions.unassignImageFromCell(0);
 
     // `byImage` is keyed by ImageId and independent of grid placement, so
-    // clearing a cell must not lose the work done on that image.
-    expect(Object.keys(annotationState.byImage[dummyImageId] ?? {})).toHaveLength(1);
+    // clearing a cell must not lose the work done on that image. The bucket
+    // vanishing entirely is the regression that matters most here, so assert
+    // its presence separately rather than letting `?? {}` collapse "gone" and
+    // "emptied" into the same failure.
+    expect(annotationState.byImage[dummyImageId]).toBeDefined();
+    expect(Object.keys(annotationState.byImage[dummyImageId]!)).toHaveLength(1);
     expect(uiState.gridAssignments[0]).toBeUndefined();
 
     actions.assignImageToCell(0, dummyImageId);
-    expect(Object.keys(annotationState.byImage[dummyImageId] ?? {})).toHaveLength(1);
+    expect(annotationState.byImage[dummyImageId]).toBeDefined();
+    expect(Object.keys(annotationState.byImage[dummyImageId]!)).toHaveLength(1);
     dispose();
   });
 

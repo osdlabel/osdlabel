@@ -264,7 +264,7 @@ test.describe('View Controls', () => {
     await page.locator('[data-testid="grid-selector-trigger"]').click();
     await page.locator('[data-testid="grid-cell-2-1"]').click();
 
-    // Assign images to both cells by clicking thumbnails in filmstrip
+    // Cell 0 is already seeded by the app; cell 1 gets its image by click below.
     const thumbnails = page.locator('[data-testid^="filmstrip-item-"]');
 
     // Cell 0 is active by default and the app already seeds it with the first

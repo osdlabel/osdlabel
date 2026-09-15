@@ -7,6 +7,7 @@ import { createInitialUIState } from '../../src/initial-state.js';
 
 const RECTANGLE: ToolType = 'rectangle';
 const TONE: ViewerControlId = 'tone';
+const annId = (s: string): AnnotationId => s as AnnotationId;
 
 describe('applyUIAction — tool / viewer-control mutual exclusivity', () => {
   it('SET_ACTIVE_VIEWER_CONTROL clears an active tool', () => {
@@ -118,9 +119,10 @@ describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
     applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
 
     expect(state.gridAssignments[0]).toBeUndefined();
-    // The distinction matters: `GridView` renders the placeholder on falsiness,
-    // but `Object.values(gridAssignments)` drives the filmstrip highlight, and a
-    // key left behind holding `undefined` would still be enumerated.
+    // Delete, not blank. Consumers read this record both by index and by
+    // enumeration (`Object.keys` here, and serialization of UI state), so a key
+    // left behind holding `undefined` is a cell that still exists as far as any
+    // enumerating consumer is concerned.
     expect(Object.keys(state.gridAssignments)).toHaveLength(0);
     expect(0 in state.gridAssignments).toBe(false);
   });
@@ -169,7 +171,7 @@ describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
 
   it('leaves selectedAnnotationId alone, since another cell may still show that image', () => {
     const state = createInitialUIState();
-    const selected = 'ann-1' as AnnotationId;
+    const selected = annId('ann-1');
     applyUIAction(state, {
       type: 'ASSIGN_IMAGE_TO_CELL',
       payload: { cellIndex: 0, imageId: IMG_A },
@@ -195,5 +197,43 @@ describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
 
     expect(state.gridAssignments[0]).toBe(IMG_A);
     expect(state.cellTransforms[0]).toEqual(DEFAULT_CELL_TRANSFORM);
+  });
+});
+
+describe('applyUIAction — SET_GRID_DIMENSIONS keeps the active cell in range', () => {
+  it('clamps activeCellIndex when the grid shrinks past it', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 1 });
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 1, rows: 1 } });
+
+    // Without this the keyboard grid shortcuts, which dispatch straight to the
+    // reducer rather than through GridControls, leave the active cell pointing
+    // offscreen — and every action keyed on it then edits invisible state.
+    expect(state.activeCellIndex).toBe(0);
+  });
+
+  it('leaves activeCellIndex alone when it still fits', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 2 });
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    expect(state.activeCellIndex).toBe(2);
+  });
+
+  it('keeps assignments for pruned cells so a shrink/expand round trip restores them', () => {
+    const state = createInitialUIState();
+    const img = createImageId('img-pruned');
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+    applyUIAction(state, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 1, imageId: img } });
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 1, rows: 1 } });
+    expect(state.gridAssignments[1]).toBe(img);
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+    expect(state.gridAssignments[1]).toBe(img);
   });
 });

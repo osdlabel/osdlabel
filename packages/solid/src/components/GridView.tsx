@@ -59,6 +59,7 @@ const GridView: Component<GridViewProps> = (props) => {
                 />
               ) : (
                 <div
+                  data-testid={`cell-placeholder-${cellIndex}`}
                   onClick={() => actions.setActiveCell(cellIndex)}
                   style={{
                     width: '100%',

@@ -1,48 +1,42 @@
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
-import { getCellAssignmentState, type AssignmentState } from 'osdlabel';
+import {
+  getCellAssignmentState,
+  resolveFilmstripClick,
+  CELL_ASSIGNMENT_BORDER_COLOR,
+  CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
+  CELL_ASSIGNMENT_TITLE,
+  type CellAssignmentState,
+} from 'osdlabel';
 
 export interface FilmstripProps {
   readonly images: readonly ImageSource[];
   readonly position: 'left' | 'right' | 'bottom';
 }
 
-/** Border colour per assignment state. Bright blue is reserved for the cell the
- * click will act on; the muted blue means "in use, but in another cell". */
-const BORDER_COLOR: Record<AssignmentState, string> = {
-  active: '#2196F3',
-  other: '#1565C0',
-  none: '#333',
-};
-
-const PLACEHOLDER_BACKGROUND: Record<AssignmentState, string> = {
-  active: '#2a3a5e',
-  other: '#252d42',
-  none: '#2a2a3e',
-};
-
-const TITLE: Record<AssignmentState, string> = {
-  active: 'Click to remove this image from the active cell',
-  other: 'Shown in another cell — click to also show it in the active cell',
-  none: 'Click to show this image in the active cell',
-};
-
 export default function Filmstrip({ images, position }: FilmstripProps) {
   const { uiState, actions } = useAnnotator();
 
-  const assignmentState = (imageId: ImageId): AssignmentState =>
-    getCellAssignmentState(uiState.gridAssignments, uiState.activeCellIndex, imageId);
+  const cellCount = uiState.gridColumns * uiState.gridRows;
+
+  const assignmentState = (imageId: ImageId): CellAssignmentState =>
+    getCellAssignmentState(uiState.gridAssignments, uiState.activeCellIndex, imageId, cellCount);
 
   // Clicking the image already in the active cell clears that cell; anything
-  // else assigns into it. Keyed on the *active* cell, which is why the border
-  // has to distinguish "in this cell" from "in some other cell" — a highlight
-  // that meant merely "assigned somewhere" would promise a toggle that a click
-  // on another cell's image would not deliver.
+  // else assigns into it. The decision lives in `resolveFilmstripClick` so both
+  // frameworks share one tested rule — in particular one that always names the
+  // active cell, which is easy to get silently wrong here.
   const handleClick = (image: ImageSource) => {
-    if (assignmentState(image.id) === 'active') {
-      actions.unassignImageFromCell(uiState.activeCellIndex);
+    const action = resolveFilmstripClick(
+      uiState.gridAssignments,
+      uiState.activeCellIndex,
+      image.id,
+      cellCount,
+    );
+    if (action.type === 'unassign') {
+      actions.unassignImageFromCell(action.cellIndex);
     } else {
-      actions.assignImageToCell(uiState.activeCellIndex, image.id);
+      actions.assignImageToCell(action.cellIndex, action.imageId);
     }
   };
 
@@ -71,13 +65,13 @@ export default function Filmstrip({ images, position }: FilmstripProps) {
             key={image.id}
             data-testid={`filmstrip-item-${image.id}`}
             data-assignment={state}
-            title={TITLE[state]}
+            title={CELL_ASSIGNMENT_TITLE[state]}
             onClick={() => handleClick(image)}
             style={{
               [isVertical ? 'width' : 'height']: '100%',
               [isVertical ? 'height' : 'width']: '80px',
               flexShrink: 0,
-              border: `2px solid ${BORDER_COLOR[state]}`,
+              border: `2px solid ${CELL_ASSIGNMENT_BORDER_COLOR[state]}`,
               borderRadius: '4px',
               overflow: 'hidden',
               cursor: 'pointer',
@@ -103,7 +97,7 @@ export default function Filmstrip({ images, position }: FilmstripProps) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: PLACEHOLDER_BACKGROUND[state],
+                  background: CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND[state],
                   color: '#aaa',
                   fontSize: '10px',
                   fontFamily: 'system-ui, sans-serif',

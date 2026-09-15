@@ -12,7 +12,8 @@ The empty state was never unsupported, only unreachable. `GridView` already rend
 
 - `osdlabel` gains a `UNASSIGN_IMAGE_FROM_CELL` UI action, which deletes the cell's grid assignment and its view transform. Dropping the transform mirrors `ASSIGN_IMAGE_TO_CELL`, which resets it on every assignment.
 - Both framework `actions` objects gain `unassignImageFromCell(cellIndex)`.
-- `osdlabel` exports `getCellAssignmentState` and the `AssignmentState` type, shared by both filmstrips.
+- `osdlabel` exports `getCellAssignmentState`, `resolveFilmstripClick`, the `CellAssignmentState` / `FilmstripClickAction` types, and the shared `CELL_ASSIGNMENT_*` palette. Both filmstrips route their click through `resolveFilmstripClick`, so the two frameworks cannot disagree about what a click does — or about which cell it acts on.
+- `SET_GRID_DIMENSIONS` now clamps `activeCellIndex` into the resized grid. `GridControls` already clamped, but the keyboard grid shortcuts dispatch straight to the reducer, so a shrink could leave the active cell pointing offscreen — and the new clear affordance would then advertise a cell nobody can see. Assignments for pruned cells are still kept so a shrink/expand round trip restores them; `getCellAssignmentState` takes the grid's cell count and ignores cells outside it instead.
 
 The filmstrip highlight had to change with it. It previously meant "assigned to _some_ cell", while the toggle is necessarily keyed on the _active_ cell — so a blue thumbnail belonging to a different cell would have promised a clear and delivered an assign. Thumbnails now distinguish three states, exposed as a `data-assignment` attribute for testing: `active` (bright blue, with a `✕` badge — clicking clears the active cell), `other` (muted blue — shown elsewhere, clicking assigns it here), and `none` (grey).
 

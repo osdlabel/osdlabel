@@ -188,8 +188,17 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       delete draft.cellTransforms[cellIndex];
       // `selectedAnnotationId` is deliberately left alone: it is global rather
       // than per-cell, so another cell may still be displaying the image whose
-      // annotation is selected. Every read of it is already guarded by an
-      // active-image lookup, and re-assigning the image restores the selection.
+      // annotation is selected. Every read of it is guarded by an active-image
+      // lookup — `mapKeyEventToActions` gates DELETE_ANNOTATION on
+      // `activeImageId`, so Delete over an emptied active cell is a no-op
+      // rather than deleting something invisible.
+      //
+      // Note this leaves the id naming an annotation that shows no Fabric
+      // selection handles until it is selected again: re-assigning the image
+      // rebuilds the canvas from `rawAnnotationData` without restoring the
+      // active object. That dangling-selection behaviour is pre-existing —
+      // ASSIGN_IMAGE_TO_CELL never cleared the selection either — and is not
+      // introduced here.
       break;
     }
     case 'SET_GRID_DIMENSIONS': {
@@ -202,6 +211,19 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
         if (index > maxIndex) {
           delete draft.cellTransforms[index];
         }
+      }
+      // Keep the active cell inside the grid. `GridControls` clamps too, but it
+      // is a component: the keyboard path (`mapKeyEventToActions` for the grid
+      // shortcuts) dispatches straight here, so without this a shrink can leave
+      // `activeCellIndex` pointing at a cell nobody can see — and every action
+      // keyed on the active cell then edits offscreen state.
+      //
+      // Assignments for pruned cells are deliberately NOT removed: a
+      // shrink/expand round trip is expected to restore what those cells were
+      // showing. Consumers that must ignore them scope by the cell count
+      // instead (see `getCellAssignmentState`).
+      if (draft.activeCellIndex > maxIndex) {
+        draft.activeCellIndex = maxIndex;
       }
       break;
     }
