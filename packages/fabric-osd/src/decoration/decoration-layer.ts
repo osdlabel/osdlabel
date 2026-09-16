@@ -6,7 +6,6 @@ import type {
   TextDecoration,
   TextPlacement,
 } from '@osdlabel/decoration';
-import type { Point } from '@osdlabel/annotation';
 import type { FabricOverlay } from '../overlay/fabric-overlay.js';
 
 /**
@@ -35,6 +34,30 @@ interface MutableDomEntry {
 }
 
 type DomDecorationsCallback = (entries: readonly DomDecorationEntry[]) => void;
+
+/**
+ * A positioned text element plus the last transform string written to it.
+ * The string lives on the entry (a plain property read per frame) rather
+ * than in a keyed map, and is compared instead of reading
+ * `el.style.transform` back: the CSSOM reserializes the value (`0` becomes
+ * `0px`) so a readback never equals the authored string.
+ */
+interface TextSlot {
+  readonly el: HTMLDivElement;
+  transform: string;
+}
+
+/** A DOM-decoration entry plus its last written transform (see {@link TextSlot}). */
+interface DomSlot {
+  readonly el: HTMLDivElement;
+  readonly entry: MutableDomEntry;
+  transform: string;
+}
+
+interface HostSize {
+  readonly width: number;
+  readonly height: number;
+}
 
 function isCellAnchored(d: Decoration): boolean {
   return (d.type === 'text' || d.type === 'dom') && d.anchorSpace === 'cell';
@@ -68,18 +91,21 @@ export class DecorationLayer {
   private readonly _overlay: FabricOverlay;
   private readonly _hostEl: HTMLDivElement;
   private readonly _unsubscribeSync: () => void;
-  private readonly _textEls = new Map<string, HTMLDivElement>();
+  private readonly _textSlots = new Map<string, TextSlot>();
   private readonly _lineObjects = new Map<string, FabricLine>();
-  private readonly _domEntries = new Map<string, MutableDomEntry>();
+  private readonly _domSlots = new Map<string, DomSlot>();
   private readonly _domSubscribers = new Set<DomDecorationsCallback>();
-  /**
-   * Last transform string written per element. Compared instead of reading
-   * `el.style.transform` back, because the CSSOM reserializes the value
-   * (`0` becomes `0px`) so a readback never equals the authored string and the
-   * idempotence guard would silently write every frame.
-   */
-  private readonly _lastTransform = new WeakMap<HTMLElement, string>();
   private readonly _hostResizeObserver: ResizeObserver | undefined;
+  /**
+   * Host box as last reported by the ResizeObserver. Cell-space anchors read
+   * this instead of `clientWidth` / `clientHeight`, so the per-frame pass
+   * never forces a synchronous layout (a `setDecorations` that just mutated
+   * text would otherwise pay a full relayout on the very next read).
+   * `undefined` until the observer has fired, or where it is unavailable;
+   * then the host is measured inline.
+   */
+  private _hostSize: HostSize | undefined;
+  private _hasCellAnchored = false;
   private _decorations: readonly Decoration[] = [];
   private _destroyed = false;
 
@@ -100,9 +126,13 @@ export class DecorationLayer {
     // its own `resize`, but not when the host first receives a size after
     // being laid out late (e.g. a cell inside a hidden panel), so observe the
     // host directly where the platform allows it.
+    // The observer callback runs after layout, so measuring there is free.
     this._hostResizeObserver =
       typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => this._reposition())
+        ? new ResizeObserver(() => {
+            this._hostSize = this._measureHost();
+            this._reposition();
+          })
         : undefined;
     this._hostResizeObserver?.observe(this._hostEl);
   }
@@ -111,6 +141,7 @@ export class DecorationLayer {
   setDecorations(decorations: readonly Decoration[]): void {
     if (this._destroyed) return;
     this._decorations = decorations;
+    this._hasCellAnchored = decorations.some(isCellAnchored);
     this._diffText(decorations);
     this._diffDom(decorations);
     this._diffLines(decorations);
@@ -142,11 +173,11 @@ export class DecorationLayer {
       this._overlay.canvas.remove(obj);
     }
     this._lineObjects.clear();
-    this._textEls.clear();
-    for (const entry of this._domEntries.values()) {
-      entry.element.remove();
+    this._textSlots.clear();
+    for (const slot of this._domSlots.values()) {
+      slot.entry.element.remove();
     }
-    this._domEntries.clear();
+    this._domSlots.clear();
     this._notifyDomSubscribers();
     this._domSubscribers.clear();
     this._hostEl.remove();
@@ -161,27 +192,28 @@ export class DecorationLayer {
     }
 
     // Remove gone
-    for (const [id, el] of this._textEls) {
+    for (const [id, slot] of this._textSlots) {
       if (!wanted.has(id)) {
-        el.remove();
-        this._textEls.delete(id);
+        slot.el.remove();
+        this._textSlots.delete(id);
       }
     }
 
     // Add new / update existing
     for (const [id, decoration] of wanted) {
-      let el = this._textEls.get(id);
-      if (!el) {
-        el = document.createElement('div');
+      let slot = this._textSlots.get(id);
+      if (!slot) {
+        const el = document.createElement('div');
         el.style.position = 'absolute';
         el.style.top = '0';
         el.style.left = '0';
         el.style.willChange = 'transform';
         el.dataset.osdlabel = 'decoration-text';
         this._hostEl.appendChild(el);
-        this._textEls.set(id, el);
+        slot = { el, transform: '' };
+        this._textSlots.set(id, slot);
       }
-      applyTextStyle(el, decoration);
+      applyTextStyle(slot.el, decoration);
     }
   }
 
@@ -196,10 +228,10 @@ export class DecorationLayer {
     let membershipChanged = false;
 
     // Remove gone
-    for (const [id, entry] of this._domEntries) {
+    for (const [id, slot] of this._domSlots) {
       if (!wanted.has(id)) {
-        entry.element.remove();
-        this._domEntries.delete(id);
+        slot.entry.element.remove();
+        this._domSlots.delete(id);
         membershipChanged = true;
       }
     }
@@ -208,8 +240,8 @@ export class DecorationLayer {
     // `decoration` in place rather than replacing the entry, so its object
     // identity stays stable for SolidJS's `<For>` (see MutableDomEntry).
     for (const [id, decoration] of wanted) {
-      let entry = this._domEntries.get(id);
-      if (!entry) {
+      let slot = this._domSlots.get(id);
+      if (!slot) {
         const el = document.createElement('div');
         el.style.position = 'absolute';
         el.style.top = '0';
@@ -218,13 +250,13 @@ export class DecorationLayer {
         el.dataset.osdlabel = 'decoration-dom';
         el.dataset.decorationId = id;
         this._hostEl.appendChild(el);
-        entry = { id, element: el, decoration };
-        this._domEntries.set(id, entry);
+        slot = { el, entry: { id, element: el, decoration }, transform: '' };
+        this._domSlots.set(id, slot);
         membershipChanged = true;
       } else {
-        entry.decoration = decoration;
+        slot.entry.decoration = decoration;
       }
-      applyDomStyle(entry.element, decoration);
+      applyDomStyle(slot.entry.element, decoration);
     }
 
     if (membershipChanged) this._notifyDomSubscribers();
@@ -233,7 +265,7 @@ export class DecorationLayer {
   private _currentDomEntries(): readonly DomDecorationEntry[] {
     // New array, but the entry object references are stable across calls so
     // SolidJS's `<For>` reuses existing rows and only mounts the new ones.
-    return Array.from(this._domEntries.values());
+    return Array.from(this._domSlots.values(), (slot) => slot.entry);
   }
 
   private _notifyDomSubscribers(): void {
@@ -243,41 +275,34 @@ export class DecorationLayer {
 
   // ── Screen positioning (text + DOM share the same anchor model) ────────
 
+  private _measureHost(): HostSize {
+    return { width: this._hostEl.clientWidth, height: this._hostEl.clientHeight };
+  }
+
   private _reposition(): void {
     if (this._destroyed) return;
-    // Measure the host once, before any transform write in this pass, so a
-    // cell-space decoration never forces a synchronous layout mid-loop. The
-    // read is skipped entirely when no decoration needs it.
-    const hostSize = this._decorations.some(isCellAnchored)
-      ? { width: this._hostEl.clientWidth, height: this._hostEl.clientHeight }
-      : undefined;
+    // Resolve the host box once, before any transform write in this pass, and
+    // only when a cell-space anchor needs it. Prefer the observer-cached size;
+    // measure inline only before the observer has reported (or without one).
+    const hostSize = this._hasCellAnchored ? (this._hostSize ?? this._measureHost()) : undefined;
     for (const d of this._decorations) {
       if (d.type !== 'text' && d.type !== 'dom') continue;
-      const el = d.type === 'text' ? this._textEls.get(d.id) : this._domEntries.get(d.id)?.element;
-      if (!el) continue;
+      const slot = d.type === 'text' ? this._textSlots.get(d.id) : this._domSlots.get(d.id);
+      if (!slot) continue;
       // Cell-space anchors are fractions of the host element's box (which is
       // `inset:0` inside the cell), so they never touch the viewport transform.
       const screen =
         d.anchorSpace === 'cell'
           ? { x: d.anchor.x * hostSize!.width, y: d.anchor.y * hostSize!.height }
           : this._overlay.imageToScreen(d.anchor);
-      this._positionEl(el, screen, d.offset, d.placement);
-    }
-  }
-
-  private _positionEl(
-    el: HTMLElement,
-    screen: Point,
-    offset: { readonly x: number; readonly y: number } | undefined,
-    placement: TextPlacement | undefined,
-  ): void {
-    const offsetX = offset?.x ?? 0;
-    const offsetY = offset?.y ?? 0;
-    const align = placementTranslate(placement);
-    const nextTransform = `translate3d(${screen.x + offsetX}px, ${screen.y + offsetY}px, 0) translate3d(${align.x}, ${align.y}, 0)`;
-    if (this._lastTransform.get(el) !== nextTransform) {
-      this._lastTransform.set(el, nextTransform);
-      el.style.transform = nextTransform;
+      const offsetX = d.offset?.x ?? 0;
+      const offsetY = d.offset?.y ?? 0;
+      const align = placementTranslate(d.placement);
+      const nextTransform = `translate3d(${screen.x + offsetX}px, ${screen.y + offsetY}px, 0) translate3d(${align.x}, ${align.y}, 0)`;
+      if (slot.transform !== nextTransform) {
+        slot.transform = nextTransform;
+        slot.el.style.transform = nextTransform;
+      }
     }
   }
 

@@ -697,4 +697,47 @@ describe('DecorationLayer — cell-anchored decorations', () => {
       delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
     }
   });
+
+  it('L13: after the host observer has reported, cell-space syncs never read the host box', () => {
+    const callbacks = new Set<() => void>();
+    class FakeResizeObserver {
+      private readonly _cb: () => void;
+      constructor(cb: () => void) {
+        this._cb = cb;
+        callbacks.add(cb);
+      }
+      observe(): void {}
+      disconnect(): void {
+        callbacks.delete(this._cb);
+      }
+    }
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResizeObserver;
+    try {
+      const { overlay, hostParent, syncSubscribers } = createMockOverlay();
+      const layer = new DecorationLayer(overlay);
+      const host = hostElementOf(hostParent);
+      let reads = 0;
+      Object.defineProperty(host, 'clientWidth', { get: () => (reads++, 640), configurable: true });
+      Object.defineProperty(host, 'clientHeight', {
+        get: () => (reads++, 480),
+        configurable: true,
+      });
+
+      // Observer reports after layout: the layer caches the size there.
+      for (const cb of callbacks) cb();
+      const readsAfterObserver = reads;
+      expect(readsAfterObserver).toBeGreaterThan(0);
+
+      layer.setDecorations([cellText('hud'), textDeco('img')]);
+      for (const cb of syncSubscribers) cb();
+      for (const cb of syncSubscribers) cb();
+      const hud = hostParent.querySelector<HTMLElement>('[data-decoration-id="hud"]')!;
+      expect(hud.style.transform).toContain('translate3d(640px, 0px, 0)');
+      // No layout read on setDecorations or on any of the syncs.
+      expect(reads).toBe(readsAfterObserver);
+      layer.destroy();
+    } finally {
+      delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+    }
+  });
 });
