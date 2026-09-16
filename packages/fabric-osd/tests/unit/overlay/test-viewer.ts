@@ -81,3 +81,34 @@ export function createTestViewer(options: TestViewerOptions = {}): TestViewer {
     },
   };
 }
+
+/**
+ * jsdom has no `PointerEvent`, and `_forwardToFabric` constructs one. A
+ * `MouseEvent` subclass carrying the extra fields is enough for every property
+ * the overlay sets or a test reads.
+ *
+ * Returns a restore function. It is a plain assignment onto `globalThis`, so
+ * `vi.restoreAllMocks()` does not undo it — restoring `undefined` (jsdom's
+ * actual state) is the point, so one suite cannot leak the polyfill into
+ * another's view of the environment.
+ */
+class PointerEventPolyfill extends MouseEvent {
+  readonly pointerId: number;
+  readonly pointerType: string;
+  readonly isPrimary: boolean;
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 0;
+    this.pointerType = init.pointerType ?? '';
+    this.isPrimary = init.isPrimary ?? false;
+  }
+}
+
+export function installPointerEventPolyfill(): () => void {
+  const target = globalThis as unknown as { PointerEvent: unknown };
+  const original = target.PointerEvent;
+  target.PointerEvent = PointerEventPolyfill;
+  return () => {
+    target.PointerEvent = original;
+  };
+}

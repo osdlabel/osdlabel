@@ -11,6 +11,7 @@ import {
   createMockCanvas,
   expectFabricInstance,
   type MockFabricCanvas,
+  createMockToolOverlay,
 } from '../test-helpers.js';
 
 describe('LineTool', () => {
@@ -29,9 +30,7 @@ describe('LineTool', () => {
 
     mockCanvas = createMockCanvas();
 
-    mockOverlay = {
-      canvas: mockCanvas,
-    } as unknown as ToolOverlay;
+    mockOverlay = createMockToolOverlay(mockCanvas);
 
     mockCallbacks = {
       getActiveContextId: () => contextId,

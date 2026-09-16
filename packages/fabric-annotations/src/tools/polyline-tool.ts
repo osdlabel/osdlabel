@@ -23,20 +23,30 @@ import {
 /** Distance in screen pixels to snap-close to the first point */
 const CLOSE_THRESHOLD_SCREEN_PX = 10;
 
-/**
- * Screen-pixel bounds on where a double click's two presses can be, relative to
- * the release point reported to {@link PolylineTool.onDoubleClick}. Composed
- * from OpenSeadragon's defaults — 5 for the second press, 5 + 20 + 5 for the
- * first — and derived in the OSD-Fabric integration guide.
- */
-const SECOND_PRESS_SCREEN_PX = 5;
-const FIRST_PRESS_SCREEN_PX = 25;
-
 export class PolylineTool extends BaseTool {
   readonly type: ToolType = 'polyline';
   private preview: Polyline | null = null;
   /** Committed vertices (does not include the live cursor point) */
   private vertices: Point[] = [];
+  /**
+   * The press that placed each vertex, parallel to {@link vertices} (#176).
+   *
+   * Parallel rather than an array of `{ point, seq }` to keep the change to
+   * the reads small: `markers.sync(overlay, this.vertices, …)` and the preview
+   * both take `Point[]` as they are.
+   *
+   * Not for allocation reasons — `onPointerMove` already builds a fresh array
+   * and a fresh object per vertex for the preview on every move, so one more
+   * `map` would add to a path that allocates rather than spoil one that does
+   * not. If this is ever revisited, `WeakMap<Point, number>` keyed on the
+   * vertex objects `pushVertex` creates is the better shape: the sequence
+   * travels with the vertex and there is no index pairing to maintain.
+   *
+   * Until then the pairing invariant is held by `pushVertex` / `popVertex`
+   * being the only mutators — index `i` of one always describes index `i` of
+   * the other — and a desync mutation fails the suite.
+   */
+  private vertexSeqs: (number | undefined)[] = [];
   /** Style resolved when drawing started; drives the preview only. */
   private style: AnnotationStyle | null = null;
   private readonly editor: PolyVertexEditor;
@@ -69,12 +79,15 @@ export class PolylineTool extends BaseTool {
     super.deactivate();
   }
 
-  onPointerDown(_event: PointerEvent, imagePoint: Point): void {
+  onPointerDown(event: PointerEvent, imagePoint: Point): void {
     if (!this.overlay) return;
+    // Stamped on whichever vertex this press places, so `onDoubleClick` can
+    // drop exactly the vertices the gesture created.
+    const seq = this.overlay.pressSeqOf(event);
 
     if (this.vertices.length === 0) {
       // First point — start a new path
-      this.vertices.push({ x: imagePoint.x, y: imagePoint.y });
+      this.pushVertex(imagePoint, seq);
 
       // Draw the preview in the style the finished annotation will have, so the
       // shape stays visible while it is being drawn (see issue #156).
@@ -96,7 +109,7 @@ export class PolylineTool extends BaseTool {
       }
 
       // Add new vertex
-      this.vertices.push({ x: imagePoint.x, y: imagePoint.y });
+      this.pushVertex(imagePoint, seq);
 
       // Update preview: all committed vertices + a live cursor point
       if (this.preview) {
@@ -133,14 +146,18 @@ export class PolylineTool extends BaseTool {
    * Finish the in-progress path as an *open* polyline, dropping the vertex the
    * gesture's own second press added.
    *
-   * The test is geometric, not a count: the gesture contributes two vertices,
-   * one, or none — a press landing on an existing annotation is suppressed by
-   * the hooks, and one may have closed the path — so popping unconditionally
-   * discards a point the user placed, and on a two-vertex path throws the whole
-   * path away.
+   * The vertex is identified by the press that placed it, not by a count and
+   * not by geometry: the gesture contributes two vertices, one, or none — a
+   * press landing on an existing annotation is suppressed by the hooks, and one
+   * may have closed the path — so popping unconditionally discards a point the
+   * user placed, and on a two-vertex path throws the whole path away.
    */
-  onDoubleClick(_event: PointerEvent, imagePoint: Point): void {
-    if (this.gestureAddedBothVertices(imagePoint)) this.vertices.pop();
+  onDoubleClick(
+    _event: PointerEvent,
+    _imagePoint: Point,
+    pressSeqs?: readonly [number, number],
+  ): void {
+    this.dropGestureVertex(pressSeqs);
     this.finish(false);
   }
 
@@ -182,27 +199,37 @@ export class PolylineTool extends BaseTool {
   }
 
   /**
-   * Whether *both* of this double click's presses landed on the canvas and so
-   * added a vertex — the only case in which one of them is an artefact.
+   * Remove the redundant vertex a double click's second press added.
    *
-   * Both halves are load-bearing; each alone gets a real case wrong, and the
-   * integration guide sets out which. Screen space, like `isNearFirstPoint`,
-   * because the bounds are properties of the input device.
+   * A double click delivers both of its presses before this callback, and the
+   * user's intent is that the path ends *at* the double-clicked point — so the
+   * first press places a real vertex and only the second is an artefact.
    *
-   * Not exact: with the first press suppressed *and* the previous vertex within
-   * the first-press bound of the release, this drops the vertex the second
-   * press placed. A far narrower window than the count-based test it replaced.
+   * It is dropped only when the first press placed the vertex before it. If
+   * just one press reached the tool — the other was suppressed by the
+   * framework hooks for landing on an existing annotation, or closed the path
+   * — then the single vertex is the endpoint the user asked for, and removing
+   * it would discard a deliberate click (and on a short path, take the whole
+   * path below `finish`'s minimum).
+   *
+   * Matching on the press sequence makes each of those the same rule, with no
+   * screen-distance bounds and no window in which a user's own vertex can be
+   * mistaken for the gesture's. A vertex whose press the overlay never
+   * forwarded carries no stamp, and `undefined` needs no special case — it
+   * fails the same equality check as any other non-match, so such a vertex is
+   * never removed. That is the safe direction: a stray vertex is recoverable,
+   * a silently deleted one is not.
    */
-  private gestureAddedBothVertices(imagePoint: Point): boolean {
-    // Guard, not a decision: `finish` cancels a too-short path either way.
-    if (this.vertices.length < 2 || !this.overlay) return false;
-    const released = this.overlay.imageToScreen(imagePoint);
-    const last = this.overlay.imageToScreen(this.vertices[this.vertices.length - 1]!);
-    const previous = this.overlay.imageToScreen(this.vertices[this.vertices.length - 2]!);
-    return (
-      Math.hypot(last.x - released.x, last.y - released.y) <= SECOND_PRESS_SCREEN_PX &&
-      Math.hypot(previous.x - released.x, previous.y - released.y) <= FIRST_PRESS_SCREEN_PX
-    );
+  private dropGestureVertex(pressSeqs?: readonly [number, number]): void {
+    if (!pressSeqs) return;
+    const count = this.vertexSeqs.length;
+    const [firstSeq, secondSeq] = pressSeqs;
+    // No length guard is needed: an out-of-range index yields `undefined`,
+    // which never equals a numeric sequence, so a path too short to hold a
+    // pair falls out of the checks below.
+    if (this.vertexSeqs[count - 1] !== secondSeq) return;
+    if (this.vertexSeqs[count - 2] !== firstSeq) return;
+    this.popVertex();
   }
 
   private isNearFirstPoint(imagePoint: Point): boolean {
@@ -288,6 +315,7 @@ export class PolylineTool extends BaseTool {
 
     this.preview = null;
     this.vertices = [];
+    this.vertexSeqs = [];
     this.style = null;
   }
 
@@ -299,6 +327,19 @@ export class PolylineTool extends BaseTool {
     }
     this.preview = null;
     this.vertices = [];
+    this.vertexSeqs = [];
     this.style = null;
+  }
+
+  /** The only way to add a vertex, so the sequence array cannot drift. */
+  private pushVertex(point: Point, seq: number | undefined): void {
+    this.vertices.push({ x: point.x, y: point.y });
+    this.vertexSeqs.push(seq);
+  }
+
+  /** The only way to remove a vertex, so the sequence array cannot drift. */
+  private popVertex(): void {
+    this.vertices.pop();
+    this.vertexSeqs.pop();
   }
 }
