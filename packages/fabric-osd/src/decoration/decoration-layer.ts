@@ -1,7 +1,6 @@
 import { Line as FabricLine } from 'fabric';
 import type {
   Decoration,
-  DecorationAnchorSpace,
   DomDecoration,
   LineDecoration,
   TextDecoration,
@@ -37,10 +36,8 @@ interface MutableDomEntry {
 
 type DomDecorationsCallback = (entries: readonly DomDecorationEntry[]) => void;
 
-/** Host box measured once per reposition pass, only when a cell-space anchor needs it. */
-interface HostSize {
-  readonly width: number;
-  readonly height: number;
+function isCellAnchored(d: Decoration): boolean {
+  return (d.type === 'text' || d.type === 'dom') && d.anchorSpace === 'cell';
 }
 
 const DEFAULT_TEXT_COLOR = '#ffffff';
@@ -251,32 +248,29 @@ export class DecorationLayer {
     // Measure the host once, before any transform write in this pass, so a
     // cell-space decoration never forces a synchronous layout mid-loop. The
     // read is skipped entirely when no decoration needs it.
-    let hostSize: HostSize | undefined;
+    const hostSize = this._decorations.some(isCellAnchored)
+      ? { width: this._hostEl.clientWidth, height: this._hostEl.clientHeight }
+      : undefined;
     for (const d of this._decorations) {
       if (d.type !== 'text' && d.type !== 'dom') continue;
       const el = d.type === 'text' ? this._textEls.get(d.id) : this._domEntries.get(d.id)?.element;
       if (!el) continue;
-      if (d.anchorSpace === 'cell') {
-        hostSize ??= { width: this._hostEl.clientWidth, height: this._hostEl.clientHeight };
-      }
-      this._positionEl(el, d.anchor, d.offset, d.placement, d.anchorSpace, hostSize);
+      // Cell-space anchors are fractions of the host element's box (which is
+      // `inset:0` inside the cell), so they never touch the viewport transform.
+      const screen =
+        d.anchorSpace === 'cell'
+          ? { x: d.anchor.x * hostSize!.width, y: d.anchor.y * hostSize!.height }
+          : this._overlay.imageToScreen(d.anchor);
+      this._positionEl(el, screen, d.offset, d.placement);
     }
   }
 
   private _positionEl(
     el: HTMLElement,
-    anchor: Point,
+    screen: Point,
     offset: { readonly x: number; readonly y: number } | undefined,
     placement: TextPlacement | undefined,
-    anchorSpace: DecorationAnchorSpace | undefined,
-    hostSize: HostSize | undefined,
   ): void {
-    // Cell-space anchors are fractions of the host element's box (which is
-    // `inset:0` inside the cell), so they never touch the viewport transform.
-    const screen =
-      anchorSpace === 'cell' && hostSize !== undefined
-        ? { x: anchor.x * hostSize.width, y: anchor.y * hostSize.height }
-        : this._overlay.imageToScreen(anchor);
     const offsetX = offset?.x ?? 0;
     const offsetY = offset?.y ?? 0;
     const align = placementTranslate(placement);
