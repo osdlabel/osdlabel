@@ -45,6 +45,10 @@ export type UIAction =
       readonly payload: { readonly cellIndex: number; readonly imageId: ImageId };
     }
   | {
+      readonly type: 'UNASSIGN_IMAGE_FROM_CELL';
+      readonly payload: { readonly cellIndex: number };
+    }
+  | {
       readonly type: 'SET_GRID_DIMENSIONS';
       readonly payload: { readonly columns: number; readonly rows: number };
     }
@@ -172,6 +176,32 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       const { cellIndex, imageId } = action.payload;
       draft.gridAssignments[cellIndex] = imageId;
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
+      break;
+    }
+    case 'UNASSIGN_IMAGE_FROM_CELL': {
+      const { cellIndex } = action.payload;
+      // Returns the cell to the empty state every cell starts in (see
+      // `createInitialUIState`), which `GridView` already renders as the
+      // "Assign an image" placeholder. Dropping the transform mirrors
+      // ASSIGN_IMAGE_TO_CELL, which resets it on every assignment.
+      delete draft.gridAssignments[cellIndex];
+      delete draft.cellTransforms[cellIndex];
+      // `selectedAnnotationId` is deliberately left alone: it is global rather
+      // than per-cell, so another cell may still be displaying the image whose
+      // annotation is selected. The read that could destroy something is
+      // guarded: `mapKeyEventToActions` gates DELETE_ANNOTATION on
+      // `activeImageId`, so Delete over an emptied active cell is a no-op
+      // rather than deleting something invisible. Other readers are
+      // non-destructive — the Escape branch only clears the selection, and each
+      // `ViewerCell` passes the id into its own `DecorationContext` so the
+      // annotation still draws as selected in whatever cell shows its image.
+      //
+      // Note this leaves the id naming an annotation that shows no Fabric
+      // selection handles until it is selected again: re-assigning the image
+      // rebuilds the canvas from `rawAnnotationData` without restoring the
+      // active object. That dangling-selection behaviour is pre-existing —
+      // ASSIGN_IMAGE_TO_CELL never cleared the selection either — and is not
+      // introduced here.
       break;
     }
     case 'SET_GRID_DIMENSIONS': {
