@@ -85,6 +85,11 @@ export function createActions(
     );
   }
 
+  /**
+   * Focuses a grid cell. The index is clamped into the current grid, so size
+   * the grid before restoring a saved active cell — `setActiveCell(3)` against
+   * a 1x1 grid selects cell 0, it is not remembered until the grid grows.
+   */
   function setActiveCell(cellIndex: number): void {
     setUIState(
       produce((draft) => applyUIAction(draft, { type: 'SET_ACTIVE_CELL', payload: cellIndex })),

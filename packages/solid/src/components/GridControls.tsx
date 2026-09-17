@@ -160,13 +160,8 @@ const GridControls: Component<GridControlsProps> = (props) => {
   const changeGrid = (newCols: number, newRows: number) => {
     const cols = Math.max(1, Math.min(newCols, props.maxColumns));
     const rows = Math.max(1, Math.min(newRows, props.maxRows));
+    // SET_GRID_DIMENSIONS owns clamping the active cell into the resized grid.
     actions.setGridDimensions(cols, rows);
-
-    // Clamp active cell index to valid range
-    const maxIndex = cols * rows - 1;
-    if (uiState.activeCellIndex > maxIndex) {
-      actions.setActiveCell(maxIndex);
-    }
   };
 
   return (
