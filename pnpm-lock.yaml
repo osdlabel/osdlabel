@@ -48,6 +48,9 @@ catalogs:
     immer:
       specifier: ^10.1.1
       version: 10.2.0
+    openseadragon:
+      specifier: 5.0.1
+      version: 5.0.1
     prettier:
       specifier: ^3.8.3
       version: 3.8.3
@@ -123,6 +126,25 @@ importers:
       turbo:
         specifier: 'catalog:'
         version: 2.9.16
+
+  apps/bench:
+    dependencies:
+      '@osdlabel/fabric-osd':
+        specifier: workspace:*
+        version: link:../../packages/fabric-osd
+      fabric:
+        specifier: 'catalog:'
+        version: 7.4.0
+      openseadragon:
+        specifier: 'catalog:'
+        version: 5.0.1
+    devDependencies:
+      playwright:
+        specifier: ^1.60.0
+        version: 1.60.0
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
 
   apps/dev:
     dependencies:

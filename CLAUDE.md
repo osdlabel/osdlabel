@@ -114,6 +114,13 @@ Key architectural rules:
 - **Node's test env (no `jsdom`) lacks `requestAnimationFrame`.** When unit-testing helpers that schedule via rAF (e.g. `enableLiveDecorationUpdates`), assign onto `globalThis` directly in `beforeEach` instead of `vi.spyOn(globalThis, 'requestAnimationFrame')` (which throws if the property is undefined): `(globalThis as unknown as { requestAnimationFrame: ... }).requestAnimationFrame = (cb) => { queue.push(cb); return queue.length; };`. Flush manually by iterating the queue.
 - **Per-frame DOM-write idempotence in the rendering loop.** `DecorationLayer`'s `applyTextStyle` guards `textContent` / `className` / `style.zIndex` writes with `!=` checks before assigning, because same-value writes can still invalidate text layout / style-recompute in some engines. New per-frame DOM writes added to the layer should follow the same `if (el.foo !== nextFoo) el.foo = nextFoo;` pattern.
 
+#### Performance benchmarks
+
+- **The `DecorationLayer` hot path has a real-browser harness at `apps/bench/` (`@osdlabel/bench`).** It drives an OSD viewer + `FabricOverlay` + `DecorationLayer` in headless Chromium and times `_reposition` / `setDecorations` per call across a scenario × phase matrix. jsdom cannot see CSSOM reserialization or forced layout, which is why it exists.
+- **Compare a branch against a baseline with `pnpm bench:compare -- --base origin/main`.** It builds the base ref in a throwaway `git worktree`, runs both builds interleaved, and writes `summary.md` / `comparison.json` / `verdicts.json`; `--fail-on-regression` exits 1 on any (scenario, phase) outside the noise band.
+- **It measures each checkout's built `dist/`, not `src/`** — the turbo `bench` / `bench:compare` tasks depend on `^build`, so run them through the root scripts rather than invoking the package's scripts directly.
+- **Results are gitignored** (`apps/bench/results/`, `apps/bench/.worktrees/`) — never commit a run. See `apps/bench/README.md` for every flag and for how to add a scenario, a phase, or a different hot path.
+
 ### File Conventions
 
 - One exported entity per file where practical. Exceptions: closely related types can share a file.

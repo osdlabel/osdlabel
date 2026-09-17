@@ -106,6 +106,28 @@ export default [
     },
   },
 
+  // The bench harness (apps/bench) is plain JS by design: a browser page
+  // (src/bench.js) driven by Node scripts (scripts/*.mjs). The page needs DOM
+  // globals plus the two Vite `define` constants; the driver scripts reference
+  // `window` inside Playwright `page.evaluate` callbacks, which run in the
+  // browser, not in Node.
+  {
+    files: ['apps/bench/src/**/*.js', 'apps/bench/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...nodeGlobals,
+        window: 'readonly',
+        document: 'readonly',
+        performance: 'readonly',
+        requestAnimationFrame: 'readonly',
+        getComputedStyle: 'readonly',
+        WeakSet: 'readonly',
+        __BENCH_ROOT__: 'readonly',
+        __SAMPLE_IMAGE_URL__: 'readonly',
+      },
+    },
+  },
+
   // React. Only the two classic rules. `exhaustive-deps` is what the
   // `eslint-disable` comments already in `@osdlabel/react` refer to, so
   // enabling it makes that existing reasoning load-bearing again rather than
