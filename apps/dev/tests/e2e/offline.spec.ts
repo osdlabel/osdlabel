@@ -75,9 +75,23 @@ test.describe('Offline operation', () => {
     await page.goto('/');
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10000 });
 
-    for (const id of await everyFilmstripId(page)) {
+    const ids = await everyFilmstripId(page);
+    // Cell 0 is auto-assigned the first image at startup. Clicking the image
+    // the active cell already shows now *clears* the cell rather than
+    // re-opening it, so starting the loop at `ids[0]` would skip loading that
+    // image entirely and quietly stop exercising it. Opening a different one
+    // first makes every iteration below a real assign. (Same reasoning as the
+    // pre-click in the tile-serving test.)
+    await page.getByTestId(`filmstrip-item-${ids.at(-1)!}`).click();
+
+    for (const id of ids) {
       await page.getByTestId(`filmstrip-item-${id}`).click();
       await page.waitForTimeout(400);
+      // Each iteration must actually be showing the image, not an emptied cell.
+      await expect(page.getByTestId(`filmstrip-item-${id}`)).toHaveAttribute(
+        'data-assignment',
+        'active',
+      );
     }
     // The per-image budget above is the only window in which the *last*
     // image's requests can be observed. A source that opens lazily would

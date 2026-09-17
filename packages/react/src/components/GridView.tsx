@@ -57,6 +57,7 @@ export default function GridView({ columns, rows, images }: GridViewProps) {
               />
             ) : (
               <div
+                data-testid={`cell-placeholder-${cellIndex}`}
                 onClick={() => actions.setActiveCell(cellIndex)}
                 style={{
                   width: '100%',
