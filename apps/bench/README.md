@@ -63,6 +63,7 @@ served through Vite's `/@fs/` prefix, and both builds are fed the identical file
 | `--out <dir>`            | `results/<timestamp>`                                | Output directory.                                                                                                  |
 | `--port-base <n>`        | `5390`                                               | First dev-server port; one port per build.                                                                         |
 | `--chromium <path>`      | Playwright's own chromium                            | Chromium executable. Also settable as `BENCH_CHROMIUM`.                                                            |
+| `--allow-degraded`       | off                                                  | Run even if a measurement prerequisite fails (write hook, cross-origin isolation, timer > 10 µs). Off = abort.     |
 
 ### `scripts/compare.mjs` (`pnpm bench:compare`)
 

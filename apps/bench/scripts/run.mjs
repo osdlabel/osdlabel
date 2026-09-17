@@ -12,9 +12,13 @@
  *                        [--reps 7] [--frames 240]
  *                        [--scenarios S0,S1,…] [--phases pan,static,live]
  *                        [--trace] [--out <dir>] [--port-base 5390]
- *                        [--chromium <path>]
+ *                        [--chromium <path>] [--allow-degraded]
  *
  * With no --root/--build it measures the checkout this file lives in.
+ * The run aborts before the matrix when a measurement prerequisite fails
+ * (transform-write hook, cross-origin isolation, timer resolution); pass
+ * --allow-degraded to run anyway, in which case meta.json records why the
+ * numbers are not comparable.
  */
 import os from 'node:os';
 import fs from 'node:fs';
@@ -32,6 +36,8 @@ export const RESULTS_DIR = path.join(BENCH_APP_DIR, 'results');
 export const ALL_SCENARIOS = ['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'];
 export const ALL_PHASES = ['pan', 'static', 'live'];
 export const DEFAULT_PORT_BASE = 5390;
+/** Coarsest `performance.now()` the analysis's sub-quantum rules are valid for. */
+export const MAX_TIMER_RESOLUTION_US = 10;
 
 /** `--flag value` lookup over an argv array. */
 export function arg(argv, flag, fallback) {
@@ -98,6 +104,7 @@ export async function runBench({
   scenarios = ALL_SCENARIOS,
   phases = ALL_PHASES,
   trace = false,
+  allowDegraded = false,
   out = timestampDir(),
   portBase = DEFAULT_PORT_BASE,
   chromiumPath,
@@ -142,6 +149,27 @@ export async function runBench({
         `[${build.name}] ready  root=${loadedRoot}  hook=${hookOk}  crossOriginIsolated=${coi}  ` +
           `timerRes=${timerUs.toFixed(2)}µs  hud=${build.hudMode}`,
       );
+      // The analysis assumes exact write counts and a ~5 µs clock (its
+      // sub-quantum rules are written for 5/10 µs). Without these the output
+      // would look authoritative and be meaningless, so refuse to run unless
+      // the caller explicitly accepts a degraded measurement.
+      const failed = [];
+      if (!hookOk) failed.push('transform-write hook did not install (write counts would be 0)');
+      if (!coi)
+        failed.push('page is not cross-origin isolated (performance.now() clamped to 100 µs)');
+      if (timerUs > MAX_TIMER_RESOLUTION_US) {
+        failed.push(
+          `timer resolution ${timerUs.toFixed(2)} µs exceeds ${MAX_TIMER_RESOLUTION_US} µs`,
+        );
+      }
+      if (failed.length) {
+        const msg = `[${build.name}] measurement prerequisites failed:\n  - ${failed.join('\n  - ')}`;
+        if (!allowDegraded) throw new Error(`${msg}\nPass --allow-degraded to run anyway.`);
+        console.warn(
+          `${msg}\nContinuing because --allow-degraded was passed; results are NOT comparable.`,
+        );
+        build.degraded = failed;
+      }
       build.page = page;
       build.hookOk = hookOk;
       build.coi = coi;
@@ -254,6 +282,7 @@ export async function runBench({
       cellAnchorSupport: Object.fromEntries(plan.map((b) => [b.name, b.cellAnchor])),
       hostSizeCached: Object.fromEntries(plan.map((b) => [b.name, b.hostCached])),
       transformHookOk: Object.fromEntries(plan.map((b) => [b.name, b.hookOk])),
+      degraded: Object.fromEntries(plan.map((b) => [b.name, b.degraded ?? null])),
       crossOriginIsolated: Object.fromEntries(plan.map((b) => [b.name, b.coi])),
       timerResolutionUs: Object.fromEntries(plan.map((b) => [b.name, b.timerUs])),
       builds: Object.fromEntries(plan.map((b) => [b.name, b.root])),
@@ -280,6 +309,7 @@ export function parseCommonArgs(argv) {
     scenarios: String(arg(argv, '--scenarios', ALL_SCENARIOS.join(','))).split(','),
     phases: String(arg(argv, '--phases', ALL_PHASES.join(','))).split(','),
     trace: argv.includes('--trace'),
+    allowDegraded: argv.includes('--allow-degraded'),
     portBase: Number(arg(argv, '--port-base', String(DEFAULT_PORT_BASE))),
     chromiumPath: arg(argv, '--chromium', undefined),
   };

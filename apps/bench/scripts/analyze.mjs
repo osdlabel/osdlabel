@@ -34,7 +34,10 @@ const p95of = (a) => {
   const s = [...a].sort((x, y) => x - y);
   return s[Math.min(s.length - 1, Math.floor(0.95 * s.length))];
 };
-const pct = (a, b) => (a === 0 ? 0 : ((b - a) / a) * 100);
+// A zero baseline against a measurable head is an unbounded regression, not
+// 0% — returning 0 here would let `--fail-on-regression` wave through a cell
+// that went from unmeasurable to measurable.
+const pct = (a, b) => (a === 0 ? (b === 0 ? 0 : Infinity) : ((b - a) / a) * 100);
 const f = (n, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : '—');
 const sign = (n) => (n >= 0 ? '+' : '');
 
@@ -73,7 +76,9 @@ export function verdictFor(baseCell, headCell, bandPct) {
   const kind = delta > bandPct ? 'regression' : delta < -bandPct ? 'improvement' : 'neutral';
   const text =
     (kind === 'regression'
-      ? `regression (+${f(delta)}%)`
+      ? Number.isFinite(delta)
+        ? `regression (+${f(delta)}%)`
+        : 'regression (zero baseline, measurable head)'
       : kind === 'improvement'
         ? `improvement (${f(delta)}%)`
         : `neutral (${sign(delta)}${f(delta)}%)`) + (useMean ? ' *' : '');
@@ -267,7 +272,9 @@ export function analyze({ inDir, compareDir = null }) {
           headMedian: cb.median,
           baseMean: cm.mean,
           headMean: cb.mean,
-          deltaPct: res.delta,
+          // JSON has no Infinity: a zero-baseline regression is `null` here and
+          // is still `verdict: 'regression'`.
+          deltaPct: Number.isFinite(res.delta) ? res.delta : null,
           usedMean: res.useMean,
           verdict: res.kind,
           noiseBandPct: BAND,
