@@ -384,11 +384,31 @@ describe('useKeyboard', () => {
 
   describe('Grid Shortcuts', () => {
     it('should set active cell 0-8 for keys 1-9', () => {
+      // Nine keys need nine cells: the shortcuts are screened against the grid,
+      // so this mapping only exists on a 3x3.
+      mockUiState.gridColumns = 3;
+      mockUiState.gridRows = 3;
+
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.gridCell1);
       expect(mockActions.setActiveCell).toHaveBeenCalledWith(0);
 
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.gridCell9);
       expect(mockActions.setActiveCell).toHaveBeenCalledWith(8);
+    });
+
+    it('should ignore a cell shortcut past the end of the grid', () => {
+      mockUiState.gridColumns = 2;
+      mockUiState.gridRows = 1;
+
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.gridCell2);
+      expect(mockActions.setActiveCell).toHaveBeenCalledWith(1);
+
+      vi.mocked(mockActions.setActiveCell).mockClear();
+
+      // Cell 2 does not exist on a 2x1. Activating it would leave every action
+      // keyed on the active cell editing state the user cannot see.
+      dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.gridCell3);
+      expect(mockActions.setActiveCell).not.toHaveBeenCalled();
     });
 
     it('should increase grid columns up to maximum', () => {
