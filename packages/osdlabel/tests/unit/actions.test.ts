@@ -199,3 +199,219 @@ describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
     expect(state.cellTransforms[0]).toEqual(DEFAULT_CELL_TRANSFORM);
   });
 });
+
+describe('applyUIAction — SET_GRID_DIMENSIONS keeps the active cell in range', () => {
+  it('clamps activeCellIndex to the last cell when the grid shrinks past it', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 3, rows: 3 } });
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 8 });
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    // 3 rather than 0: shrinking from 3x3 to 2x2 distinguishes "clamp to the
+    // last cell" from "reset to the first", which a 2x1 -> 1x1 shrink cannot.
+    // This reducer is the only clamp, so without it a shrink from any caller
+    // leaves the active cell offscreen — and every action keyed on it then
+    // edits invisible state.
+    expect(state.activeCellIndex).toBe(3);
+  });
+
+  it('floors the grid at one cell, so the active cell always has one to address', () => {
+    const state = createInitialUIState();
+
+    // `setGridDimensions` is public and takes raw numbers. A zero-cell grid
+    // would make `maxIndex` -1, and then every clamp lands on cell 0 — a cell
+    // that does not exist — which quietly re-breaks the invariant the rest of
+    // this file relies on.
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 0, rows: 0 } });
+    expect(state.gridColumns).toBe(1);
+    expect(state.gridRows).toBe(1);
+    expect(state.activeCellIndex).toBe(0);
+  });
+
+  it('floors a negative or fractional dimension too', () => {
+    const state = createInitialUIState();
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: -3, rows: 2.7 } });
+
+    expect(state.gridColumns).toBe(1);
+    expect(state.gridRows).toBe(2);
+  });
+
+  it('leaves activeCellIndex alone when it still fits', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 2 });
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    expect(state.activeCellIndex).toBe(2);
+  });
+
+  it('keeps assignments for pruned cells so a shrink/expand round trip restores them', () => {
+    const state = createInitialUIState();
+    const img = createImageId('img-pruned');
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+    applyUIAction(state, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 1, imageId: img } });
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 1, rows: 1 } });
+    expect(state.gridAssignments[1]).toBe(img);
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+    expect(state.gridAssignments[1]).toBe(img);
+  });
+});
+
+describe('applyUIAction — SET_ACTIVE_CELL keeps the active cell inside the grid', () => {
+  it('activates a cell the grid renders', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 3 });
+
+    expect(state.activeCellIndex).toBe(3);
+  });
+
+  it('clamps a cell past the end of the grid', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 8 });
+
+    // The invariant everything downstream relies on: the active cell always
+    // addresses a cell on screen, so reads keyed on it never reach state the
+    // user cannot see, and need no scoping of their own.
+    expect(state.activeCellIndex).toBe(1);
+  });
+
+  it('clamps a negative cell index', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: -3 });
+
+    expect(state.activeCellIndex).toBe(0);
+  });
+
+  it('counts rows as well as columns', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    // Cell 3 exists on a 2x2; a clamp that only looked at columns would reject
+    // every cell below the first row.
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 3 });
+    expect(state.activeCellIndex).toBe(3);
+  });
+
+  it('lands on a cell that exists even when the grid was asked for zero cells', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 0, rows: 0 } });
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 4 });
+
+    // Cell 0 is a real cell here only because SET_GRID_DIMENSIONS floored the
+    // grid to 1x1. Without that floor this assertion would pass while naming a
+    // cell nobody renders — which is exactly how the invariant leaked before.
+    expect(state.gridColumns * state.gridRows).toBeGreaterThan(0);
+    expect(state.activeCellIndex).toBe(0);
+  });
+
+  it('holds the invariant whichever order a host sizes and selects in', () => {
+    // The ordering rule this imposes on hosts: size the grid first, or the
+    // index is clamped to what currently exists. Both reducers clamp, so
+    // neither sequence can leave the active cell outside the grid.
+    const sizeThenSelect = createInitialUIState();
+    applyUIAction(sizeThenSelect, {
+      type: 'SET_GRID_DIMENSIONS',
+      payload: { columns: 2, rows: 2 },
+    });
+    applyUIAction(sizeThenSelect, { type: 'SET_ACTIVE_CELL', payload: 3 });
+    expect(sizeThenSelect.activeCellIndex).toBe(3);
+
+    const selectThenSize = createInitialUIState();
+    applyUIAction(selectThenSize, { type: 'SET_ACTIVE_CELL', payload: 3 });
+    applyUIAction(selectThenSize, {
+      type: 'SET_GRID_DIMENSIONS',
+      payload: { columns: 2, rows: 2 },
+    });
+    // Clamped on the way in by the 1x1 grid that existed at the time, so the
+    // saved index is not recovered — hence the ordering rule.
+    expect(selectThenSize.activeCellIndex).toBe(0);
+  });
+});
+
+describe('applyUIAction — the active cell is a whole, finite, in-grid index', () => {
+  it('truncates a fractional cell index', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 1.5 });
+
+    // A clamp alone would leave 1.5 untouched — it is inside the grid by every
+    // comparison, yet `gridAssignments[1.5]` and `cellTransforms[1.5]` are both
+    // permanently `undefined`, so the active cell would show no image and offer
+    // no clear affordance. Whole numbers are what the records are keyed by.
+    expect(state.activeCellIndex).toBe(1);
+  });
+
+  it('maps a NaN cell index to the first cell', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 3 });
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: NaN });
+
+    // NaN is the one value the clamp cannot reject: every Math.min/Math.max
+    // involving it yields NaN, so it would sail through and poison every
+    // reader keyed on the active cell.
+    expect(state.activeCellIndex).toBe(0);
+  });
+
+  it('clamps an infinite cell index like any other out-of-range one', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: Infinity });
+    expect(state.activeCellIndex).toBe(1);
+
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: -Infinity });
+    expect(state.activeCellIndex).toBe(0);
+  });
+
+  it('floors a NaN grid dimension rather than propagating it', () => {
+    const state = createInitialUIState();
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: NaN, rows: 2 } });
+
+    // `Math.max(1, NaN)` is NaN, so a bare floor would leave the grid — and
+    // then `maxIndex`, and then every clamp derived from it — NaN.
+    expect(state.gridColumns).toBe(1);
+    expect(state.gridRows).toBe(2);
+    expect(state.activeCellIndex).toBe(0);
+  });
+
+  it('floors an infinite grid dimension to a grid that can be rendered', () => {
+    const state = createInitialUIState();
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: Infinity, rows: 1 } });
+
+    expect(state.gridColumns).toBe(1);
+    expect(Number.isFinite(state.gridColumns * state.gridRows)).toBe(true);
+  });
+
+  it('holds the invariant for every value the public API accepts', () => {
+    // The whole point of the invariant: whatever a host passes, what comes out
+    // addresses a cell the grid renders.
+    const payloads = [0, 3, -3, 1.5, -0.5, NaN, Infinity, -Infinity, 1e21];
+    for (const payload of payloads) {
+      const state = createInitialUIState();
+      applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+      applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload });
+
+      const cellCount = state.gridColumns * state.gridRows;
+      expect(Number.isInteger(state.activeCellIndex)).toBe(true);
+      expect(state.activeCellIndex).toBeGreaterThanOrEqual(0);
+      expect(state.activeCellIndex).toBeLessThan(cellCount);
+    }
+  });
+});

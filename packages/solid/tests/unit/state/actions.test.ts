@@ -28,6 +28,12 @@ describe('State Management', () => {
       );
       // Assign image to cell 0 so constraint status has a currentImageId
       setUIState('gridAssignments', 0, dummyImageId);
+      // Size the grid to match what these tests actually exercise. Cells 1 and
+      // 2 are used throughout, and `SET_ACTIVE_CELL` clamps into the grid that
+      // exists — on the default 1x1 every `setActiveCell` past 0 lands back on
+      // cell 0 and six of these tests fail.
+      setUIState('gridColumns', 3);
+      setUIState('gridRows', 1);
       const activeImageId = () => uiState.gridAssignments[uiState.activeCellIndex];
       const constraintStatus = createConstraintStatus(contextState, annotationState, activeImageId);
 

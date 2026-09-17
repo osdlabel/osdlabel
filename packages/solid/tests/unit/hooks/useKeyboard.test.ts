@@ -369,7 +369,13 @@ describe('useKeyboard', () => {
 
     it('should do nothing if active image id is missing', () => {
       mockUiState.selectedAnnotationId = createAnnotationId('ann-1');
-      mockUiState.activeCellIndex = 10; // Out of bounds, undefined image
+      // A cell the grid renders but nothing is assigned to — the state a
+      // cleared cell leaves behind. (Not an out-of-grid index: the reducer
+      // keeps `activeCellIndex` inside the grid, so that state cannot occur.)
+      mockUiState.gridColumns = 2;
+      mockUiState.gridRows = 1;
+      mockUiState.activeCellIndex = 1;
+      delete mockUiState.gridAssignments[1];
       dispatchKeyDown(DEFAULT_KEYBOARD_SHORTCUTS.delete);
 
       expect(mockActions.deleteAnnotation).not.toHaveBeenCalled();
