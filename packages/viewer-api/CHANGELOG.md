@@ -1,5 +1,22 @@
 # @osdlabel/viewer-api
 
+## 0.13.0
+
+### Minor Changes
+
+- 9b7b6a3: Add cell-anchored ("HUD") decorations (#185).
+
+  `TextDecoration` and `DomDecoration` gain an optional `anchorSpace: 'image' | 'cell'`. The new `'cell'` space expresses `anchor` as a fraction of the cell's own size (`{x:0,y:0}` top-left, `{x:1,y:1}` bottom-right) instead of image pixels, so the decoration stays fixed in the cell's viewport through pan, zoom, rotate, and flip — ideal for a fixed readout in a corner of the view. `offset` and `placement` apply identically in both spaces.
+
+  `TextPlacement` grows three corner values (`'top-right'`, `'bottom-left'`, `'bottom-right'`), for nine placements total, usable with either `anchorSpace`.
+
+  Additive and backward-compatible: `anchorSpace` defaults to `'image'`, matching all existing decorations unchanged.
+
+### Patch Changes
+
+- Updated dependencies [9b7b6a3]
+  - @osdlabel/annotation@0.13.0
+
 ## 0.12.0
 
 ### Patch Changes
