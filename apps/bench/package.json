@@ -1,0 +1,22 @@
+{
+  "name": "@osdlabel/bench",
+  "version": "0.0.19",
+  "author": "Guy Or <guydude1@gmail.com>",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node scripts/run.mjs",
+    "bench:compare": "node scripts/compare.mjs",
+    "bench:analyze": "node scripts/analyze.mjs",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@osdlabel/fabric-osd": "workspace:*",
+    "fabric": "catalog:",
+    "openseadragon": "catalog:"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0",
+    "vite": "catalog:"
+  }
+}

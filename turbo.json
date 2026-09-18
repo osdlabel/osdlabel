@@ -46,6 +46,14 @@
         "$TURBO_ROOT$/packages/*/package.json"
       ]
     },
+    "bench": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "bench:compare": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false
