@@ -1,7 +1,15 @@
-import { For } from 'solid-js';
+import { For, Show, createMemo } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
-import type { ImageSource } from '@osdlabel/viewer-api';
+import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
+import {
+  getCellAssignmentState,
+  resolveFilmstripClick,
+  CELL_ASSIGNMENT_BORDER_COLOR,
+  CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
+  CELL_ASSIGNMENT_TITLE,
+  type CellAssignmentState,
+} from 'osdlabel';
 
 export interface FilmstripProps {
   readonly images: readonly ImageSource[];
@@ -11,12 +19,29 @@ export interface FilmstripProps {
 const Filmstrip: Component<FilmstripProps> = (props) => {
   const { uiState, actions } = useAnnotator();
 
-  const isAssigned = (imageId: string): boolean => {
-    return Object.values(uiState.gridAssignments).some((id) => id === imageId);
-  };
+  const assignmentState = (imageId: ImageId): CellAssignmentState =>
+    getCellAssignmentState(uiState, imageId);
 
+  // Clicking the image already in the active cell clears that cell; anything
+  // else assigns into it. The decision lives in `resolveFilmstripClick` so both
+  // frameworks share one tested rule — in particular one that always names the
+  // active cell, which is easy to get silently wrong here.
   const handleClick = (image: ImageSource) => {
-    actions.assignImageToCell(uiState.activeCellIndex, image.id);
+    const action = resolveFilmstripClick(uiState, image.id);
+    switch (action.type) {
+      case 'unassign':
+        actions.unassignImageFromCell(action.cellIndex);
+        break;
+      case 'assign':
+        actions.assignImageToCell(action.cellIndex, action.imageId);
+        break;
+      default: {
+        // Adding a variant without handling it here is a compile error, the
+        // same guarantee the palettes get from being keyed on the state union.
+        const exhaustive: never = action;
+        void exhaustive;
+      }
+    }
   };
 
   const isVertical = () => props.position === 'left' || props.position === 'right';
@@ -38,17 +63,19 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
     >
       <For each={[...props.images]}>
         {(image) => {
-          const assigned = () => isAssigned(image.id);
+          const state = createMemo(() => assignmentState(image.id));
 
           return (
             <div
               data-testid={`filmstrip-item-${image.id}`}
+              data-assignment={state()}
+              title={CELL_ASSIGNMENT_TITLE[state()]}
               onClick={() => handleClick(image)}
               style={{
                 [isVertical() ? 'width' : 'height']: '100%',
                 [isVertical() ? 'height' : 'width']: '80px',
                 'flex-shrink': '0',
-                border: assigned() ? '2px solid #2196F3' : '2px solid #333',
+                border: `2px solid ${CELL_ASSIGNMENT_BORDER_COLOR[state()]}`,
                 'border-radius': '4px',
                 overflow: 'hidden',
                 cursor: 'pointer',
@@ -74,7 +101,7 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                     display: 'flex',
                     'align-items': 'center',
                     'justify-content': 'center',
-                    background: assigned() ? '#2a3a5e' : '#2a2a3e',
+                    background: CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND[state()],
                     color: '#aaa',
                     'font-size': '10px',
                     'font-family': 'system-ui, sans-serif',
@@ -86,6 +113,34 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                   {image.label ?? image.id}
                 </div>
               )}
+              {/* Signals that clicking this thumbnail clears the active cell.
+                  Purely indicative — the click is handled by the wrapper, so
+                  the badge must not swallow it. */}
+              <Show when={state() === 'active'}>
+                <div
+                  data-testid={`filmstrip-clear-${image.id}`}
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    width: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    'align-items': 'center',
+                    'justify-content': 'center',
+                    'border-radius': '50%',
+                    background: 'rgba(0, 0, 0, 0.65)',
+                    color: '#fff',
+                    'font-size': '11px',
+                    'line-height': '1',
+                    'font-family': 'system-ui, sans-serif',
+                    'pointer-events': 'none',
+                  }}
+                >
+                  ✕
+                </div>
+              </Show>
             </div>
           );
         }}

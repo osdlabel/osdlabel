@@ -207,6 +207,9 @@ export function AnnotatorProvider({
     [],
   );
 
+  // Granular deps: depending on the whole `uiState` would bust this memo (and
+  // `constraintStatus` below) on every unrelated UI action, since Immer
+  // replaces the root reference.
   const activeImageId = useMemo(
     () => uiState.gridAssignments[uiState.activeCellIndex],
     [uiState.gridAssignments, uiState.activeCellIndex],

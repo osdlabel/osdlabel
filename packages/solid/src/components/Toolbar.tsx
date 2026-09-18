@@ -13,7 +13,8 @@ const TOOL_LABELS: Record<ToolType, string> = {
 };
 
 const Toolbar: Component = () => {
-  const { uiState, contextState, annotationState, constraintStatus, actions } = useAnnotator();
+  const { uiState, contextState, annotationState, constraintStatus, actions, activeImageId } =
+    useAnnotator();
 
   const activeContext = () => {
     if (!contextState.activeContextId) return undefined;
@@ -25,7 +26,10 @@ const Toolbar: Component = () => {
   const selectedAnnotation = () => {
     const id = uiState.selectedAnnotationId;
     if (!id) return undefined;
-    const imageId = uiState.gridAssignments[uiState.activeCellIndex];
+    // Through the context's `activeImageId`. The reducer keeps
+    // `activeCellIndex` inside the grid, so this is the image a rendered cell
+    // is showing; `undefined` means the active cell is empty.
+    const imageId = activeImageId();
     if (!imageId) return undefined;
     return annotationState.byImage[imageId]?.[id];
   };

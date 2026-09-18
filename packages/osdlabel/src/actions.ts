@@ -45,6 +45,10 @@ export type UIAction =
       readonly payload: { readonly cellIndex: number; readonly imageId: ImageId };
     }
   | {
+      readonly type: 'UNASSIGN_IMAGE_FROM_CELL';
+      readonly payload: { readonly cellIndex: number };
+    }
+  | {
       readonly type: 'SET_GRID_DIMENSIONS';
       readonly payload: { readonly columns: number; readonly rows: number };
     }
@@ -145,6 +149,15 @@ export function applyAnnotationAction(
   }
 }
 
+/**
+ * A grid dimension the viewer can actually render: a whole number of at least
+ * one. Non-finite input collapses to a 1x1 grid rather than propagating.
+ */
+function toGridDimension(value: number): number {
+  const whole = Math.trunc(value);
+  return Number.isFinite(whole) ? Math.max(1, whole) : 1;
+}
+
 export function applyUIAction(draft: UIState, action: UIAction): void {
   switch (action.type) {
     case 'SET_ACTIVE_TOOL':
@@ -162,9 +175,35 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
         draft.activeTool = null;
       }
       break;
-    case 'SET_ACTIVE_CELL':
-      draft.activeCellIndex = action.payload;
+    case 'SET_ACTIVE_CELL': {
+      // The active cell always addresses a cell the grid renders. Everything
+      // keyed on it — the image it shows, its view transform, the tools it
+      // enables — is then reading state the user can actually see, with no
+      // scoping needed at the point of use.
+      //
+      // The consequence for hosts is an ordering rule: size the grid before
+      // restoring a saved active cell, or the index is clamped to what
+      // currently exists. `SET_GRID_DIMENSIONS` clamps as well, so the pair
+      // keeps the invariant however the two are sequenced.
+      //
+      // Clamped rather than ignored, so the result is always a real cell:
+      // `SET_GRID_DIMENSIONS` keeps the grid at one cell or more, so `maxIndex`
+      // is never negative.
+      //
+      // Truncated first, because the payload is a raw `number` from a public
+      // API and a fractional index addresses no cell at all: `gridAssignments`
+      // and `cellTransforms` are keyed by whole numbers, so `activeCellIndex`
+      // of 1.5 reads `undefined` from both and clamping alone would not notice.
+      // `NaN` is the one value no comparison rejects (every `Math.min` /
+      // `Math.max` involving it yields `NaN`), so it is mapped to the first
+      // cell; ±Infinity needs no special case, since the clamp handles it.
+      const maxIndex = draft.gridColumns * draft.gridRows - 1;
+      const requested = Math.trunc(action.payload);
+      draft.activeCellIndex = Number.isNaN(requested)
+        ? 0
+        : Math.max(0, Math.min(requested, maxIndex));
       break;
+    }
     case 'SET_SELECTED_ANNOTATION':
       draft.selectedAnnotationId = action.payload;
       break;
@@ -174,8 +213,45 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
       break;
     }
+    case 'UNASSIGN_IMAGE_FROM_CELL': {
+      const { cellIndex } = action.payload;
+      // Returns the cell to the empty state every cell starts in (see
+      // `createInitialUIState`), which `GridView` already renders as the
+      // "Assign an image" placeholder. Dropping the transform mirrors
+      // ASSIGN_IMAGE_TO_CELL, which resets it on every assignment.
+      delete draft.gridAssignments[cellIndex];
+      delete draft.cellTransforms[cellIndex];
+      // `selectedAnnotationId` is deliberately left alone: it is global rather
+      // than per-cell, so another cell may still be displaying the image whose
+      // annotation is selected. The read that could destroy something is
+      // guarded: `mapKeyEventToActions` gates DELETE_ANNOTATION on
+      // `activeImageId`, so Delete over an emptied active cell is a no-op
+      // rather than deleting something invisible. Other readers are
+      // non-destructive — the Escape branch only clears the selection, and each
+      // `ViewerCell` passes the id into its own `DecorationContext` so the
+      // annotation still draws as selected in whatever cell shows its image.
+      //
+      // Note this leaves the id naming an annotation that shows no Fabric
+      // selection handles until it is selected again: re-assigning the image
+      // rebuilds the canvas from `rawAnnotationData` without restoring the
+      // active object. That dangling-selection behaviour is pre-existing —
+      // ASSIGN_IMAGE_TO_CELL never cleared the selection either — and is not
+      // introduced here.
+      break;
+    }
     case 'SET_GRID_DIMENSIONS': {
-      const { columns, rows } = action.payload;
+      // At least one cell, always. `setGridDimensions` is public and takes raw
+      // numbers, and a zero-cell grid would make `maxIndex` -1 — leaving the
+      // active-cell clamp below nothing valid to land on, and every reader
+      // keyed on the active cell addressing a cell that does not exist.
+      // `GridControls` and the grid shortcuts already floor at 1; this makes
+      // the reducer agree with its own callers rather than trust them.
+      //
+      // `toGridDimension` also absorbs the values a bare `Math.max(1, …)` lets
+      // through: `Math.max(1, NaN)` is `NaN`, which would poison `maxIndex` and
+      // every clamp derived from it, and ±Infinity names no renderable grid.
+      const columns = toGridDimension(action.payload.columns);
+      const rows = toGridDimension(action.payload.rows);
       draft.gridColumns = columns;
       draft.gridRows = rows;
       const maxIndex = columns * rows - 1;
@@ -185,6 +261,15 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
           delete draft.cellTransforms[index];
         }
       }
+      // Assignments for pruned cells are deliberately NOT removed: a
+      // shrink/expand round trip is expected to restore what those cells were
+      // showing. Consumers that must ignore them scope by the cell count
+      // instead (see `getCellAssignmentState`).
+      //
+      // Resizing must hold the same invariant `SET_ACTIVE_CELL` does, so a
+      // shrink cannot strand the active cell outside the grid. Clamped from
+      // both ends: `maxIndex` is -1 for a zero-cell grid.
+      draft.activeCellIndex = Math.max(0, Math.min(draft.activeCellIndex, maxIndex));
       break;
     }
     case 'ROTATE_CW': {

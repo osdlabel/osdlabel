@@ -419,7 +419,7 @@ A tool selector that respects the active context's constraints and shows availab
 
 ### Filmstrip
 
-A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail assigns that image to the active cell.
+A thumbnail sidebar for assigning images to grid cells. Clicking a thumbnail assigns that image to the active cell — or clears the cell, if it is the image that cell is already showing. See [Viewer grid](/guides/viewer-grid/) for the border states that tell the two apart.
 
 ```tsx
 
@@ -499,7 +499,7 @@ You **must never** modify the stores directly. All mutations must go through the
 The `actions` object provides methods for:
 
 - **Annotations**: `addAnnotation`, `updateAnnotation`, `deleteAnnotation`, `loadAnnotations`
-- **UI**: `setActiveTool`, `setActiveCell`, `setSelectedAnnotation`, `assignImageToCell`, `setGridDimensions`
+- **UI**: `setActiveTool`, `setActiveCell`, `setSelectedAnnotation`, `assignImageToCell`, `unassignImageFromCell`, `setGridDimensions`
 - **Contexts**: `setContexts`, `setActiveContext`, `setDisplayedContexts`
 
 ## `useConstraints`
@@ -792,6 +792,25 @@ actions.setActiveCell(0);
 
 The active cell is highlighted visually and receives all drawing/selection input. Other cells display annotations in read-only mode (navigation only).
 
+The index is always clamped into the grid that currently exists, so **size the grid before restoring a saved active cell**:
+
+```tsx
+// Right: the grid can hold cell 3 by the time it is selected
+actions.setGridDimensions(2, 2);
+actions.setActiveCell(3);
+
+// Wrong: on a 1x1 grid this selects cell 0, and growing the grid later
+// does not recover the 3
+actions.setActiveCell(3);
+actions.setGridDimensions(2, 2);
+```
+
+The index is also normalised to a whole, finite cell: `setActiveCell(1.5)` selects cell 1, and a `NaN` index selects cell 0. `setGridDimensions` does the same for its dimensions, so no input leaves the active cell addressing something the grid cannot render.
+
+Cell-selection key presses behave differently on purpose: `4` on a 1x1 grid does nothing rather than selecting cell 0, because silently moving the selection somewhere the user did not press is worse than ignoring the key.
+
+**Shrinking the grid moves the active cell and does not move it back.** If cell 3 is active on a 2x2 and the grid shrinks to 1x1, the active cell becomes 0 — and growing back to 2x2 leaves it at 0. This is worth knowing because the *assignments* of pruned cells behave the opposite way: they are kept, so a shrink/expand round trip restores the images those cells were showing while the selection stays where the shrink put it. Reaching for `-` then `=` therefore costs the user their cell selection but not their layout.
+
 ## Filmstrip
 
 The `Filmstrip` component shows thumbnails of all available images and allows drag-to-assign interaction:
@@ -803,7 +822,15 @@ The `Filmstrip` component shows thumbnails of all available images and allows dr
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
-Click an image in the filmstrip to assign it to the currently active grid cell. Images already assigned to cells are highlighted with a blue border.
+Click an image in the filmstrip to assign it to the currently active grid cell. Clicking the image that the active cell is already showing clears that cell instead, returning it to the empty "Assign an image" placeholder.
+
+The border reflects which of those two a click will do:
+
+| Border                        | Meaning                      | Clicking it                     |
+| ----------------------------- | ---------------------------- | ------------------------------- |
+| Bright blue, with a `✕` badge | Shown in the **active** cell | Clears the active cell          |
+| Muted blue                    | Shown in **another** cell    | Assigns it into the active cell |
+| Grey                          | Not shown anywhere           | Assigns it into the active cell |
 
 ## Assigning images to cells
 
@@ -812,9 +839,14 @@ const { actions } = useAnnotator();
 
 // Assign an image to cell 0
 actions.assignImageToCell(0, createImageId('my-image'));
+
+// Clear cell 0, returning it to the empty placeholder
+actions.unassignImageFromCell(0);
 ```
 
 Each cell can display one image at a time. Multiple cells can show the same image, but annotations are shared (stored by image ID, not by cell).
+
+Clearing a cell affects only that cell's assignment and view transform. Annotations are stored by image ID, so they survive a clear and reappear if the image is assigned again.
 
 ## Using the all-in-one Annotator
 
@@ -1252,24 +1284,24 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 
 ## Default shortcuts
 
-| Key                    | Action                                    |
-| ---------------------- | ----------------------------------------- |
-| `v`                    | Select tool                               |
-| `r`                    | Rectangle tool                            |
-| `c`                    | Circle tool                               |
-| `l`                    | Line tool                                 |
-| `p`                    | Point tool                                |
-| `d`                    | Polyline (draw) tool                      |
-| `f`                    | Free hand path tool                       |
-| `Escape`               | Deselect annotation, then deactivate tool |
-| `Delete` / `Backspace` | Delete selected annotation                |
-| `1`–`9`                | Activate grid cell by position            |
-| `=` / `+`              | Add a grid column                         |
-| `-`                    | Remove a grid column                      |
-| `]`                    | Add a grid row                            |
-| `[`                    | Remove a grid row                         |
-| `.` / `>`              | Activate the next annotation context      |
-| `,` / `<`              | Activate the previous annotation context  |
+| Key                    | Action                                                                |
+| ---------------------- | --------------------------------------------------------------------- |
+| `v`                    | Select tool                                                           |
+| `r`                    | Rectangle tool                                                        |
+| `c`                    | Circle tool                                                           |
+| `l`                    | Line tool                                                             |
+| `p`                    | Point tool                                                            |
+| `d`                    | Polyline (draw) tool                                                  |
+| `f`                    | Free hand path tool                                                   |
+| `Escape`               | Deselect annotation, then deactivate tool                             |
+| `Delete` / `Backspace` | Delete selected annotation                                            |
+| `1`–`9`                | Activate grid cell by position (ignored if the grid has no such cell) |
+| `=` / `+`              | Add a grid column                                                     |
+| `-`                    | Remove a grid column                                                  |
+| `]`                    | Add a grid row                                                        |
+| `[`                    | Remove a grid row                                                     |
+| `.` / `>`              | Activate the next annotation context                                  |
+| `,` / `<`              | Activate the previous annotation context                              |
 
 ### Annotation context cycling
 

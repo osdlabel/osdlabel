@@ -6,6 +6,7 @@ import type {
   ConstraintStatus,
 } from '@osdlabel/annotation-context';
 import type { UIAction, AnnotationAction, ContextAction } from './actions.js';
+import { getGridCellCount } from './cell-assignment.js';
 import { getCycledContextId } from './context-cycling.js';
 
 export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
@@ -74,9 +75,30 @@ export interface KeyboardMappingState {
 }
 
 /**
+ * Cell-selection shortcut names, in cell-index order: `GRID_CELL_SHORTCUTS[i]`
+ * selects cell `i`.
+ */
+const GRID_CELL_SHORTCUTS = [
+  'gridCell1',
+  'gridCell2',
+  'gridCell3',
+  'gridCell4',
+  'gridCell5',
+  'gridCell6',
+  'gridCell7',
+  'gridCell8',
+  'gridCell9',
+] as const satisfies readonly (keyof KeyboardShortcutMap)[];
+
+/** The cell a grid-cell shortcut key selects, or -1 if `key` is not one. */
+function gridCellShortcutIndex(key: string, shortcuts: KeyboardShortcutMap): number {
+  return GRID_CELL_SHORTCUTS.findIndex((name) => key === shortcuts[name]);
+}
+
+/**
  * Pure function that maps a keyboard event to zero or more actions.
- * Returns null if the event should be ignored (e.g., typing in an input).
- * Returns an empty array if the key doesn't match any shortcut.
+ * Returns an empty array if the key doesn't match any shortcut, or if the
+ * shortcut it matches has nothing to do in the current state.
  *
  * The caller is responsible for:
  * 1. Checking shouldSkipTarget
@@ -92,6 +114,7 @@ export function mapKeyEventToActions(
 ): readonly (UIAction | AnnotationAction | ContextAction)[] {
   const keyLower = key.toLowerCase();
   const actions: (UIAction | AnnotationAction | ContextAction)[] = [];
+  const gridCellIndex = gridCellShortcutIndex(key, shortcuts);
 
   // View Transforms (Shift+Key)
   if (shiftKey && keyLower === shortcuts.rotateCW.toLowerCase()) {
@@ -157,16 +180,22 @@ export function mapKeyEventToActions(
     }
   }
 
-  // Grid Cells
-  else if (key === shortcuts.gridCell1) actions.push({ type: 'SET_ACTIVE_CELL', payload: 0 });
-  else if (key === shortcuts.gridCell2) actions.push({ type: 'SET_ACTIVE_CELL', payload: 1 });
-  else if (key === shortcuts.gridCell3) actions.push({ type: 'SET_ACTIVE_CELL', payload: 2 });
-  else if (key === shortcuts.gridCell4) actions.push({ type: 'SET_ACTIVE_CELL', payload: 3 });
-  else if (key === shortcuts.gridCell5) actions.push({ type: 'SET_ACTIVE_CELL', payload: 4 });
-  else if (key === shortcuts.gridCell6) actions.push({ type: 'SET_ACTIVE_CELL', payload: 5 });
-  else if (key === shortcuts.gridCell7) actions.push({ type: 'SET_ACTIVE_CELL', payload: 6 });
-  else if (key === shortcuts.gridCell8) actions.push({ type: 'SET_ACTIVE_CELL', payload: 7 });
-  else if (key === shortcuts.gridCell9) actions.push({ type: 'SET_ACTIVE_CELL', payload: 8 });
+  // Grid Cells. The digit maps to a fixed index, so it has to be screened
+  // against the current grid: activating a cell the grid does not render leaves
+  // every action keyed on the active cell editing offscreen state, and the
+  // filmstrip's clear affordance silently disappears with no visible cause.
+  else if (gridCellIndex >= 0) {
+    // Screened against the grid: the digit names a fixed index, so on a
+    // smaller grid it can name a cell that does not exist.
+    //
+    // Screened, not clamped — deliberately the opposite of `SET_ACTIVE_CELL`,
+    // which clamps. A programmatic caller wants a usable index back; a key
+    // press wants no surprise, and jumping to cell 0 because the user pressed
+    // `9` is a surprise.
+    if (gridCellIndex < getGridCellCount(state)) {
+      actions.push({ type: 'SET_ACTIVE_CELL', payload: gridCellIndex });
+    }
+  }
   // Grid Columns
   else if (
     key === shortcuts.increaseGridColumns ||

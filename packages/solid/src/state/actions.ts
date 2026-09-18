@@ -85,6 +85,11 @@ export function createActions(
     );
   }
 
+  /**
+   * Focuses a grid cell. The index is clamped into the current grid, so size
+   * the grid before restoring a saved active cell — `setActiveCell(3)` against
+   * a 1x1 grid selects cell 0, it is not remembered until the grid grows.
+   */
   function setActiveCell(cellIndex: number): void {
     setUIState(
       produce((draft) => applyUIAction(draft, { type: 'SET_ACTIVE_CELL', payload: cellIndex })),
@@ -101,6 +106,14 @@ export function createActions(
     setUIState(
       produce((draft) =>
         applyUIAction(draft, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex, imageId } }),
+      ),
+    );
+  }
+
+  function unassignImageFromCell(cellIndex: number): void {
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex } }),
       ),
     );
   }
@@ -249,6 +262,7 @@ export function createActions(
     setActiveCell,
     setSelectedAnnotation,
     assignImageToCell,
+    unassignImageFromCell,
     setGridDimensions,
     setContexts,
     setActiveContext,
