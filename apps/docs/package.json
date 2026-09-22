@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@astrojs/mdx": "^5.0.6",
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/starlight": "^0.39.3",
     "@osdlabel/annotation": "workspace:*",
