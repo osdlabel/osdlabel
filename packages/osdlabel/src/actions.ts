@@ -150,6 +150,24 @@ export function applyAnnotationAction(
 }
 
 /**
+ * A usable cell index: a whole, non-negative number. `gridAssignments` and
+ * `cellTransforms` are keyed by whole numbers, so a fractional index writes a
+ * key (`"1.5"`) that no reader ever looks up, and `NaN` survives every
+ * comparison a clamp could make.
+ *
+ * Applied by every action that takes a cell index, so the three cannot
+ * disagree about what one is. Out-of-grid indices are deliberately NOT
+ * screened here: `SET_GRID_DIMENSIONS` keeps the assignments of pruned cells
+ * so a shrink/expand round trip restores them, which means an index outside
+ * the current grid is meaningful for assignment. Only the *active* cell is
+ * clamped into the grid, because that is what the UI reads.
+ */
+function toCellIndex(value: number): number {
+  const whole = Math.trunc(value);
+  return Number.isFinite(whole) ? Math.max(0, whole) : 0;
+}
+
+/**
  * A grid dimension the viewer can actually render: a whole number of at least
  * one. Non-finite input collapses to a 1x1 grid rather than propagating.
  */
@@ -188,55 +206,33 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       //
       // Clamped rather than ignored, so the result is always a real cell:
       // `SET_GRID_DIMENSIONS` keeps the grid at one cell or more, so `maxIndex`
-      // is never negative.
-      //
-      // Truncated first, because the payload is a raw `number` from a public
-      // API and a fractional index addresses no cell at all: `gridAssignments`
-      // and `cellTransforms` are keyed by whole numbers, so `activeCellIndex`
-      // of 1.5 reads `undefined` from both and clamping alone would not notice.
-      // `NaN` is the one value no comparison rejects (every `Math.min` /
-      // `Math.max` involving it yields `NaN`), so it is mapped to the first
-      // cell; ±Infinity needs no special case, since the clamp handles it.
+      // is never negative. `toCellIndex` normalises first, so the clamp is
+      // comparing a whole number.
       const maxIndex = draft.gridColumns * draft.gridRows - 1;
-      const requested = Math.trunc(action.payload);
-      draft.activeCellIndex = Number.isNaN(requested)
-        ? 0
-        : Math.max(0, Math.min(requested, maxIndex));
+      draft.activeCellIndex = Math.min(toCellIndex(action.payload), maxIndex);
       break;
     }
     case 'SET_SELECTED_ANNOTATION':
       draft.selectedAnnotationId = action.payload;
       break;
     case 'ASSIGN_IMAGE_TO_CELL': {
-      const { cellIndex, imageId } = action.payload;
-      draft.gridAssignments[cellIndex] = imageId;
+      const cellIndex = toCellIndex(action.payload.cellIndex);
+      draft.gridAssignments[cellIndex] = action.payload.imageId;
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
       break;
     }
     case 'UNASSIGN_IMAGE_FROM_CELL': {
-      const { cellIndex } = action.payload;
-      // Returns the cell to the empty state every cell starts in (see
-      // `createInitialUIState`), which `GridView` already renders as the
-      // "Assign an image" placeholder. Dropping the transform mirrors
-      // ASSIGN_IMAGE_TO_CELL, which resets it on every assignment.
+      // Back to the empty state every cell starts in, which `GridView` already
+      // renders as the "Assign an image" placeholder. Dropping the transform
+      // mirrors ASSIGN_IMAGE_TO_CELL, which resets it on every assignment.
+      //
+      // `selectedAnnotationId` is deliberately left alone: it is global, so
+      // another cell may still show the image whose annotation is selected,
+      // and the one destructive reader (Delete) is already gated on
+      // `activeImageId`.
+      const cellIndex = toCellIndex(action.payload.cellIndex);
       delete draft.gridAssignments[cellIndex];
       delete draft.cellTransforms[cellIndex];
-      // `selectedAnnotationId` is deliberately left alone: it is global rather
-      // than per-cell, so another cell may still be displaying the image whose
-      // annotation is selected. The read that could destroy something is
-      // guarded: `mapKeyEventToActions` gates DELETE_ANNOTATION on
-      // `activeImageId`, so Delete over an emptied active cell is a no-op
-      // rather than deleting something invisible. Other readers are
-      // non-destructive — the Escape branch only clears the selection, and each
-      // `ViewerCell` passes the id into its own `DecorationContext` so the
-      // annotation still draws as selected in whatever cell shows its image.
-      //
-      // Note this leaves the id naming an annotation that shows no Fabric
-      // selection handles until it is selected again: re-assigning the image
-      // rebuilds the canvas from `rawAnnotationData` without restoring the
-      // active object. That dangling-selection behaviour is pre-existing —
-      // ASSIGN_IMAGE_TO_CELL never cleared the selection either — and is not
-      // introduced here.
       break;
     }
     case 'SET_GRID_DIMENSIONS': {
@@ -267,9 +263,9 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       // instead (see `getCellAssignmentState`).
       //
       // Resizing must hold the same invariant `SET_ACTIVE_CELL` does, so a
-      // shrink cannot strand the active cell outside the grid. Clamped from
-      // both ends: `maxIndex` is -1 for a zero-cell grid.
-      draft.activeCellIndex = Math.max(0, Math.min(draft.activeCellIndex, maxIndex));
+      // shrink cannot strand the active cell outside the grid. The floor above
+      // keeps `maxIndex` at 0 or more, so this only ever moves the index down.
+      draft.activeCellIndex = Math.min(draft.activeCellIndex, maxIndex);
       break;
     }
     case 'ROTATE_CW': {

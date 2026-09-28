@@ -367,12 +367,18 @@ describe('applyUIAction — the active cell is a whole, finite, in-grid index', 
     expect(state.activeCellIndex).toBe(0);
   });
 
-  it('clamps an infinite cell index like any other out-of-range one', () => {
+  it('maps an infinite cell index to the first cell, like any non-finite one', () => {
     const state = createInitialUIState();
     applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 1 } });
+    applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: 1 });
 
+    // `Infinity` used to clamp to the last cell here, because the clamp saw it
+    // before anything normalised it. Sharing one normaliser across the three
+    // cell-index actions costs that: there is no sensible last cell for an
+    // ASSIGN, so non-finite means cell 0 everywhere rather than meaning two
+    // different things. What matters either way is that it is a real cell.
     applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: Infinity });
-    expect(state.activeCellIndex).toBe(1);
+    expect(state.activeCellIndex).toBe(0);
 
     applyUIAction(state, { type: 'SET_ACTIVE_CELL', payload: -Infinity });
     expect(state.activeCellIndex).toBe(0);
@@ -413,5 +419,81 @@ describe('applyUIAction — the active cell is a whole, finite, in-grid index', 
       expect(state.activeCellIndex).toBeGreaterThanOrEqual(0);
       expect(state.activeCellIndex).toBeLessThan(cellCount);
     }
+  });
+});
+
+describe('applyUIAction — every cell index is normalised the same way', () => {
+  const IMG = createImageId('img-norm');
+
+  // The three actions that take a cell index share one normaliser. Hardening
+  // only `SET_ACTIVE_CELL` would be the worst of both: callers could still
+  // write a `"1.5"` key that no reader ever looks up, while the code implied
+  // indices were being validated.
+
+  it('truncates a fractional index on ASSIGN_IMAGE_TO_CELL', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: 1.5, imageId: IMG },
+    });
+
+    // Cell 1, not a `"1.5"` key that `GridView` never reads.
+    expect(state.gridAssignments[1]).toBe(IMG);
+    expect(Object.keys(state.gridAssignments)).toEqual(['1']);
+    expect(state.cellTransforms[1]).toBeDefined();
+  });
+
+  it('truncates a fractional index on UNASSIGN_IMAGE_FROM_CELL', () => {
+    const state = createInitialUIState();
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+    applyUIAction(state, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 1, imageId: IMG } });
+
+    applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 1.5 } });
+
+    // Without the truncation this deletes a key that was never written, and
+    // cell 1 keeps its image while the UI has already stopped showing it.
+    expect(state.gridAssignments[1]).toBeUndefined();
+    expect(state.cellTransforms[1]).toBeUndefined();
+  });
+
+  it('maps a non-finite index to the first cell on every action', () => {
+    const state = createInitialUIState();
+
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: NaN, imageId: IMG },
+    });
+    expect(state.gridAssignments[0]).toBe(IMG);
+
+    applyUIAction(state, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: NaN } });
+    expect(state.gridAssignments[0]).toBeUndefined();
+  });
+
+  it('floors a negative index rather than writing one nothing can address', () => {
+    const state = createInitialUIState();
+
+    applyUIAction(state, {
+      type: 'ASSIGN_IMAGE_TO_CELL',
+      payload: { cellIndex: -2, imageId: IMG },
+    });
+
+    expect(state.gridAssignments[0]).toBe(IMG);
+    expect(Object.keys(state.gridAssignments)).toEqual(['0']);
+  });
+
+  it('keeps an out-of-grid assignment, which is deliberate, not an oversight', () => {
+    // Normalising is not screening. `SET_GRID_DIMENSIONS` retains the
+    // assignments of pruned cells so a shrink/expand round trip restores them,
+    // which makes an index outside the current grid meaningful here. Only the
+    // *active* cell is clamped into the grid, because that is what the UI reads.
+    const state = createInitialUIState();
+
+    applyUIAction(state, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 3, imageId: IMG } });
+    expect(state.gridAssignments[3]).toBe(IMG);
+
+    applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
+    expect(state.gridAssignments[3]).toBe(IMG);
   });
 });
