@@ -4,10 +4,10 @@ import { createImageId } from '@osdlabel/viewer-api';
 import {
   getCellAssignmentState,
   getGridCellCount,
-  resolveFilmstripClick,
   CELL_ASSIGNMENT_BORDER_COLOR,
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
+  CELL_ASSIGNMENT_CLEAR_LABEL,
   type CellAssignmentView,
 } from '../../src/cell-assignment.js';
 
@@ -84,57 +84,6 @@ describe('getCellAssignmentState', () => {
   });
 });
 
-describe('resolveFilmstripClick', () => {
-  it('unassigns the active cell when it already shows the clicked image', () => {
-    expect(resolveFilmstripClick(view({ 0: IMG_A }, 0, 1), IMG_A)).toEqual({
-      type: 'unassign',
-      cellIndex: 0,
-    });
-  });
-
-  it('assigns into the active cell when the image is shown elsewhere', () => {
-    expect(resolveFilmstripClick(view({ 0: IMG_A, 1: IMG_B }, 1, 2), IMG_A)).toEqual({
-      type: 'assign',
-      cellIndex: 1,
-      imageId: IMG_A,
-    });
-  });
-
-  it('assigns into the active cell when the image is shown nowhere', () => {
-    expect(resolveFilmstripClick(view({}, 0, 1), IMG_A)).toEqual({
-      type: 'assign',
-      cellIndex: 0,
-      imageId: IMG_A,
-    });
-  });
-
-  // The regression this function exists to make untestable-by-inspection:
-  // a filmstrip that hardcoded cell 0, or reached for the wrong index, would
-  // wipe a cell the user was not acting on. Every E2E path happens to run with
-  // the active cell at 0, so only an explicit non-zero case pins it.
-  it('always names the ACTIVE cell, never cell 0, when clearing', () => {
-    expect(resolveFilmstripClick(view({ 0: IMG_A, 1: IMG_B }, 1, 2), IMG_B)).toEqual({
-      type: 'unassign',
-      cellIndex: 1,
-    });
-  });
-
-  it('always names the ACTIVE cell, never cell 0, when assigning', () => {
-    expect(resolveFilmstripClick(view({ 0: IMG_A }, 2, 2, 2), IMG_C)).toEqual({
-      type: 'assign',
-      cellIndex: 2,
-      imageId: IMG_C,
-    });
-  });
-
-  it('clears a bottom-row cell, which needs both grid dimensions to be visible', () => {
-    expect(resolveFilmstripClick(view({ 3: IMG_A }, 3, 2, 2), IMG_A)).toEqual({
-      type: 'unassign',
-      cellIndex: 3,
-    });
-  });
-});
-
 describe('cell-assignment palette', () => {
   // The whole justification for the tri-state is that a user can tell the three
   // apart. Collapsing two of them re-introduces the misleading highlight the
@@ -154,9 +103,20 @@ describe('cell-assignment palette', () => {
   // render in "in use elsewhere" blue and be tooltipped as shown in another
   // cell. Pin each state to its meaning, not just to being different.
   it('maps each state to copy describing what its click does', () => {
-    expect(CELL_ASSIGNMENT_TITLE.active).toMatch(/remove/i);
+    expect(CELL_ASSIGNMENT_TITLE.active).toMatch(/active cell/i);
     expect(CELL_ASSIGNMENT_TITLE.other).toMatch(/another cell/i);
-    expect(CELL_ASSIGNMENT_TITLE.none).not.toMatch(/remove|another cell/i);
+    expect(CELL_ASSIGNMENT_TITLE.none).toMatch(/click/i);
+  });
+
+  it('never promises a clear from a thumbnail, since only the badge clears', () => {
+    // The tooltips describe the thumbnail's own gesture, which is assign-only.
+    // Copy that said "click to remove" would invite exactly the double-click
+    // wipe the separate badge exists to prevent.
+    for (const title of Object.values(CELL_ASSIGNMENT_TITLE)) {
+      expect(title).not.toMatch(/remove|clear/i);
+    }
+    // The badge carries that wording instead, and is the only thing that does.
+    expect(CELL_ASSIGNMENT_CLEAR_LABEL).toMatch(/remove/i);
   });
 
   it('reserves the brightest border for the cell a click acts on', () => {
@@ -220,20 +180,13 @@ describe('getCellAssignmentState — an out-of-grid active cell is not "active"'
     expect(getCellAssignmentState(v, IMG_A)).toBe('other');
   });
 
-  it('does not resolve a click into the destructive outcome for such a cell', () => {
-    // Without the scope this emits `{ type: 'unassign', cellIndex: 7 }` against
-    // a 1x1 grid, which would delete that cell's view transform.
-    //
-    // The assign it emits instead still names cell 7 — once the active cell is
-    // out of the grid every outcome is meaningless, and there is no better cell
-    // to substitute. What is asserted here is the narrower, real guarantee:
-    // the losing outcome is the non-destructive one.
+  it('offers no clear control for such a cell', () => {
+    // `'active'` is what renders the clear badge, so scoping it is what keeps
+    // the destructive control off a thumbnail whose cell nobody can see. An
+    // assign into that cell is still possible and still harmless — it only
+    // overwrites, where a clear would delete the cell's view transform.
     const v = view({ 7: IMG_A }, 7, 1, 1);
 
-    expect(resolveFilmstripClick(v, IMG_A)).toEqual({
-      type: 'assign',
-      cellIndex: 7,
-      imageId: IMG_A,
-    });
+    expect(getCellAssignmentState(v, IMG_A)).not.toBe('active');
   });
 });

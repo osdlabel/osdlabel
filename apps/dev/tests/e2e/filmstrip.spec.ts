@@ -31,22 +31,20 @@ test.describe('Filmstrip', () => {
   });
 
   test('should assign different images to different cells', async ({ page }) => {
-    // Expand to 2x1
+    // Switch to a 2x1 grid
     await page.getByTestId('grid-selector-trigger').click();
     await page.getByTestId('grid-cell-2-1').click();
 
-    // Click the empty cell to make it active
-    await page.locator('text=Assign an image').first().click();
-
-    // Assign Portrait to the second cell
+    // Activate the empty cell 1 and give it its own image.
+    await page.getByTestId('cell-placeholder-1').click();
     await page.getByTestId('filmstrip-item-portrait').click();
 
     // Both cells should now have images
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
 
     // Both are assigned, but to different cells — and cell 1 is the active one.
-    // Portrait reads as 'active' (clicking it clears cell 1); Landscape reads as
-    // 'other' (clicking it assigns into cell 1, it does not clear cell 0).
+    // Portrait reads as 'active' (its cell is the one the clear badge acts on);
+    // Landscape reads as 'other' (in use, but in a cell this strip cannot act on).
     await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
       'data-assignment',
       'active',
@@ -57,25 +55,25 @@ test.describe('Filmstrip', () => {
     );
   });
 
-  test('should unassign the active cell when its image is clicked again', async ({ page }) => {
+  test('the clear badge empties the active cell', async ({ page }) => {
     const landscape = page.getByTestId('filmstrip-item-landscape');
+    const clear = page.getByTestId('filmstrip-clear-landscape');
 
-    // Cell 0 starts assigned to Landscape and active, so it offers the clear
-    // affordance.
+    // Cell 0 starts assigned to Landscape and active, so it offers the badge.
     await expect(landscape).toHaveAttribute('data-assignment', 'active');
-    await expect(page.getByTestId('filmstrip-clear-landscape')).toBeVisible();
+    await expect(clear).toBeVisible();
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
 
-    await landscape.click();
+    await clear.click();
 
     // The cell returns to the empty state every cell starts in. Assert the
     // specific cell, not a global placeholder count — a count cannot tell
     // "cell 0 was cleared" from "some other cell was cleared instead".
     await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
     await expect(landscape).toHaveAttribute('data-assignment', 'none');
-    await expect(page.getByTestId('filmstrip-clear-landscape')).toHaveCount(0);
+    await expect(clear).toHaveCount(0);
 
-    // And the round trip works: clicking it again re-assigns.
+    // And the round trip works: clicking the thumbnail re-assigns.
     await landscape.click();
     await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
     await expect(landscape).toHaveAttribute('data-assignment', 'active');
@@ -83,12 +81,50 @@ test.describe('Filmstrip', () => {
     await expect(page.locator('.openseadragon-canvas')).toHaveCount(1);
   });
 
-  test('clicking an image assigned to another cell assigns rather than clears', async ({
-    page,
-  }) => {
+  test('a thumbnail click never clears, however many times it is clicked', async ({ page }) => {
+    // The reason the clear is a separate control. Clicking a thumbnail assigns,
+    // which makes it 'active' — so if the thumbnail also cleared, the second
+    // click of an ordinary double-click would empty the cell and silently drop
+    // its rotation, flip, exposure and contrast, with no undo.
+    const portrait = page.getByTestId('filmstrip-item-portrait');
+
+    await portrait.click();
+    await expect(portrait).toHaveAttribute('data-assignment', 'active');
+
+    await portrait.dblclick();
+
+    // Still assigned. A double-click is two assigns, not assign-then-clear.
+    await expect(portrait).toHaveAttribute('data-assignment', 'active');
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+
+    // And a plain repeat click is still just a re-assign.
+    await portrait.click();
+    await expect(portrait).toHaveAttribute('data-assignment', 'active');
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+  });
+
+  test('the clear badge is reachable and operable from the keyboard', async ({ page }) => {
+    // The badge is the only control here that loses work, so it is the one that
+    // most needs a non-mouse path. The thumbnail itself is still mouse-only
+    // (#189); this covers the destructive half.
+    const clear = page.getByTestId('filmstrip-clear-landscape');
+    await expect(clear).toBeVisible();
+
+    await clear.focus();
+    await expect(clear).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'none',
+    );
+  });
+
+  test('an image assigned to another cell offers no clear badge', async ({ page }) => {
     // The regression the tri-state border exists to prevent: a highlighted
-    // thumbnail that belongs to a different cell must not read as "click to
-    // clear", and must not empty anything when clicked.
+    // thumbnail belonging to a different cell must not look like it can be
+    // cleared from here, because this strip only ever acts on the active cell.
     await page.getByTestId('grid-selector-trigger').click();
     await page.getByTestId('grid-cell-2-1').click();
 
@@ -107,7 +143,7 @@ test.describe('Filmstrip', () => {
   });
 
   test('clears the ACTIVE cell, not cell 0, when a later cell is active', async ({ page }) => {
-    // Every other unassign path runs with cell 0 active, so a filmstrip that
+    // Every other clear path runs with cell 0 active, so a filmstrip that
     // cleared the wrong index — hardcoded 0, or any stale index — would pass
     // the rest of this suite untouched.
     await page.getByTestId('grid-selector-trigger').click();
@@ -121,8 +157,7 @@ test.describe('Filmstrip', () => {
       'active',
     );
 
-    // Clear cell 1 by clicking its own thumbnail again.
-    await page.getByTestId('filmstrip-item-portrait').click();
+    await page.getByTestId('filmstrip-clear-portrait').click();
 
     // Cell 1 is empty and cell 0 is untouched.
     await expect(page.getByTestId('cell-placeholder-1')).toBeVisible();
@@ -156,10 +191,8 @@ test.describe('Filmstrip', () => {
       'data-assignment',
       'active',
     );
-    await expect(page.getByTestId('filmstrip-clear-portrait')).toBeVisible();
 
-    // Clicking it again must clear cell 3, not re-assign it.
-    await page.getByTestId('filmstrip-item-portrait').click();
+    await page.getByTestId('filmstrip-clear-portrait').click();
 
     await expect(page.getByTestId('cell-placeholder-3')).toBeVisible();
     await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
@@ -181,17 +214,17 @@ test.describe('Filmstrip', () => {
 
     await page.keyboard.press('9');
 
-    // Still acting on cell 0, so the clear affordance is still offered.
+    // Still acting on cell 0, so the clear badge is still offered.
     await expect(landscape).toHaveAttribute('data-assignment', 'active');
     await expect(page.getByTestId('filmstrip-clear-landscape')).toBeVisible();
 
-    // And a click still clears the visible cell rather than a phantom one.
-    await landscape.click();
+    // And it clears the visible cell rather than a phantom one.
+    await page.getByTestId('filmstrip-clear-landscape').click();
     await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
   });
 
   test('renders the three assignment states distinguishably', async ({ page }) => {
-    // The tri-state border is the whole reason the toggle is safe to offer.
+    // The tri-state border is what makes the clear badge's absence meaningful.
     // If 'other' rendered like 'active', the misleading highlight this change
     // set out to remove would be back, and every state assertion above would
     // still pass.
