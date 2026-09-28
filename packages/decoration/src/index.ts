@@ -4,6 +4,7 @@ export type {
   TextDecoration,
   TextDecorationStyle,
   TextPlacement,
+  DecorationAnchorSpace,
   LineDecoration,
   LineDecorationStyle,
   DomDecoration,

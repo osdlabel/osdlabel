@@ -17,6 +17,7 @@ import {
   createDistanceProvider,
   withSelectionEmphasis,
   centroid,
+  length,
 } from '@osdlabel/solid';
 import type {
   AnnotationContextId,
@@ -24,6 +25,7 @@ import type {
   ImageSource,
   DecorationProvider,
   DomDecoration,
+  TextDecoration,
   OsdFields,
 } from '@osdlabel/solid';
 import { FabricObject } from 'fabric';
@@ -461,6 +463,31 @@ const domBadgeProvider: DecorationProvider<OsdFields> = ({ annotations }) =>
     }),
   );
 
+// A consumer-authored cell-anchored ("HUD") provider: a fixed readout pinned to
+// the top-right corner of the cell's viewport, unaffected by pan/zoom/rotate/flip.
+// Emits nothing until the cell holds at least two line annotations.
+const lineRatioHudProvider: DecorationProvider<OsdFields> = ({ annotations }) => {
+  const lines = annotations.filter((ann) => ann.geometry.type === 'line');
+  const first = lines[0];
+  const second = lines[1];
+  if (!first || !second) return [];
+  const l1 = length(first.geometry);
+  const l2 = length(second.geometry);
+  if (l1 === 0 || l2 === 0) return [];
+  return [
+    {
+      type: 'text',
+      id: 'hud:ratio',
+      relatedAnnotationIds: [first.id, second.id],
+      anchorSpace: 'cell',
+      anchor: { x: 1, y: 0 },
+      placement: 'top-right',
+      offset: { x: -8, y: 8 },
+      text: `L1/L2 ratio: ${(l1 / l2).toFixed(2)}\nL2/L1 ratio: ${(l2 / l1).toFixed(2)}`,
+    } satisfies TextDecoration,
+  ];
+};
+
 function App() {
   return (
     <AnnotatorProvider
@@ -518,6 +545,7 @@ function App() {
           },
         ),
         domBadgeProvider,
+        lineRatioHudProvider,
       ]}
     >
       <AppContent />

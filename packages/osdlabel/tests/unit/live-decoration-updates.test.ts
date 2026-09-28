@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, AnnotationId } from '@osdlabel/annotation';
-import type { DecorationProvider } from '@osdlabel/decoration';
+import type { Decoration, DecorationProvider, TextDecoration } from '@osdlabel/decoration';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { PixelSpacing } from '@osdlabel/viewer-api';
 import type { FabricObject } from 'fabric';
@@ -436,5 +436,61 @@ describe('enableLiveDecorationUpdates', () => {
     dispose();
     rig.flushRAF();
     expect(onDecorations).not.toHaveBeenCalled();
+  });
+  it('O1: re-runs a cell-space provider on object:moving and emits the live value', () => {
+    const rig = createRig();
+    const a = rectAnnotation('a', 0, 0);
+    const emitted: (readonly Decoration[])[] = [];
+
+    // Consumer-style HUD provider: one cell-anchored readout derived from the
+    // annotation's live geometry.
+    const provider: DecorationProvider<NoExt> = ({ annotations }) => {
+      const target = annotations.find((ann) => ann.id === annId('a'));
+      if (!target || target.geometry.type !== 'rectangle') return [];
+      const hud: TextDecoration = {
+        type: 'text',
+        id: 'hud:width',
+        relatedAnnotationIds: [target.id],
+        text: `w: ${target.geometry.width}`,
+        anchor: { x: 1, y: 0 },
+        anchorSpace: 'cell',
+        placement: 'top-right',
+        offset: { x: -8, y: 8 },
+      };
+      return [hud];
+    };
+
+    const dispose = enableLiveDecorationUpdates<NoExt>({
+      overlay: rig.overlay,
+      getVisibleAnnotations: () => [a],
+      getPixelSpacing: () => undefined,
+      getProviders: () => [provider],
+      onDecorations: (decorations) => emitted.push(decorations),
+    });
+
+    rig.fire(
+      'object:moving',
+      fakeFabricTarget('a', {
+        type: 'rectangle',
+        origin: { x: 0, y: 0 },
+        width: 42,
+        height: 10,
+        rotation: 0,
+      }),
+    );
+    rig.flushRAF();
+
+    expect(emitted).toHaveLength(1);
+    const decorations = emitted[0]!;
+    expect(decorations).toHaveLength(1);
+    const hud = decorations[0]!;
+    expect(hud.type).toBe('text');
+    const hudText = hud as TextDecoration;
+    // The live geometry (width 42), not the committed state's width of 10.
+    expect(hudText.text).toBe('w: 42');
+    expect(hudText.anchorSpace).toBe('cell');
+    expect(hudText.placement).toBe('top-right');
+    expect(hudText.anchor).toEqual({ x: 1, y: 0 });
+    dispose();
   });
 });

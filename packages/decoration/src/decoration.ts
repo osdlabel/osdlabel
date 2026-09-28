@@ -61,20 +61,35 @@ interface BaseDecoration {
 }
 
 /**
- * Where the text element is anchored relative to its own bounding box.
+ * Where the text element is anchored relative to its own bounding box — i.e.
+ * which point of the element's own box lands on the anchor.
  *
  * - `'top-left'` (default): the element's top-left corner is at the anchor.
+ * - `'top-right'` / `'bottom-left'` / `'bottom-right'`: the named corner of the
+ *   element is at the anchor.
  * - `'center'`: the element is centered on the anchor.
  * - `'top'` / `'bottom'`: horizontally centered, top/bottom edge at anchor.
  * - `'left'` / `'right'`: vertically centered, left/right edge at anchor.
  */
-export type TextPlacement = 'top-left' | 'center' | 'top' | 'bottom' | 'left' | 'right';
+export type TextPlacement =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'center'
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right';
+
+/** Coordinate space a text/DOM decoration's `anchor` is expressed in. */
+export type DecorationAnchorSpace = 'image' | 'cell';
 
 /** A text label rendered as a DOM element positioned over the image. */
 export interface TextDecoration extends BaseDecoration {
   readonly type: 'text';
   readonly text: string;
-  /** Anchor point in image-space coordinates. */
+  /** Anchor point, interpreted according to {@link TextDecoration.anchorSpace}. */
   readonly anchor: Point;
   /**
    * Optional screen-pixel offset added to the anchor's screen position
@@ -83,6 +98,14 @@ export interface TextDecoration extends BaseDecoration {
   readonly offset?: { readonly x: number; readonly y: number } | undefined;
   /** How the element aligns to its anchor. Default: `'top-left'`. */
   readonly placement?: TextPlacement | undefined;
+  /**
+   * Which space `anchor` is expressed in. Default `'image'`: image pixels,
+   * projected through the viewport every frame. `'cell'`: fractions of the
+   * cell's size (`{x:0,y:0}` = top-left corner, `{x:1,y:1}` = bottom-right),
+   * fixed in the cell's viewport and untouched by pan / zoom / rotate / flip.
+   * `offset` (screen px) and `placement` apply identically in both spaces.
+   */
+  readonly anchorSpace?: DecorationAnchorSpace | undefined;
   readonly style?: TextDecorationStyle | undefined;
 }
 
@@ -110,7 +133,7 @@ export interface LineDecoration extends BaseDecoration {
  */
 export interface DomDecoration extends BaseDecoration {
   readonly type: 'dom';
-  /** Anchor point in image-space coordinates. */
+  /** Anchor point, interpreted according to {@link DomDecoration.anchorSpace}. */
   readonly anchor: Point;
   /**
    * Optional screen-pixel offset added to the anchor's screen position before
@@ -119,6 +142,14 @@ export interface DomDecoration extends BaseDecoration {
   readonly offset?: { readonly x: number; readonly y: number } | undefined;
   /** How the root aligns to its anchor. Default: `'top-left'`. */
   readonly placement?: TextPlacement | undefined;
+  /**
+   * Which space `anchor` is expressed in. Default `'image'`: image pixels,
+   * projected through the viewport every frame. `'cell'`: fractions of the
+   * cell's size (`{x:0,y:0}` = top-left corner, `{x:1,y:1}` = bottom-right),
+   * fixed in the cell's viewport and untouched by pan / zoom / rotate / flip.
+   * `offset` (screen px) and `placement` apply identically in both spaces.
+   */
+  readonly anchorSpace?: DecorationAnchorSpace | undefined;
   /** Framework-agnostic configuration the render-prop interprets. */
   readonly content: unknown;
   readonly style?: DomDecorationStyle | undefined;
