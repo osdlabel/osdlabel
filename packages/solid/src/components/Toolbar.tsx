@@ -26,9 +26,9 @@ const Toolbar: Component = () => {
   const selectedAnnotation = () => {
     const id = uiState.selectedAnnotationId;
     if (!id) return undefined;
-    // Through the context's `activeImageId`. The reducer keeps
-    // `activeCellIndex` inside the grid, so this is the image a rendered cell
-    // is showing; `undefined` means the active cell is empty.
+    // `activeImageId` comes from the context, which keys it on an
+    // `activeCellIndex` the reducer holds inside the grid — so `undefined`
+    // means exactly one thing: the active cell is empty.
     const imageId = activeImageId();
     if (!imageId) return undefined;
     return annotationState.byImage[imageId]?.[id];

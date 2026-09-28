@@ -180,18 +180,13 @@ export function mapKeyEventToActions(
     }
   }
 
-  // Grid Cells. The digit maps to a fixed index, so it has to be screened
-  // against the current grid: activating a cell the grid does not render leaves
-  // every action keyed on the active cell editing offscreen state, and the
-  // filmstrip's clear affordance silently disappears with no visible cause.
+  // Grid Cells. The digit names a fixed index, so on a smaller grid it can name
+  // a cell that does not exist — hence the screen against the current grid.
+  //
+  // Screened, not clamped, deliberately the opposite of `SET_ACTIVE_CELL`: a
+  // programmatic caller wants a usable index back, but jumping to cell 0
+  // because the user pressed `9` is a surprise.
   else if (gridCellIndex >= 0) {
-    // Screened against the grid: the digit names a fixed index, so on a
-    // smaller grid it can name a cell that does not exist.
-    //
-    // Screened, not clamped — deliberately the opposite of `SET_ACTIVE_CELL`,
-    // which clamps. A programmatic caller wants a usable index back; a key
-    // press wants no surprise, and jumping to cell 0 because the user pressed
-    // `9` is a surprise.
     if (gridCellIndex < getGridCellCount(state)) {
       actions.push({ type: 'SET_ACTIVE_CELL', payload: gridCellIndex });
     }
