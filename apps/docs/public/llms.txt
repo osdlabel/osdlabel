@@ -809,7 +809,7 @@ The index is also normalised to a whole, finite cell: `setActiveCell(1.5)` selec
 
 Cell-selection key presses behave differently on purpose: `4` on a 1x1 grid does nothing rather than selecting cell 0, because silently moving the selection somewhere the user did not press is worse than ignoring the key.
 
-**Shrinking the grid moves the active cell and does not move it back.** If cell 3 is active on a 2x2 and the grid shrinks to 1x1, the active cell becomes 0 — and growing back to 2x2 leaves it at 0. This is worth knowing because the *assignments* of pruned cells behave the opposite way: they are kept, so a shrink/expand round trip restores the images those cells were showing while the selection stays where the shrink put it. Reaching for `-` then `=` therefore costs the user their cell selection but not their layout.
+**Shrinking the grid moves the active cell and does not move it back.** If cell 3 is active on a 2x2 and the grid shrinks to 1x1, the active cell becomes 0 — and growing back to 2x2 leaves it at 0. This is worth knowing because the _assignments_ of pruned cells behave the opposite way: they are kept, so a shrink/expand round trip restores the images those cells were showing while the selection stays where the shrink put it. Reaching for `-` then `=` therefore costs the user their cell selection but not their layout.
 
 ## Filmstrip
 
@@ -822,13 +822,15 @@ The `Filmstrip` component shows thumbnails of all available images and allows dr
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
-Click an image in the filmstrip to assign it to the currently active grid cell. Clicking the image that the active cell is already showing clears that cell instead, returning it to the empty "Assign an image" placeholder.
+Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows simply re-assigns it.
 
-The border reflects which of those two a click will do:
+To empty a cell, use the `✕` badge on the thumbnail the active cell is showing. It is a real button: focusable, labelled for assistive tech, and the only control that clears. Keeping it separate from the thumbnail matters because clearing also drops the cell's view transform with no undo — if a thumbnail click cleared, an ordinary double-click would assign and then immediately wipe the cell.
 
-| Border                        | Meaning                      | Clicking it                     |
+The border tells you how the image relates to the active cell:
+
+| Border                        | Meaning                      | Clicking the thumbnail          |
 | ----------------------------- | ---------------------------- | ------------------------------- |
-| Bright blue, with a `✕` badge | Shown in the **active** cell | Clears the active cell          |
+| Bright blue, with a `✕` badge | Shown in the **active** cell | Re-assigns it (no change)       |
 | Muted blue                    | Shown in **another** cell    | Assigns it into the active cell |
 | Grey                          | Not shown anywhere           | Assigns it into the active cell |
 
@@ -846,7 +848,7 @@ actions.unassignImageFromCell(0);
 
 Each cell can display one image at a time. Multiple cells can show the same image, but annotations are shared (stored by image ID, not by cell).
 
-Clearing a cell affects only that cell's assignment and view transform. Annotations are stored by image ID, so they survive a clear and reappear if the image is assigned again.
+Clearing a cell affects only that cell's assignment and view transform — rotation, flip, exposure and contrast are reset, and there is no undo. Annotations are stored by image ID, so they survive a clear and reappear if the image is assigned again.
 
 ## Using the all-in-one Annotator
 
