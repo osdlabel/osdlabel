@@ -79,8 +79,11 @@ async function main() {
     if (!(reuse && hasDist(worktree))) {
       console.log(`installing base build in ${worktree} …`);
       run('pnpm', ['install', '--frozen-lockfile'], worktree);
-      console.log(`building base build …`);
-      run('pnpm', ['build'], worktree);
+      // Only the packages the bench page loads: fabric-osd and its workspace
+      // dependencies. A full `pnpm build` would also build every app,
+      // including the docs site, none of which the harness reads.
+      console.log(`building base build (@osdlabel/fabric-osd and its dependencies) …`);
+      run('pnpm', ['exec', 'turbo', 'run', 'build', '--filter=@osdlabel/fabric-osd...'], worktree);
     } else {
       console.log('--reuse: base dist already present, skipping install/build');
     }

@@ -37,9 +37,16 @@ pnpm bench:compare -- --base origin/main
 pnpm --filter @osdlabel/bench bench:analyze -- --in apps/bench/results/<timestamp>
 ```
 
-Both root scripts go through turbo, whose `bench` / `bench:compare` tasks
-`dependsOn: ["^build"]` — the harness loads each checkout's `dist/`, never its
-`src/`, so the packages must be built first. Results land in
+Both root scripts go through turbo, filtered to `@osdlabel/bench`, whose
+`bench` / `bench:compare` tasks `dependsOn: ["^build"]` — the harness loads each
+checkout's `dist/`, never its `src/`, so the packages it imports must be built
+first. The repo runs turbo in strict env mode, which hands a task only the
+variables it declares: the bench tasks list `BENCH_CHROMIUM`, `BENCH_ROOT` and
+`PLAYWRIGHT_BROWSERS_PATH` under `passThroughEnv`, and `bench:compare` also
+passes the proxy / CA variables (`HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS`,
+`npm_config_*`, …) that its nested `pnpm install` needs behind a proxy. A new
+environment variable the harness reads must be added there, or it silently
+never arrives. Results land in
 `apps/bench/results/<timestamp>/` and are gitignored, as are the base-ref
 worktrees under `apps/bench/.worktrees/`.
 
@@ -69,12 +76,12 @@ served through Vite's `/@fs/` prefix, and both builds are fed the identical file
 
 Everything above, plus:
 
-| Flag                   | Default       | Meaning                                                                                                                   |
-| ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `--base <git ref>`     | `origin/main` | Baseline ref. Checked out into `apps/bench/.worktrees/<short-sha>`, then `pnpm install --frozen-lockfile` + `pnpm build`. |
-| `--reuse`              | off           | Skip install/build when the worktree already has `packages/fabric-osd/dist/index.js`.                                     |
-| `--keep-worktree`      | off           | Do not remove the worktree at the end. (A failed run always keeps it, so a retry can use `--reuse`.)                      |
-| `--fail-on-regression` | off           | Exit 1 when any (scenario, phase) is a regression beyond the noise band. The offending rows are printed either way.       |
+| Flag                   | Default       | Meaning                                                                                                                                                                                                        |
+| ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--base <git ref>`     | `origin/main` | Baseline ref. Checked out into `apps/bench/.worktrees/<short-sha>`, then `pnpm install --frozen-lockfile` and a turbo build of `@osdlabel/fabric-osd` and its dependencies (the only packages the page loads). |
+| `--reuse`              | off           | Skip install/build when the worktree already has `packages/fabric-osd/dist/index.js`.                                                                                                                          |
+| `--keep-worktree`      | off           | Do not remove the worktree at the end. (A failed run always keeps it, so a retry can use `--reuse`.)                                                                                                           |
+| `--fail-on-regression` | off           | Exit 1 when any (scenario, phase) is a regression beyond the noise band. The offending rows are printed either way.                                                                                            |
 
 The head build's label defaults to the short sha of `HEAD`; the base build's
 label is the short sha the base ref resolves to.

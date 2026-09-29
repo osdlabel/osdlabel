@@ -49,10 +49,25 @@
     },
     "bench": {
       "dependsOn": ["^build"],
+      "passThroughEnv": ["BENCH_CHROMIUM", "BENCH_ROOT", "PLAYWRIGHT_BROWSERS_PATH"],
       "cache": false
     },
     "bench:compare": {
       "dependsOn": ["^build"],
+      "passThroughEnv": [
+        "BENCH_CHROMIUM",
+        "BENCH_ROOT",
+        "PLAYWRIGHT_BROWSERS_PATH",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "no_proxy",
+        "NODE_EXTRA_CA_CERTS",
+        "SSL_CERT_FILE",
+        "npm_config_*"
+      ],
       "cache": false
     },
     "test:e2e": {

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,8 +34,17 @@ const req = createRequire(path.join(ROOT, 'packages', 'fabric-osd', 'package.jso
 const osdEntry = req.resolve('openseadragon');
 const fabricEntry = req.resolve('fabric');
 
+// Both compare servers share `root: HERE`, so Vite's default cacheDir
+// (HERE/node_modules/.vite) would be shared too. They resolve `fabric` and
+// `openseadragon` from different checkouts, and a shared optimizer cache lets
+// one server overwrite the other's pre-bundled deps mid-run: the base page
+// could be served the head's `fabric`, or a request fails as an outdated dep.
+// Key the cache on the selected checkout so each server owns its own.
+const CACHE_KEY = createHash('sha256').update(ROOT).digest('hex').slice(0, 12);
+
 export default {
   root: HERE,
+  cacheDir: path.join(HERE, 'node_modules', '.vite', `root-${CACHE_KEY}`),
   resolve: {
     alias: [
       { find: /^openseadragon$/, replacement: osdEntry },
