@@ -117,7 +117,7 @@ Key architectural rules:
 #### Performance benchmarks
 
 - **The `DecorationLayer` hot path has a real-browser harness at `apps/bench/` (`@osdlabel/bench`).** It drives an OSD viewer + `FabricOverlay` + `DecorationLayer` in headless Chromium and times `_reposition` / `setDecorations` per call across a scenario × phase matrix. jsdom cannot see CSSOM reserialization or forced layout, which is why it exists.
-- **Compare a branch against a baseline with `pnpm bench:compare -- --base origin/main`.** It builds the base ref in a throwaway `git worktree`, runs both builds interleaved, and writes `summary.md` / `comparison.json` / `verdicts.json`; `--fail-on-regression` exits 1 on any (scenario, phase) outside the noise band.
+- **Compare a branch against a baseline with `pnpm bench:compare -- --base origin/main`.** It builds the base ref in a throwaway `git worktree`, runs both builds interleaved, and writes `summary.md` / `comparison.json` / `verdicts.json`; `--fail-on-regression` exits 1 on any (scenario, phase, metric) outside the noise band, where the metrics are `_reposition` in every phase and `setDecorations` in the live phase.
 - **It measures each checkout's built `dist/`, not `src/`** — the turbo `bench` / `bench:compare` tasks depend on `^build`, so run them through the root scripts rather than invoking the package's scripts directly.
 - **Results are gitignored** (`apps/bench/results/`, `apps/bench/.worktrees/`) — never commit a run. See `apps/bench/README.md` for every flag and for how to add a scenario, a phase, or a different hot path.
 

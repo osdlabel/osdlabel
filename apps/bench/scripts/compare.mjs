@@ -41,6 +41,28 @@ function hasDist(root) {
   return fs.existsSync(path.join(root, 'packages', 'fabric-osd', 'dist', 'index.js'));
 }
 
+/**
+ * Human-readable report of the regression rows in a `comparison.json`, or an
+ * empty array when there are none. A zero-baseline regression has no finite
+ * percentage (`deltaPct` is null) and is reported as "from zero".
+ */
+export function regressionLines(comparison) {
+  const regressions = comparison.rows.filter((r) => r.verdict === 'regression');
+  if (regressions.length === 0) return [];
+  const lines = [
+    `\n${regressions.length} regression row(s) beyond ±${comparison.noiseBandPct.toFixed(1)}%:`,
+  ];
+  for (const r of regressions) {
+    const delta = r.deltaPct === null ? 'from zero' : `+${r.deltaPct.toFixed(1)}%`;
+    const base = r.usedMean ? r.baseMean : r.baseMedian;
+    const head = r.usedMean ? r.headMean : r.headMedian;
+    lines.push(
+      `  ${r.scenario} ${r.phase} ${r.metric}: ${base.toFixed(1)}µs -> ${head.toFixed(1)}µs (${delta}${r.usedMean ? ', from means' : ''})`,
+    );
+  }
+  return lines;
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const common = parseCommonArgs(argv);
@@ -106,16 +128,9 @@ async function main() {
       `base ${meta.baseLabel} (${meta.builds[meta.baseLabel]}) vs head ${meta.headLabel} (${meta.builds[meta.headLabel]})`,
     );
 
-    const regressions = comparison.rows.filter((r) => r.verdict === 'regression');
-    if (regressions.length > 0) {
-      console.log(
-        `\n${regressions.length} regression row(s) beyond ±${comparison.noiseBandPct.toFixed(1)}%:`,
-      );
-      for (const r of regressions) {
-        console.log(
-          `  ${r.scenario} ${r.phase}: ${r.baseMedian.toFixed(1)}µs -> ${r.headMedian.toFixed(1)}µs (+${r.deltaPct.toFixed(1)}%${r.usedMean ? ', from means' : ''})`,
-        );
-      }
+    const lines = regressionLines(comparison);
+    if (lines.length > 0) {
+      for (const line of lines) console.log(line);
       if (failOnRegression) process.exitCode = 1;
     } else {
       console.log(`\nno regressions beyond ±${comparison.noiseBandPct.toFixed(1)}%`);

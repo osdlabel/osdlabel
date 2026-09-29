@@ -1,7 +1,10 @@
 # `@osdlabel/bench` — DecorationLayer performance harness
 
-A real-browser benchmark for the `DecorationLayer` hot path. It is private, never
-published, and is not part of `build` / `test` / `typecheck` / `test:e2e`.
+A real-browser benchmark for the `DecorationLayer` hot path. It is private and
+never published. The benchmark itself is not part of `build` / `typecheck` /
+`test:e2e`. Only the pure-Node analysis logic (verdicts, noise band, the
+regression report) has Vitest unit tests in `tests/`, which run under `pnpm test`
+without a browser.
 
 ## What it measures, and why
 
@@ -81,7 +84,7 @@ Everything above, plus:
 | `--base <git ref>`     | `origin/main` | Baseline ref. Checked out into `apps/bench/.worktrees/<short-sha>`, then `pnpm install --frozen-lockfile` and a turbo build of `@osdlabel/fabric-osd` and its dependencies (the only packages the page loads). |
 | `--reuse`              | off           | Skip install/build when the worktree already has `packages/fabric-osd/dist/index.js`.                                                                                                                          |
 | `--keep-worktree`      | off           | Do not remove the worktree at the end. (A failed run always keeps it, so a retry can use `--reuse`.)                                                                                                           |
-| `--fail-on-regression` | off           | Exit 1 when any (scenario, phase) is a regression beyond the noise band. The offending rows are printed either way.                                                                                            |
+| `--fail-on-regression` | off           | Exit 1 when any (scenario, phase, metric) is a regression beyond the noise band. The offending rows are printed either way.                                                                                    |
 
 The head build's label defaults to the short sha of `HEAD`; the base build's
 label is the short sha the base ref resolves to.
@@ -184,16 +187,29 @@ way. Report the new series in `runPhase`'s return value and add a column in
   write count and the call count for the whole window, plus `setDecorations`
   medians in P3.
 - The **noise band** is the run-to-run spread of the per-repetition medians
-  (p95 / median across reps, aggregated over every build × scenario × phase):
+  (p95 / median across reps, aggregated over every build × scenario × phase ×
+  timed method):
   a ±5% floor, widened to the observed p95 spread when that is larger. A delta
   inside the band is `neutral`, not a win or a loss.
-- A verdict row starred with `*` was computed from the per-call **mean** because
-  at least one side's median sat at or below the 5 µs timer quantum; when both
-  sides' means are under one quantum the row is "not resolvable" and should not
-  be argued about.
+- A verdict row starred with `*` was computed from the per-call **mean**
+  because at least one side's median was within 20 timer quanta (100 µs at the
+  usual 5 µs resolution). Medians are quantized to the clock, so below that a
+  single quantum step is already more than the ±5% band floor and identical
+  code can read as a ±20% change. The mean averages the quantization out over
+  the whole window. When both sides' means are under one quantum the row is
+  "not resolvable" and should not be argued about.
+- The **verdict table** has one column per (phase, metric). `_reposition` is
+  gated in every phase; `setDecorations` is gated wherever both builds called
+  it, which is P3 live. Its timing covers the DOM diff as well as the
+  `_reposition` it triggers, so a slowdown in element creation or text updates
+  fails the gate even when `_reposition` is flat.
 - `comparison.json` carries the same thing machine-readably: one row per
-  (scenario, phase) with `baseMedian`, `headMedian`, `deltaPct`, `verdict` and
-  `noiseBandPct`. `verdicts.json` is the per-scenario rollup.
+  (scenario, phase, metric) with `metric` (`reposition` or `setDecorations`),
+  `baseMedian`, `headMedian`, `baseMean`, `headMean`, `deltaPct`, `usedMean`,
+  `verdict` and `noiseBandPct`. `deltaPct` is `null` for a regression from a
+  zero baseline, since JSON has no `Infinity`. `verdicts.json` is the
+  per-scenario rollup, keyed by phase for `_reposition` and by
+  `<phase>:setDecorations` for the other metric.
 
 ## Known limitations
 
@@ -229,6 +245,6 @@ shape that fits this harness is:
 
 Run it on a dedicated, non-shared runner, on a label (`perf`) rather than on
 every PR, and treat `comparison.json` as the gate: `--fail-on-regression` exits
-1 when any (scenario, phase) is outside the run's own noise band, so the
+1 when any (scenario, phase, metric) is outside the run's own noise band, so the
 threshold adapts to the runner instead of being hard-coded. CI needs no
 `--chromium` override — it installs Playwright's browsers normally.

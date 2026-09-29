@@ -1,0 +1,187 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { analyze, verdictFor } from '../scripts/analyze.mjs';
+import { regressionLines } from '../scripts/compare.mjs';
+
+// ── fixtures ───────────────────────────────────────────────────────────
+// Result files mirror what scripts/run.mjs writes: one row per
+// (scenario, rep), each phase carrying `reposition` / `setDecorations` stats.
+
+const stat = (median, n = 100) => ({ n, median, p95: median * 1.5, mean: median, total: 0 });
+const idle = { n: 0, median: 0, p95: 0, mean: 0, total: 0 };
+
+function phase(name, reposition, setDecorations) {
+  return {
+    phase: name,
+    reposition: stat(reposition),
+    setDecorations: setDecorations === null ? idle : stat(setDecorations),
+    windowMs: 2000,
+    meanRafMs: 16.7,
+    transformWrites: 0,
+    transformHookOk: true,
+    frames: 120,
+  };
+}
+
+/** `{ pan, static, live, liveSet }` per rep, in µs. */
+function rows(scenario, reps) {
+  return reps.map((r, rep) => ({
+    scenario,
+    rep,
+    hudMode: 'cell',
+    spec: {},
+    phases: {
+      pan: phase('pan', r.pan, null),
+      static: phase('static', r.static, null),
+      live: phase('live', r.live, r.liveSet),
+    },
+  }));
+}
+
+const dirs = [];
+function resultsDir(base, head) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osdlabel-bench-'));
+  dirs.push(dir);
+  const meta = {
+    date: '2026-01-01T00:00:00.000Z',
+    cpus: 4,
+    cpuModel: 'test',
+    totalMemGB: 8,
+    chromium: 'test',
+    headless: true,
+    reps: base.length,
+    frames: 120,
+    scenarios: ['S2'],
+    phases: ['pan', 'static', 'live'],
+    traced: false,
+    labels: ['base', 'head'],
+    baseLabel: 'base',
+    headLabel: 'head',
+    hudMode: { base: 'cell', head: 'cell' },
+    cellAnchorSupport: { base: true, head: true },
+    transformHookOk: { base: true, head: true },
+    crossOriginIsolated: { base: true, head: true },
+    timerResolutionUs: { base: 5, head: 5 },
+    builds: { base: '/base', head: '/head' },
+    commits: { base: 'aaaaaaa', head: 'bbbbbbb' },
+  };
+  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta));
+  fs.writeFileSync(path.join(dir, 'base.json'), JSON.stringify(rows('S2', base)));
+  fs.writeFileSync(path.join(dir, 'head.json'), JSON.stringify(rows('S2', head)));
+  return dir;
+}
+
+afterEach(() => {
+  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+});
+
+const same = { pan: 400, static: 150, live: 120, liveSet: 500 };
+const reps = (r, n = 3) => Array.from({ length: n }, () => ({ ...r }));
+
+// ── verdictFor ─────────────────────────────────────────────────────────
+
+describe('verdictFor', () => {
+  it('treats a zero baseline against a measurable head as a regression', () => {
+    const v = verdictFor({ median: 0, mean: 0 }, { median: 40, mean: 40 }, 5);
+    expect(v.kind).toBe('regression');
+    expect(v.delta).toBe(Infinity);
+  });
+
+  it('calls both sides under one timer quantum not resolvable', () => {
+    const v = verdictFor({ median: 0, mean: 2 }, { median: 0, mean: 4 }, 5);
+    expect(v.kind).toBe('not-resolvable');
+  });
+
+  it('compares means when a median is within 20 timer quanta', () => {
+    // Real S1 static cell from a base-vs-head run of identical library code:
+    // the medians sit one 5 µs quantum apart (+20%), the means +3.5%.
+    const v = verdictFor({ median: 25, mean: 29.54 }, { median: 30, mean: 30.58 }, 12.5, 5);
+    expect(v.useMean).toBe(true);
+    expect(v.kind).toBe('neutral');
+  });
+
+  it('compares medians once both are at least 20 quanta', () => {
+    const v = verdictFor({ median: 100, mean: 300 }, { median: 101, mean: 100 }, 5, 5);
+    expect(v.useMean).toBe(false);
+    expect(v.kind).toBe('neutral');
+  });
+
+  it('scales the median threshold with a coarser clock', () => {
+    // 100 µs medians clear 20 quanta at 5 µs, but not at a 100 µs clamp.
+    const v = verdictFor({ median: 100, mean: 100 }, { median: 100, mean: 200 }, 5, 100);
+    expect(v.useMean).toBe(true);
+    expect(v.kind).toBe('regression');
+  });
+
+  it('is neutral inside the band and a regression outside it', () => {
+    expect(verdictFor({ median: 100, mean: 100 }, { median: 104, mean: 104 }, 5).kind).toBe(
+      'neutral',
+    );
+    expect(verdictFor({ median: 100, mean: 100 }, { median: 120, mean: 120 }, 5).kind).toBe(
+      'regression',
+    );
+  });
+});
+
+// ── analyze ────────────────────────────────────────────────────────────
+
+describe('analyze', () => {
+  it('gates setDecorations in the live phase, not only _reposition', () => {
+    const dir = resultsDir(reps(same), reps({ ...same, liveSet: 1000 }));
+    const { comparison } = analyze({ inDir: dir });
+
+    const setRow = comparison.rows.find((r) => r.phase === 'live' && r.metric === 'setDecorations');
+    expect(setRow).toBeDefined();
+    expect(setRow.verdict).toBe('regression');
+
+    const repoRow = comparison.rows.find((r) => r.phase === 'live' && r.metric === 'reposition');
+    expect(repoRow.verdict).toBe('neutral');
+  });
+
+  it('emits no setDecorations row for phases that never call it', () => {
+    const { comparison } = analyze({ inDir: resultsDir(reps(same), reps(same)) });
+    const metrics = comparison.rows.map((r) => `${r.phase}:${r.metric}`).sort();
+    expect(metrics).toEqual([
+      'live:reposition',
+      'live:setDecorations',
+      'pan:reposition',
+      'static:reposition',
+    ]);
+    expect(comparison.rows.every((r) => r.verdict === 'neutral')).toBe(true);
+  });
+
+  it('writes a zero-baseline regression as deltaPct null', () => {
+    const dir = resultsDir(reps({ ...same, static: 0 }), reps(same));
+    const { comparison } = analyze({ inDir: dir });
+    const row = comparison.rows.find((r) => r.phase === 'static' && r.metric === 'reposition');
+    expect(row.verdict).toBe('regression');
+    expect(row.deltaPct).toBeNull();
+  });
+});
+
+// ── regressionLines ────────────────────────────────────────────────────
+
+describe('regressionLines', () => {
+  it('reports a zero-baseline regression instead of throwing', () => {
+    const dir = resultsDir(reps({ ...same, static: 0 }), reps(same));
+    const { comparison } = analyze({ inDir: dir });
+    const lines = regressionLines(comparison);
+    expect(lines.some((l) => l.includes('S2 static reposition') && l.includes('from zero'))).toBe(
+      true,
+    );
+  });
+
+  it('names the metric of each regression row', () => {
+    const dir = resultsDir(reps(same), reps({ ...same, liveSet: 1000 }));
+    const lines = regressionLines(analyze({ inDir: dir }).comparison);
+    expect(lines.some((l) => l.includes('S2 live setDecorations'))).toBe(true);
+  });
+
+  it('returns nothing when there is no regression', () => {
+    expect(
+      regressionLines(analyze({ inDir: resultsDir(reps(same), reps(same)) }).comparison),
+    ).toEqual([]);
+  });
+});
