@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/generate-llm-page.js && astro build",
+    "build": "node scripts/generate-llm-page.js && astro build && node scripts/check-rendered-tables.js",
     "preview": "astro preview",
+    "test": "node --test \"tests/**/*.test.js\"",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@astrojs/mdx": "^5.0.6",
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/starlight": "^0.39.3",
     "@osdlabel/annotation": "workspace:*",
@@ -21,9 +23,9 @@
     "osdlabel": "workspace:*",
     "sharp": "^0.33.5",
     "starlight-package-managers": "0.12.0",
-    "starlight-typedoc": "latest",
-    "typedoc": "latest",
-    "typedoc-plugin-markdown": "latest"
+    "starlight-typedoc": "^0.23.1",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.1"
   },
   "devDependencies": {
     "@astrojs/solid-js": "^6.0.1",
