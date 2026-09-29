@@ -1,5 +1,14 @@
 # @osdlabel/fabric-osd
 
+## 0.14.0
+
+### Patch Changes
+
+- @osdlabel/annotation@0.14.0
+- @osdlabel/decoration@0.14.0
+- @osdlabel/fabric-annotations@0.14.0
+- @osdlabel/viewer-api@0.14.0
+
 ## 0.13.0
 
 ### Minor Changes
