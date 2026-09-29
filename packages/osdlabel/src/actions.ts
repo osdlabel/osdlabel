@@ -150,21 +150,19 @@ export function applyAnnotationAction(
 }
 
 /**
- * A usable cell index: a whole, non-negative number. `gridAssignments` and
- * `cellTransforms` are keyed by whole numbers, so a fractional index writes a
- * key (`"1.5"`) that no reader ever looks up, and `NaN` survives every
- * comparison a clamp could make.
+ * The cell an assignment is keyed on, or `undefined` if the input names none.
  *
- * Applied by every action that takes a cell index, so the three cannot
- * disagree about what one is. Out-of-grid indices are deliberately NOT
- * screened here: `SET_GRID_DIMENSIONS` keeps the assignments of pruned cells
- * so a shrink/expand round trip restores them, which means an index outside
- * the current grid is meaningful for assignment. Only the *active* cell is
- * clamped into the grid, because that is what the UI reads.
+ * Fractions truncate — the records are keyed by whole numbers, so `1.5` would
+ * otherwise write a key nothing reads. Negative and non-finite input returns
+ * `undefined` so the caller can ignore it: substituting cell 0 would let a
+ * caller bug overwrite or empty the one cell that is always on screen.
+ *
+ * Deliberately not screened against the grid: `SET_GRID_DIMENSIONS` keeps the
+ * assignments of pruned cells for a later expand, so an out-of-grid index is
+ * meaningful here.
  */
-function toCellIndex(value: number): number {
-  const whole = Math.trunc(value);
-  return Number.isFinite(whole) ? Math.max(0, whole) : 0;
+function toCellIndex(value: number): number | undefined {
+  return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : undefined;
 }
 
 /**
@@ -206,10 +204,15 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       //
       // Clamped rather than ignored, so the result is always a real cell:
       // `SET_GRID_DIMENSIONS` keeps the grid at one cell or more, so `maxIndex`
-      // is never negative. `toCellIndex` normalises first, so the clamp is
-      // comparing a whole number.
+      // is never negative. Unlike an assignment, this needs *some* cell for any
+      // input, so it clamps instead of using `toCellIndex`: fractions truncate,
+      // ±Infinity lands on an end, and `NaN` — which survives every comparison
+      // — falls back to the first cell.
       const maxIndex = draft.gridColumns * draft.gridRows - 1;
-      draft.activeCellIndex = Math.min(toCellIndex(action.payload), maxIndex);
+      const requested = Math.trunc(action.payload);
+      draft.activeCellIndex = Number.isNaN(requested)
+        ? 0
+        : Math.max(0, Math.min(requested, maxIndex));
       break;
     }
     case 'SET_SELECTED_ANNOTATION':
@@ -217,6 +220,7 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       break;
     case 'ASSIGN_IMAGE_TO_CELL': {
       const cellIndex = toCellIndex(action.payload.cellIndex);
+      if (cellIndex === undefined) break;
       draft.gridAssignments[cellIndex] = action.payload.imageId;
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
       break;
@@ -231,6 +235,7 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       // and the one destructive reader (Delete) is already gated on
       // `activeImageId`.
       const cellIndex = toCellIndex(action.payload.cellIndex);
+      if (cellIndex === undefined) break;
       delete draft.gridAssignments[cellIndex];
       delete draft.cellTransforms[cellIndex];
       break;
