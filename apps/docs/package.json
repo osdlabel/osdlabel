@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/generate-llm-page.js && astro build",
+    "build": "node scripts/generate-llm-page.js && astro build && node scripts/check-rendered-tables.js",
     "preview": "astro preview",
+    "test": "node --test \"tests/**/*.test.js\"",
     "lint": "eslint ."
   },
   "dependencies": {
