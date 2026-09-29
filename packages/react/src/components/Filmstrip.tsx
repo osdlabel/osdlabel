@@ -21,15 +21,8 @@ export default function Filmstrip({ images, position }: FilmstripProps) {
   const assignmentState = (imageId: ImageId): CellAssignmentState =>
     getCellAssignmentState(uiState, imageId);
 
-  // A thumbnail click only ever assigns, so it is idempotent: clicking the
-  // image the active cell already shows re-assigns it, exactly as before this
-  // control existed. Clearing is the separate badge below, because a
-  // double-click on a thumbnail would otherwise assign then immediately clear,
-  // and a clear drops the cell's view transform with no undo.
-  //
-  // Both gestures name `activeCellIndex` directly, which the reducer keeps
-  // inside the grid — that invariant is what makes deriving a target cell here
-  // unnecessary.
+  // A thumbnail click only assigns; clearing is the separate badge, so a
+  // double-click cannot assign and then wipe the cell's view transform.
   const assign = (image: ImageSource) => {
     actions.assignImageToCell(uiState.activeCellIndex, image.id);
   };
