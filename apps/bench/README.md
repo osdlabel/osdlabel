@@ -36,8 +36,9 @@ pnpm bench
 # measure the working checkout against a baseline, with a verdict table
 pnpm bench:compare -- --base origin/main
 
-# re-analyze an existing run (rewrites summary.md / verdicts.json / comparison.json)
-pnpm --filter @osdlabel/bench bench:analyze -- --in apps/bench/results/<timestamp>
+# re-analyze an existing run (rewrites summary.md / verdicts.json / comparison.json);
+# pnpm --filter runs it from apps/bench, so --in is relative to that directory
+pnpm --filter @osdlabel/bench bench:analyze -- --in results/<timestamp>
 ```
 
 Both root scripts go through turbo, filtered to `@osdlabel/bench`, whose
@@ -63,7 +64,7 @@ served through Vite's `/@fs/` prefix, and both builds are fed the identical file
 | Flag                     | Default                                              | Meaning                                                                                                            |
 | ------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `--root <path>`          | this repo (resolved from the config file's location) | Checkout whose `dist/` the page loads. Also settable as `BENCH_ROOT`.                                              |
-| `--label <name>`         | short sha of that checkout's `HEAD`                  | Label for the build in the output files.                                                                           |
+| `--label <name>`         | short sha of that checkout's `HEAD`                  | Label for the build in the output files. Must match `[A-Za-z0-9._-]+` (it becomes a file name), so not `feat/x`.   |
 | `--build <label>=<path>` | —                                                    | Repeatable; run several checkouts interleaved. Overrides `--root`/`--label`. The first one is treated as the base. |
 | `--reps <n>`             | `7`                                                  | Repetitions of the whole matrix. Builds alternate within each rep.                                                 |
 | `--frames <n>`           | `240`                                                | rAF frames per measurement window.                                                                                 |
@@ -88,6 +89,17 @@ Everything above, plus:
 
 The head build's label defaults to the short sha of `HEAD`; the base build's
 label is the short sha the base ref resolves to.
+
+An existing worktree is reused only if it really is a checkout of the base
+commit. A deleted-but-still-registered worktree (e.g. after `rm -rf
+apps/bench/.worktrees`), a half-created one from an interrupted run, or one
+moved to another commit is discarded and recreated, so the directory is safe to
+delete by hand at any time.
+
+All numeric flags must be positive integers and `--scenarios` / `--phases`
+entries must be known names; anything else is rejected before a server or
+browser starts. A viewer that fails to open the sample image aborts the run
+after 60 s instead of hanging.
 
 ### `scripts/analyze.mjs` (`pnpm --filter @osdlabel/bench bench:analyze`)
 
@@ -186,11 +198,13 @@ way. Report the new series in `runPhase`'s return value and add a column in
 - Per-phase tables give `_reposition` median / mean / p95 in µs, the transform
   write count and the call count for the whole window, plus `setDecorations`
   medians in P3.
-- The **noise band** is the run-to-run spread of the per-repetition medians
-  (p95 / median across reps, aggregated over every build × scenario × phase ×
-  timed method):
-  a ±5% floor, widened to the observed p95 spread when that is larger. A delta
-  inside the band is `neutral`, not a win or a loss.
+- There is one **noise band** per verdict column, i.e. per (phase, timed
+  method), so one noisy method or phase cannot widen the gate for the others.
+  Each build × scenario contributes the run-to-run spread (p95 / median across
+  reps) of the statistic its verdict compares: the per-rep means for starred
+  cells, the per-rep medians otherwise. The band is the p95 of those spreads —
+  with fewer than 20 of them, simply the widest — floored at ±5%. A delta inside
+  the band is `neutral`, not a win or a loss.
 - A verdict row starred with `*` was computed from the per-call **mean**
   because at least one side's median was within 20 timer quanta (100 µs at the
   usual 5 µs resolution). Medians are quantized to the clock, so below that a
@@ -206,10 +220,13 @@ way. Report the new series in `runPhase`'s return value and add a column in
 - `comparison.json` carries the same thing machine-readably: one row per
   (scenario, phase, metric) with `metric` (`reposition` or `setDecorations`),
   `baseMedian`, `headMedian`, `baseMean`, `headMean`, `deltaPct`, `usedMean`,
-  `verdict` and `noiseBandPct`. `deltaPct` is `null` for a regression from a
-  zero baseline, since JSON has no `Infinity`. `verdicts.json` is the
-  per-scenario rollup, keyed by phase for `_reposition` and by
-  `<phase>:setDecorations` for the other metric.
+  `verdict` and the `noiseBandPct` of its column; the top-level
+  `noiseBandsPct` maps each column key to its band. `deltaPct` is `null` for a
+  regression from a zero baseline, since JSON has no `Infinity`.
+  `verdicts.json` is the per-scenario rollup, keyed by phase for `_reposition`
+  and by `<phase>:setDecorations` for the other metric; a scenario that ran on
+  only one build has `overall: "no data"`. A comparison with no rows at all
+  (nothing ran on both builds) is an error, never a pass.
 
 ## Known limitations
 

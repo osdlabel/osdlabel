@@ -40,6 +40,10 @@ const p95of = (a) => {
 const pct = (a, b) => (a === 0 ? (b === 0 ? 0 : Infinity) : ((b - a) / a) * 100);
 const f = (n, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : '—');
 const sign = (n) => (n >= 0 ? '+' : '');
+/** A signed percentage for the tables; a zero-baseline delta reads `+∞`. */
+const signedPct = (n) => (n === Infinity ? '+∞' : Number.isFinite(n) ? sign(n) + f(n) : '—');
+/** p95 / median of per-rep values, the run-to-run spread; 1 when unmeasurable. */
+const spreadOf = (a) => (med(a) > 0 ? p95of(a) / med(a) : 1);
 
 /**
  * The timed methods a verdict can be computed for. `_reposition` runs in every
@@ -52,12 +56,15 @@ export const METRIC_LABEL = { reposition: '_reposition', setDecorations: 'setDec
 /** Aggregate one timed method across the repetitions of a (scenario, phase). */
 function metricOf(runs, phase, metric) {
   const perRepMedian = runs.map((r) => r.phases[phase][metric].median);
+  const perRepMean = runs.map((r) => r.phases[phase][metric].mean);
   return {
     median: med(perRepMedian),
-    mean: med(runs.map((r) => r.phases[phase][metric].mean)),
+    mean: med(perRepMean),
     p95: med(runs.map((r) => r.phases[phase][metric].p95)),
-    // run-to-run spread of the per-rep medians
-    spread: med(perRepMedian) > 0 ? p95of(perRepMedian) / med(perRepMedian) : 1,
+    // run-to-run spread of the per-rep medians, and of the per-rep means for
+    // the cells whose verdict compares means (see usesMean)
+    spread: spreadOf(perRepMedian),
+    meanSpread: spreadOf(perRepMean),
     calls: Math.round(med(runs.map((r) => r.phases[phase][metric].n))),
   };
 }
@@ -89,6 +96,35 @@ function gatedMetrics(baseCell, headCell) {
  */
 export const MEDIAN_MIN_QUANTA = 20;
 
+/** Whether a cell's verdict compares means: some side's median is too coarse. */
+export function usesMean(cells, quantumUs = 5) {
+  return cells.some((c) => c.median < MEDIAN_MIN_QUANTA * quantumUs);
+}
+
+/**
+ * Noise band for one (phase, metric) column, in percent.
+ *
+ * Each (scenario, build) cell contributes the run-to-run spread of the very
+ * statistic its verdict compares: the per-rep means where `usesMean`, the
+ * per-rep medians otherwise. The band is their p95 (with fewer than 20 cells,
+ * that is simply the widest), floored at ±5%. Scoping it per column keeps one
+ * noisy method or phase from widening the gate for every other one.
+ *
+ * @param {Array<Array<object>>} groups metric aggregates of each scenario's
+ *   builds, i.e. `[[base, head], …]`, or `[[head], …]` for a single build.
+ */
+export function noiseBandFor(groups, quantumUs = 5) {
+  const spreads = [];
+  for (const cells of groups) {
+    const mean = usesMean(cells, quantumUs);
+    for (const c of cells) spreads.push(mean ? c.meanSpread : c.spread);
+  }
+  if (spreads.length === 0) return { band: 5, median: 0, p95: 0 };
+  const medianPct = (med(spreads) - 1) * 100;
+  const p95Pct = (p95of(spreads) - 1) * 100;
+  return { band: Math.max(5, p95Pct), median: medianPct, p95: p95Pct };
+}
+
 /**
  * Verdict for one (scenario, phase, metric) cell.
  *
@@ -99,8 +135,7 @@ export const MEDIAN_MIN_QUANTA = 20;
  * sides' means are under one quantum the cell is not resolvable at all.
  */
 export function verdictFor(baseCell, headCell, bandPct, quantumUs = 5) {
-  const minMedian = MEDIAN_MIN_QUANTA * quantumUs;
-  const useMean = baseCell.median < minMedian || headCell.median < minMedian;
+  const useMean = usesMean([baseCell, headCell], quantumUs);
   const delta = useMean ? pct(baseCell.mean, headCell.mean) : pct(baseCell.median, headCell.median);
   if (baseCell.mean < quantumUs && headCell.mean < quantumUs) {
     return { kind: 'not-resolvable', delta, useMean, text: 'not resolvable (< 1 timer quantum)' };
@@ -125,6 +160,13 @@ export function analyze({ inDir, compareDir = null }) {
   const data = Object.fromEntries(
     labels.map((l) => [l, JSON.parse(fs.readFileSync(path.join(inDir, `${l}.json`), 'utf8'))]),
   );
+  // A build with no rows would yield no comparison rows at all, which
+  // `--fail-on-regression` would read as a pass.
+  for (const l of labels) {
+    if (!Array.isArray(data[l]) || data[l].length === 0) {
+      throw new Error(`no results for build '${l}' in ${inDir}`);
+    }
+  }
   const cell = (label, s, p) => cellOf(data[label], s, p);
 
   // Optional earlier run, for a three-way before/after table.
@@ -151,21 +193,26 @@ export function analyze({ inDir, compareDir = null }) {
     5,
   );
 
-  // ── noise band ───────────────────────────────────────────────────────
-  // Every metric that can produce a verdict contributes its spread, so the
-  // band that gates `setDecorations` reflects that metric's own noise too.
-  const spreads = [];
-  for (const s of SCENARIOS)
-    for (const p of PHASES)
-      for (const l of labels) {
-        const c = cell(l, s, p);
-        if (!c) continue;
-        for (const m of METRICS) if (c.metrics[m].calls > 0) spreads.push(c.metrics[m].spread);
-      }
-  const observedSpread = (med(spreads) - 1) * 100;
-  const worstSpread = (p95of(spreads) - 1) * 100;
-  // ±5% floor, widened to the observed p95 run-to-run spread when that is larger.
-  const BAND = Math.max(5, worstSpread);
+  // ── columns & noise bands ────────────────────────────────────────────
+  // One column per (phase, metric) that every build called somewhere in the
+  // run: `_reposition` for every phase, plus `setDecorations` for P3. Each
+  // column gets its own noise band (see noiseBandFor).
+  const compared = BASE ? [BASE, HEAD] : [HEAD];
+  const metricCells = (s, p, m) => {
+    const cs = compared.map((l) => cell(l, s, p));
+    return cs.every((c) => c && c.metrics[m].calls > 0) ? cs.map((c) => c.metrics[m]) : null;
+  };
+  const columns = [];
+  for (const p of PHASES)
+    for (const m of METRICS) {
+      const groups = SCENARIOS.map((s) => metricCells(s, p, m)).filter(Boolean);
+      if (groups.length) columns.push({ phase: p, metric: m, ...noiseBandFor(groups, QUANTUM) });
+    }
+  // `_reposition` keeps the bare phase key (and header) it always had.
+  const colKey = (c) => (c.metric === 'reposition' ? c.phase : `${c.phase}:${c.metric}`);
+  const colHead = (c) =>
+    (PHASE_LABEL[c.phase] ?? c.phase) +
+    (c.metric === 'reposition' ? '' : ` ${METRIC_LABEL[c.metric]}`);
 
   let out = '';
   out += `# DecorationLayer performance\n\n`;
@@ -211,9 +258,9 @@ export function analyze({ inDir, compareDir = null }) {
         const m = cell(BASE, s, phase);
         const b = cell(HEAD, s, phase);
         if (!m || !b) continue;
-        out += `| **${s}** ${label(s)} | ${f(m.median)} | ${f(b.median)} | ${sign(pct(m.median, b.median))}${f(pct(m.median, b.median))} | ${f(m.mean)} | ${f(b.mean)} | ${sign(pct(m.mean, b.mean))}${f(pct(m.mean, b.mean))} | ${f(m.p95)} | ${f(b.p95)} | ${m.writes} | ${b.writes} | ${m.calls} | ${b.calls} |`;
+        out += `| **${s}** ${label(s)} | ${f(m.median)} | ${f(b.median)} | ${signedPct(pct(m.median, b.median))} | ${f(m.mean)} | ${f(b.mean)} | ${signedPct(pct(m.mean, b.mean))} | ${f(m.p95)} | ${f(b.p95)} | ${m.writes} | ${b.writes} | ${m.calls} | ${b.calls} |`;
         if (sd)
-          out += ` ${f(m.setDeco)} | ${f(b.setDeco)} | ${sign(pct(m.setDeco, b.setDeco))}${f(pct(m.setDeco, b.setDeco))} |`;
+          out += ` ${f(m.setDeco)} | ${f(b.setDeco)} | ${signedPct(pct(m.setDeco, b.setDeco))} |`;
         out += `\n`;
       }
     } else {
@@ -274,14 +321,19 @@ export function analyze({ inDir, compareDir = null }) {
         if (!mNow || !bNow) continue;
         const d1 = pct(mNow.median, bNow.median);
         const d2 = mOld && bOld ? pct(mOld.median, bOld.median) : NaN;
-        out += `| **${s}** ${label(s)} | ${f(mNow.median)} | ${f(bNow.median)} | ${bOld ? f(bOld.median) : '—'} | ${sign(d1)}${f(d1)}% | ${Number.isFinite(d2) ? sign(d2) + f(d2) + '%' : '—'} |\n`;
+        out += `| **${s}** ${label(s)} | ${f(mNow.median)} | ${f(bNow.median)} | ${bOld ? f(bOld.median) : '—'} | ${signedPct(d1)}% | ${Number.isFinite(d2) || d2 === Infinity ? signedPct(d2) + '%' : '—'} |\n`;
       }
       out += `\n`;
     }
   }
 
-  out += `## Noise band\n\n`;
-  out += `Run-to-run spread of the per-repetition medians (p95/median across the ${meta.reps} reps), aggregated over every build × scenario × phase × timed method (\`_reposition\`, and \`setDecorations\` where it ran): median **${sign(observedSpread)}${f(observedSpread)}%**, p95 **${sign(worstSpread)}${f(worstSpread)}%**. The noise band used below is therefore **±${f(BAND)}%** (a ±5% floor, widened to the observed p95 spread where that is larger).\n\n`;
+  out += `## Noise bands\n\n`;
+  out += `One band per (phase, timed method). Each build × scenario contributes the run-to-run spread (p95/median across the ${meta.reps} reps) of the statistic its verdict compares — the per-rep means for starred cells, the per-rep medians otherwise. The band is the p95 of those spreads (with fewer than 20 of them, the widest), floored at ±5%.\n\n`;
+  out += `| Column | spread median | spread p95 | band |\n|---|---|---|---|\n`;
+  for (const c of columns) {
+    out += `| ${colHead(c)} | ${sign(c.median)}${f(c.median)}% | ${sign(c.p95)}${f(c.p95)}% | **±${f(c.band)}%** |\n`;
+  }
+  out += `\n`;
 
   // ── verdicts + machine-readable comparison ───────────────────────────
   const verdicts = {};
@@ -289,31 +341,12 @@ export function analyze({ inDir, compareDir = null }) {
     date: meta.date,
     baseLabel: BASE,
     headLabel: HEAD,
-    noiseBandPct: BAND,
+    noiseBandsPct: Object.fromEntries(columns.map((c) => [colKey(c), c.band])),
     reps: meta.reps,
     frames: meta.frames,
     rows: [],
   };
   if (BASE) {
-    // One verdict column per (phase, metric) that ran on both sides anywhere in
-    // the run: `_reposition` for every phase, plus `setDecorations` for P3.
-    const columns = [];
-    for (const p of PHASES)
-      for (const m of METRICS)
-        if (
-          SCENARIOS.some((s) => {
-            const cm = cell(BASE, s, p);
-            const cb = cell(HEAD, s, p);
-            return cm && cb && gatedMetrics(cm, cb).includes(m);
-          })
-        )
-          columns.push({ phase: p, metric: m });
-    // `_reposition` keeps the bare phase key (and header) it always had.
-    const colKey = (c) => (c.metric === 'reposition' ? c.phase : `${c.phase}:${c.metric}`);
-    const colHead = (c) =>
-      (PHASE_LABEL[c.phase] ?? c.phase) +
-      (c.metric === 'reposition' ? '' : ` ${METRIC_LABEL[c.metric]}`);
-
     out += `## Verdict\n\n`;
     out += `Columns are \`_reposition\` unless they name another method. Every column gates \`--fail-on-regression\`.\n\n`;
     out += `| Scenario | ${columns.map(colHead).join(' | ')} | Overall |\n|---|${columns.map(() => '---').join('|')}|---|\n`;
@@ -326,7 +359,7 @@ export function analyze({ inDir, compareDir = null }) {
         if (!cm || !cb || !gatedMetrics(cm, cb).includes(col.metric)) continue;
         const bm = cm.metrics[col.metric];
         const hm = cb.metrics[col.metric];
-        const res = verdictFor(bm, hm, BAND, QUANTUM);
+        const res = verdictFor(bm, hm, col.band, QUANTUM);
         v[colKey(col)] = res.text;
         kinds.push(res.kind);
         comparison.rows.push({
@@ -342,18 +375,23 @@ export function analyze({ inDir, compareDir = null }) {
           deltaPct: Number.isFinite(res.delta) ? res.delta : null,
           usedMean: res.useMean,
           verdict: res.kind,
-          noiseBandPct: BAND,
+          noiseBandPct: col.band,
         });
       }
-      const overall = kinds.every((k) => k === 'not-resolvable')
-        ? 'not resolvable'
-        : kinds.includes('regression')
-          ? kinds.includes('improvement')
-            ? 'mixed'
-            : 'regression'
-          : kinds.includes('improvement')
-            ? 'improvement'
-            : 'neutral';
+      // A scenario with no comparable cell (missing on one side) has no
+      // verdict at all, which is not the same as an unresolvable one.
+      const overall =
+        kinds.length === 0
+          ? 'no data'
+          : kinds.every((k) => k === 'not-resolvable')
+            ? 'not resolvable'
+            : kinds.includes('regression')
+              ? kinds.includes('improvement')
+                ? 'mixed'
+                : 'regression'
+              : kinds.includes('improvement')
+                ? 'improvement'
+                : 'neutral';
       verdicts[s] = { ...v, overall };
       out += `| **${s}** ${label(s)} | ${columns.map((c) => v[colKey(c)] ?? '—').join(' | ')} | **${overall}** |\n`;
     }

@@ -39,10 +39,55 @@ export const DEFAULT_PORT_BASE = 5390;
 /** Coarsest `performance.now()` the analysis's sub-quantum rules are valid for. */
 export const MAX_TIMER_RESOLUTION_US = 10;
 
-/** `--flag value` lookup over an argv array. */
+/**
+ * `--flag value` lookup over an argv array. A flag given without a value (last
+ * in argv, or followed by another `--flag`) is an error rather than silently
+ * becoming `undefined` or swallowing the next flag.
+ */
 export function arg(argv, flag, fallback) {
   const i = argv.indexOf(flag);
-  return i === -1 ? fallback : argv[i + 1];
+  if (i === -1) return fallback;
+  const v = argv[i + 1];
+  if (v === undefined || v.startsWith('--')) throw new Error(`${flag} expects a value`);
+  return v;
+}
+
+/** `arg()` parsed as a positive integer; anything else is an error. */
+export function intArg(argv, flag, fallback) {
+  const raw = arg(argv, flag, String(fallback));
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`${flag} expects a positive integer, got: ${raw}`);
+  }
+  return n;
+}
+
+/** A comma-separated `arg()` whose every entry must be one of `allowed`. */
+export function listArg(argv, flag, allowed) {
+  const list = String(arg(argv, flag, allowed.join(','))).split(',');
+  const unknown = list.filter((x) => !allowed.includes(x));
+  if (unknown.length || list.length === 0) {
+    throw new Error(
+      `${flag}: unknown ${unknown.join(', ')} (expected any of ${allowed.join(',')})`,
+    );
+  }
+  return list;
+}
+
+/**
+ * Build labels become result file names (`<label>.json`) and meta.json keys,
+ * so they must be file-name safe and unique. A branch name like `feat/x`
+ * would otherwise fail only when the results are written, after the whole
+ * matrix has run, and two equal labels would silently merge their results.
+ */
+export function validateLabels(names) {
+  for (const n of names) {
+    if (!/^[A-Za-z0-9._-]+$/.test(n)) {
+      throw new Error(`build label '${n}' must match [A-Za-z0-9._-]+ (it becomes a file name)`);
+    }
+  }
+  const dup = names.find((n, i) => names.indexOf(n) !== i);
+  if (dup !== undefined) throw new Error(`duplicate build label '${dup}'`);
 }
 
 /** All `--flag value` occurrences, in order. */
@@ -80,6 +125,27 @@ export function timestampDir(base = RESULTS_DIR) {
   return path.join(base, stamp);
 }
 
+/** How long the page may take to open the sample image before the run aborts. */
+export const READY_TIMEOUT_MS = 60000;
+
+/**
+ * Await the page's `__bench.ready`, which rejects on OSD `open-failed`, with a
+ * timeout: `page.evaluate` has none of its own, so a viewer that never opens
+ * would otherwise hang the run.
+ */
+export function waitReady(page, timeoutMs = READY_TIMEOUT_MS) {
+  return page.evaluate(
+    (ms) =>
+      Promise.race([
+        window.__bench.ready,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`viewer did not open within ${ms} ms`)), ms),
+        ),
+      ]),
+    timeoutMs,
+  );
+}
+
 async function startServer(build) {
   process.env.BENCH_ROOT = build.root; // read by vite.config.mjs at load time
   const server = await createServer({
@@ -110,6 +176,7 @@ export async function runBench({
   chromiumPath,
   log = console.log,
 }) {
+  validateLabels(builds.map((b) => b.name));
   const chromeExe = resolveChromium(chromiumPath);
   fs.mkdirSync(out, { recursive: true });
 
@@ -134,7 +201,7 @@ export async function runBench({
       page.on('pageerror', (e) => console.error(`[${build.name}] pageerror`, e.message));
       await page.goto(`http://127.0.0.1:${build.port}/index.html`, { waitUntil: 'load' });
       await page.waitForFunction('window.__bench !== undefined', null, { timeout: 60000 });
-      await page.evaluate('window.__bench.ready');
+      await waitReady(page);
       const hookOk = await page.evaluate('window.__bench.transformHookOk()');
       const coi = await page.evaluate('window.__bench.crossOriginIsolated()');
       const timerUs = await page.evaluate('window.__bench.timerResolutionUs()');
@@ -229,7 +296,11 @@ export async function runBench({
         for (const build of plan) {
           const client = await build.page.context().newCDPSession(build.page);
           const events = [];
-          client.on('Tracing.dataCollected', (d) => events.push(...d.value));
+          // A loop, not push(...d.value): a large chunk spread as arguments
+          // can overflow the call stack.
+          client.on('Tracing.dataCollected', (d) => {
+            for (const e of d.value) events.push(e);
+          });
           const done = new Promise((r) => client.once('Tracing.tracingComplete', r));
           await client.send('Tracing.start', {
             categories: 'disabled-by-default-devtools.timeline',
@@ -302,15 +373,18 @@ export async function runBench({
 }
 
 /** Parse the shared CLI flags used by both run.mjs and compare.mjs. */
+// Validated up front: a non-numeric --frames would make the page's rAF loop
+// never finish, and --reps 0 would produce empty results that analyze cannot
+// gate on.
 export function parseCommonArgs(argv) {
   return {
-    reps: Number(arg(argv, '--reps', '7')),
-    frames: Number(arg(argv, '--frames', '240')),
-    scenarios: String(arg(argv, '--scenarios', ALL_SCENARIOS.join(','))).split(','),
-    phases: String(arg(argv, '--phases', ALL_PHASES.join(','))).split(','),
+    reps: intArg(argv, '--reps', 7),
+    frames: intArg(argv, '--frames', 240),
+    scenarios: listArg(argv, '--scenarios', ALL_SCENARIOS),
+    phases: listArg(argv, '--phases', ALL_PHASES),
     trace: argv.includes('--trace'),
     allowDegraded: argv.includes('--allow-degraded'),
-    portBase: Number(arg(argv, '--port-base', String(DEFAULT_PORT_BASE))),
+    portBase: intArg(argv, '--port-base', DEFAULT_PORT_BASE),
     chromiumPath: arg(argv, '--chromium', undefined),
   };
 }

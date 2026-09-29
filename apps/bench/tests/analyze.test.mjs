@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { analyze, verdictFor } from '../scripts/analyze.mjs';
+import { analyze, noiseBandFor, verdictFor } from '../scripts/analyze.mjs';
 import { regressionLines } from '../scripts/compare.mjs';
 
 // ── fixtures ───────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ function rows(scenario, reps) {
 }
 
 const dirs = [];
-function resultsDir(base, head) {
+function resultsDir(base, head, { headExtra = [] } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osdlabel-bench-'));
   dirs.push(dir);
   const meta = {
@@ -53,7 +53,7 @@ function resultsDir(base, head) {
     headless: true,
     reps: base.length,
     frames: 120,
-    scenarios: ['S2'],
+    scenarios: ['S2', ...headExtra.map((x) => x.scenario)],
     phases: ['pan', 'static', 'live'],
     traced: false,
     labels: ['base', 'head'],
@@ -69,7 +69,8 @@ function resultsDir(base, head) {
   };
   fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta));
   fs.writeFileSync(path.join(dir, 'base.json'), JSON.stringify(rows('S2', base)));
-  fs.writeFileSync(path.join(dir, 'head.json'), JSON.stringify(rows('S2', head)));
+  const headRows = [...rows('S2', head), ...headExtra.flatMap((x) => rows(x.scenario, x.reps))];
+  fs.writeFileSync(path.join(dir, 'head.json'), JSON.stringify(headRows));
   return dir;
 }
 
@@ -158,6 +159,67 @@ describe('analyze', () => {
     const row = comparison.rows.find((r) => r.phase === 'static' && r.metric === 'reposition');
     expect(row.verdict).toBe('regression');
     expect(row.deltaPct).toBeNull();
+  });
+});
+
+// ── noise bands ────────────────────────────────────────────────────────
+
+describe('noiseBandFor', () => {
+  const m = (median, spread, meanSpread = spread) => ({ median, mean: median, spread, meanSpread });
+
+  it('floors the band at 5%', () => {
+    expect(noiseBandFor([[m(200, 1.01), m(200, 1.02)]]).band).toBe(5);
+  });
+
+  it('uses the spread of the means for cells whose verdict compares means', () => {
+    // 50 µs medians are under 20 quanta, so the verdict compares means and
+    // the band must come from the means' spread, not the medians'.
+    const band = noiseBandFor([[m(50, 1.2, 1.3), m(50, 1.0, 1.02)]], 5).band;
+    expect(band).toBeCloseTo(30);
+  });
+
+  it('uses the spread of the medians otherwise', () => {
+    const band = noiseBandFor([[m(500, 1.08, 1.5), m(500, 1.02, 1.02)]], 5).band;
+    expect(band).toBeCloseTo(8);
+  });
+});
+
+describe('analyze noise bands', () => {
+  const noisy = (r, set) => set.map((liveSet) => ({ ...r, liveSet }));
+
+  it('scopes the band per (phase, metric): a noisy setDecorations does not widen _reposition', () => {
+    const dir = resultsDir(reps(same), noisy(same, [500, 700, 500]));
+    const { comparison } = analyze({ inDir: dir });
+    expect(comparison.noiseBandsPct['live:setDecorations']).toBeCloseTo(40);
+    expect(comparison.noiseBandsPct.pan).toBe(5);
+    const panRow = comparison.rows.find((r) => r.phase === 'pan');
+    expect(panRow.noiseBandPct).toBe(5);
+  });
+
+  it('catches a regression in a quiet column that a global band would have hidden', () => {
+    // +15% on pan with a 40% spread elsewhere: a single run-wide band would
+    // call this neutral.
+    const dir = resultsDir(reps(same), noisy({ ...same, pan: 460 }, [500, 700, 500]));
+    const { comparison } = analyze({ inDir: dir });
+    const panRow = comparison.rows.find((r) => r.phase === 'pan');
+    expect(panRow.verdict).toBe('regression');
+  });
+});
+
+describe('analyze inputs', () => {
+  it('refuses a build with no result rows instead of producing an empty, passing comparison', () => {
+    const dir = resultsDir([], reps(same));
+    expect(() => analyze({ inDir: dir })).toThrow(/no results for build 'base'/);
+  });
+
+  it("marks a scenario that ran on only one build 'no data'", () => {
+    const dir = resultsDir(reps(same), reps(same), {
+      headExtra: [{ scenario: 'S3', reps: reps(same) }],
+    });
+    const { verdicts, comparison } = analyze({ inDir: dir });
+    expect(verdicts.S3.overall).toBe('no data');
+    expect(comparison.rows.some((r) => r.scenario === 'S3')).toBe(false);
+    expect(verdicts.S2.overall).toBe('neutral');
   });
 });
 

@@ -16,14 +16,25 @@
 import path from 'node:path';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
-import { arg, resolveChromium, CONFIG_FILE, REPO_ROOT } from './run.mjs';
+import {
+  arg,
+  intArg,
+  listArg,
+  resolveChromium,
+  waitReady,
+  ALL_SCENARIOS,
+  CONFIG_FILE,
+  REPO_ROOT,
+} from './run.mjs';
 
 const argv = process.argv.slice(2);
 const root = path.resolve(arg(argv, '--root', process.env.BENCH_ROOT ?? REPO_ROOT));
-const scenarios = String(arg(argv, '--scenarios', 'S2,S5')).split(',');
-const frames = Number(arg(argv, '--frames', '240'));
-const reps = Number(arg(argv, '--reps', '3'));
-const port = Number(arg(argv, '--port', '5398'));
+const scenarios = argv.includes('--scenarios')
+  ? listArg(argv, '--scenarios', ALL_SCENARIOS)
+  : ['S2', 'S5'];
+const frames = intArg(argv, '--frames', 240);
+const reps = intArg(argv, '--reps', 3);
+const port = intArg(argv, '--port', 5398);
 
 process.env.BENCH_ROOT = root;
 const server = await createServer({
@@ -37,36 +48,38 @@ const browser = await chromium.launch({
   headless: true,
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 });
-const page = await browser.newPage({ viewport: { width: 1000, height: 780 } });
-await page.goto(`http://127.0.0.1:${port}/index.html`);
-await page.waitForFunction('window.__bench !== undefined');
-await page.evaluate('window.__bench.ready');
+try {
+  const page = await browser.newPage({ viewport: { width: 1000, height: 780 } });
+  await page.goto(`http://127.0.0.1:${port}/index.html`);
+  await page.waitForFunction('window.__bench !== undefined');
+  await waitReady(page);
 
-const supportsCell = await page.evaluate('window.__bench.supportsCellAnchor()');
-if (!supportsCell) {
-  console.log(`build at ${root} has no cell-anchor support — nothing to A/B`);
-} else {
-  const runOne = (scenario, hudMode) =>
-    page.evaluate(
-      ({ scenario, hudMode, frameCount }) =>
-        window.__bench.run({ scenario, hudMode, frameCount, phases: ['live', 'static'] }),
-      { scenario, hudMode, frameCount: frames },
-    );
-
-  for (const s of scenarios) {
-    for (const mode of ['image', 'cell']) {
-      await runOne(s, mode); // warm
-      const rs = [];
-      for (let i = 0; i < reps; i++) rs.push(await runOne(s, mode));
-      const m = (p) =>
-        rs.map((r) => r.phases[p].reposition.median).sort((a, b) => a - b)[Math.floor(reps / 2)];
-      console.log(
-        `${s} hud=${mode}: live=${m('live').toFixed(0)}µs static=${m('static').toFixed(0)}µs ` +
-          `liveWrites=${rs[rs.length - 1].phases.live.transformWrites}`,
+  const supportsCell = await page.evaluate('window.__bench.supportsCellAnchor()');
+  if (!supportsCell) {
+    console.log(`build at ${root} has no cell-anchor support — nothing to A/B`);
+  } else {
+    const runOne = (scenario, hudMode) =>
+      page.evaluate(
+        ({ scenario, hudMode, frameCount }) =>
+          window.__bench.run({ scenario, hudMode, frameCount, phases: ['live', 'static'] }),
+        { scenario, hudMode, frameCount: frames },
       );
+
+    for (const s of scenarios) {
+      for (const mode of ['image', 'cell']) {
+        await runOne(s, mode); // warm
+        const rs = [];
+        for (let i = 0; i < reps; i++) rs.push(await runOne(s, mode));
+        const m = (p) =>
+          rs.map((r) => r.phases[p].reposition.median).sort((a, b) => a - b)[Math.floor(reps / 2)];
+        console.log(
+          `${s} hud=${mode}: live=${m('live').toFixed(0)}µs static=${m('static').toFixed(0)}µs ` +
+            `liveWrites=${rs[rs.length - 1].phases.live.transformWrites}`,
+        );
+      }
     }
   }
+} finally {
+  await browser.close().catch(() => {});
+  await server.close().catch(() => {});
 }
-
-await browser.close();
-await server.close();

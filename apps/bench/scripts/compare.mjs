@@ -22,6 +22,7 @@ import {
   arg,
   shortSha,
   timestampDir,
+  validateLabels,
   REPO_ROOT,
   BENCH_APP_DIR,
 } from './run.mjs';
@@ -37,6 +38,48 @@ function run(cmd, args, cwd) {
   execFileSync(cmd, args, { cwd, stdio: 'inherit' });
 }
 
+/**
+ * Create the base worktree, or reuse it only when it really is a checkout of
+ * `fullSha`. `.worktrees/` is gitignored and throwaway, so it is natural to
+ * `rm -rf` it, which leaves git's registration behind ("missing but already
+ * registered worktree"); an interrupted `git worktree add` leaves a directory
+ * that is not a checkout at all. Both are repaired here instead of failing.
+ */
+export function prepareWorktree(worktree, fullSha) {
+  git(['worktree', 'prune']);
+  if (fs.existsSync(worktree)) {
+    let head = null;
+    try {
+      head = git(['rev-parse', 'HEAD'], worktree);
+    } catch {
+      // not a checkout
+    }
+    // `rev-parse` inside a stray directory would report the enclosing repo's
+    // HEAD, so also require the directory to be the worktree's own top level.
+    let top = null;
+    try {
+      top = git(['rev-parse', '--show-toplevel'], worktree);
+    } catch {
+      // not a checkout
+    }
+    if (head === fullSha && top && fs.realpathSync(top) === fs.realpathSync(worktree)) {
+      console.log(`reusing existing worktree ${worktree}`);
+      return;
+    }
+    console.warn(`discarding stale or incomplete worktree ${worktree}`);
+    try {
+      git(['worktree', 'remove', '--force', worktree]);
+    } catch {
+      // not registered with git: a plain directory
+    }
+    fs.rmSync(worktree, { recursive: true, force: true });
+    git(['worktree', 'prune']);
+  }
+  fs.mkdirSync(WORKTREES_DIR, { recursive: true });
+  console.log(`creating worktree ${worktree} @ ${fullSha}`);
+  git(['worktree', 'add', '--detach', worktree, fullSha]);
+}
+
 function hasDist(root) {
   return fs.existsSync(path.join(root, 'packages', 'fabric-osd', 'dist', 'index.js'));
 }
@@ -49,15 +92,13 @@ function hasDist(root) {
 export function regressionLines(comparison) {
   const regressions = comparison.rows.filter((r) => r.verdict === 'regression');
   if (regressions.length === 0) return [];
-  const lines = [
-    `\n${regressions.length} regression row(s) beyond ±${comparison.noiseBandPct.toFixed(1)}%:`,
-  ];
+  const lines = [`\n${regressions.length} regression row(s) beyond their column's noise band:`];
   for (const r of regressions) {
     const delta = r.deltaPct === null ? 'from zero' : `+${r.deltaPct.toFixed(1)}%`;
     const base = r.usedMean ? r.baseMean : r.baseMedian;
     const head = r.usedMean ? r.headMean : r.headMedian;
     lines.push(
-      `  ${r.scenario} ${r.phase} ${r.metric}: ${base.toFixed(1)}µs -> ${head.toFixed(1)}µs (${delta}${r.usedMean ? ', from means' : ''})`,
+      `  ${r.scenario} ${r.phase} ${r.metric}: ${base.toFixed(1)}µs -> ${head.toFixed(1)}µs (${delta}${r.usedMean ? ', from means' : ''}; band ±${r.noiseBandPct.toFixed(1)}%)`,
     );
   }
   return lines;
@@ -86,15 +127,11 @@ async function main() {
     headLabel = `${headLabel}-head`;
   }
 
+  // Fail on a bad label now, not after the base install and build.
+  validateLabels([baseLabel, headLabel]);
+
   const worktree = path.join(WORKTREES_DIR, baseSha);
-  const existed = fs.existsSync(worktree);
-  if (!existed) {
-    fs.mkdirSync(WORKTREES_DIR, { recursive: true });
-    console.log(`creating worktree ${worktree} @ ${baseSha}`);
-    git(['worktree', 'add', '--detach', worktree, baseSha]);
-  } else {
-    console.log(`reusing existing worktree ${worktree}`);
-  }
+  prepareWorktree(worktree, git(['rev-parse', `${baseSha}^{commit}`]));
 
   let removeWorktree = !keepWorktree;
   try {
@@ -128,12 +165,19 @@ async function main() {
       `base ${meta.baseLabel} (${meta.builds[meta.baseLabel]}) vs head ${meta.headLabel} (${meta.builds[meta.headLabel]})`,
     );
 
+    // Nothing compared means nothing was gated; never report that as a pass.
+    if (comparison.rows.length === 0) {
+      throw new Error('no (scenario, phase, metric) cell ran on both builds; nothing to compare');
+    }
     const lines = regressionLines(comparison);
     if (lines.length > 0) {
       for (const line of lines) console.log(line);
       if (failOnRegression) process.exitCode = 1;
     } else {
-      console.log(`\nno regressions beyond ±${comparison.noiseBandPct.toFixed(1)}%`);
+      const bands = Object.values(comparison.noiseBandsPct);
+      console.log(
+        `\nno regressions beyond the noise bands (±${Math.min(...bands).toFixed(1)}–${Math.max(...bands).toFixed(1)}%)`,
+      );
     }
   } catch (e) {
     // Leave the worktree in place on failure so the run can be retried with

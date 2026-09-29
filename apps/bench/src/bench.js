@@ -180,7 +180,9 @@ let hostEl = null;
 let repositionSamples = [];
 let setDecoSamples = [];
 
-const ready = new Promise((resolve) => {
+const ready = new Promise((resolve, reject) => {
+  // Without this a missing sample image would leave `ready` pending forever.
+  viewer.addHandler('open-failed', (e) => reject(new Error(`viewer open failed: ${e.message}`)));
   viewer.addHandler('open', () => {
     if (overlay) return;
     overlay = new FabricOverlay(viewer, { testMode: true });

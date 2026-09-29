@@ -125,7 +125,6 @@ export default [
         performance: 'readonly',
         requestAnimationFrame: 'readonly',
         getComputedStyle: 'readonly',
-        WeakSet: 'readonly',
         __BENCH_ROOT__: 'readonly',
         __SAMPLE_IMAGE_URL__: 'readonly',
       },

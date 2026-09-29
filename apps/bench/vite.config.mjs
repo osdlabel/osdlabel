@@ -60,10 +60,15 @@ export default {
     __SAMPLE_IMAGE_URL__: JSON.stringify(`/@fs${SAMPLE_IMAGE}`),
   },
   optimizeDeps: {
-    // Entries are absolute paths resolved by the aliases above, so there is
-    // nothing for the bare-specifier scanner to pre-bundle.
+    // The aliases above resolve into node_modules, so Vite still pre-bundles
+    // both packages; left to discovery it would find them only when the page
+    // first requests them, re-optimize, and reload the page mid-setup (a cold
+    // cache then fails the run with "Execution context was destroyed").
+    // Pre-bundle them at server start instead: the bare names go through the
+    // aliases, so each server bundles its own checkout's copy.
     entries: [],
-    include: [],
+    include: ['fabric', 'openseadragon'],
+    noDiscovery: true,
   },
   server: {
     // crossOriginIsolated lifts Chromium's 100µs clamp on performance.now()
