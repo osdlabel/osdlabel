@@ -104,9 +104,9 @@ export default defineConfig({
     // `starlight()`, which splices its own integrations (including the
     // expressive-code one that must precede mdx) in right behind itself.
     //
-    // `@astrojs/mdx` v5 takes its GFM switch from `markdown.gfm`, which Astro 6
-    // deprecated and now leaves *undefined* by default (the real default moved
-    // into the markdown processor). `.md` pages still get GFM from that
+    // Unless its own `gfm` option is set, `@astrojs/mdx` v5 falls back to
+    // `markdown.gfm`, which Astro 6 deprecated and now leaves *undefined* by
+    // default (the real default moved into the markdown processor). `.md` pages still get GFM from that
     // processor default, but every `.mdx` page silently lost it — tables
     // rendered as literal pipe-and-dash text, along with strikethrough,
     // autolinks and task lists. Setting it on the integration fixes MDX without
