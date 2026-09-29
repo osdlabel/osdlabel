@@ -78,7 +78,7 @@ function AnnotatorInner({
   style,
   showFps,
 }: Omit<AnnotatorProps, keyof AnnotatorProviderProps>) {
-  const { uiState, fullscreenTargetRef } = useAnnotator();
+  const { uiState, fullscreenTargetRef, activeImageId } = useAnnotator();
 
   // React calls a ref callback with null on unmount, so no explicit cleanup.
   const setRootRef = useCallback(
@@ -88,7 +88,6 @@ function AnnotatorInner({
     [fullscreenTargetRef],
   );
 
-  const activeImageId = uiState.gridAssignments[uiState.activeCellIndex];
   const filmstripPosition = filmstripPositionProp ?? 'left';
   const showFilmstrip = showFilmstripProp !== false;
   const showGridControls = showGridControlsProp === true;

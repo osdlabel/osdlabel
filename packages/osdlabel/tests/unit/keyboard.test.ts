@@ -5,6 +5,7 @@ import type {
   AnnotationContextId,
   ConstraintStatus,
 } from '@osdlabel/annotation-context';
+import type { AnnotationId } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
 import { DEFAULT_KEYBOARD_SHORTCUTS, mapKeyEventToActions } from '../../src/keyboard.js';
 import type { KeyboardMappingState } from '../../src/keyboard.js';
@@ -197,5 +198,86 @@ describe('mapKeyEventToActions — annotation context cycling', () => {
     expect(
       mapKeyEventToActions('-', false, DEFAULT_KEYBOARD_SHORTCUTS, state, ALL_ENABLED),
     ).toEqual([{ type: 'SET_GRID_DIMENSIONS', payload: { columns: 1, rows: 2 } }]);
+  });
+});
+
+describe('Delete over a cell with no image', () => {
+  const imgId = (s: string): ImageId => s as ImageId;
+  const annId = (s: string): AnnotationId => s as AnnotationId;
+
+  it('deletes the selected annotation when the active cell shows an image', () => {
+    const state: KeyboardMappingState = {
+      ...STATE,
+      activeImageId: imgId('img-1'),
+      selectedAnnotationId: annId('ann-1'),
+    };
+
+    expect(
+      mapKeyEventToActions('Delete', false, DEFAULT_KEYBOARD_SHORTCUTS, state, ALL_ENABLED),
+    ).toEqual([
+      { type: 'DELETE_ANNOTATION', payload: { id: annId('ann-1'), imageId: imgId('img-1') } },
+      { type: 'SET_SELECTED_ANNOTATION', payload: null },
+    ]);
+  });
+
+  it('emits nothing when the active cell has been emptied', () => {
+    // Unassigning a cell deliberately leaves `selectedAnnotationId` set, because
+    // another cell may still be showing that image. This is what makes that
+    // safe: with no active image, Delete is a no-op rather than removing an
+    // annotation the user cannot see in the cell they are acting on.
+    const state: KeyboardMappingState = {
+      ...STATE,
+      activeImageId: undefined,
+      selectedAnnotationId: annId('ann-1'),
+    };
+
+    expect(
+      mapKeyEventToActions('Delete', false, DEFAULT_KEYBOARD_SHORTCUTS, state, ALL_ENABLED),
+    ).toEqual([]);
+  });
+});
+
+describe('cell-selection shortcuts are screened against the grid', () => {
+  const grid = (gridColumns: number, gridRows: number): KeyboardMappingState => ({
+    ...STATE,
+    gridColumns,
+    gridRows,
+  });
+
+  it('selects a cell that the grid renders', () => {
+    expect(
+      mapKeyEventToActions('4', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(2, 2), ALL_ENABLED),
+    ).toEqual([{ type: 'SET_ACTIVE_CELL', payload: 3 }]);
+  });
+
+  it('emits nothing for a digit past the end of the grid', () => {
+    // The default grid is 1x1, so `2` names a cell nobody can see. Letting it
+    // through leaves every action keyed on the active cell editing offscreen
+    // state, and the filmstrip's clear affordance vanishes with no visible
+    // cause.
+    expect(
+      mapKeyEventToActions('2', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(1, 1), ALL_ENABLED),
+    ).toEqual([]);
+
+    expect(
+      mapKeyEventToActions('9', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(1, 1), ALL_ENABLED),
+    ).toEqual([]);
+  });
+
+  it('counts rows as well as columns when deciding what exists', () => {
+    // A guard that only looked at `gridColumns` would reject cell 2 on a 2x2.
+    expect(
+      mapKeyEventToActions('3', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(2, 2), ALL_ENABLED),
+    ).toEqual([{ type: 'SET_ACTIVE_CELL', payload: 2 }]);
+
+    expect(
+      mapKeyEventToActions('3', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(2, 1), ALL_ENABLED),
+    ).toEqual([]);
+  });
+
+  it('always allows the first cell', () => {
+    expect(
+      mapKeyEventToActions('1', false, DEFAULT_KEYBOARD_SHORTCUTS, grid(1, 1), ALL_ENABLED),
+    ).toEqual([{ type: 'SET_ACTIVE_CELL', payload: 0 }]);
   });
 });

@@ -20,7 +20,7 @@
       "inputs": ["src/**", "tests/**", "tsconfig*.json", "package.json"]
     },
     "test": {
-      "dependsOn": [],
+      "dependsOn": ["^build"],
       "inputs": [
         "src/**",
         "tests/**",

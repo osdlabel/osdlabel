@@ -42,16 +42,11 @@ export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'>
 }
 
 const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProps>> = (props) => {
-  const { uiState, fullscreenTargetRef } = useAnnotator();
+  const { uiState, fullscreenTargetRef, activeImageId } = useAnnotator();
 
   onCleanup(() => {
     fullscreenTargetRef.element = null;
   });
-
-  const activeImageId = () => {
-    const cellIndex = uiState.activeCellIndex;
-    return uiState.gridAssignments[cellIndex];
-  };
 
   const filmstripPosition = () => props.filmstripPosition ?? 'left';
   const showFilmstrip = () => props.showFilmstrip !== false;

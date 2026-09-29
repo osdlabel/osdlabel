@@ -28,6 +28,12 @@ describe('State Management', () => {
       );
       // Assign image to cell 0 so constraint status has a currentImageId
       setUIState('gridAssignments', 0, dummyImageId);
+      // Size the grid to match what these tests actually exercise. Cells 1 and
+      // 2 are used throughout, and `SET_ACTIVE_CELL` clamps into the grid that
+      // exists — on the default 1x1 every `setActiveCell` past 0 lands back on
+      // cell 0 and six of these tests fail.
+      setUIState('gridColumns', 3);
+      setUIState('gridRows', 1);
       const activeImageId = () => uiState.gridAssignments[uiState.activeCellIndex];
       const constraintStatus = createConstraintStatus(contextState, annotationState, activeImageId);
 
@@ -161,6 +167,53 @@ describe('State Management', () => {
     const { uiState, actions, dispose } = createTestStore();
     actions.assignImageToCell(1, dummyImageId);
     expect(uiState.gridAssignments[1]).toBe(dummyImageId);
+    dispose();
+  });
+
+  it('unassignImageFromCell empties the cell through the store proxy', () => {
+    const { uiState, actions, dispose } = createTestStore();
+    actions.assignImageToCell(1, dummyImageId);
+    expect(uiState.gridAssignments[1]).toBe(dummyImageId);
+
+    actions.unassignImageFromCell(1);
+
+    // Deleting a key inside `produce` has to survive Solid's store proxy, not
+    // just the plain-object reducer the osdlabel suite exercises.
+    //
+    // This cannot distinguish delete from a blanking write, and does not try
+    // to: Solid normalises `= undefined` into a delete inside `setProperty`,
+    // before the write reaches the underlying object, so neither the proxy nor
+    // `unwrap` can tell them apart. The delete-vs-blank guarantee is pinned on
+    // the plain-object reducer in `osdlabel`'s own suite instead.
+    expect(uiState.gridAssignments[1]).toBeUndefined();
+    expect(Object.keys(uiState.gridAssignments)).not.toContain('1');
+    // Cell 0 is seeded by createTestStore and must be untouched.
+    expect(uiState.gridAssignments[0]).toBe(dummyImageId);
+    dispose();
+  });
+
+  it('unassignImageFromCell preserves annotations for the removed image', () => {
+    const { annotationState, uiState, actions, dispose } = createTestStore();
+    actions.setActiveCell(0);
+    actions.assignImageToCell(0, dummyImageId);
+    actions.addAnnotation(dummyAnnotation);
+    expect(annotationState.byImage[dummyImageId]).toBeDefined();
+    expect(Object.keys(annotationState.byImage[dummyImageId]!)).toHaveLength(1);
+
+    actions.unassignImageFromCell(0);
+
+    // `byImage` is keyed by ImageId and independent of grid placement, so
+    // clearing a cell must not lose the work done on that image. The bucket
+    // vanishing entirely is the regression that matters most here, so assert
+    // its presence separately rather than letting `?? {}` collapse "gone" and
+    // "emptied" into the same failure.
+    expect(annotationState.byImage[dummyImageId]).toBeDefined();
+    expect(Object.keys(annotationState.byImage[dummyImageId]!)).toHaveLength(1);
+    expect(uiState.gridAssignments[0]).toBeUndefined();
+
+    actions.assignImageToCell(0, dummyImageId);
+    expect(annotationState.byImage[dummyImageId]).toBeDefined();
+    expect(Object.keys(annotationState.byImage[dummyImageId]!)).toHaveLength(1);
     dispose();
   });
 

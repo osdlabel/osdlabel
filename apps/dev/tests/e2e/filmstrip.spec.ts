@@ -22,35 +22,227 @@ test.describe('Filmstrip', () => {
   });
 
   test('should highlight assigned images', async ({ page }) => {
-    // Landscape is assigned to cell 0, so it should have a highlighted border
+    // Landscape is assigned to cell 0, which is also the active cell.
     const landscapeItem = page.getByTestId('filmstrip-item-landscape');
+    await expect(landscapeItem).toHaveAttribute('data-assignment', 'active');
     const border = await landscapeItem.evaluate((el) => getComputedStyle(el).borderColor);
     // The assigned image should have the blue highlight border
     expect(border).toContain('rgb(33, 150, 243)'); // #2196F3
   });
 
   test('should assign different images to different cells', async ({ page }) => {
-    // Expand to 2x1
+    // Switch to a 2x1 grid
     await page.getByTestId('grid-selector-trigger').click();
     await page.getByTestId('grid-cell-2-1').click();
 
-    // Click the empty cell to make it active
-    await page.locator('text=Assign an image').first().click();
-
-    // Assign Portrait to the second cell
+    // Activate the empty cell 1 and give it its own image.
+    await page.getByTestId('cell-placeholder-1').click();
     await page.getByTestId('filmstrip-item-portrait').click();
 
     // Both cells should now have images
     await expect(page.locator('text=Assign an image')).toHaveCount(0);
 
-    // Both Landscape and Portrait should now be highlighted
-    const landscapeBorder = await page
-      .getByTestId('filmstrip-item-landscape')
-      .evaluate((el) => getComputedStyle(el).borderColor);
-    const portraitBorder = await page
-      .getByTestId('filmstrip-item-portrait')
-      .evaluate((el) => getComputedStyle(el).borderColor);
-    expect(landscapeBorder).toContain('rgb(33, 150, 243)');
-    expect(portraitBorder).toContain('rgb(33, 150, 243)');
+    // Both are assigned, but to different cells — and cell 1 is the active one.
+    // Portrait reads as 'active' (its cell is the one the clear badge acts on);
+    // Landscape reads as 'other' (in use, but in a cell this strip cannot act on).
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'other',
+    );
+  });
+
+  test('the clear badge empties the active cell', async ({ page }) => {
+    const landscape = page.getByTestId('filmstrip-item-landscape');
+    const clear = page.getByTestId('filmstrip-clear-landscape');
+
+    // Cell 0 starts assigned to Landscape and active, so it offers the badge.
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+    await expect(clear).toBeVisible();
+    await expect(page.locator('text=Assign an image')).toHaveCount(0);
+
+    await clear.click();
+
+    // The cell returns to the empty state every cell starts in. Assert the
+    // specific cell, not a global placeholder count — a count cannot tell
+    // "cell 0 was cleared" from "some other cell was cleared instead".
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+    await expect(landscape).toHaveAttribute('data-assignment', 'none');
+    await expect(clear).toHaveCount(0);
+
+    // And the round trip works: clicking the thumbnail re-assigns.
+    await landscape.click();
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+    // The rebuilt cell is a live viewer, not just restored markup.
+    await expect(page.locator('.openseadragon-canvas')).toHaveCount(1);
+  });
+
+  test('a thumbnail click never clears, however many times it is clicked', async ({ page }) => {
+    // The reason the clear is a separate control. Clicking a thumbnail assigns,
+    // which makes it 'active' — so if the thumbnail also cleared, the second
+    // click of an ordinary double-click would empty the cell and silently drop
+    // its rotation, flip, exposure and contrast, with no undo.
+    const portrait = page.getByTestId('filmstrip-item-portrait');
+
+    await portrait.click();
+    await expect(portrait).toHaveAttribute('data-assignment', 'active');
+
+    await portrait.dblclick();
+
+    // Still assigned. A double-click is two assigns, not assign-then-clear.
+    await expect(portrait).toHaveAttribute('data-assignment', 'active');
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+
+    // And a plain repeat click is still just a re-assign.
+    await portrait.click();
+    await expect(portrait).toHaveAttribute('data-assignment', 'active');
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+  });
+
+  test('the clear badge is reachable and operable from the keyboard', async ({ page }) => {
+    // The badge is the only control here that loses work, so it is the one that
+    // most needs a non-mouse path. The thumbnail itself is still mouse-only
+    // (#189); this covers the destructive half.
+    const clear = page.getByTestId('filmstrip-clear-landscape');
+    await expect(clear).toBeVisible();
+
+    await clear.focus();
+    await expect(clear).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'none',
+    );
+  });
+
+  test('an image assigned to another cell offers no clear badge', async ({ page }) => {
+    // The regression the tri-state border exists to prevent: a highlighted
+    // thumbnail belonging to a different cell must not look like it can be
+    // cleared from here, because this strip only ever acts on the active cell.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-1').click();
+
+    // Make the empty cell 1 active.
+    await page.getByTestId('cell-placeholder-1').click();
+
+    const landscape = page.getByTestId('filmstrip-item-landscape');
+    await expect(landscape).toHaveAttribute('data-assignment', 'other');
+    await expect(page.getByTestId('filmstrip-clear-landscape')).toHaveCount(0);
+
+    await landscape.click();
+
+    // Landscape is now in both cells; nothing was cleared.
+    await expect(page.locator('text=Assign an image')).toHaveCount(0);
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+  });
+
+  test('clears the ACTIVE cell, not cell 0, when a later cell is active', async ({ page }) => {
+    // Every other clear path runs with cell 0 active, so a filmstrip that
+    // cleared the wrong index — hardcoded 0, or any stale index — would pass
+    // the rest of this suite untouched.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-1').click();
+
+    // Activate the empty cell 1 and give it its own image.
+    await page.getByTestId('cell-placeholder-1').click();
+    await page.getByTestId('filmstrip-item-portrait').click();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+
+    await page.getByTestId('filmstrip-clear-portrait').click();
+
+    // Cell 1 is empty and cell 0 is untouched.
+    await expect(page.getByTestId('cell-placeholder-1')).toBeVisible();
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'other',
+    );
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'none',
+    );
+  });
+
+  test('clears a bottom-row cell on a multi-row grid', async ({ page }) => {
+    // Every other filmstrip test uses a 2x1 grid, where rows == 1 and the cell
+    // count equals the column count, so nothing there can tell a cell-count
+    // derivation that forgot `gridRows` from a correct one.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-2').click();
+
+    // Reach cell 3 by its shortcut rather than by clicking the placeholder.
+    // The shortcut is screened against `getGridCellCount`, so a count that
+    // dropped `gridRows` would refuse `4` here and the rest of this test would
+    // act on the wrong cell — which clicking the placeholder directly would
+    // not catch.
+    await page.keyboard.press('4');
+    await expect(page.getByTestId('grid-cell-3')).toHaveAttribute('data-active', 'true');
+    await page.getByTestId('filmstrip-item-portrait').click();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+
+    await page.getByTestId('filmstrip-clear-portrait').click();
+
+    await expect(page.getByTestId('cell-placeholder-3')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'none',
+    );
+    // Cell 0 keeps its seeded image throughout.
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+  });
+
+  test('a cell-selection shortcut past the end of the grid is ignored', async ({ page }) => {
+    // The shortcuts map each digit to a fixed cell index, so they have to be
+    // screened against the grid. On the default 1x1 grid, letting `9` through
+    // would leave the active cell offscreen: the clear badge disappears with no
+    // visible cause, and every thumbnail click writes an assignment nobody can
+    // see until the grid grows.
+    const landscape = page.getByTestId('filmstrip-item-landscape');
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+
+    await page.keyboard.press('9');
+
+    // Still acting on cell 0, so the clear badge is still offered.
+    await expect(landscape).toHaveAttribute('data-assignment', 'active');
+    await expect(page.getByTestId('filmstrip-clear-landscape')).toBeVisible();
+
+    // And it clears the visible cell rather than a phantom one.
+    await page.getByTestId('filmstrip-clear-landscape').click();
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+  });
+
+  test('renders the three assignment states distinguishably', async ({ page }) => {
+    // The tri-state border is what makes the clear badge's absence meaningful.
+    // If 'other' rendered like 'active', the misleading highlight this change
+    // set out to remove would be back, and every state assertion above would
+    // still pass.
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-1').click();
+    await page.getByTestId('cell-placeholder-1').click();
+    await page.getByTestId('filmstrip-item-portrait').click();
+
+    const borderOf = (id: string) =>
+      page.getByTestId(`filmstrip-item-${id}`).evaluate((el) => getComputedStyle(el).borderColor);
+
+    // portrait = active (cell 1), landscape = other (cell 0), wide = none.
+    const [active, other, none] = await Promise.all([
+      borderOf('portrait'),
+      borderOf('landscape'),
+      borderOf('wide'),
+    ]);
+
+    expect(new Set([active, other, none]).size).toBe(3);
   });
 });

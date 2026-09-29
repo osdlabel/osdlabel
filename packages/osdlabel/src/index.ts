@@ -204,6 +204,17 @@ export type { KeyboardMappingState } from './keyboard.js';
 export { getSelectableContexts, getCycledContextId } from './context-cycling.js';
 export type { ContextCycleDirection } from './context-cycling.js';
 
+// Grid cell assignment: state, click resolution, and the shared palette
+export {
+  getCellAssignmentState,
+  getGridCellCount,
+  CELL_ASSIGNMENT_BORDER_COLOR,
+  CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
+  CELL_ASSIGNMENT_TITLE,
+  CELL_ASSIGNMENT_CLEAR_LABEL,
+} from './cell-assignment.js';
+export type { CellAssignmentState, CellAssignmentView, GridDimensions } from './cell-assignment.js';
+
 // Tool factory and helpers
 export {
   createAnnotationTool,

@@ -12,7 +12,8 @@ const TOOL_LABELS: Record<ToolType, string> = {
 };
 
 export default function Toolbar() {
-  const { uiState, contextState, annotationState, constraintStatus, actions } = useAnnotator();
+  const { uiState, contextState, annotationState, constraintStatus, actions, activeImageId } =
+    useAnnotator();
 
   const activeContext = (() => {
     if (!contextState.activeContextId) return undefined;
@@ -26,9 +27,11 @@ export default function Toolbar() {
   const selectedAnnotation = (() => {
     const id = uiState.selectedAnnotationId;
     if (!id) return undefined;
-    const imageId = uiState.gridAssignments[uiState.activeCellIndex];
-    if (!imageId) return undefined;
-    return annotationState.byImage[imageId]?.[id];
+    // `activeImageId` comes from the context, which keys it on an
+    // `activeCellIndex` the reducer holds inside the grid — so `undefined`
+    // means exactly one thing: the active cell is empty.
+    if (!activeImageId) return undefined;
+    return annotationState.byImage[activeImageId]?.[id];
   })();
   const showConvertToRect = selectedAnnotation?.geometry.type === 'circle';
   const canConvertToRect = showConvertToRect && constraintStatus.rectangle.enabled;
