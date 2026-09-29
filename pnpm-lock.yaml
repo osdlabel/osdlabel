@@ -222,13 +222,13 @@ importers:
         specifier: 0.12.0
         version: 0.12.0(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3))
       starlight-typedoc:
-        specifier: latest
+        specifier: ^0.23.1
         version: 0.23.1(@astrojs/starlight@0.39.3(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typescript@5.9.3))(astro@6.4.4(@types/node@24.12.4)(lightningcss@1.32.0)(rollup@4.57.1)(yaml@2.9.0))(typedoc-plugin-markdown@4.13.1(typedoc@0.28.20(typescript@5.9.3)))(typedoc@0.28.20(typescript@5.9.3))
       typedoc:
-        specifier: latest
+        specifier: ^0.28.20
         version: 0.28.20(typescript@5.9.3)
       typedoc-plugin-markdown:
-        specifier: latest
+        specifier: ^4.13.1
         version: 4.13.1(typedoc@0.28.20(typescript@5.9.3))
     devDependencies:
       '@astrojs/solid-js':
