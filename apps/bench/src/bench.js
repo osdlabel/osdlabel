@@ -253,6 +253,9 @@ function stats(arr) {
   const total = s.reduce((a, b) => a + b, 0);
   return {
     n: s.length,
+    // Upper median for even n (analyze.mjs averages the middle pair across
+    // reps). The samples are clock-quantized, so the two never disagree by
+    // more than one quantum.
     median: q(0.5) * 1000, // µs
     p95: q(0.95) * 1000, // µs
     mean: (total / s.length) * 1000, // µs

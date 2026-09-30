@@ -95,6 +95,15 @@ describe('verdictFor', () => {
     expect(v.kind).toBe('not-resolvable');
   });
 
+  it('needs a zero-baseline head to clear 5 quanta before calling it a regression', () => {
+    expect(verdictFor({ median: 0, mean: 0 }, { median: 0, mean: 20 }, 5, 5).kind).toBe(
+      'not-resolvable',
+    );
+    expect(verdictFor({ median: 0, mean: 0 }, { median: 25, mean: 25 }, 5, 5).kind).toBe(
+      'regression',
+    );
+  });
+
   it('calls means within 5 quanta on every side not resolvable', () => {
     const v = verdictFor({ median: 20, mean: 20 }, { median: 20, mean: 24 }, 5, 5);
     expect(v.kind).toBe('not-resolvable');
@@ -162,6 +171,13 @@ describe('analyze', () => {
       'static:reposition',
     ]);
     expect(comparison.rows.every((r) => r.verdict === 'neutral')).toBe(true);
+  });
+
+  it('identifies the row schema and gating rule', () => {
+    const { comparison } = analyze({ inDir: resultsDir(reps(same), reps(same)) });
+    expect(comparison.schemaVersion).toBe(1);
+    expect(comparison.gate).toBe('column-p95-spread');
+    expect(comparison.rows.every((r) => typeof r.noiseBandPct === 'number')).toBe(true);
   });
 
   it('writes a zero-baseline regression as deltaPct null', () => {

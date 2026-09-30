@@ -54,6 +54,19 @@ function run(cmd, args, cwd) {
  * deregister the user's own worktrees whose directories are merely missing
  * right now (an unmounted volume, a renamed directory).
  */
+/**
+ * `git worktree add` writes HEAD before it checks the files out, so an
+ * interrupted add passes the HEAD check with files missing. Any deleted or
+ * modified tracked file disqualifies the worktree from reuse.
+ */
+function trackedFilesIntact(worktree) {
+  try {
+    return git(['status', '--porcelain', '--untracked-files=no'], worktree) === '';
+  } catch {
+    return false;
+  }
+}
+
 export function prepareWorktree(worktree, fullSha) {
   if (fs.existsSync(worktree)) {
     let head = null;
@@ -70,7 +83,12 @@ export function prepareWorktree(worktree, fullSha) {
     } catch {
       // not a checkout
     }
-    if (head === fullSha && top && fs.realpathSync(top) === fs.realpathSync(worktree)) {
+    if (
+      head === fullSha &&
+      top &&
+      fs.realpathSync(top) === fs.realpathSync(worktree) &&
+      trackedFilesIntact(worktree)
+    ) {
       console.log(`reusing existing worktree ${worktree}`);
       return;
     }
@@ -142,6 +160,14 @@ async function main() {
 
   // Fail on a bad label now, not after the base install and build.
   validateLabels([baseLabel, headLabel]);
+  if (common.reps < 5) {
+    // The bands are estimated from the run's own reps; with one rep there is no
+    // spread at all and every band sits on the ±5% floor.
+    console.warn(
+      `warning: --reps ${common.reps} is too few to estimate the noise bands; ` +
+        `expect noise to read as regressions (use 7; see #198)`,
+    );
+  }
 
   const worktree = path.join(WORKTREES_DIR, baseSha);
   prepareWorktree(worktree, git(['rev-parse', baseSha]));
@@ -187,7 +213,7 @@ async function main() {
       for (const line of lines) console.log(line);
       if (failOnRegression) process.exitCode = 1;
     } else {
-      const bands = Object.values(comparison.noiseBandsPct);
+      const bands = comparison.rows.map((r) => r.noiseBandPct);
       console.log(
         `\nno regressions beyond the noise bands (±${Math.min(...bands).toFixed(1)}–${Math.max(...bands).toFixed(1)}%)`,
       );

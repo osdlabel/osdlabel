@@ -101,10 +101,15 @@ export function validateLabels(names) {
   if (dup !== undefined) throw new Error(`duplicate build label '${dup}'`);
 }
 
-/** All `--flag value` occurrences, in order. */
+/** All `--flag value` occurrences, in order; a missing value is an error, as in `arg()`. */
 export function argAll(argv, flag) {
   const out = [];
-  for (let i = 0; i < argv.length; i++) if (argv[i] === flag) out.push(argv[i + 1]);
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] !== flag) continue;
+    const v = argv[i + 1];
+    if (v === undefined || v.startsWith('--')) throw new Error(`${flag} expects a value`);
+    out.push(v);
+  }
   return out;
 }
 
@@ -277,6 +282,7 @@ export async function runBench({
     }
     log('warm-up done');
 
+    let seq = 0;
     for (let rep = 0; rep < reps; rep++) {
       for (const s of scenarios) {
         for (const build of plan) {
@@ -287,6 +293,11 @@ export async function runBench({
             { scenario: s, hudMode: build.hudMode, frameCount: frames, phaseList: phases },
           );
           r.rep = rep;
+          // Interleave position and wall-clock start: with `rep`, enough to
+          // pair a base rep with its adjacent head rep and to check for drift
+          // over the run (see #198).
+          r.seq = seq++;
+          r.startedAt = new Date(t).toISOString();
           results[build.name].push(r);
           log(
             `rep ${rep} ${s} ${build.name}: ` +

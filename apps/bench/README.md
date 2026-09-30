@@ -21,9 +21,11 @@ reserialization on a `style.transform` write, and the forced layout a
 engine's style/layout pipeline. So this harness drives the **built** layer in
 headless Chromium and times the real calls.
 
-The two instrumented quantities are:
+The instrumented quantities are:
 
 - **`_reposition` per-call cost** (µs), median / mean / p95 within a window.
+- **`setDecorations` per-call cost** (µs) in P3 live, which covers the DOM diff
+  as well as the `_reposition` it triggers.
 - **`style.transform` write count** over a window, counted by hooking each
   decoration element's own `style` object (see "Method" below).
 
@@ -78,7 +80,8 @@ served through Vite's `/@fs/` prefix, and both builds are fed the identical file
 
 ### `scripts/compare.mjs` (`pnpm bench:compare`)
 
-Everything above, plus:
+Everything above except `--root` / `--build` (the two builds are always the
+base worktree and this checkout), plus:
 
 | Flag                   | Default       | Meaning                                                                                                                                                                                                        |
 | ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -225,8 +228,13 @@ way. Report the new series in `runPhase`'s return value and add a column in
   (scenario, phase, metric) with `metric` (`reposition` or `setDecorations`),
   `baseMedian`, `headMedian`, `baseMean`, `headMean`, `deltaPct`, `usedMean`,
   `verdict` and the `noiseBandPct` of its column; the top-level
-  `noiseBandsPct` maps each column key to its band. `deltaPct` is `null` for a
-  regression from a zero baseline, since JSON has no `Infinity`.
+  `noiseBandsPct` maps each column key to its band. `deltaPct` is `null`
+  whenever the base is zero, since JSON has no `Infinity`: the row is a
+  regression once the head's mean clears 5 quanta, and not resolvable below
+  that. `schemaVersion` and `gate` (currently `column-p95-spread`) identify the
+  row shape and the rule that produced the verdicts. Each result row in
+  `<label>.json` also carries `rep`, `seq` (interleave position) and
+  `startedAt`.
   `verdicts.json` is the per-scenario rollup, keyed by phase for `_reposition`
   and by `<phase>:setDecorations` for the other metric; a scenario that ran on
   only one build has `overall: "no data"`. A comparison with no rows at all
@@ -245,6 +253,14 @@ way. Report the new series in `runPhase`'s return value and add a column in
 - **Absolute numbers are machine-specific.** Only the base-vs-head delta from a
   single interleaved run is meaningful; do not compare µs across machines or
   across runs.
+- **The noise band is fragile at low repetition counts.** It is the widest
+  run-to-run spread in its column (at R < 20, p95 is the max), so one slow rep
+  widens the whole column. It also measures spread within one build rather
+  than the variance of the base-vs-head difference, so at R ≤ 5 identical code
+  can cross a quiet column's band. Gate at the default R=7; `compare.mjs`
+  warns below 5 reps, where a single rep leaves every band on the ±5% floor. A robust or paired
+  statistic is tracked in
+  [#198](https://github.com/osdlabel/osdlabel/issues/198).
 - **jsdom cannot substitute for this.** CSSOM reserialization and forced layout
   do not exist there, which is the whole reason this harness is a browser.
 

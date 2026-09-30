@@ -66,6 +66,14 @@ function metricOf(runs, phase, metric) {
     spread: spreadOf(perRepMedian),
     meanSpread: spreadOf(perRepMean),
     calls: Math.round(med(runs.map((r) => r.phases[phase][metric].n))),
+    // Raw per-rep values in run order, so a different gating rule (e.g. a
+    // paired head/base ratio, #198) can be swapped in without touching the
+    // aggregation or table code.
+    perRep: {
+      rep: runs.map((r) => r.rep),
+      median: perRepMedian,
+      mean: perRepMean,
+    },
   };
 }
 
@@ -360,6 +368,10 @@ export function analyze({ inDir, compareDir = null }) {
   // ── verdicts + machine-readable comparison ───────────────────────────
   const verdicts = {};
   const comparison = {
+    // Bumped when the row shape or the gating rule changes; `gate` names the
+    // rule that produced `verdict` / `noiseBandPct` (see README and #198).
+    schemaVersion: 1,
+    gate: 'column-p95-spread',
     date: meta.date,
     baseLabel: BASE,
     headLabel: HEAD,

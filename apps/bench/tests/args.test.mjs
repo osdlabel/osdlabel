@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arg, intArg, listArg, parseCommonArgs, validateLabels } from '../scripts/run.mjs';
+import { arg, argAll, intArg, listArg, parseCommonArgs, validateLabels } from '../scripts/run.mjs';
 
 describe('arg', () => {
   it('returns the fallback when the flag is absent', () => {
@@ -9,6 +9,17 @@ describe('arg', () => {
   it('rejects a flag with no value instead of swallowing the next flag', () => {
     expect(() => arg(['--reps', '--trace'], '--reps', '7')).toThrow(/--reps expects a value/);
     expect(() => arg(['--reps'], '--reps', '7')).toThrow(/--reps expects a value/);
+  });
+});
+
+describe('argAll', () => {
+  it('collects every occurrence', () => {
+    expect(argAll(['--build', 'a=1', '--build', 'b=2'], '--build')).toEqual(['a=1', 'b=2']);
+  });
+
+  it('rejects an occurrence with no value', () => {
+    expect(() => argAll(['--build'], '--build')).toThrow(/--build expects a value/);
+    expect(() => argAll(['--build', '--reps', '5'], '--build')).toThrow(/expects a value/);
   });
 });
 
