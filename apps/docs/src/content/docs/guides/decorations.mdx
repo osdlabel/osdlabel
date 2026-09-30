@@ -503,9 +503,12 @@ A provider that, once at least two lines are drawn, renders the ratio of their l
 
 ```ts
 import type { DecorationProvider, TextDecoration } from '@osdlabel/solid'; // or '@osdlabel/react'
-import { length } from '@osdlabel/solid';
+import { measureLength } from '@osdlabel/solid';
 
-export const lineRatioHudProvider: DecorationProvider = ({ annotations }) => {
+// `measureLength` converts per axis, so on a calibrated, anisotropic image the
+// ratio agrees with the lines' own measurement labels. Without spacing it is
+// the plain pixel length.
+export const lineRatioHudProvider: DecorationProvider = ({ annotations, pixelSpacing }) => {
   const lines = annotations.filter(
     (a) => a.geometry.type === 'line' || a.geometry.type === 'polyline',
   );
@@ -513,8 +516,8 @@ export const lineRatioHudProvider: DecorationProvider = ({ annotations }) => {
     return [];
   }
   const [first, second] = lines;
-  const l1 = length(first!.geometry);
-  const l2 = length(second!.geometry);
+  const l1 = measureLength(first!.geometry, pixelSpacing).value;
+  const l2 = measureLength(second!.geometry, pixelSpacing).value;
   if (l1 === 0 || l2 === 0) {
     return []; // a degenerate line would otherwise print Infinity / NaN
   }
