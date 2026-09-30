@@ -90,13 +90,15 @@ function computeMeasurementLines(
     const a = geom.area(geometry);
     if (a > 0) writeLine('A', toPhysicalArea(a, pixelSpacing));
   }
+  // Measure once and gate on the result: providers re-run on every drag
+  // frame, so a separate pixel-space `> 0` check would walk every edge twice.
   if (options.perimeter) {
-    if (geom.perimeter(geometry) > 0) writeLine('P', measurePerimeter(geometry, pixelSpacing));
+    const p = measurePerimeter(geometry, pixelSpacing);
+    if (p.value > 0) writeLine('P', p);
   }
-  if (options.length) {
-    if ((geometry.type === 'line' || geometry.type === 'polyline') && geom.length(geometry) > 0) {
-      writeLine('L', measureLength(geometry, pixelSpacing));
-    }
+  if (options.length && (geometry.type === 'line' || geometry.type === 'polyline')) {
+    const l = measureLength(geometry, pixelSpacing);
+    if (l.value > 0) writeLine('L', l);
   }
 
   return lines;
