@@ -9,3 +9,5 @@ pnpm-lock.yaml
 .git/
 .claude/
 .github/
+apps/bench/results/
+apps/bench/.worktrees/

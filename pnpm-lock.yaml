@@ -48,6 +48,9 @@ catalogs:
     immer:
       specifier: ^10.1.1
       version: 10.2.0
+    openseadragon:
+      specifier: 5.0.1
+      version: 5.0.1
     prettier:
       specifier: ^3.8.3
       version: 3.8.3
@@ -123,6 +126,28 @@ importers:
       turbo:
         specifier: 'catalog:'
         version: 2.9.16
+
+  apps/bench:
+    dependencies:
+      '@osdlabel/fabric-osd':
+        specifier: workspace:*
+        version: link:../../packages/fabric-osd
+      fabric:
+        specifier: 'catalog:'
+        version: 7.4.0
+      openseadragon:
+        specifier: 'catalog:'
+        version: 5.0.1
+    devDependencies:
+      playwright:
+        specifier: ^1.60.0
+        version: 1.60.0
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0))
 
   apps/dev:
     dependencies:
@@ -3727,10 +3752,6 @@ packages:
   tinyclip@0.1.14:
     resolution: {integrity: sha512-F1oWdz8tjT17qe1d5JgDK6z03WGOhYYAN0lK3/D/fzNiy93xswLLEw7pk+3g05onhAy6Bsc6PLNUGhdgVjemMQ==}
     engines: {node: ^16.14.0 || >= 17.3.0}
-
-  tinyexec@1.0.2:
-    resolution: {integrity: sha512-W/KYk+NFhkmsYpuHq5JykngiOCnxeVL8v8dFnqxSD8qEEdRfXk1SDM6JzNqcERbcGYj9tMrDQBYV9cjgnunFIg==}
-    engines: {node: '>=18'}
 
   tinyexec@1.2.4:
     resolution: {integrity: sha512-SHf/r48b7vOrjve9PxJo3MN5v5yuyjHvdUcrQffT3WXMUfnGmHDVbC4k3sHJaJTgZCwpUplIaAo5ANtMyp3YHg==}
@@ -8032,8 +8053,6 @@ snapshots:
 
   tinyclip@0.1.14: {}
 
-  tinyexec@1.0.2: {}
-
   tinyexec@1.2.4: {}
 
   tinyglobby@0.2.17:
@@ -8307,7 +8326,7 @@ snapshots:
       picomatch: 4.0.4
       std-env: 4.1.0
       tinybench: 2.9.0
-      tinyexec: 1.0.2
+      tinyexec: 1.2.4
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 8.0.16(@types/node@24.12.4)(esbuild@0.27.3)(yaml@2.9.0)

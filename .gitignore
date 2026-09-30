@@ -10,4 +10,6 @@ playwright-report/
 Untitled-*.json
 .astro/
 apps/docs/src/content/docs/api/reference/
+apps/bench/results/
+apps/bench/.worktrees/
 .obsidian/
