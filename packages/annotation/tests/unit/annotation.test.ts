@@ -46,6 +46,21 @@ describe('Annotation default extension (#165)', () => {
     expect(a.id).toBe('c');
   });
 
+  it('reading a key the type does not declare is an error (the documented break)', () => {
+    const a: Annotation = {
+      id: createAnnotationId('e'),
+      geometry: { type: 'point', position: { x: 0, y: 0 } },
+      toolType: 'point',
+      createdAt: now,
+      updatedAt: now,
+    };
+    // The old index signature let this compile, typed `never`; the changeset
+    // calls this out as the reason for a minor bump.
+    // @ts-expect-error - bare Annotation has only BaseAnnotation's keys
+    const missing: unknown = a.notAField;
+    expect(missing).toBeUndefined();
+  });
+
   it('an explicit extension still requires its fields', () => {
     // @ts-expect-error - `contextId` is required by the extension
     const a: Annotation<{ readonly contextId: string }> = {
