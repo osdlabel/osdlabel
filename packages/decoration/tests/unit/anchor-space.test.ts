@@ -11,7 +11,6 @@ import { composeProviders } from '../../src/provider.js';
 import type { DecorationProvider } from '../../src/provider.js';
 import { withSelectionEmphasis } from '../../src/emphasis.js';
 import { annId, ctx } from './test-helpers.js';
-import type { NoExt } from './test-helpers.js';
 
 const ALL_PLACEMENTS = [
   'top-left',
@@ -119,8 +118,8 @@ describe('withSelectionEmphasis with cell-space decorations (D2)', () => {
       placement: 'center',
     };
     const base: readonly Decoration[] = [hud, domHud, other];
-    const provider: DecorationProvider<NoExt> = () => base;
-    const wrapped = withSelectionEmphasis<NoExt>(provider, {
+    const provider: DecorationProvider = () => base;
+    const wrapped = withSelectionEmphasis(provider, {
       selectedTextStyle: { zIndex: 99 },
     });
 
@@ -166,10 +165,10 @@ describe('composeProviders with cell-space decorations (D3)', () => {
       anchorSpace: 'cell',
       content: null,
     };
-    const a: DecorationProvider<NoExt> = vi.fn(() => [hud]);
-    const b: DecorationProvider<NoExt> = vi.fn(() => [domHud]);
+    const a: DecorationProvider = vi.fn(() => [hud]);
+    const b: DecorationProvider = vi.fn(() => [domHud]);
 
-    const result = composeProviders<NoExt>([a, b])(ctx([]));
+    const result = composeProviders([a, b])(ctx([]));
 
     expect(result).toHaveLength(2);
     expect(result[0]).toBe(hud);

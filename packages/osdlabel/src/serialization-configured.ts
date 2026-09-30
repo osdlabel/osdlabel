@@ -15,7 +15,7 @@ export class SerializationError extends Error {
 }
 
 /** Result of deserializing an annotation array */
-export interface DeserializeResult<E extends object = Record<string, never>> {
+export interface DeserializeResult<E extends object = Record<never, never>> {
   readonly byImage: Record<ImageId, Record<AnnotationId, Annotation<E>>>;
 }
 

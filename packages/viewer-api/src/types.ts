@@ -69,7 +69,7 @@ export interface UIState {
 }
 
 /** Root state for the annotation system */
-export interface AnnotationState<E extends object = Record<string, never>> {
+export interface AnnotationState<E extends object = Record<never, never>> {
   byImage: Record<ImageId, Record<AnnotationId, Annotation<E>>>;
   /** Monotonically increasing counter; incremented on every mutation for O(1) change detection */
   changeCounter: number;

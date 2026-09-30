@@ -13,9 +13,14 @@ export interface BaseAnnotation {
 
 /**
  * Generic annotation type. Extensions add fields via intersection.
- * Default: `Record<string, never>` (no extensions — bare BaseAnnotation).
+ * Default: `Record<never, never>` (no extensions — structurally `BaseAnnotation`).
+ *
+ * The default must be a mapped type over *no* keys. `Record<string, never>`
+ * would be an index signature mapping *every* key to `never`, so the
+ * intersection would turn `id` and every other field into `never` — readable,
+ * but impossible to construct (#165).
  */
-export type Annotation<E extends object = Record<string, never>> = BaseAnnotation & E;
+export type Annotation<E extends object = Record<never, never>> = BaseAnnotation & E;
 
 /** Visual styling for an annotation */
 export interface AnnotationStyle {

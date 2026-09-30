@@ -2,15 +2,8 @@ import type { Annotation, AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { PixelSpacing } from '@osdlabel/viewer-api';
 import type { DecorationContext } from '../../src/provider.js';
 
-/**
- * `Annotation`'s default extension is `Record<string, never>`, which maps every
- * key to `never` — readable, but not constructible from an object literal.
- * Fixtures therefore use an explicitly-empty extension instead.
- */
-export type NoExt = Record<never, never>;
-
 /** A bare annotation with no extension fields. */
-export type TestAnnotation = Annotation<NoExt>;
+export type TestAnnotation = Annotation;
 
 export const annId = (s: string): AnnotationId => s as AnnotationId;
 
@@ -41,7 +34,7 @@ export function ctx(
     readonly pixelSpacing?: PixelSpacing | undefined;
     readonly selectedAnnotationId?: AnnotationId | null;
   },
-): DecorationContext<NoExt> {
+): DecorationContext {
   return {
     annotations,
     selectedAnnotationId: extra?.selectedAnnotationId ?? null,

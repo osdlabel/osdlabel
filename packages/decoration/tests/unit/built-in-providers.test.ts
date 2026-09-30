@@ -6,11 +6,11 @@ import {
 } from '../../src/built-in-providers.js';
 import type { PixelSpacing } from '@osdlabel/viewer-api';
 import type { LineDecoration, TextDecoration } from '../../src/decoration.js';
-import { ann, ctx, type NoExt } from './test-helpers.js';
+import { ann, ctx } from './test-helpers.js';
 
 describe('createMeasurementProvider', () => {
   it('emits a single text decoration per annotation with requested metrics', () => {
-    const provider = createMeasurementProvider<NoExt>({ area: true, radius: true });
+    const provider = createMeasurementProvider({ area: true, radius: true });
     const a = ann('c1', 'circle', { type: 'circle', center: { x: 10, y: 10 }, radius: 5 });
     const decorations = provider(ctx([a]));
     expect(decorations).toHaveLength(1);
@@ -24,7 +24,7 @@ describe('createMeasurementProvider', () => {
   });
 
   it('uses pixel spacing to render mm values', () => {
-    const provider = createMeasurementProvider<NoExt>({ area: true, radius: true });
+    const provider = createMeasurementProvider({ area: true, radius: true });
     const spacing: PixelSpacing = { x: 0.5, y: 0.5, unit: 'mm' };
     const a = ann('c1', 'circle', { type: 'circle', center: { x: 0, y: 0 }, radius: 4 });
     const [d] = provider(ctx([a], { pixelSpacing: spacing }));
@@ -37,7 +37,7 @@ describe('createMeasurementProvider', () => {
   });
 
   it('skips annotations whose geometry yields no requested metric', () => {
-    const provider = createMeasurementProvider<NoExt>({ area: true });
+    const provider = createMeasurementProvider({ area: true });
     const point = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const circle = ann('c1', 'circle', { type: 'circle', center: { x: 0, y: 0 }, radius: 3 });
     const decorations = provider(ctx([point, circle]));
@@ -46,7 +46,7 @@ describe('createMeasurementProvider', () => {
   });
 
   it('produces stable, annotation-scoped ids for diffing', () => {
-    const provider = createMeasurementProvider<NoExt>({ area: true });
+    const provider = createMeasurementProvider({ area: true });
     const a = ann('rect-1', 'rectangle', {
       type: 'rectangle',
       origin: { x: 0, y: 0 },
@@ -59,7 +59,7 @@ describe('createMeasurementProvider', () => {
   });
 
   it('emits length for lines when length is requested', () => {
-    const provider = createMeasurementProvider<NoExt>({ length: true });
+    const provider = createMeasurementProvider({ length: true });
     const a = ann('l1', 'line', {
       type: 'line',
       start: { x: 0, y: 0 },
@@ -72,7 +72,7 @@ describe('createMeasurementProvider', () => {
 
 describe('createLabelProvider', () => {
   it('renders annotation.label as a text decoration', () => {
-    const provider = createLabelProvider<NoExt>();
+    const provider = createLabelProvider();
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } }, 'tumor');
     const [d] = provider(ctx([a]));
     expect((d as TextDecoration).text).toBe('tumor');
@@ -80,13 +80,13 @@ describe('createLabelProvider', () => {
   });
 
   it('skips annotations without a label', () => {
-    const provider = createLabelProvider<NoExt>();
+    const provider = createLabelProvider();
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     expect(provider(ctx([a]))).toEqual([]);
   });
 
   it('honors a custom extractor', () => {
-    const provider = createLabelProvider<NoExt>({ extract: () => 'CUSTOM' });
+    const provider = createLabelProvider({ extract: () => 'CUSTOM' });
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const [d] = provider(ctx([a]));
     expect((d as TextDecoration).text).toBe('CUSTOM');
@@ -97,7 +97,7 @@ describe('createDistanceProvider', () => {
   it('emits a line + text decoration per pair', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
-    const provider = createDistanceProvider<NoExt>({
+    const provider = createDistanceProvider({
       pair: (anns) => (anns.length === 2 ? [{ a: anns[0]!, b: anns[1]! }] : []),
     });
     const decorations = provider(ctx([a, b]));
@@ -117,7 +117,7 @@ describe('createDistanceProvider', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 6, y: 8 } });
     const spacing: PixelSpacing = { x: 0.5, y: 0.5, unit: 'mm' };
-    const provider = createDistanceProvider<NoExt>({
+    const provider = createDistanceProvider({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
     });
     const decorations = provider(ctx([a, b], { pixelSpacing: spacing }));
@@ -141,7 +141,7 @@ describe('createDistanceProvider', () => {
       height: 2,
       rotation: 0,
     });
-    const provider = createDistanceProvider<NoExt>({
+    const provider = createDistanceProvider({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
     });
     const decorations = provider(ctx([a, b]));
@@ -166,7 +166,7 @@ describe('createDistanceProvider', () => {
       height: 10,
       rotation: 0,
     });
-    const provider = createDistanceProvider<NoExt>({
+    const provider = createDistanceProvider({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]!, id: 'pairX' }],
     });
     const [line] = provider(ctx([a, b])) as [LineDecoration, TextDecoration];
@@ -178,7 +178,7 @@ describe('createDistanceProvider', () => {
 
   it('emits no decorations when pair returns an empty list', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
-    const provider = createDistanceProvider<NoExt>({ pair: () => [] });
+    const provider = createDistanceProvider({ pair: () => [] });
     expect(provider(ctx([a]))).toEqual([]);
   });
 
@@ -186,7 +186,7 @@ describe('createDistanceProvider', () => {
     // The defaultFormatter second arg is optional; consumers can ignore it.
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
-    const provider = createDistanceProvider<NoExt>({
+    const provider = createDistanceProvider({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
       dashed: false,
       formatLine: (m) => `d=${m.value.toFixed(0)}${m.unit}`,
@@ -201,7 +201,7 @@ describe('createDistanceProvider', () => {
   it('passes a defaultFormatter to formatLine so consumers can wrap the standard output', () => {
     const a = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
     const b = ann('p2', 'point', { type: 'point', position: { x: 3, y: 4 } });
-    const provider = createDistanceProvider<NoExt>({
+    const provider = createDistanceProvider({
       pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
       format: { precision: 1 },
       formatLine: (m, fmt) => `Distance: ${fmt(m)}`,

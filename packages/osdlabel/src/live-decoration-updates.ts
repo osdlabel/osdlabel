@@ -13,7 +13,7 @@ import type { FabricObject } from 'fabric';
  * Framework integrations typically wire them to a current-value ref so
  * the handler always sees the latest reactive state.
  */
-export interface LiveDecorationUpdateOptions<E extends object = Record<string, never>> {
+export interface LiveDecorationUpdateOptions<E extends object = Record<never, never>> {
   readonly overlay: FabricOverlay;
   /** Returns the annotations currently visible in the overlay's cell. */
   readonly getVisibleAnnotations: () => readonly Annotation<E>[];
@@ -44,7 +44,7 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<string, n
  * Returns a teardown function that unsubscribes and cancels any pending
  * scheduled tick.
  */
-export function enableLiveDecorationUpdates<E extends object = Record<string, never>>(
+export function enableLiveDecorationUpdates<E extends object = Record<never, never>>(
   options: LiveDecorationUpdateOptions<E>,
 ): () => void {
   const {

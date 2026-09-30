@@ -232,7 +232,7 @@ The full unit story — anisotropic spacing (x ≠ y), `SpacingAxis`, custom for
 The provider signature is:
 
 ```ts
-type DecorationProvider<E extends object = Record<string, never>> = (
+type DecorationProvider<E extends object = Record<never, never>> = (
   ctx: DecorationContext<E>,
 ) => readonly Decoration[];
 ```
@@ -250,14 +250,14 @@ The decoration package also exports pure geometry utilities you can use to build
 `DecorationProvider<E>` is generic over your annotation's extension fields `E`, and so are the built-in factories:
 
 ```ts
-function createLabelProvider<E extends object = Record<string, never>>(): DecorationProvider<E>;
+function createLabelProvider<E extends object = Record<never, never>>(): DecorationProvider<E>;
 function createMeasurementProvider<
-  E extends object = Record<string, never>,
+  E extends object = Record<never, never>,
 >(): DecorationProvider<E>;
-function createDistanceProvider<E extends object = Record<string, never>>(): DecorationProvider<E>;
+function createDistanceProvider<E extends object = Record<never, never>>(): DecorationProvider<E>;
 ```
 
-`E` **defaults to `Record<string, never>`** (no extension fields). That default is fine when a callback only touches built-in `Annotation` fields, but it will not infer your custom fields for you. **Pass the generic explicitly** whenever you read an extension field (e.g. `contextId`, or your own metadata) inside a callback, or when you assign into a `DecorationProvider<MyFields>[]`:
+`E` **defaults to `Record<never, never>`** (no extension fields — the annotation is exactly `BaseAnnotation`). That default is fine when a callback only touches built-in `Annotation` fields, but it will not infer your custom fields for you. **Pass the generic explicitly** whenever you read an extension field (e.g. `contextId`, or your own metadata) inside a callback, or when you assign into a `DecorationProvider<MyFields>[]`:
 
 ```ts
 interface MyFields {
