@@ -106,6 +106,8 @@ test.describe('Displayed Contexts', () => {
     expect(await selectedAnnotationId(page)).not.toBeNull();
 
     // Deselect by clicking empty canvas, so the selection cannot carry over.
+    // The rectangle spans (100,100)–(250,200) from the canvas origin, so this
+    // point is clear of it; the `toBeNull()` below fails if that stops holding.
     await page.mouse.click(box.x + 400, box.y + 350);
     await page.waitForTimeout(300);
     expect(await selectedAnnotationId(page)).toBeNull();
