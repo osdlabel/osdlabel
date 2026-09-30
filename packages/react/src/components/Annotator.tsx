@@ -116,8 +116,11 @@ function AnnotatorInner({
       <div
         style={{
           display: 'flex',
+          // Wrap rather than overflow: the root does not scroll, so controls
+          // pushed past its right edge were clipped and unreachable (#147).
+          flexWrap: 'wrap',
           alignItems: 'center',
-          gap: '12px',
+          gap: '4px 12px',
           background: '#1a1a1a',
           padding: '4px 8px',
         }}

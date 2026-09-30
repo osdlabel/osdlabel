@@ -56,6 +56,8 @@ export function ViewControls({ showFullscreenControl }: ViewControlsProps = {}) 
       onMouseDown={preventButtonFocusSteal}
       style={{
         display: 'flex',
+        // Wide enough on its own to overflow a narrow annotator (#147).
+        flexWrap: 'wrap',
         alignItems: 'center',
         gap: '4px',
         padding: '8px',
