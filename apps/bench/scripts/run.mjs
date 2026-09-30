@@ -55,22 +55,33 @@ export function arg(argv, flag, fallback) {
 /** `arg()` parsed as a positive integer; anything else is an error. */
 export function intArg(argv, flag, fallback) {
   const raw = arg(argv, flag, String(fallback));
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 1) {
+  // Plain decimal digits only: Number() would also take `0x10` and `1e2`.
+  const n = /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!Number.isSafeInteger(n) || n < 1) {
     throw new Error(`${flag} expects a positive integer, got: ${raw}`);
   }
   return n;
 }
 
-/** A comma-separated `arg()` whose every entry must be one of `allowed`. */
+/**
+ * A comma-separated `arg()` whose every entry must be one of `allowed`, each at
+ * most once: a repeated scenario would run twice per rep and silently pool 2R
+ * samples into a cell the summary reports as R.
+ */
 export function listArg(argv, flag, allowed) {
-  const list = String(arg(argv, flag, allowed.join(','))).split(',');
+  const list = String(arg(argv, flag, allowed.join(',')))
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (list.length === 0) throw new Error(`${flag} expects at least one entry`);
   const unknown = list.filter((x) => !allowed.includes(x));
-  if (unknown.length || list.length === 0) {
+  if (unknown.length) {
     throw new Error(
-      `${flag}: unknown ${unknown.join(', ')} (expected any of ${allowed.join(',')})`,
+      `${flag}: unknown ${unknown.map((x) => `'${x}'`).join(', ')} (expected any of ${allowed.join(',')})`,
     );
   }
+  const dup = list.find((x, i) => list.indexOf(x) !== i);
+  if (dup !== undefined) throw new Error(`${flag}: '${dup}' is listed twice`);
   return list;
 }
 
@@ -177,6 +188,9 @@ export async function runBench({
   log = console.log,
 }) {
   validateLabels(builds.map((b) => b.name));
+  if (portBase + builds.length - 1 > 65535) {
+    throw new Error(`--port-base ${portBase} leaves no valid port for ${builds.length} build(s)`);
+  }
   const chromeExe = resolveChromium(chromiumPath);
   fs.mkdirSync(out, { recursive: true });
 

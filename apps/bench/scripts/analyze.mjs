@@ -96,6 +96,19 @@ function gatedMetrics(baseCell, headCell) {
  */
 export const MEDIAN_MIN_QUANTA = 20;
 
+/**
+ * A cell whose compared means are all within this many timer quanta cannot
+ * carry a meaningful ratio: at 5 µs, 25 µs means move ±50% or more between reps
+ * of identical code (S0, N=0, is the usual case). Such a cell gets no verdict
+ * and contributes nothing to its column's noise band.
+ */
+export const RESOLVE_MIN_QUANTA = 5;
+
+/** Whether some side of a cell is large enough to compare (see RESOLVE_MIN_QUANTA). */
+export function isResolvable(cells, quantumUs = 5) {
+  return cells.some((c) => c.mean >= RESOLVE_MIN_QUANTA * quantumUs);
+}
+
 /** Whether a cell's verdict compares means: some side's median is too coarse. */
 export function usesMean(cells, quantumUs = 5) {
   return cells.some((c) => c.median < MEDIAN_MIN_QUANTA * quantumUs);
@@ -108,7 +121,9 @@ export function usesMean(cells, quantumUs = 5) {
  * statistic its verdict compares: the per-rep means where `usesMean`, the
  * per-rep medians otherwise. The band is their p95 (with fewer than 20 cells,
  * that is simply the widest), floored at ±5%. Scoping it per column keeps one
- * noisy method or phase from widening the gate for every other one.
+ * noisy method or phase from widening the gate for every other one. Groups
+ * that are not resolvable get no verdict, so they do not widen the band
+ * either; otherwise S0's sub-quantum jitter would set the gate for S1…S7.
  *
  * @param {Array<Array<object>>} groups metric aggregates of each scenario's
  *   builds, i.e. `[[base, head], …]`, or `[[head], …]` for a single build.
@@ -116,6 +131,7 @@ export function usesMean(cells, quantumUs = 5) {
 export function noiseBandFor(groups, quantumUs = 5) {
   const spreads = [];
   for (const cells of groups) {
+    if (!isResolvable(cells, quantumUs)) continue;
     const mean = usesMean(cells, quantumUs);
     for (const c of cells) spreads.push(mean ? c.meanSpread : c.spread);
   }
@@ -131,14 +147,20 @@ export function noiseBandFor(groups, quantumUs = 5) {
  * `performance.now()` is quantized (5 µs when cross-origin isolated), and so is
  * every per-call median. When either side's median is within
  * MEDIAN_MIN_QUANTA quanta, the mean, which averages the quantization out over
- * the whole window, is compared instead and the row is starred. When both
- * sides' means are under one quantum the cell is not resolvable at all.
+ * the whole window, is compared instead and the row is starred. When every
+ * side's mean is within RESOLVE_MIN_QUANTA quanta the cell is not resolvable
+ * at all.
  */
 export function verdictFor(baseCell, headCell, bandPct, quantumUs = 5) {
   const useMean = usesMean([baseCell, headCell], quantumUs);
   const delta = useMean ? pct(baseCell.mean, headCell.mean) : pct(baseCell.median, headCell.median);
-  if (baseCell.mean < quantumUs && headCell.mean < quantumUs) {
-    return { kind: 'not-resolvable', delta, useMean, text: 'not resolvable (< 1 timer quantum)' };
+  if (!isResolvable([baseCell, headCell], quantumUs)) {
+    return {
+      kind: 'not-resolvable',
+      delta,
+      useMean,
+      text: `not resolvable (< ${RESOLVE_MIN_QUANTA} timer quanta)`,
+    };
   }
   const kind = delta > bandPct ? 'regression' : delta < -bandPct ? 'improvement' : 'neutral';
   const text =
@@ -395,7 +417,7 @@ export function analyze({ inDir, compareDir = null }) {
       verdicts[s] = { ...v, overall };
       out += `| **${s}** ${label(s)} | ${columns.map((c) => v[colKey(c)] ?? '—').join(' | ')} | **${overall}** |\n`;
     }
-    out += `\n\\* = computed from the per-call **mean** rather than the median, because at least one side's median is within ${MEDIAN_MIN_QUANTA} timer quanta (${f(MEDIAN_MIN_QUANTA * QUANTUM, 0)} µs at this run's ${f(QUANTUM, 2)} µs resolution), where a single quantum step already exceeds the ±5% band floor.\n\n`;
+    out += `\n\\* = computed from the per-call **mean** rather than the median, because at least one side's median is within ${MEDIAN_MIN_QUANTA} timer quanta (${f(MEDIAN_MIN_QUANTA * QUANTUM, 0)} µs at this run's ${f(QUANTUM, 2)} µs resolution), where a single quantum step already exceeds the ±5% band floor. A cell is "not resolvable" when every side's mean is under ${RESOLVE_MIN_QUANTA} quanta (${f(RESOLVE_MIN_QUANTA * QUANTUM, 0)} µs); it gets no verdict and does not widen its column's noise band.\n\n`;
   }
 
   out += `## Method notes\n\n`;
@@ -429,12 +451,24 @@ function latestResultsDir() {
   return dirs[dirs.length - 1];
 }
 
+/**
+ * `--flag value` lookup. Kept local rather than importing run.mjs's `arg()`,
+ * which would load vite and playwright into the analyzer.
+ */
+function flagValue(argv, flag) {
+  const i = argv.indexOf(flag);
+  if (i === -1) return null;
+  const v = argv[i + 1];
+  if (v === undefined || v.startsWith('--')) throw new Error(`${flag} expects a value`);
+  return v;
+}
+
 function main() {
   const argv = process.argv.slice(2);
-  const i = argv.indexOf('--in');
-  const inDir = i === -1 ? latestResultsDir() : path.resolve(argv[i + 1]);
-  const c = argv.indexOf('--compare');
-  const compareDir = c === -1 ? null : path.resolve(argv[c + 1]);
+  const inArg = flagValue(argv, '--in');
+  const inDir = inArg === null ? latestResultsDir() : path.resolve(inArg);
+  const compareArg = flagValue(argv, '--compare');
+  const compareDir = compareArg === null ? null : path.resolve(compareArg);
   const { summary } = analyze({ inDir, compareDir });
   process.stdout.write(summary);
 }

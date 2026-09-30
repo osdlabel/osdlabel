@@ -20,7 +20,7 @@ describe('intArg', () => {
 
   // `--frames abc` used to hang the page's rAF loop forever; `--reps 0` used
   // to produce empty results that passed --fail-on-regression.
-  it.each(['abc', '0', '-1', '1.5', ''])('rejects %j', (v) => {
+  it.each(['abc', '0', '-1', '1.5', '', '0x10', '1e2', ' 7'])('rejects %j', (v) => {
     expect(() => intArg(['--frames', v], '--frames', 240)).toThrow(/positive integer/);
   });
 });
@@ -31,7 +31,22 @@ describe('listArg', () => {
       'pan',
       'live',
     ]);
-    expect(() => listArg(['--phases', 'pan,lvie'], '--phases', ['pan', 'live'])).toThrow(/lvie/);
+    expect(() => listArg(['--phases', 'pan,lvie'], '--phases', ['pan', 'live'])).toThrow(/'lvie'/);
+  });
+
+  it('tolerates whitespace and empty entries', () => {
+    expect(listArg(['--phases', 'pan, live,'], '--phases', ['pan', 'live'])).toEqual([
+      'pan',
+      'live',
+    ]);
+  });
+
+  it('rejects a list with no entries', () => {
+    expect(() => listArg(['--phases', ','], '--phases', ['pan'])).toThrow(/at least one/);
+  });
+
+  it('rejects duplicates, which would pool 2R samples into one cell', () => {
+    expect(() => listArg(['--phases', 'pan,pan'], '--phases', ['pan'])).toThrow(/listed twice/);
   });
 });
 

@@ -30,8 +30,13 @@ import { analyze } from './analyze.mjs';
 
 const WORKTREES_DIR = path.join(BENCH_APP_DIR, '.worktrees');
 
+// stderr is captured, not inherited: a failure still carries it in the thrown
+// error, and probes that are expected to fail (see prepareWorktree) stay quiet.
 function git(args, cwd = REPO_ROOT) {
-  return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
+  return execFileSync('git', ['-C', cwd, ...args], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
 }
 
 function run(cmd, args, cwd) {
@@ -44,9 +49,12 @@ function run(cmd, args, cwd) {
  * `rm -rf` it, which leaves git's registration behind ("missing but already
  * registered worktree"); an interrupted `git worktree add` leaves a directory
  * that is not a checkout at all. Both are repaired here instead of failing.
+ *
+ * Only this one path is touched: a repo-wide `git worktree prune` would also
+ * deregister the user's own worktrees whose directories are merely missing
+ * right now (an unmounted volume, a renamed directory).
  */
 export function prepareWorktree(worktree, fullSha) {
-  git(['worktree', 'prune']);
   if (fs.existsSync(worktree)) {
     let head = null;
     try {
@@ -67,14 +75,16 @@ export function prepareWorktree(worktree, fullSha) {
       return;
     }
     console.warn(`discarding stale or incomplete worktree ${worktree}`);
-    try {
-      git(['worktree', 'remove', '--force', worktree]);
-    } catch {
-      // not registered with git: a plain directory
-    }
-    fs.rmSync(worktree, { recursive: true, force: true });
-    git(['worktree', 'prune']);
   }
+  // Also clears a registration whose directory was deleted by hand, which
+  // `git worktree add` would otherwise refuse ("missing but already
+  // registered worktree").
+  try {
+    git(['worktree', 'remove', '--force', worktree]);
+  } catch {
+    // not registered with git
+  }
+  fs.rmSync(worktree, { recursive: true, force: true });
   fs.mkdirSync(WORKTREES_DIR, { recursive: true });
   console.log(`creating worktree ${worktree} @ ${fullSha}`);
   git(['worktree', 'add', '--detach', worktree, fullSha]);
@@ -113,7 +123,10 @@ async function main() {
   const failOnRegression = argv.includes('--fail-on-regression');
   const out = path.resolve(arg(argv, '--out', timestampDir()));
 
-  const baseSha = git(['rev-parse', '--short', baseRef]);
+  // Peel to the commit: for an annotated tag, `rev-parse <tag>` names the tag
+  // object, which would become the label and the worktree directory while the
+  // checkout itself is the tagged commit.
+  const baseSha = git(['rev-parse', '--short', `${baseRef}^{commit}`]);
   const baseLabel = baseSha;
   let headLabel = arg(argv, '--label', shortSha(REPO_ROOT));
   if (baseLabel === headLabel) {
@@ -131,7 +144,7 @@ async function main() {
   validateLabels([baseLabel, headLabel]);
 
   const worktree = path.join(WORKTREES_DIR, baseSha);
-  prepareWorktree(worktree, git(['rev-parse', `${baseSha}^{commit}`]));
+  prepareWorktree(worktree, git(['rev-parse', baseSha]));
 
   let removeWorktree = !keepWorktree;
   try {

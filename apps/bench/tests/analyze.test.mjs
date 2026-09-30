@@ -95,6 +95,16 @@ describe('verdictFor', () => {
     expect(v.kind).toBe('not-resolvable');
   });
 
+  it('calls means within 5 quanta on every side not resolvable', () => {
+    const v = verdictFor({ median: 20, mean: 20 }, { median: 20, mean: 24 }, 5, 5);
+    expect(v.kind).toBe('not-resolvable');
+  });
+
+  it('still resolves a cell once one side clears 5 quanta', () => {
+    const v = verdictFor({ median: 20, mean: 20 }, { median: 40, mean: 40 }, 5, 5);
+    expect(v.kind).toBe('regression');
+  });
+
   it('compares means when a median is within 20 timer quanta', () => {
     // Real S1 static cell from a base-vs-head run of identical library code:
     // the medians sit one 5 µs quantum apart (+20%), the means +3.5%.
@@ -110,8 +120,9 @@ describe('verdictFor', () => {
   });
 
   it('scales the median threshold with a coarser clock', () => {
-    // 100 µs medians clear 20 quanta at 5 µs, but not at a 100 µs clamp.
-    const v = verdictFor({ median: 100, mean: 100 }, { median: 100, mean: 200 }, 5, 100);
+    // 100 µs medians clear 20 quanta at 5 µs, but not at a 10 µs clock (the
+    // coarsest run.mjs accepts), where the threshold is 200 µs.
+    const v = verdictFor({ median: 100, mean: 100 }, { median: 100, mean: 200 }, 5, 10);
     expect(v.useMean).toBe(true);
     expect(v.kind).toBe('regression');
   });
@@ -176,6 +187,20 @@ describe('noiseBandFor', () => {
     // the band must come from the means' spread, not the medians'.
     const band = noiseBandFor([[m(50, 1.2, 1.3), m(50, 1.0, 1.02)]], 5).band;
     expect(band).toBeCloseTo(30);
+  });
+
+  it('ignores groups too small to resolve, which get no verdict either', () => {
+    // S0-like: means of a few µs with a +90% spread must not set the band that
+    // gates the resolvable scenarios.
+    const tiny = { median: 0, mean: 4, spread: 1, meanSpread: 1.9 };
+    const band = noiseBandFor(
+      [
+        [tiny, tiny],
+        [m(500, 1.08), m(500, 1.02)],
+      ],
+      5,
+    ).band;
+    expect(band).toBeCloseTo(8);
   });
 
   it('uses the spread of the medians otherwise', () => {

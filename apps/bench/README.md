@@ -2,9 +2,9 @@
 
 A real-browser benchmark for the `DecorationLayer` hot path. It is private and
 never published. The benchmark itself is not part of `build` / `typecheck` /
-`test:e2e`. Only the pure-Node analysis logic (verdicts, noise band, the
-regression report) has Vitest unit tests in `tests/`, which run under `pnpm test`
-without a browser.
+`test:e2e`. Only the analysis logic (verdicts, noise bands, the regression
+report) and the CLI parsing (flags, labels) have Vitest unit tests in `tests/`,
+which run under `pnpm test` without launching a browser.
 
 ## What it measures, and why
 
@@ -88,7 +88,9 @@ Everything above, plus:
 | `--fail-on-regression` | off           | Exit 1 when any (scenario, phase, metric) is a regression beyond the noise band. The offending rows are printed either way.                                                                                    |
 
 The head build's label defaults to the short sha of `HEAD`; the base build's
-label is the short sha the base ref resolves to.
+label is the short sha of the commit the base ref resolves to (an annotated tag
+is peeled to its commit, so `--base v1.2.3` and `--base <its sha>` share one
+worktree).
 
 An existing worktree is reused only if it really is a checkout of the base
 commit. A deleted-but-still-registered worktree (e.g. after `rm -rf
@@ -210,8 +212,10 @@ way. Report the new series in `runPhase`'s return value and add a column in
   usual 5 µs resolution). Medians are quantized to the clock, so below that a
   single quantum step is already more than the ±5% band floor and identical
   code can read as a ±20% change. The mean averages the quantization out over
-  the whole window. When both sides' means are under one quantum the row is
-  "not resolvable" and should not be argued about.
+  the whole window. When every side's mean is under 5 quanta (25 µs at 5 µs)
+  the row is "not resolvable": the ratio of such small means swings ±50% or
+  more between reps of identical code (S0, N=0, is the usual case), so it gets
+  no verdict and is left out of its column's noise band.
 - The **verdict table** has one column per (phase, metric). `_reposition` is
   gated in every phase; `setDecorations` is gated wherever both builds called
   it, which is P3 live. Its timing covers the DOM diff as well as the
