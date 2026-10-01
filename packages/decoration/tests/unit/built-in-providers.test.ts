@@ -36,6 +36,64 @@ describe('createMeasurementProvider', () => {
     expect(text).toMatch(/A: 12\.5[67] mm²/);
   });
 
+  // #187: with 0.1 mm/px across and 0.2 mm/px down, mean spacing labelled both
+  // of these 100 px lines "15.00 mm".
+  it('converts line lengths per axis on anisotropic images', () => {
+    const provider = createMeasurementProvider({ length: true });
+    const spacing: PixelSpacing = { x: 0.1, y: 0.2, unit: 'mm' };
+    const horizontal = ann('h', 'line', {
+      type: 'line',
+      start: { x: 0, y: 0 },
+      end: { x: 100, y: 0 },
+    });
+    const vertical = ann('v', 'line', {
+      type: 'line',
+      start: { x: 0, y: 0 },
+      end: { x: 0, y: 100 },
+    });
+    const decorations = provider(ctx([horizontal, vertical], { pixelSpacing: spacing }));
+    expect(decorations).toHaveLength(2);
+    const [h, v] = decorations;
+    expect((h as TextDecoration).text).toBe('L: 10.00 mm');
+    expect((v as TextDecoration).text).toBe('L: 20.00 mm');
+  });
+
+  it('converts polyline lengths and perimeters per axis on anisotropic images', () => {
+    const provider = createMeasurementProvider({ length: true, perimeter: true });
+    const spacing: PixelSpacing = { x: 0.1, y: 0.2, unit: 'mm' };
+    const polyline = ann('pl', 'polyline', {
+      type: 'polyline',
+      points: [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 100 },
+      ],
+    });
+    const rect = ann('r', 'rectangle', {
+      type: 'rectangle',
+      origin: { x: 0, y: 0 },
+      width: 100,
+      height: 50,
+      rotation: 0,
+    });
+    const decorations = provider(ctx([polyline, rect], { pixelSpacing: spacing }));
+    expect(decorations).toHaveLength(2);
+    const [pl, r] = decorations;
+    expect((pl as TextDecoration).text).toBe('L: 30.00 mm');
+    // 2·(100·0.1 + 50·0.2); mean spacing gave 2·150·0.15 = 45
+    expect((r as TextDecoration).text).toBe('P: 40.00 mm');
+  });
+
+  it('keeps the mean-spacing convention for circle radius', () => {
+    const provider = createMeasurementProvider({ radius: true });
+    const spacing: PixelSpacing = { x: 0.1, y: 0.2, unit: 'mm' };
+    const c = ann('c', 'circle', { type: 'circle', center: { x: 0, y: 0 }, radius: 100 });
+    const decorations = provider(ctx([c], { pixelSpacing: spacing }));
+    expect(decorations).toHaveLength(1);
+    const [d] = decorations;
+    expect((d as TextDecoration).text).toBe('r: 15.00 mm');
+  });
+
   it('skips annotations whose geometry yields no requested metric', () => {
     const provider = createMeasurementProvider({ area: true });
     const point = ann('p1', 'point', { type: 'point', position: { x: 0, y: 0 } });
@@ -123,6 +181,20 @@ describe('createDistanceProvider', () => {
     const decorations = provider(ctx([a, b], { pixelSpacing: spacing }));
     const label = decorations.find((d) => d.type === 'text') as TextDecoration;
     // px distance 10, * 0.5 mm/px = 5 mm
+    expect(label.text).toBe('5.00 mm');
+  });
+
+  it('converts the distance per axis on anisotropic images (#187)', () => {
+    const a = ann('p1', 'point', { type: 'point', position: { x: 10, y: 10 } });
+    const b = ann('p2', 'point', { type: 'point', position: { x: 40, y: 30 } });
+    const spacing: PixelSpacing = { x: 0.1, y: 0.2, unit: 'mm' };
+    const provider = createDistanceProvider({
+      pair: (anns) => [{ a: anns[0]!, b: anns[1]! }],
+    });
+    const decorations = provider(ctx([a, b], { pixelSpacing: spacing }));
+    expect(decorations).toHaveLength(2);
+    const label = decorations.find((d) => d.type === 'text') as TextDecoration;
+    // hypot(30·0.1, 20·0.2) = hypot(3, 4); mean spacing gave 36.06·0.15 = 5.41
     expect(label.text).toBe('5.00 mm');
   });
 

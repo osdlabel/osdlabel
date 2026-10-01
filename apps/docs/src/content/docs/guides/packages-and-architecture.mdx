@@ -51,7 +51,7 @@ Declarative annotation decorations and calibrated geometry math, with **zero fra
 
 - Decoration data model (`TextDecoration`, `LineDecoration`), provider contract (`DecorationProvider<E>`), and `composeProviders`.
 - Built-in providers (`createMeasurementProvider`, `createLabelProvider`, `createDistanceProvider`) plus the `withSelectionEmphasis` wrapper.
-- Geometry math (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`) and physical-unit utilities (`toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`).
+- Geometry math (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`) and physical-unit utilities (`measureDistance`, `measureLength`, `measurePerimeter` — per-axis, so correct on anisotropic images — plus `toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`).
 - Depends only on `@osdlabel/annotation` and `@osdlabel/viewer-api` (for `PixelSpacing`). Re-exported in full by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`. See the [Decorations guide](/osdlabel/guides/decorations/).
 
 ### `@osdlabel/fabric-osd`

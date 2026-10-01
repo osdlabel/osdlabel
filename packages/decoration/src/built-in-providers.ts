@@ -12,6 +12,9 @@ import type { DecorationProvider } from './provider.js';
 import * as geom from '@osdlabel/geometry';
 import {
   formatMeasurement,
+  measureDistance,
+  measureLength,
+  measurePerimeter,
   toPhysicalArea,
   toPhysicalLength,
   type FormatMeasurementOptions,
@@ -79,21 +82,23 @@ function computeMeasurementLines(
   };
 
   if (options.radius && geometry.type === 'circle') {
+    // Under anisotropic spacing a pixel-space circle is physically an ellipse,
+    // which has no single radius; the mean spacing is the stated convention.
     writeLine('r', toPhysicalLength(geometry.radius, pixelSpacing, 'mean'));
   }
   if (options.area) {
     const a = geom.area(geometry);
     if (a > 0) writeLine('A', toPhysicalArea(a, pixelSpacing));
   }
+  // Measure once and gate on the result: providers re-run on every drag
+  // frame, so a separate pixel-space `> 0` check would walk every edge twice.
   if (options.perimeter) {
-    const p = geom.perimeter(geometry);
-    if (p > 0) writeLine('P', toPhysicalLength(p, pixelSpacing, 'mean'));
+    const p = measurePerimeter(geometry, pixelSpacing);
+    if (p.value > 0) writeLine('P', p);
   }
-  if (options.length) {
-    const l = geom.length(geometry);
-    if (l > 0 && (geometry.type === 'line' || geometry.type === 'polyline')) {
-      writeLine('L', toPhysicalLength(l, pixelSpacing, 'mean'));
-    }
+  if (options.length && (geometry.type === 'line' || geometry.type === 'polyline')) {
+    const l = measureLength(geometry, pixelSpacing);
+    if (l.value > 0) writeLine('L', l);
   }
 
   return lines;
@@ -219,7 +224,8 @@ export interface DistanceProviderOptions<E extends object = Record<never, never>
  * A provider that emits a connector line + distance label for each
  * caller-supplied pair of annotations. Each annotation's anchor is its
  * geometric centroid (see {@link centroid}); distance is in image pixels
- * unless `pixelSpacing` converts it to physical units.
+ * unless `pixelSpacing` converts it to physical units, per axis (see
+ * {@link measureDistance}).
  */
 export function createDistanceProvider<E extends object = Record<never, never>>(
   options: DistanceProviderOptions<E>,
@@ -232,8 +238,7 @@ export function createDistanceProvider<E extends object = Record<never, never>>(
     for (const pair of pairs) {
       const pA = geom.centroid(pair.a.geometry);
       const pB = geom.centroid(pair.b.geometry);
-      const pxDistance = geom.distance(pA, pB);
-      const measurement = toPhysicalLength(pxDistance, pixelSpacing, 'mean');
+      const measurement = measureDistance(pA, pB, pixelSpacing);
       const text = options.formatLine
         ? options.formatLine(measurement, defaultFormatter)
         : defaultFormatter(measurement);

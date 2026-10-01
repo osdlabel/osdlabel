@@ -14,7 +14,7 @@ import {
   initFabricModule,
   createLabelProvider,
   centroid,
-  length,
+  measureLength,
 } from '@osdlabel/react';
 import type {
   AnnotationContextId,
@@ -52,13 +52,15 @@ const domBadgeProvider: DecorationProvider<OsdFields> = ({ annotations }) =>
 // A consumer-authored cell-anchored ("HUD") provider: a fixed readout pinned to
 // the top-right corner of the cell's viewport, unaffected by pan/zoom/rotate/flip.
 // Emits nothing until the cell holds at least two line annotations.
-const lineRatioHudProvider: DecorationProvider<OsdFields> = ({ annotations }) => {
+// Lengths go through `measureLength`, so on an anisotropic image the ratio
+// agrees with the lines' own `L:` labels (#187).
+const lineRatioHudProvider: DecorationProvider<OsdFields> = ({ annotations, pixelSpacing }) => {
   const lines = annotations.filter((ann) => ann.geometry.type === 'line');
   const first = lines[0];
   const second = lines[1];
   if (!first || !second) return [];
-  const l1 = length(first.geometry);
-  const l2 = length(second.geometry);
+  const l1 = measureLength(first.geometry, pixelSpacing).value;
+  const l2 = measureLength(second.geometry, pixelSpacing).value;
   if (l1 === 0 || l2 === 0) return [];
   return [
     {

@@ -13,7 +13,14 @@ export type {
 export type { DecorationContext, DecorationProvider } from './provider.js';
 export { composeProviders } from './provider.js';
 export type { Measurement, SpacingAxis, FormatMeasurementOptions } from './measurement.js';
-export { toPhysicalLength, toPhysicalArea, formatMeasurement } from './measurement.js';
+export {
+  toPhysicalLength,
+  toPhysicalArea,
+  measureDistance,
+  measureLength,
+  measurePerimeter,
+  formatMeasurement,
+} from './measurement.js';
 export {
   area,
   perimeter,

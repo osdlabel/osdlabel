@@ -6,8 +6,9 @@ library for gigapixel/DZI images.
 
 Everything here operates on the `Geometry` discriminated union from
 `@osdlabel/annotation` in **image-space pixels** — no calibration, no rendering,
-no framework dependencies. Physical-unit conversion (`toPhysicalLength`,
-`toPhysicalArea`) lives in `@osdlabel/decoration`.
+no framework dependencies. Physical-unit conversion (`measureDistance`,
+`measureLength`, `measurePerimeter`, `toPhysicalLength`, `toPhysicalArea`) lives
+in `@osdlabel/decoration`.
 
 ## Installation
 

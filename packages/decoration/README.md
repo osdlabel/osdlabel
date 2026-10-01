@@ -26,8 +26,9 @@ npm install @osdlabel/decoration
   `createDistanceProvider`
 - `withSelectionEmphasis` — opt-in style/z-index elevation for the selected
   annotation's decorations
-- Measurements: `Measurement`, `toPhysicalLength`, `toPhysicalArea`,
-  `formatMeasurement`
+- Measurements: `Measurement`, `measureDistance`, `measureLength`,
+  `measurePerimeter` (per-axis, correct on anisotropic images),
+  `toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`
 - Geometry math — `area`, `perimeter`, `length`, `radius`, `distance`,
   `centroid`, `midpoint`, `boundingBox`, `circleToBoundingRectangle` — now lives
   in [`@osdlabel/geometry`](https://github.com/osdlabel/osdlabel/tree/main/packages/geometry)

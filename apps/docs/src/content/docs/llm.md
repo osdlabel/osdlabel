@@ -283,7 +283,7 @@ Declarative annotation decorations and calibrated geometry math, with **zero fra
 
 - Decoration data model (`TextDecoration`, `LineDecoration`), provider contract (`DecorationProvider<E>`), and `composeProviders`.
 - Built-in providers (`createMeasurementProvider`, `createLabelProvider`, `createDistanceProvider`) plus the `withSelectionEmphasis` wrapper.
-- Geometry math (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`) and physical-unit utilities (`toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`).
+- Geometry math (`area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`) and physical-unit utilities (`measureDistance`, `measureLength`, `measurePerimeter` — per-axis, so correct on anisotropic images — plus `toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`).
 - Depends only on `@osdlabel/annotation` and `@osdlabel/viewer-api` (for `PixelSpacing`). Re-exported in full by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`. See the [Decorations guide](/osdlabel/guides/decorations/).
 
 ### `@osdlabel/fabric-osd`
@@ -1969,7 +1969,10 @@ A provider that, once at least two lines are drawn, renders the ratio of their l
 
 ```ts
 
-export const lineRatioHudProvider: DecorationProvider = ({ annotations }) => {
+// `measureLength` converts per axis, so on a calibrated, anisotropic image the
+// ratio agrees with the lines' own measurement labels. Without spacing it is
+// the plain pixel length.
+export const lineRatioHudProvider: DecorationProvider = ({ annotations, pixelSpacing }) => {
   const lines = annotations.filter(
     (a) => a.geometry.type === 'line' || a.geometry.type === 'polyline',
   );
@@ -1977,8 +1980,8 @@ export const lineRatioHudProvider: DecorationProvider = ({ annotations }) => {
     return [];
   }
   const [first, second] = lines;
-  const l1 = length(first!.geometry);
-  const l2 = length(second!.geometry);
+  const l1 = measureLength(first!.geometry, pixelSpacing).value;
+  const l2 = measureLength(second!.geometry, pixelSpacing).value;
   if (l1 === 0 || l2 === 0) {
     return []; // a degenerate line would otherwise print Infinity / NaN
   }
@@ -2103,13 +2106,15 @@ This means you can mix calibrated and uncalibrated images in the same grid witho
 
 ## Anisotropic spacing
 
-Real-world images often have `x ≠ y` — anisotropic scans, oblique microscopy, satellite imagery with different along-track and cross-track resolution. `PixelSpacing` carries both axes explicitly. How they're consumed depends on the measurement:
+Real-world images often have `x ≠ y` — anisotropic scans, oblique microscopy, satellite imagery with different along-track and cross-track resolution. `PixelSpacing` carries both axes explicitly, and the built-in providers use both:
 
-- **Lengths** along a known axis use that axis's factor.
-- **Lengths** at arbitrary angles use the mean of the two factors (a reasonable approximation; for high-precision angle-aware work, write a custom provider that decomposes the segment).
+- **Lengths, perimeters and distances** convert every segment per axis: a segment spanning `dx` × `dy` pixels measures `hypot(dx · x, dy · y)`. That is exact at any angle, so on a 0.1 × 0.2 mm/px image a horizontal 100 px line reads 10 mm and a vertical one 20 mm. This covers lines, polylines, polygon and rectangle perimeters (rotated ones included), and the distance provider's connector.
 - **Areas** always use `x · y` — physically correct regardless of anisotropy.
+- **Circles** are the one approximation. A circle drawn in pixels is physically an ellipse when `x ≠ y`, so its perimeter uses Ramanujan's ellipse formula (exact when `x = y`, within 1e-6 at a 1:5 spacing ratio) and its **radius** — which an ellipse does not have — uses the mean of the two factors.
 
-The `SpacingAxis` type makes the choice explicit when you call the conversion functions directly:
+If you compute derived values in a custom provider, such as a ratio between two measured lines, use the same [geometry-aware functions](#geometry-aware-conversion) so they agree with the labels beside them.
+
+A scalar pixel length has lost its direction, so converting one with `toPhysicalLength` means choosing an axis. The `SpacingAxis` type makes that choice explicit:
 
 ```ts
 type SpacingAxis = 'x' | 'y' | 'mean';
@@ -2117,9 +2122,30 @@ type SpacingAxis = 'x' | 'y' | 'mean';
 
 ## Conversion functions
 
+### Geometry-aware conversion
+
+When you still have the points, prefer these: they convert each segment per axis, so they are exact on anisotropic images (circle perimeters excepted, as above). They are what the built-in providers use. Each returns a `Measurement`, in `px` if `spacing` is `undefined`.
+
+- `measureDistance(a, b, spacing)` — between two image-pixel points.
+- `measureLength(geometry, spacing)` — a line's length, a polyline's summed segments, a closed shape's perimeter, `0` for a point (mirrors `length`).
+- `measurePerimeter(geometry, spacing)` — the closed perimeter of a rectangle, circle or polygon, `0` for open shapes (mirrors `perimeter`).
+
+```ts
+
+const spacing = { x: 0.1, y: 0.2, unit: 'mm' };
+
+measureDistance({ x: 0, y: 0 }, { x: 100, y: 0 }, spacing); // { value: 10, unit: 'mm' }
+measureDistance({ x: 0, y: 0 }, { x: 0, y: 100 }, spacing); // { value: 20, unit: 'mm' }
+measureDistance({ x: 0, y: 0 }, { x: 30, y: 20 }, spacing); // { value: 5,  unit: 'mm' } — hypot(3, 4)
+
+// In a provider: a ratio between two line annotations that agrees with their `L:` labels
+const ratio =
+  measureLength(first.geometry, spacing).value / measureLength(second.geometry, spacing).value;
+```
+
 ### `toPhysicalLength(pixels, spacing, axis?)`
 
-Returns a `Measurement`. `axis` defaults to `'mean'`. If `spacing` is `undefined`, returns `{ value: pixels, unit: 'px' }`.
+Converts a scalar pixel length. `axis` defaults to `'mean'`, which is exact only when `x = y`; for a segment on an anisotropic image use [`measureDistance`](#geometry-aware-conversion) instead. If `spacing` is `undefined`, returns `{ value: pixels, unit: 'px' }`.
 
 ```ts
 
@@ -2223,7 +2249,7 @@ If you later open a second image that lacks `pixelSpacing`, decorations on that 
 
 - [Decorations](/osdlabel/guides/decorations/) — provider model, composition, selection emphasis
 - [Decorations example](/osdlabel/examples/decorations/) — full wiring with measurements
-- [`PixelSpacing` API reference](/osdlabel/api/reference/osdlabel/) — full TypeDoc for `PixelSpacing`, `Measurement`, `SpacingAxis`, `toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`
+- [`PixelSpacing` API reference](/osdlabel/api/reference/osdlabel/) — full TypeDoc for `PixelSpacing`, `Measurement`, `SpacingAxis`, `measureDistance`, `measureLength`, `measurePerimeter`, `toPhysicalLength`, `toPhysicalArea`, `formatMeasurement`
 
 ---
 
