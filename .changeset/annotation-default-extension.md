@@ -26,6 +26,6 @@ const a: Annotation = { id, geometry, toolType: 'point', createdAt, updatedAt };
 - `for (const k in annotation) annotation[k]`: TS7053, since `k` is a `string` that no longer indexes the type.
 - `keyof Annotation` narrows from `string` to the real field names, so a `keyof Annotation` variable holding any other string fails.
 
-None of these could have been doing anything useful (every such read was `never`), but they compiled, so this is a minor bump rather than a patch. Code that uses an explicit extension, `Annotation<MyFields>`, is unaffected.
+These reads were typed `never`, so code relying on them compiled without real type checking; it now needs an explicit extension or a cast. The `for…in` form is the one most likely to bite: a generic clone or serializer such as `for (const k in a) out[k] = a[k]` copies real values at runtime, and because `never` is assignable to anything it type-checked without complaint. Hence a minor bump rather than a patch. Code that uses an explicit extension, `Annotation<MyFields>`, is unaffected.
 
 The same default is updated on every generic that carried it: `AnnotationState`, `getAllAnnotationsFlat`, `DecorationContext`, `DecorationProvider`, `composeProviders`, `withSelectionEmphasis`, `createMeasurementProvider`, `createLabelProvider`, `createDistanceProvider`, `AnnotationPair`, `DistanceProviderOptions`, `DeserializeResult`, `LiveDecorationUpdateOptions` and `enableLiveDecorationUpdates`.
