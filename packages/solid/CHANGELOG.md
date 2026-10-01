@@ -1,5 +1,26 @@
 # @osdlabel/solid
 
+## 0.15.0
+
+### Patch Changes
+
+- 68d3ddf: The `<Annotator>` toolbar bar now wraps instead of overflowing a narrow host (#147).
+
+  The bar was a single flex row with no `flex-wrap`, and `<ViewControls>` alone is wide (rotate, flip, four exposure/contrast groups, reset, fullscreen). Below roughly 700px the row's content ran past the annotator's right edge, and because the root does not scroll, the fullscreen toggle and context switcher were clipped and unreachable.
+
+  Both the bar and `<ViewControls>` now set `flex-wrap: wrap` (the bar with a 4px row gap), matching what `<Toolbar>` already did for its tool buttons. At widths where everything fits, the layout is unchanged: one row. In a narrower host the bar grows taller instead, which the column layout below it absorbs.
+
+- Updated dependencies [68d3ddf]
+  - @osdlabel/annotation@0.15.0
+  - @osdlabel/viewer-api@0.15.0
+  - @osdlabel/decoration@0.15.0
+  - osdlabel@0.15.0
+  - @osdlabel/annotation-context@0.15.0
+  - @osdlabel/fabric-annotations@0.15.0
+  - @osdlabel/fabric-osd@0.15.0
+  - @osdlabel/osd-helper@0.15.0
+  - @osdlabel/validation@0.15.0
+
 ## 0.14.0
 
 ### Minor Changes
