@@ -213,6 +213,18 @@ describe('measurePerimeter', () => {
     expect(measurePerimeter(circle, ANISO).value).toBeCloseTo(96.884482, 5);
   });
 
+  it('stays within the documented 1e-6 relative error at a 1:5 spacing ratio', () => {
+    const circle: Geometry = { type: 'circle', center: { x: 0, y: 0 }, radius: 100 };
+    const spacing: PixelSpacing = { x: 0.1, y: 0.5, unit: 'mm' };
+    // Semi-axes 10 mm and 50 mm. Reference from Simpson integration of the
+    // ellipse arc length (2M intervals), independent of the code under test.
+    const exact = 210.10044539689932;
+    const relError = Math.abs(measurePerimeter(circle, spacing).value - exact) / exact;
+    // Ramanujan II is 8.5e-7 off here: inside the bound the JSDoc, the
+    // measurements guide and the changeset state, with little headroom.
+    expect(relError).toBeLessThan(1e-6);
+  });
+
   it('is 0 for open shapes', () => {
     expect(measurePerimeter(line(0, 0, 10, 10), ANISO)).toEqual({ value: 0, unit: 'mm' });
   });
