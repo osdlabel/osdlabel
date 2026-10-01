@@ -6,13 +6,13 @@ import type {
   TextDecoration,
 } from '../../src/index.js';
 import { composeProviders, createLabelProvider, withSelectionEmphasis } from '../../src/index.js';
-import { ann, annId, ctx, type NoExt } from './test-helpers.js';
+import { ann, annId, ctx } from './test-helpers.js';
 
 /**
  * A consumer-authored provider of the kind `DomDecoration` exists to support:
  * one interactive panel anchored at each point annotation.
  */
-const panelProvider: DecorationProvider<NoExt> = ({ annotations }) =>
+const panelProvider: DecorationProvider = ({ annotations }) =>
   annotations.map(
     (a): DomDecoration => ({
       type: 'dom',
@@ -30,7 +30,7 @@ describe('DomDecoration through the real provider pipeline', () => {
   it('survives composeProviders alongside a built-in provider', () => {
     // composeProviders is the real seam a consumer uses to add a DOM provider to
     // the built-ins, so exercise it rather than calling the provider directly.
-    const composed = composeProviders<NoExt>([createLabelProvider<NoExt>(), panelProvider]);
+    const composed = composeProviders([createLabelProvider(), panelProvider]);
     const result = composed(ctx([p1, p2]));
 
     const dom = result.filter((d): d is DomDecoration => d.type === 'dom');
@@ -47,7 +47,7 @@ describe('DomDecoration through the real provider pipeline', () => {
   });
 
   it('composeProviders over an empty list yields no decorations', () => {
-    expect(composeProviders<NoExt>([])(ctx([p1]))).toEqual([]);
+    expect(composeProviders([])(ctx([p1]))).toEqual([]);
   });
 
   it('passes DOM decorations through withSelectionEmphasis by reference', () => {
@@ -71,8 +71,8 @@ describe('DomDecoration through the real provider pipeline', () => {
         text: 'B',
       },
     ];
-    const fixed: DecorationProvider<NoExt> = () => stable;
-    const wrapped = withSelectionEmphasis<NoExt>(fixed, { selectedTextStyle: { zIndex: 99 } });
+    const fixed: DecorationProvider = () => stable;
+    const wrapped = withSelectionEmphasis(fixed, { selectedTextStyle: { zIndex: 99 } });
 
     const result = wrapped(ctx([p1, p2], { selectedAnnotationId: annId('a') }));
 
@@ -104,8 +104,8 @@ describe('DomDecoration through the real provider pipeline', () => {
         text: 'B',
       },
     ];
-    const fixed: DecorationProvider<NoExt> = () => stable;
-    const wrapped = withSelectionEmphasis<NoExt>(fixed, { selectedTextStyle: { zIndex: 99 } });
+    const fixed: DecorationProvider = () => stable;
+    const wrapped = withSelectionEmphasis(fixed, { selectedTextStyle: { zIndex: 99 } });
 
     const result = wrapped(ctx([p1, p2], { selectedAnnotationId: annId('a') }));
 
@@ -128,7 +128,7 @@ describe('DomDecoration through the real provider pipeline', () => {
         text: 'A',
       },
     ];
-    const wrapped = withSelectionEmphasis<NoExt>(() => stable, {
+    const wrapped = withSelectionEmphasis(() => stable, {
       selectedTextStyle: { zIndex: 9 },
     });
     expect(wrapped(ctx([p1], { selectedAnnotationId: null }))).toBe(stable);
@@ -139,7 +139,7 @@ describe('DomDecoration through the real provider pipeline', () => {
     // force a full teardown and rebuild every frame. Asserted against the real
     // createLabelProvider — asserting it of the test's own panelProvider would
     // only be testing the fixture.
-    const provider = createLabelProvider<NoExt>();
+    const provider = createLabelProvider();
     const first = provider(ctx([p1, p2])).map((d) => d.id);
     const second = provider(ctx([p1, p2])).map((d) => d.id);
     // Pin the shape, not just determinism: comparing two invocations of a pure
@@ -152,7 +152,7 @@ describe('DomDecoration through the real provider pipeline', () => {
 
   it('anchors built-in decorations at the annotation geometry', () => {
     const moved = ann('a', 'point', { type: 'point', position: { x: 50, y: 60 } }, 'Moved');
-    const decorations = createLabelProvider<NoExt>()(ctx([moved]));
+    const decorations = createLabelProvider()(ctx([moved]));
     expect(decorations).toHaveLength(1);
     expect((decorations[0]! as TextDecoration).anchor).toEqual({ x: 50, y: 60 });
   });

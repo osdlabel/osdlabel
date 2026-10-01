@@ -10,7 +10,17 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5173;
 export default defineConfig({
   server: { port: PORT },
   plugins: [solidPlugin()],
-  build: { target: 'esnext' },
+  build: {
+    target: 'esnext',
+    rollupOptions: {
+      // `annotator.html` mounts the stock <Annotator> (App.tsx composes its own
+      // layout), so its layout has an E2E harness too (#147).
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        annotator: resolve(__dirname, 'annotator.html'),
+      },
+    },
+  },
   resolve: {
     alias: {
       // During development, resolve the library from its TypeScript source

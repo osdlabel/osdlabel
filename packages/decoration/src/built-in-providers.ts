@@ -38,7 +38,7 @@ export interface MeasurementProviderOptions {
  * the requested geometric measurements. Anchors and placement are chosen
  * automatically per geometry type.
  */
-export function createMeasurementProvider<E extends object = Record<string, never>>(
+export function createMeasurementProvider<E extends object = Record<never, never>>(
   options: MeasurementProviderOptions,
 ): DecorationProvider<E> {
   return ({ annotations, pixelSpacing }) => {
@@ -151,7 +151,7 @@ export interface LabelProviderOptions {
  * A provider that renders the `label` field of each visible annotation as
  * a text decoration. Annotations without a label are skipped.
  */
-export function createLabelProvider<E extends object = Record<string, never>>(
+export function createLabelProvider<E extends object = Record<never, never>>(
   options?: LabelProviderOptions,
 ): DecorationProvider<E> {
   const extract =
@@ -181,7 +181,7 @@ export function createLabelProvider<E extends object = Record<string, never>>(
 // ── createDistanceProvider ─────────────────────────────────────────────────
 
 /** A pair of annotations the distance provider will render a connector for. */
-export interface AnnotationPair<E extends object = Record<string, never>> {
+export interface AnnotationPair<E extends object = Record<never, never>> {
   readonly a: Annotation<E>;
   readonly b: Annotation<E>;
   /**
@@ -191,7 +191,7 @@ export interface AnnotationPair<E extends object = Record<string, never>> {
   readonly id?: string | undefined;
 }
 
-export interface DistanceProviderOptions<E extends object = Record<string, never>> {
+export interface DistanceProviderOptions<E extends object = Record<never, never>> {
   /**
    * Pure pairing function. Receives all visible annotations and returns the
    * pairs to connect. The library does not invent pairing semantics — callers
@@ -221,7 +221,7 @@ export interface DistanceProviderOptions<E extends object = Record<string, never
  * geometric centroid (see {@link centroid}); distance is in image pixels
  * unless `pixelSpacing` converts it to physical units.
  */
-export function createDistanceProvider<E extends object = Record<string, never>>(
+export function createDistanceProvider<E extends object = Record<never, never>>(
   options: DistanceProviderOptions<E>,
 ): DecorationProvider<E> {
   const dashed = options.dashed ?? true;

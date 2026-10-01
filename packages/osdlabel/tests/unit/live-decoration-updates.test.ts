@@ -6,12 +6,6 @@ import type { PixelSpacing } from '@osdlabel/viewer-api';
 import type { FabricObject } from 'fabric';
 import { enableLiveDecorationUpdates } from '../../src/live-decoration-updates.js';
 
-/**
- * `Annotation`'s default extension is `Record<string, never>`, which maps every
- * key to `never` — readable, but not constructible from an object literal.
- */
-type NoExt = Record<never, never>;
-
 // Stub out the Fabric-coupled extractor so tests stay in pure JS land.
 // `target.__mockGeometry` is read back as the "live" geometry; `undefined`
 // simulates an extraction failure.
@@ -82,7 +76,7 @@ beforeEach(() => {
 
 const annId = (s: string): AnnotationId => s as AnnotationId;
 
-function rectAnnotation(id: string, x: number, y: number): Annotation<NoExt> {
+function rectAnnotation(id: string, x: number, y: number): Annotation {
   return {
     id: annId(id),
     geometry: { type: 'rectangle', origin: { x, y }, width: 10, height: 10, rotation: 0 },
@@ -92,7 +86,7 @@ function rectAnnotation(id: string, x: number, y: number): Annotation<NoExt> {
   };
 }
 
-function fakeFabricTarget(id: string, geometry: Annotation<NoExt>['geometry']): FabricObject {
+function fakeFabricTarget(id: string, geometry: Annotation['geometry']): FabricObject {
   return { id, __mockGeometry: geometry } as unknown as FabricObject;
 }
 
@@ -107,7 +101,7 @@ function fakeActiveSelection(children: readonly FabricObject[]): FabricObject {
 describe('enableLiveDecorationUpdates', () => {
   it('subscribes to object:moving, object:scaling, and object:rotating', () => {
     const rig = createRig();
-    const dispose = enableLiveDecorationUpdates<NoExt>({
+    const dispose = enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => undefined,
@@ -123,8 +117,8 @@ describe('enableLiveDecorationUpdates', () => {
   it('throttles multiple events within a frame to one onDecorations call', () => {
     const rig = createRig();
     const onDecorations = vi.fn();
-    const provider: DecorationProvider<NoExt> = () => [];
-    enableLiveDecorationUpdates<NoExt>({
+    const provider: DecorationProvider = () => [];
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => undefined,
@@ -154,12 +148,12 @@ describe('enableLiveDecorationUpdates', () => {
     const b = rectAnnotation('b', 100, 100);
 
     // Provider that snapshots the geometry it received for each annotation.
-    const seenGeoms: Record<string, Annotation<NoExt>['geometry']> = {};
-    const provider: DecorationProvider<NoExt> = ({ annotations }) => {
+    const seenGeoms: Record<string, Annotation['geometry']> = {};
+    const provider: DecorationProvider = ({ annotations }) => {
       for (const ann of annotations) seenGeoms[ann.id] = ann.geometry;
       return [];
     };
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [a, b],
       getPixelSpacing: () => undefined,
@@ -167,7 +161,7 @@ describe('enableLiveDecorationUpdates', () => {
       onDecorations,
     });
 
-    const liveGeometry: Annotation<NoExt>['geometry'] = {
+    const liveGeometry: Annotation['geometry'] = {
       type: 'rectangle',
       origin: { x: 50, y: 60 },
       width: 70,
@@ -185,34 +179,31 @@ describe('enableLiveDecorationUpdates', () => {
   it('passes pixel spacing through to providers', () => {
     const rig = createRig();
     const spacing: PixelSpacing = { x: 0.5, y: 0.5, unit: 'mm' };
-    const provider: DecorationProvider<NoExt> = ({ pixelSpacing }) => {
+    const provider: DecorationProvider = ({ pixelSpacing }) => {
       providerSpacing = pixelSpacing;
       return [];
     };
     let providerSpacing: PixelSpacing | undefined;
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => spacing,
       getProviders: () => [provider],
       onDecorations: vi.fn(),
     });
-    rig.fire(
-      'object:moving',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
+    rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     rig.flushRAF();
     expect(providerSpacing).toEqual(spacing);
   });
   it('passes selectedAnnotationId through to providers', () => {
     const rig = createRig();
     const selectedId = annId('test-selected');
-    const provider: DecorationProvider<NoExt> = ({ selectedAnnotationId }) => {
+    const provider: DecorationProvider = ({ selectedAnnotationId }) => {
       providerSelectedId = selectedAnnotationId;
       return [];
     };
     let providerSelectedId: AnnotationId | null | undefined;
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => undefined,
@@ -220,10 +211,7 @@ describe('enableLiveDecorationUpdates', () => {
       getProviders: () => [provider],
       onDecorations: vi.fn(),
     });
-    rig.fire(
-      'object:moving',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
+    rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     rig.flushRAF();
     expect(providerSelectedId).toBe(selectedId);
   });
@@ -234,17 +222,14 @@ describe('enableLiveDecorationUpdates', () => {
     // not this helper's responsibility.
     const rig = createRig();
     const onDecorations = vi.fn();
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => undefined,
       getProviders: () => [],
       onDecorations,
     });
-    rig.fire(
-      'object:moving',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
+    rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     rig.flushRAF();
     expect(onDecorations).not.toHaveBeenCalled();
   });
@@ -252,12 +237,12 @@ describe('enableLiveDecorationUpdates', () => {
   it('falls back to the state-derived geometry when the target carries no id', () => {
     const rig = createRig();
     const a = rectAnnotation('a', 1, 2);
-    const seen: Annotation<NoExt>['geometry'][] = [];
-    const provider: DecorationProvider<NoExt> = ({ annotations }) => {
+    const seen: Annotation['geometry'][] = [];
+    const provider: DecorationProvider = ({ annotations }) => {
       for (const ann of annotations) seen.push(ann.geometry);
       return [];
     };
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [a],
       getPixelSpacing: () => undefined,
@@ -273,12 +258,12 @@ describe('enableLiveDecorationUpdates', () => {
   it('calls providers with the original list when geometry extraction fails', () => {
     const rig = createRig();
     const a = rectAnnotation('a', 1, 2);
-    const seen: Annotation<NoExt>['geometry'][] = [];
-    const provider: DecorationProvider<NoExt> = ({ annotations }) => {
+    const seen: Annotation['geometry'][] = [];
+    const provider: DecorationProvider = ({ annotations }) => {
       for (const ann of annotations) seen.push(ann.geometry);
       return [];
     };
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [a],
       getPixelSpacing: () => undefined,
@@ -296,12 +281,12 @@ describe('enableLiveDecorationUpdates', () => {
     const a = rectAnnotation('a', 0, 0);
     const b = rectAnnotation('b', 5, 5);
     const c = rectAnnotation('c', 10, 10);
-    let seen: readonly Annotation<NoExt>[] | undefined;
-    const provider: DecorationProvider<NoExt> = ({ annotations }) => {
+    let seen: readonly Annotation[] | undefined;
+    const provider: DecorationProvider = ({ annotations }) => {
       seen = annotations;
       return [];
     };
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [a, b, c],
       getPixelSpacing: () => undefined,
@@ -331,26 +316,26 @@ describe('enableLiveDecorationUpdates', () => {
     const a = rectAnnotation('a', 0, 0);
     const b = rectAnnotation('b', 10, 10);
     const c = rectAnnotation('c', 20, 20);
-    const seenGeoms: Record<string, Annotation<NoExt>['geometry']> = {};
-    const provider: DecorationProvider<NoExt> = ({ annotations }) => {
+    const seenGeoms: Record<string, Annotation['geometry']> = {};
+    const provider: DecorationProvider = ({ annotations }) => {
       for (const ann of annotations) seenGeoms[ann.id] = ann.geometry;
       return [];
     };
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [a, b, c],
       getPixelSpacing: () => undefined,
       getProviders: () => [provider],
       onDecorations: vi.fn(),
     });
-    const liveA: Annotation<NoExt>['geometry'] = {
+    const liveA: Annotation['geometry'] = {
       type: 'rectangle',
       origin: { x: 50, y: 50 },
       width: 1,
       height: 1,
       rotation: 0,
     };
-    const liveB: Annotation<NoExt>['geometry'] = {
+    const liveB: Annotation['geometry'] = {
       type: 'rectangle',
       origin: { x: 60, y: 60 },
       width: 1,
@@ -371,42 +356,30 @@ describe('enableLiveDecorationUpdates', () => {
 
   it('does not schedule a rAF when providers are empty (fast-exit)', () => {
     const rig = createRig();
-    enableLiveDecorationUpdates<NoExt>({
+    enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => undefined,
       getProviders: () => [],
       onDecorations: vi.fn(),
     });
-    rig.fire(
-      'object:moving',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
-    rig.fire(
-      'object:scaling',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
-    rig.fire(
-      'object:rotating',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
+    rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
+    rig.fire('object:scaling', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
+    rig.fire('object:rotating', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     expect(rafQueue).toHaveLength(0);
   });
 
   it('teardown unsubscribes from all events and cancels a pending rAF', () => {
     const rig = createRig();
     const onDecorations = vi.fn();
-    const dispose = enableLiveDecorationUpdates<NoExt>({
+    const dispose = enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => undefined,
       getProviders: () => [() => []],
       onDecorations,
     });
-    rig.fire(
-      'object:moving',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
+    rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     // rAF scheduled but not yet flushed
     dispose();
     expect(rig.canvas.off).toHaveBeenCalledTimes(3);
@@ -422,17 +395,14 @@ describe('enableLiveDecorationUpdates', () => {
     const rig = createRig();
     cancelAnimationFrameImpl = () => {};
     const onDecorations = vi.fn();
-    const dispose = enableLiveDecorationUpdates<NoExt>({
+    const dispose = enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [],
       getPixelSpacing: () => undefined,
       getProviders: () => [() => []],
       onDecorations,
     });
-    rig.fire(
-      'object:moving',
-      fakeFabricTarget('x', null as unknown as Annotation<NoExt>['geometry']),
-    );
+    rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     dispose();
     rig.flushRAF();
     expect(onDecorations).not.toHaveBeenCalled();
@@ -444,7 +414,7 @@ describe('enableLiveDecorationUpdates', () => {
 
     // Consumer-style HUD provider: one cell-anchored readout derived from the
     // annotation's live geometry.
-    const provider: DecorationProvider<NoExt> = ({ annotations }) => {
+    const provider: DecorationProvider = ({ annotations }) => {
       const target = annotations.find((ann) => ann.id === annId('a'));
       if (!target || target.geometry.type !== 'rectangle') return [];
       const hud: TextDecoration = {
@@ -460,7 +430,7 @@ describe('enableLiveDecorationUpdates', () => {
       return [hud];
     };
 
-    const dispose = enableLiveDecorationUpdates<NoExt>({
+    const dispose = enableLiveDecorationUpdates({
       overlay: rig.overlay,
       getVisibleAnnotations: () => [a],
       getPixelSpacing: () => undefined,

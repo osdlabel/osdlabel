@@ -19,7 +19,7 @@ export interface SelectionEmphasisOptions {
  * @param provider The base provider to wrap.
  * @param options The style overrides to apply when selected.
  */
-export function withSelectionEmphasis<E extends object = Record<string, never>>(
+export function withSelectionEmphasis<E extends object = Record<never, never>>(
   provider: DecorationProvider<E>,
   options: SelectionEmphasisOptions,
 ): DecorationProvider<E> {

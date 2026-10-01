@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { selectedAnnotationId } from './helpers/selection.js';
 
 // The dev app has 3 contexts: Fracture (ctx-1), Pneumothorax (ctx-2), General (ctx-3).
 // Fracture is active by default, scoped to [landscape, portrait].
@@ -93,36 +94,41 @@ test.describe('Displayed Contexts', () => {
     await page.mouse.up();
     await page.waitForTimeout(300);
 
+    const selectButton = page.getByTestId('tool-select');
+
+    // Positive control: while Fracture is active, the same click selects the
+    // rectangle. Without this, the negative assertion below is only as good as
+    // the probe — and an earlier probe could never see a selection (#193).
+    await selectButton.click();
+    await page.waitForTimeout(200);
+    await page.mouse.click(rectCenterX, rectCenterY);
+    await page.waitForTimeout(300);
+    expect(await selectedAnnotationId(page)).not.toBeNull();
+
+    // Deselect by clicking empty canvas, so the selection cannot carry over.
+    // The rectangle spans (100,100)–(250,200) from the canvas origin, so this
+    // point is clear of it; the `toBeNull()` below fails if that stops holding.
+    await page.mouse.click(box.x + 400, box.y + 350);
+    await page.waitForTimeout(300);
+    expect(await selectedAnnotationId(page)).toBeNull();
+
     // Switch to Pneumothorax and display Fracture
     await page.locator('select').selectOption({ index: 1 });
     await page.waitForTimeout(500);
     await page.getByTestId('display-ctx-ctx-1').check();
     await page.waitForTimeout(500);
 
+    // The Fracture annotation is back on the canvas, but read-only.
+    const cell = page.locator('[data-annotation-count]').first();
+    await expect(cell).toHaveAttribute('data-annotation-count', '1');
+
     // Try to select the Fracture annotation with the select tool
-    const selectButton = page.getByTestId('tool-select');
     await selectButton.click();
     await page.waitForTimeout(200);
-
-    // Click on the rectangle area
     await page.mouse.click(rectCenterX, rectCenterY);
     await page.waitForTimeout(300);
 
-    // Verify no object is selected on the Fabric canvas
-    const hasSelection = await page.evaluate(() => {
-      const upperCanvas = document.querySelector('canvas.upper-canvas');
-      if (!upperCanvas) return false;
-      // The lower-canvas sibling has the Fabric canvas reference
-      const lowerCanvas = upperCanvas.previousElementSibling as HTMLCanvasElement | null;
-      if (!lowerCanvas) return false;
-      // Fabric v7 stores canvas instance on the element
-      const fabricCanvas = (lowerCanvas as unknown as Record<string, unknown>).__canvas;
-      if (!fabricCanvas) return false;
-      const canvas = fabricCanvas as { getActiveObject: () => unknown };
-      return canvas.getActiveObject() !== null && canvas.getActiveObject() !== undefined;
-    });
-
-    expect(hasSelection).toBe(false);
+    expect(await selectedAnnotationId(page)).toBeNull();
   });
 
   test('active context annotations remain editable with other contexts displayed', async ({

@@ -4,7 +4,7 @@ import type { AnnotationState, ImageId } from './types.js';
 /**
  * Flatten all annotations from the store into a single array.
  */
-export function getAllAnnotationsFlat<E extends object = Record<string, never>>(
+export function getAllAnnotationsFlat<E extends object = Record<never, never>>(
   state: AnnotationState<E>,
 ): Annotation<E>[] {
   const result: Annotation<E>[] = [];

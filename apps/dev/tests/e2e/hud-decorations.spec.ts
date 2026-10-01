@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
+import { selectedAnnotationId } from './helpers/selection.js';
 
 /**
  * Cell-anchored ("HUD") decorations — issue #185.
@@ -74,26 +75,6 @@ const expectPinnedTopRight = async (page: Page): Promise<void> => {
   );
   expect(Math.abs(hud.y - view.y)).toBeLessThanOrEqual(CORNER_TOLERANCE_PX);
 };
-
-/**
- * The annotation id of the cell's currently selected Fabric object, or `null`.
- *
- * Read through the overlay handle the dev app publishes in `testMode` (the same
- * hook `resize-jitter.spec.ts` uses); a missing handle throws rather than
- * reporting "nothing selected", so a broken hook cannot silently satisfy a
- * negative assertion.
- */
-const selectedAnnotationId = (page: Page): Promise<string | null> =>
-  page.evaluate(() => {
-    const el = document.querySelector('.openseadragon-canvas') as
-      | (Element & {
-          __osdOverlay?: { canvas?: { getActiveObject: () => { id?: string } | null } };
-        })
-      | null;
-    const canvas = el?.__osdOverlay?.canvas;
-    if (!canvas) throw new Error('overlay test hook not installed');
-    return canvas.getActiveObject()?.id ?? null;
-  });
 
 test.describe('Cell-anchored HUD decorations', () => {
   test.beforeEach(async ({ page }) => {

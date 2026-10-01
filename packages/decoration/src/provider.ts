@@ -7,7 +7,7 @@ import type { Decoration } from './decoration.js';
  * type so providers can read extension fields (e.g. `contextId`, `imageId`)
  * from the annotations they receive.
  */
-export interface DecorationContext<E extends object = Record<string, never>> {
+export interface DecorationContext<E extends object = Record<never, never>> {
   /** All annotations currently visible in the cell the decorations are being computed for. */
   readonly annotations: readonly Annotation<E>[];
   /** Calibration for the cell's image; `undefined` if no calibration is set. */
@@ -23,7 +23,7 @@ export interface DecorationContext<E extends object = Record<string, never>> {
  * and side-effect-free. The renderer diffs the returned array by
  * `Decoration.id`, so providers should produce stable ids.
  */
-export type DecorationProvider<E extends object = Record<string, never>> = (
+export type DecorationProvider<E extends object = Record<never, never>> = (
   ctx: DecorationContext<E>,
 ) => readonly Decoration[];
 
@@ -31,7 +31,7 @@ export type DecorationProvider<E extends object = Record<string, never>> = (
  * Compose multiple providers into a single provider that emits the union of
  * their outputs. Pure flat-map; ordering is preserved.
  */
-export function composeProviders<E extends object = Record<string, never>>(
+export function composeProviders<E extends object = Record<never, never>>(
   providers: readonly DecorationProvider<E>[],
 ): DecorationProvider<E> {
   return (ctx) => providers.flatMap((p) => p(ctx));

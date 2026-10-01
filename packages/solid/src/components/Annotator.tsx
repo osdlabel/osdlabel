@@ -79,8 +79,11 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
       <div
         style={{
           display: 'flex',
+          // Wrap rather than overflow: the root does not scroll, so controls
+          // pushed past its right edge were clipped and unreachable (#147).
+          'flex-wrap': 'wrap',
           'align-items': 'center',
-          gap: '12px',
+          gap: '4px 12px',
           background: '#1a1a1a',
           padding: '4px 8px',
         }}
