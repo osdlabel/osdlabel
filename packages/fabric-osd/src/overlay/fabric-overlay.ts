@@ -819,7 +819,9 @@ export class FabricOverlay {
    * them, and it is where a navigation-mode click already puts focus.
    *
    * Called after the press has been forwarded, matching the browser's order.
-   * A Ctrl/Cmd-drag pan is OSD's to handle and does not come through here.
+   * A Ctrl/Cmd-drag pan is OSD's to handle and does not come through here,
+   * and neither does a right or middle press, which the overlay does not
+   * handle.
    */
   private _focusViewerOnPress(): void {
     const canvas = this._viewer.canvas;

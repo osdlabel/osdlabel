@@ -382,7 +382,10 @@ test.describe('Filmstrip from the keyboard and assistive tech (#189)', () => {
     await page.mouse.click(box.x + 260, box.y + 200);
     await page.waitForTimeout(200);
 
-    // The drawing presses moved focus to the viewer, so no button owns Enter.
+    // No button owns this Enter: the tool was picked with the mouse, so focus
+    // never landed on it. (The drawing presses also move focus to the viewer,
+    // but this control does not depend on that; toolbar-focus.spec.ts covers
+    // a Tab-picked tool.)
     await page.keyboard.press('Enter');
 
     await expect.poll(() => committedAnnotationIds(page)).toHaveLength(1);
