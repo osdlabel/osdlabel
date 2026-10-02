@@ -131,6 +131,49 @@ describe('useKeyboard', () => {
     expect(mockActions.setActiveTool).not.toHaveBeenCalled();
   });
 
+  describe('a focused button (#189)', () => {
+    // A real element: the shared rule reads tagName and role from it.
+    const button = (): HTMLButtonElement => document.createElement('button');
+
+    it('leaves Enter and Space to the button, not the active tool', () => {
+      // Enter is the polyline-finish binding. Activating a focused button with
+      // it used to finish an in-progress polyline as well.
+      const handler = vi.fn().mockReturnValue(true);
+      activeToolKeyHandlerRef.handler = handler;
+
+      dispatchKeyDown('Enter', button());
+      dispatchKeyDown(' ', button());
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('still lets other shortcuts through', () => {
+      dispatchKeyDown('v', button());
+      expect(mockActions.setActiveTool).toHaveBeenCalledWith('select');
+    });
+
+    it('treats role="button" the same way', () => {
+      const handler = vi.fn().mockReturnValue(true);
+      activeToolKeyHandlerRef.handler = handler;
+      const div = document.createElement('div');
+      div.setAttribute('role', 'button');
+
+      dispatchKeyDown('Enter', div);
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('still delivers Enter to the active tool from a non-button target', () => {
+      // The control case: the skip is about the focused element, not the key.
+      const handler = vi.fn().mockReturnValue(true);
+      activeToolKeyHandlerRef.handler = handler;
+
+      dispatchKeyDown('Enter');
+
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('should ignore events when shouldSkipTargetPredicate returns true', () => {
     // Re-initialize with a predicate
     disposeRoot();

@@ -8,6 +8,9 @@ import {
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
   CELL_ASSIGNMENT_CLEAR_LABEL,
+  CELL_ASSIGNMENT_STATE_LABEL,
+  getCellAssignmentLabel,
+  type CellAssignmentState,
   type CellAssignmentView,
 } from '../../src/cell-assignment.js';
 
@@ -102,10 +105,18 @@ describe('cell-assignment palette', () => {
   // Distinctness alone would let 'other' and 'none' swap: an unused image would
   // render in "in use elsewhere" blue and be tooltipped as shown in another
   // cell. Pin each state to its meaning, not just to being different.
-  it('maps each state to copy describing what its click does', () => {
-    expect(CELL_ASSIGNMENT_TITLE.active).toMatch(/active cell/i);
+  it('maps each state to copy describing what pressing it does', () => {
+    expect(CELL_ASSIGNMENT_TITLE.active).toMatch(/shown in the active cell/i);
     expect(CELL_ASSIGNMENT_TITLE.other).toMatch(/another cell/i);
-    expect(CELL_ASSIGNMENT_TITLE.none).toMatch(/click/i);
+    expect(CELL_ASSIGNMENT_TITLE.none).toMatch(/^show .* active cell/i);
+  });
+
+  it('describes no particular gesture, since it is also the accessible description', () => {
+    // With the thumbnail's aria-label set, its title is announced as the
+    // description: "click" would be wrong for a keyboard or screen-reader user.
+    for (const title of Object.values(CELL_ASSIGNMENT_TITLE)) {
+      expect(title).not.toMatch(/click|tap|press/i);
+    }
   });
 
   it('never promises a clear from a thumbnail, since only the badge clears', () => {
@@ -188,5 +199,27 @@ describe('getCellAssignmentState — an out-of-grid active cell is not "active"'
     const v = view({ 7: IMG_A }, 7, 1, 1);
 
     expect(getCellAssignmentState(v, IMG_A)).not.toBe('active');
+  });
+});
+
+describe('getCellAssignmentLabel', () => {
+  it('names the image and states its assignment', () => {
+    expect(getCellAssignmentLabel('Landscape', 'active')).toBe(
+      'Landscape, shown in the active cell',
+    );
+    expect(getCellAssignmentLabel('Landscape', 'other')).toBe('Landscape, shown in another cell');
+    expect(getCellAssignmentLabel('Landscape', 'none')).toBe('Landscape, not shown');
+  });
+
+  it('gives each state a distinct phrase that promises no gesture', () => {
+    // The accessible name must tell the three states apart, as the border does
+    // for sighted users. It describes state, not an action: "click" would be
+    // wrong for a keyboard user, and a thumbnail never clears.
+    const states: readonly CellAssignmentState[] = ['active', 'other', 'none'];
+    const phrases = states.map((s) => CELL_ASSIGNMENT_STATE_LABEL[s]);
+    expect(new Set(phrases).size).toBe(states.length);
+    for (const phrase of phrases) {
+      expect(phrase).not.toMatch(/click|clear|remove/i);
+    }
   });
 });

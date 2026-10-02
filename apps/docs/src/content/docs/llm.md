@@ -818,7 +818,9 @@ The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
 Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows simply re-assigns it.
 
-To empty a cell, use the `✕` badge on the thumbnail the active cell is showing. It is a real button: focusable, labelled for assistive tech, and the only control that clears. Keeping it separate from the thumbnail matters because clearing also drops the cell's view transform with no undo — if a thumbnail click cleared, an ordinary double-click would assign and then immediately wipe the cell.
+Thumbnails are buttons, so the filmstrip works from the keyboard too: `Tab` to a thumbnail and press `Enter` or `Space` to assign it. Each one is named with its image and its state for assistive tech (for example "Landscape, shown in the active cell"), and the active cell's image is marked `aria-current`.
+
+To empty a cell, use the `✕` badge on the thumbnail the active cell is showing. It is a real button: focusable, labelled for assistive tech, and the only control that clears. Clearing it from the keyboard moves focus to the same image's thumbnail, so `Enter` there puts the image straight back. Keeping it separate from the thumbnail matters because clearing also drops the cell's view transform with no undo — if a thumbnail click cleared, an ordinary double-click would assign and then immediately wipe the cell.
 
 The border tells you how the image relates to the active cell:
 
@@ -1368,15 +1370,19 @@ Unspecified keys keep their default bindings. See [`KeyboardShortcutMap`](/osdla
 
 Shortcuts are automatically suppressed when focus is in an `<input>`, `<textarea>`, or `contenteditable` element.
 
+`Enter` and `Space` are also left alone when focus is on a button (a `<button>` or an element with `role="button"`): the browser turns them into a click on that button, so a shortcut acting on the same keypress would make one press do two things. `Enter` is the polyline-finish key, so pressing a focused button mid-polyline used to finish the polyline as well. Every other key still reaches the shortcuts from a focused button, so tabbing through the toolbar does not switch off `r`, `Delete` or the grid digits. The rule is exported as `shouldSkipKeyboardShortcut(target, key)` for hosts that run their own key handling alongside the annotator's.
+
+A left-button press on the image moves keyboard focus to the viewer, as a click on the image would in any page (a `Ctrl`/`Cmd`-drag pan, or a right or middle press, leaves focus where it was). So if you pick a tool from the keyboard and then draw with the mouse, focus leaves the tool's button with your first press, and `Enter` finishes the polyline rather than pressing the button again. The same press blurs a text field of your own that had focus, so shortcuts resume once you start drawing.
+
 `Escape` is additionally ignored whenever an element is displayed fullscreen, including one your own app put there. The browser exits fullscreen on `Escape` and the keypress cannot be intercepted, so acting on it as well would make one press do two unrelated things. Every other shortcut keeps working while fullscreen. See [Fullscreen](/guides/basic-controls/#fullscreen).
 
 ## Toolbar buttons and focus
 
-Clicking a button in the `Toolbar`, `ViewControls` or `GridControls` does not move keyboard focus onto it. A focused button is re-activated by `Enter` and `Space`, which would collide with the annotator's global shortcuts — `Enter` finishes a polyline, so it would also re-fire whichever control was last clicked.
+Clicking a button in the `Toolbar`, `ViewControls`, `GridControls` or `Filmstrip` does not move keyboard focus onto it. A focused button is re-activated by `Enter` and `Space`, which would collide with the annotator's global shortcuts — `Enter` finishes a polyline, so it would also re-fire whichever control was last clicked.
 
 Keyboard operation is unchanged: `Tab` still reaches every control, and `Enter` / `Space` still activate a control focused that way. If you build your own control surface around the annotator, `preventButtonFocusSteal` is exported for the same purpose — attach it to your container's `onMouseDown`.
 
-For additional suppression logic, use the `shouldSkipKeyboardShortcutPredicate` prop:
+For additional suppression logic, use the `shouldSkipKeyboardShortcutPredicate` prop. It can only add suppression: it runs alongside the built-in rules above and cannot re-enable a key they leave to the focused element.
 
 ```tsx
 <AnnotatorProvider

@@ -76,4 +76,77 @@ test.describe('Toolbar focus', () => {
 
     expect(await readRotation(page)).not.toBe(before);
   });
+
+  test('a press on the image takes focus off a Tab-focused tool button (#189)', async ({
+    page,
+  }) => {
+    // The overlay prevents the default of every press it owns in annotation
+    // mode, which also cancelled the browser's own focus change. A tool picked
+    // from the keyboard kept focus while the user drew with the mouse, so a
+    // later Enter went to the button: since Enter on a focused button belongs
+    // to the button, the polyline was never finished.
+    await page.getByRole('combobox').selectOption({ label: 'General' });
+    const polyline = page.getByTestId('tool-polyline');
+    await polyline.focus();
+    await page.keyboard.press('Enter');
+    expect(await activeTestId(page)).toBe('tool-polyline');
+
+    const canvas = page.locator('canvas.upper-canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('canvas has no layout box');
+    await page.mouse.click(box.x + 100, box.y + 100);
+
+    // Focus moved to the viewer, as a native click on the image would do.
+    expect(
+      await page.evaluate(
+        () => document.activeElement?.classList.contains('openseadragon-canvas') ?? false,
+      ),
+    ).toBe(true);
+
+    await page.mouse.click(box.x + 200, box.y + 120);
+    await page.mouse.click(box.x + 260, box.y + 200);
+    await page.keyboard.press('Enter');
+
+    // Enter finished the polyline rather than re-pressing the tool button.
+    await expect
+      .poll(async () => {
+        const text = (await page.getByTestId('annotations-json').textContent()) ?? '{}';
+        const byImage = JSON.parse(text) as Record<string, Record<string, unknown>>;
+        return Object.values(byImage).flatMap((forImage) => Object.keys(forImage)).length;
+      })
+      .toBe(1);
+  });
+
+  test('the press reaches Fabric before focus leaves a host control', async ({ page }) => {
+    // Natively the focus change is the press's default action, so press
+    // handlers run before any blur it causes. A host field that commits on
+    // blur must not rebuild the canvas under a press Fabric has not seen yet.
+    // 'General' offers the rectangle tool on the tiled image this suite loads.
+    const select = page.getByRole('combobox');
+    await select.selectOption({ label: 'General' });
+    await page.getByTestId('tool-rectangle').click();
+    await select.focus();
+
+    await page.evaluate(() => {
+      const order: string[] = [];
+      (window as unknown as { __order: string[] }).__order = order;
+      document.querySelector('select')!.addEventListener('blur', () => order.push('blur'));
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & {
+            __osdOverlay?: { canvas?: { on: (name: string, cb: () => void) => void } };
+          })
+        | null;
+      const canvas = el?.__osdOverlay?.canvas;
+      if (!canvas) throw new Error('overlay test hook not installed');
+      canvas.on('mouse:down', () => order.push('fabric-down'));
+    });
+
+    const box = await page.locator('canvas.upper-canvas').boundingBox();
+    if (!box) throw new Error('canvas has no layout box');
+    await page.mouse.click(box.x + 120, box.y + 120);
+
+    expect(await page.evaluate(() => (window as unknown as { __order: string[] }).__order)).toEqual(
+      ['fabric-down', 'blur'],
+    );
+  });
 });

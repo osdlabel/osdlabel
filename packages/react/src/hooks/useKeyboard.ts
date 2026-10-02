@@ -3,6 +3,7 @@ import type { KeyboardShortcutMap, ImageId, UIState } from '@osdlabel/viewer-api
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import {
   mapKeyEventToActions,
+  shouldSkipKeyboardShortcut,
   shouldSuppressEscapeKey,
   DEFAULT_KEYBOARD_SHORTCUTS,
   MAX_GRID_SIZE,
@@ -33,13 +34,11 @@ export function useKeyboard(
       // as well.
       if (shouldSuppressEscapeKey(e.key)) return;
 
+      // Leave the key to the focused element when it owns it: text entry owns
+      // every key, a focused button owns Enter and Space (#189). Then the
+      // host's own predicate.
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable ||
-        shouldSkipTargetPredicate?.(target)
-      ) {
+      if (shouldSkipKeyboardShortcut(target, e.key) || shouldSkipTargetPredicate?.(target)) {
         return;
       }
 

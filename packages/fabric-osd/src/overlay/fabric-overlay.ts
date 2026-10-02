@@ -806,6 +806,31 @@ export class FabricOverlay {
   // ── Private: MouseTracker factory ──────────────────────────────
 
   /**
+   * Moves keyboard focus to the viewer, as the browser would have done itself.
+   *
+   * In annotation and custom-control mode the overlay prevents the default of
+   * every press it owns. That also cancels the browser's own focus change, so
+   * whatever had focus kept it: a toolbar button reached with Tab stayed
+   * focused while the user drew with the mouse, and a later Enter went to the
+   * button instead of finishing the polyline (#189). A press on the image
+   * would natively focus the nearest focusable ancestor, which is OSD's canvas
+   * (`tabIndex` 0); this restores exactly that. OSD's own key bindings on the
+   * canvas are suppressed (`_onCanvasKey`), so focusing it cannot trigger
+   * them, and it is where a navigation-mode click already puts focus.
+   *
+   * Called after the press has been forwarded, matching the browser's order.
+   * A Ctrl/Cmd-drag pan is OSD's to handle and does not come through here,
+   * and neither does a right or middle press, which the overlay does not
+   * handle.
+   */
+  private _focusViewerOnPress(): void {
+    const canvas = this._viewer.canvas;
+    if (canvas.ownerDocument.activeElement !== canvas) {
+      canvas.focus({ preventScroll: true });
+    }
+  }
+
+  /**
    * Create the OSD MouseTracker attached to Fabric's container element.
    *
    * OSD's innerTracker captures ALL pointer events on viewer.canvas via
@@ -888,13 +913,18 @@ export class FabricOverlay {
         if (this._forwarding || this._mode === 'navigation') return;
 
         const originalEvent = event.originalEvent as PointerEvent;
+        // Focus moves after the press is delivered, as the browser orders it:
+        // the focus change is the press's default action, so handlers see the
+        // press before any blur it causes.
         if (this._mode === 'customControl') {
           this._customControlHandler?.onPointerDown?.(this._buildCustomControlEvent(originalEvent));
+          this._focusViewerOnPress();
           return;
         }
 
         if (this._panGestureActive) return;
         this._forwardToFabric(POINTER_DOWN, originalEvent, this._recordPress(originalEvent));
+        this._focusViewerOnPress();
       },
 
       moveHandler: (event: OpenSeadragon.MouseTrackerEvent) => {

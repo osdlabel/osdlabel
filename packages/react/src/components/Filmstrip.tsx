@@ -1,8 +1,10 @@
-import type { MouseEvent } from 'react';
+import { useRef, type MouseEvent } from 'react';
 import { useAnnotator } from '../state/annotator-context.js';
-import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
+import type { ImageSource } from '@osdlabel/viewer-api';
 import {
   getCellAssignmentState,
+  getCellAssignmentLabel,
+  preventButtonFocusSteal,
   CELL_ASSIGNMENT_BORDER_COLOR,
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
@@ -18,27 +20,15 @@ export interface FilmstripProps {
 export default function Filmstrip({ images, position }: FilmstripProps) {
   const { uiState, actions } = useAnnotator();
 
-  const assignmentState = (imageId: ImageId): CellAssignmentState =>
-    getCellAssignmentState(uiState, imageId);
-
-  // A thumbnail click only assigns; clearing is the separate badge, so a
-  // double-click cannot assign and then wipe the cell's view transform.
-  const assign = (image: ImageSource) => {
-    actions.assignImageToCell(uiState.activeCellIndex, image.id);
-  };
-
-  const clearActiveCell = (event: MouseEvent<HTMLButtonElement>) => {
-    // Without this the wrapper's handler also fires and re-assigns the image
-    // the badge just removed.
-    event.stopPropagation();
-    actions.unassignImageFromCell(uiState.activeCellIndex);
-  };
-
   const isVertical = position === 'left' || position === 'right';
 
   return (
     <div
       data-testid="filmstrip"
+      // A click on a thumbnail or the clear badge must not leave focus on it,
+      // like the toolbar: Enter and Space would re-press it, and Enter is also
+      // the polyline-finish key. Tab still reaches both buttons.
+      onMouseDown={preventButtonFocusSteal}
       style={{
         display: 'flex',
         flexDirection: isVertical ? 'column' : 'row',
@@ -51,94 +41,148 @@ export default function Filmstrip({ images, position }: FilmstripProps) {
         flexShrink: 0,
       }}
     >
-      {[...images].map((image) => {
-        const state = assignmentState(image.id);
+      {[...images].map((image) => (
+        <FilmstripItem
+          key={image.id}
+          image={image}
+          state={getCellAssignmentState(uiState, image.id)}
+          isVertical={isVertical}
+          onAssign={() => actions.assignImageToCell(uiState.activeCellIndex, image.id)}
+          onClear={() => actions.unassignImageFromCell(uiState.activeCellIndex)}
+        />
+      ))}
+    </div>
+  );
+}
 
-        return (
+interface FilmstripItemProps {
+  readonly image: ImageSource;
+  readonly state: CellAssignmentState;
+  readonly isVertical: boolean;
+  readonly onAssign: () => void;
+  readonly onClear: () => void;
+}
+
+/**
+ * One thumbnail. The wrapper is a plain container holding two sibling buttons,
+ * so no control is nested inside another; it keeps the test id,
+ * `data-assignment` and the state border.
+ */
+function FilmstripItem({ image, state, isVertical, onAssign, onClear }: FilmstripItemProps) {
+  const thumbnailRef = useRef<HTMLButtonElement>(null);
+  const name = image.label ?? image.id;
+
+  /**
+   * When the clear button had keyboard focus, focus moves to this image's
+   * thumbnail first: the button unmounts with the assignment, and focus would
+   * otherwise fall to `<body>`, leaving a keyboard user to tab back from the
+   * top of the page (#189). A mouse press never focuses the button
+   * (`preventButtonFocusSteal`), so it never moves focus.
+   */
+  const clear = (event: MouseEvent<HTMLButtonElement>) => {
+    if (document.activeElement === event.currentTarget) thumbnailRef.current?.focus();
+    onClear();
+  };
+
+  return (
+    <div
+      data-testid={`filmstrip-item-${image.id}`}
+      data-assignment={state}
+      style={{
+        [isVertical ? 'width' : 'height']: '100%',
+        [isVertical ? 'height' : 'width']: '80px',
+        flexShrink: 0,
+        border: `2px solid ${CELL_ASSIGNMENT_BORDER_COLOR[state]}`,
+        borderRadius: '4px',
+        position: 'relative',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* Assigns this image to the active cell. A real button, so it is
+          focusable and operable with Enter or Space, and its name carries the
+          state the border shows. It never clears, so a double-click cannot
+          assign and then wipe the cell. */}
+      <button
+        type="button"
+        ref={thumbnailRef}
+        data-testid={`filmstrip-thumb-${image.id}`}
+        aria-label={getCellAssignmentLabel(name, state)}
+        aria-current={state === 'active' ? 'true' : undefined}
+        title={CELL_ASSIGNMENT_TITLE[state]}
+        onClick={onAssign}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          padding: 0,
+          border: 'none',
+          borderRadius: '2px',
+          overflow: 'hidden',
+          background: 'transparent',
+          cursor: 'pointer',
+        }}
+      >
+        {image.thumbnailUrl ? (
+          <img
+            src={image.thumbnailUrl}
+            alt=""
+            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
           <div
-            key={image.id}
-            data-testid={`filmstrip-item-${image.id}`}
-            data-assignment={state}
-            title={CELL_ASSIGNMENT_TITLE[state]}
-            onClick={() => assign(image)}
+            aria-hidden="true"
             style={{
-              [isVertical ? 'width' : 'height']: '100%',
-              [isVertical ? 'height' : 'width']: '80px',
-              flexShrink: 0,
-              border: `2px solid ${CELL_ASSIGNMENT_BORDER_COLOR[state]}`,
-              borderRadius: '4px',
-              overflow: 'hidden',
-              cursor: 'pointer',
-              position: 'relative',
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND[state],
+              color: '#aaa',
+              fontSize: '10px',
+              fontFamily: 'system-ui, sans-serif',
+              textAlign: 'center',
+              padding: '4px',
               boxSizing: 'border-box',
             }}
           >
-            {image.thumbnailUrl ? (
-              <img
-                src={image.thumbnailUrl}
-                alt={image.label ?? image.id}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND[state],
-                  color: '#aaa',
-                  fontSize: '10px',
-                  fontFamily: 'system-ui, sans-serif',
-                  textAlign: 'center',
-                  padding: '4px',
-                  boxSizing: 'border-box',
-                }}
-              >
-                {image.label ?? image.id}
-              </div>
-            )}
-            {/* The only control that empties a cell. A real button, so it is
-                reachable by keyboard and named for assistive tech — which is
-                also the one gesture in this component that loses work. */}
-            {state === 'active' && (
-              <button
-                type="button"
-                data-testid={`filmstrip-clear-${image.id}`}
-                aria-label={CELL_ASSIGNMENT_CLEAR_LABEL}
-                title={CELL_ASSIGNMENT_CLEAR_LABEL}
-                onClick={clearActiveCell}
-                style={{
-                  position: 'absolute',
-                  top: '2px',
-                  right: '2px',
-                  width: '16px',
-                  height: '16px',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'rgba(0, 0, 0, 0.65)',
-                  color: '#fff',
-                  fontSize: '11px',
-                  lineHeight: '1',
-                  fontFamily: 'system-ui, sans-serif',
-                  cursor: 'pointer',
-                }}
-              >
-                ✕
-              </button>
-            )}
+            {name}
           </div>
-        );
-      })}
+        )}
+      </button>
+      {/* The only control that empties a cell. A real button, so it is
+          reachable by keyboard and named for assistive tech — which is also
+          the one gesture in this component that loses work. */}
+      {state === 'active' && (
+        <button
+          type="button"
+          data-testid={`filmstrip-clear-${image.id}`}
+          aria-label={CELL_ASSIGNMENT_CLEAR_LABEL}
+          title={CELL_ASSIGNMENT_CLEAR_LABEL}
+          onClick={clear}
+          style={{
+            position: 'absolute',
+            top: '2px',
+            right: '2px',
+            width: '16px',
+            height: '16px',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(0, 0, 0, 0.65)',
+            color: '#fff',
+            fontSize: '11px',
+            lineHeight: '1',
+            fontFamily: 'system-ui, sans-serif',
+            cursor: 'pointer',
+          }}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

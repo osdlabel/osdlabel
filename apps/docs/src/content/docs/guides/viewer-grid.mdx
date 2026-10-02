@@ -90,7 +90,9 @@ The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
 Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows simply re-assigns it.
 
-To empty a cell, use the `✕` badge on the thumbnail the active cell is showing. It is a real button: focusable, labelled for assistive tech, and the only control that clears. Keeping it separate from the thumbnail matters because clearing also drops the cell's view transform with no undo — if a thumbnail click cleared, an ordinary double-click would assign and then immediately wipe the cell.
+Thumbnails are buttons, so the filmstrip works from the keyboard too: `Tab` to a thumbnail and press `Enter` or `Space` to assign it. Each one is named with its image and its state for assistive tech (for example "Landscape, shown in the active cell"), and the active cell's image is marked `aria-current`.
+
+To empty a cell, use the `✕` badge on the thumbnail the active cell is showing. It is a real button: focusable, labelled for assistive tech, and the only control that clears. Clearing it from the keyboard moves focus to the same image's thumbnail, so `Enter` there puts the image straight back. Keeping it separate from the thumbnail matters because clearing also drops the cell's view transform with no undo — if a thumbnail click cleared, an ordinary double-click would assign and then immediately wipe the cell.
 
 The border tells you how the image relates to the active cell:
 
