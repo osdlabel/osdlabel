@@ -382,8 +382,7 @@ test.describe('Filmstrip from the keyboard and assistive tech (#189)', () => {
     await page.mouse.click(box.x + 260, box.y + 200);
     await page.waitForTimeout(200);
 
-    // The combobox kept focus after selectOption; move it to the page body.
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    // The drawing presses moved focus to the viewer, so no button owns Enter.
     await page.keyboard.press('Enter');
 
     await expect.poll(() => committedAnnotationIds(page)).toHaveLength(1);

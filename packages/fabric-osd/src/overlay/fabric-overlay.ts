@@ -817,6 +817,9 @@ export class FabricOverlay {
    * (`tabIndex` 0); this restores exactly that. OSD's own key bindings on the
    * canvas are suppressed (`_onCanvasKey`), so focusing it cannot trigger
    * them, and it is where a navigation-mode click already puts focus.
+   *
+   * Called after the press has been forwarded, matching the browser's order.
+   * A Ctrl/Cmd-drag pan is OSD's to handle and does not come through here.
    */
   private _focusViewerOnPress(): void {
     const canvas = this._viewer.canvas;
@@ -908,15 +911,18 @@ export class FabricOverlay {
         if (this._forwarding || this._mode === 'navigation') return;
 
         const originalEvent = event.originalEvent as PointerEvent;
+        // Focus moves after the press is delivered, as the browser orders it:
+        // the focus change is the press's default action, so handlers see the
+        // press before any blur it causes.
         if (this._mode === 'customControl') {
-          this._focusViewerOnPress();
           this._customControlHandler?.onPointerDown?.(this._buildCustomControlEvent(originalEvent));
+          this._focusViewerOnPress();
           return;
         }
 
         if (this._panGestureActive) return;
-        this._focusViewerOnPress();
         this._forwardToFabric(POINTER_DOWN, originalEvent, this._recordPress(originalEvent));
+        this._focusViewerOnPress();
       },
 
       moveHandler: (event: OpenSeadragon.MouseTrackerEvent) => {

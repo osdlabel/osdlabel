@@ -39,8 +39,8 @@ function isObjectTarget(target: unknown): target is Partial<KeyboardShortcutTarg
  *
  * Two things keep the button rule from catching a key meant for the image: a
  * mouse click does not leave focus on the annotator's chrome buttons
- * (`preventButtonFocusSteal`), and a press on the image moves focus to the
- * viewer (`FabricOverlay`), so a button picked from the keyboard loses focus
+ * (`preventButtonFocusSteal`), and a drawing or selecting press on the image
+ * moves focus to the viewer (`FabricOverlay`), so a button picked from the keyboard loses focus
  * once the user starts drawing with the mouse. What remains is a user whose
  * focus is genuinely on a button, for whom Enter or Space means "press it".
  *

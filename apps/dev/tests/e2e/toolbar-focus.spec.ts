@@ -116,4 +116,37 @@ test.describe('Toolbar focus', () => {
       })
       .toBe(1);
   });
+
+  test('the press reaches Fabric before focus leaves a host control', async ({ page }) => {
+    // Natively the focus change is the press's default action, so press
+    // handlers run before any blur it causes. A host field that commits on
+    // blur must not rebuild the canvas under a press Fabric has not seen yet.
+    // 'General' offers the rectangle tool on the tiled image this suite loads.
+    const select = page.getByRole('combobox');
+    await select.selectOption({ label: 'General' });
+    await page.getByTestId('tool-rectangle').click();
+    await select.focus();
+
+    await page.evaluate(() => {
+      const order: string[] = [];
+      (window as unknown as { __order: string[] }).__order = order;
+      document.querySelector('select')!.addEventListener('blur', () => order.push('blur'));
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & {
+            __osdOverlay?: { canvas?: { on: (name: string, cb: () => void) => void } };
+          })
+        | null;
+      const canvas = el?.__osdOverlay?.canvas;
+      if (!canvas) throw new Error('overlay test hook not installed');
+      canvas.on('mouse:down', () => order.push('fabric-down'));
+    });
+
+    const box = await page.locator('canvas.upper-canvas').boundingBox();
+    if (!box) throw new Error('canvas has no layout box');
+    await page.mouse.click(box.x + 120, box.y + 120);
+
+    expect(await page.evaluate(() => (window as unknown as { __order: string[] }).__order)).toEqual(
+      ['fabric-down', 'blur'],
+    );
+  });
 });
