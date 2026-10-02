@@ -378,6 +378,35 @@ test.describe('getHorizontalClipBounds', () => {
     expect(bounds).toEqual(await viewportBounds(page));
   });
 
+  // Filters, unlike transforms and containment, also apply to an inline box,
+  // which then contains the fixed slot inside it; transforms do not.
+  for (const [style, contains] of [
+    ['filter: blur(0px)', true],
+    ['backdrop-filter: blur(0px)', true],
+    ['will-change: filter', true],
+    ['transform: translateX(0)', false],
+  ] as const) {
+    test(`an inline box with \`${style}\` ${contains ? 'contains' : 'does not contain'} a fixed box`, async ({
+      page,
+    }) => {
+      const { bounds, clip } = await boundsFor(
+        page,
+        `const outer = document.createElement('div');
+         outer.style.cssText = 'overflow: hidden; width: 240px; height: 80px;';
+         const inline = document.createElement('span');
+         inline.style.cssText = '${style};';
+         inline.textContent = 'x';
+         const slot = document.createElement('div');
+         slot.style.cssText = 'position: fixed; left: 150px; top: 0;';
+         const anchor = document.createElement('div');
+         anchor.style.cssText = 'position: relative; width: 60px;';
+         slot.append(anchor); inline.append(slot); outer.append(inline); stage.append(outer);
+         return [anchor, outer];`,
+      );
+      expect(bounds).toEqual(contains ? clip : await viewportBounds(page));
+    });
+  }
+
   // A top-layer element is painted above everything, so even a clipping
   // ancestor that would contain it as a fixed box does not clip it.
   for (const [name, open] of [

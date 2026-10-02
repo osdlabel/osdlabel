@@ -86,8 +86,6 @@ const WILL_CHANGE_CONTAINING_BLOCK: ReadonlySet<string> = new Set([
   'transform',
   'transform-style',
   'perspective',
-  'filter',
-  'backdrop-filter',
   'translate',
   'rotate',
   'scale',
@@ -95,6 +93,9 @@ const WILL_CHANGE_CONTAINING_BLOCK: ReadonlySet<string> = new Set([
   'offset-path',
   'offset-position',
 ]);
+
+/** `will-change` tokens for a filter, which unlike the rest apply to inline boxes. */
+const WILL_CHANGE_FILTER: ReadonlySet<string> = new Set(['filter', 'backdrop-filter']);
 
 /** The comma-separated tokens of a computed `will-change`. */
 function willChangeTokens(style: CSSStyleDeclaration): readonly string[] {
@@ -121,9 +122,17 @@ function skipsContents(style: CSSStyleDeclaration): boolean {
  * itself: a transform (`transform`, `translate`, `rotate` or `scale`),
  * `perspective`, `transform-style: preserve-3d`, a filter, layout or paint
  * containment (including `content-visibility`'s), or a `will-change` promise
- * of one of those. None of them apply to an inline box.
+ * of one of those. Only the filters apply to an inline box too.
  */
 function establishesContainingBlockForFixed(style: CSSStyleDeclaration): boolean {
+  const willChange = willChangeTokens(style);
+  if (
+    isSet(style.filter) ||
+    isSet(style.backdropFilter) ||
+    willChange.some((token) => WILL_CHANGE_FILTER.has(token))
+  ) {
+    return true;
+  }
   if (style.display === 'inline') return false;
   return (
     isSet(style.transform) ||
@@ -132,11 +141,9 @@ function establishesContainingBlockForFixed(style: CSSStyleDeclaration): boolean
     isSet(style.scale) ||
     isSet(style.perspective) ||
     style.transformStyle === 'preserve-3d' ||
-    isSet(style.filter) ||
-    isSet(style.backdropFilter) ||
     CONTAIN_LAYOUT.test(style.contain) ||
     skipsContents(style) ||
-    willChangeTokens(style).some((token) => WILL_CHANGE_CONTAINING_BLOCK.has(token))
+    willChange.some((token) => WILL_CHANGE_CONTAINING_BLOCK.has(token))
   );
 }
 
@@ -204,8 +211,9 @@ function isInTopLayer(el: Element): boolean {
  *   with `display: contents`, which has no box.
  *
  * Clipping comes from `overflow-x` other than `visible` and from paint
- * containment, `content-visibility`'s included. Neither clipping nor the
- * non-positioned containing blocks apply to an inline box. Each clipping
+ * containment, `content-visibility`'s included. Clipping does not apply to
+ * an inline box, nor do the non-positioned containing blocks other than a
+ * filter. Each clipping
  * element contributes its padding box (`clientLeft` / `clientWidth`); the
  * viewport contributes its `clientWidth`, which excludes a vertical scrollbar.
  *
