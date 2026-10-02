@@ -267,6 +267,117 @@ test.describe('getHorizontalClipBounds', () => {
     expect(bounds).toEqual(clip);
   });
 
+  // A fixed slot inside `outer { <style>; overflow: hidden }`: when the style
+  // makes `outer` its containing block, `outer` clips it. Each of these is one
+  // Chromium treats as a containing block for fixed (and absolute) boxes.
+  for (const style of [
+    'translate: 0px',
+    'rotate: 0deg',
+    'scale: 1',
+    'transform-style: preserve-3d',
+    'content-visibility: auto',
+    'will-change: contain',
+    'will-change: offset-path',
+  ]) {
+    test(`counts \`${style}\` as a containing block for a fixed box`, async ({ page }) => {
+      const { bounds, clip } = await boundsFor(
+        page,
+        `const outer = document.createElement('div');
+         outer.style.cssText = '${style}; overflow: hidden; width: 240px; height: 80px;';
+         const slot = document.createElement('div');
+         slot.style.cssText = 'position: fixed; left: 150px; top: 0;';
+         const anchor = document.createElement('div');
+         anchor.style.cssText = 'position: relative; width: 60px;';
+         slot.append(anchor); outer.append(slot); stage.append(outer);
+         return [anchor, outer];`,
+      );
+      expect(bounds).toEqual(clip);
+    });
+  }
+
+  test('does not count a container query container as a containing block', async ({ page }) => {
+    // `container-type` establishes no containing block, so the fixed slot
+    // escapes the clipping container entirely.
+    const { bounds } = await boundsFor(
+      page,
+      `const outer = document.createElement('div');
+       outer.style.cssText = 'container-type: inline-size; overflow: hidden; width: 240px; height: 80px;';
+       const slot = document.createElement('div');
+       slot.style.cssText = 'position: fixed; left: 150px; top: 0;';
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       slot.append(anchor); outer.append(slot); stage.append(outer);
+       return [anchor, outer];`,
+    );
+    expect(bounds).toEqual(await viewportBounds(page));
+  });
+
+  test('counts will-change: position for an absolute box but not a fixed one', async ({ page }) => {
+    const build = (position: string) =>
+      `const outer = document.createElement('div');
+       outer.style.cssText = 'will-change: position; overflow: hidden; width: 240px; height: 80px;';
+       const slot = document.createElement('div');
+       slot.style.cssText = 'position: ${position}; left: 150px; top: 0;';
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       slot.append(anchor); outer.append(slot); stage.append(outer);
+       return [anchor, outer];`;
+    const absolute = await boundsFor(page, build('absolute'));
+    expect(absolute.bounds).toEqual(absolute.clip);
+    const fixed = await boundsFor(page, build('fixed'));
+    expect(fixed.bounds).toEqual(await viewportBounds(page));
+  });
+
+  test('counts content-visibility as a clip', async ({ page }) => {
+    const { bounds, clip } = await boundsFor(
+      page,
+      `const outer = document.createElement('div');
+       outer.style.cssText = 'content-visibility: auto; width: 240px;';
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       outer.append(anchor); stage.append(outer);
+       return [anchor, outer];`,
+    );
+    expect(bounds).toEqual(clip);
+  });
+
+  test('ignores paint containment on an inline box, where it does not apply', async ({ page }) => {
+    const { bounds } = await boundsFor(
+      page,
+      `const outer = document.createElement('span');
+       outer.style.cssText = 'contain: paint;';
+       const anchor = document.createElement('span');
+       anchor.style.cssText = 'position: relative;';
+       anchor.textContent = 'anchor';
+       outer.append(anchor); stage.append(outer);
+       return [anchor, outer];`,
+    );
+    expect(bounds).toEqual(await viewportBounds(page));
+  });
+
+  // A top-layer element is painted above everything, so even a clipping
+  // ancestor that would contain it as a fixed box does not clip it.
+  for (const [name, open] of [
+    ['an open popover', `top.setAttribute('popover', 'manual'); top.showPopover();`],
+    ['a modal dialog', `top.showModal();`],
+  ] as const) {
+    test(`stops at ${name} in the top layer`, async ({ page }) => {
+      const { bounds } = await boundsFor(
+        page,
+        `const outer = document.createElement('div');
+         outer.style.cssText = 'transform: translateX(0); overflow: hidden; width: 240px; height: 80px;';
+         const top = document.createElement('${name === 'a modal dialog' ? 'dialog' : 'div'}');
+         top.style.cssText = 'overflow: visible;';
+         const anchor = document.createElement('div');
+         anchor.style.cssText = 'position: relative; width: 60px;';
+         top.append(anchor); outer.append(top); stage.append(outer);
+         ${open}
+         return [anchor, outer];`,
+      );
+      expect(bounds).toEqual(await viewportBounds(page));
+    });
+  }
+
   test('counts paint containment as a clip', async ({ page }) => {
     const { bounds, clip } = await boundsFor(
       page,
