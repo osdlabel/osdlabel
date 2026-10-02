@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 test.describe('Filmstrip', () => {
   test.beforeEach(async ({ page }) => {
@@ -105,8 +105,7 @@ test.describe('Filmstrip', () => {
 
   test('the clear badge is reachable and operable from the keyboard', async ({ page }) => {
     // The badge is the only control here that loses work, so it is the one that
-    // most needs a non-mouse path. The thumbnail itself is still mouse-only
-    // (#189); this covers the destructive half.
+    // most needs a non-mouse path.
     const clear = page.getByTestId('filmstrip-clear-landscape');
     await expect(clear).toBeVisible();
 
@@ -244,5 +243,149 @@ test.describe('Filmstrip', () => {
     ]);
 
     expect(new Set([active, other, none]).size).toBe(3);
+  });
+});
+
+/** Ids of every annotation committed to state, across images. */
+const committedAnnotationIds = async (page: Page): Promise<string[]> => {
+  const text = (await page.getByTestId('annotations-json').textContent()) ?? '{}';
+  const byImage = JSON.parse(text) as Record<string, Record<string, unknown>>;
+  return Object.values(byImage).flatMap((forImage) => Object.keys(forImage));
+};
+
+const activeTestId = (page: Page): Promise<string | null> =>
+  page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null);
+
+test.describe('Filmstrip from the keyboard and assistive tech (#189)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('[data-testid="filmstrip"]', { timeout: 10000 });
+  });
+
+  test('a thumbnail is a focusable button that Enter assigns', async ({ page }) => {
+    const portrait = page.getByTestId('filmstrip-item-portrait');
+    await expect(portrait).toHaveAttribute('data-assignment', 'none');
+
+    const thumb = page.getByTestId('filmstrip-thumb-portrait');
+    await thumb.focus();
+    await expect(thumb).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(portrait).toHaveAttribute('data-assignment', 'active');
+  });
+
+  test('Space assigns too', async ({ page }) => {
+    const thumb = page.getByTestId('filmstrip-thumb-wide');
+    await thumb.focus();
+    await page.keyboard.press(' ');
+
+    await expect(page.getByTestId('filmstrip-item-wide')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+  });
+
+  test('each thumbnail is named with its image and assignment state', async ({ page }) => {
+    // The tri-state border is visual only; the accessible name carries the
+    // same three states, and only the active one is marked current.
+    const landscape = page.getByRole('button', { name: 'Landscape, shown in the active cell' });
+    const portrait = page.getByRole('button', { name: 'Portrait, not shown' });
+    await expect(landscape).toHaveAttribute('aria-current', 'true');
+    await expect(portrait).not.toHaveAttribute('aria-current', /.*/);
+
+    await page.getByTestId('grid-selector-trigger').click();
+    await page.getByTestId('grid-cell-2-1').click();
+    await page.getByTestId('cell-placeholder-1').click();
+
+    // Landscape is still in cell 0, which is no longer the active cell.
+    await expect(
+      page.getByRole('button', { name: 'Landscape, shown in another cell' }),
+    ).toHaveCount(1);
+  });
+
+  test('a mouse click does not leave focus on the thumbnail', async ({ page }) => {
+    // Like the toolbar: a focused thumbnail would be re-pressed by Enter, which
+    // is also the polyline-finish key.
+    await page.getByTestId('filmstrip-item-portrait').click();
+    await expect(page.getByTestId('filmstrip-item-portrait')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+    expect(await activeTestId(page)).not.toBe('filmstrip-thumb-portrait');
+  });
+
+  test('clearing from the keyboard moves focus to that image’s thumbnail', async ({ page }) => {
+    // The clear button unmounts with the assignment; without a hand-off, focus
+    // fell to <body> and a keyboard user had to tab back from the top.
+    const clear = page.getByTestId('filmstrip-clear-landscape');
+    await clear.focus();
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+    await expect(page.getByTestId('filmstrip-thumb-landscape')).toBeFocused();
+
+    // And Enter there puts the image straight back.
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('cell-placeholder-0')).toHaveCount(0);
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+  });
+
+  test('a mouse clear leaves focus where it was', async ({ page }) => {
+    await page.getByTestId('filmstrip-clear-landscape').click();
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+    expect(await activeTestId(page)).not.toBe('filmstrip-thumb-landscape');
+  });
+
+  test('Enter on the focused clear button does not also finish a polyline', async ({ page }) => {
+    // The bug in #189: the window-level shortcut listener saw the same Enter
+    // that activated the button, and Enter is the polyline-finish key. One
+    // keypress finished the polyline *and* emptied the cell.
+    await page.getByRole('combobox').selectOption({ label: 'General' });
+    await page.getByTestId('tool-polyline').click();
+
+    const canvas = page.locator('canvas.upper-canvas');
+    await canvas.waitFor({ state: 'attached', timeout: 15000 });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('canvas has no layout box');
+    await page.mouse.click(box.x + 100, box.y + 100);
+    await page.mouse.click(box.x + 200, box.y + 120);
+    await page.mouse.click(box.x + 260, box.y + 200);
+    await page.waitForTimeout(200);
+    expect(await committedAnnotationIds(page)).toHaveLength(0);
+
+    const clear = page.getByTestId('filmstrip-clear-landscape');
+    await clear.focus();
+    await page.keyboard.press('Enter');
+
+    // The button did its job...
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+    // ...and nothing else: the in-progress polyline was not committed.
+    await page.waitForTimeout(200);
+    expect(await committedAnnotationIds(page)).toHaveLength(0);
+  });
+
+  test('control: Enter with focus off any button does finish the polyline', async ({ page }) => {
+    // Proves the test above can fail: the same drawing, finished by an Enter
+    // that no button owns, commits the polyline.
+    await page.getByRole('combobox').selectOption({ label: 'General' });
+    await page.getByTestId('tool-polyline').click();
+
+    const canvas = page.locator('canvas.upper-canvas');
+    await canvas.waitFor({ state: 'attached', timeout: 15000 });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('canvas has no layout box');
+    await page.mouse.click(box.x + 100, box.y + 100);
+    await page.mouse.click(box.x + 200, box.y + 120);
+    await page.mouse.click(box.x + 260, box.y + 200);
+    await page.waitForTimeout(200);
+
+    // The combobox kept focus after selectOption; move it to the page body.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('Enter');
+
+    await expect.poll(() => committedAnnotationIds(page)).toHaveLength(1);
   });
 });

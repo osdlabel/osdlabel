@@ -4,6 +4,7 @@ import { useConstraints } from './useConstraints.js';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import {
   mapKeyEventToActions,
+  shouldSkipKeyboardShortcut,
   shouldSuppressEscapeKey,
   MAX_GRID_SIZE,
   DEFAULT_KEYBOARD_SHORTCUTS,
@@ -28,14 +29,11 @@ export function useKeyboard(
     // vertex-editor Escape branches are covered as well.
     if (shouldSuppressEscapeKey(e.key)) return;
 
-    // Suppress shortcuts if typing in input/textarea/contenteditable
+    // Leave the key to the focused element when it owns it: text entry owns
+    // every key, a focused button owns Enter and Space (#189). Then the host's
+    // own predicate.
     const target = e.target as HTMLElement;
-    if (
-      target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.isContentEditable ||
-      shouldSkipTargetPredicate?.(target)
-    ) {
+    if (shouldSkipKeyboardShortcut(target, e.key) || shouldSkipTargetPredicate?.(target)) {
       return;
     }
 

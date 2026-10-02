@@ -101,7 +101,7 @@ function gridCellShortcutIndex(key: string, shortcuts: KeyboardShortcutMap): num
  * shortcut it matches has nothing to do in the current state.
  *
  * The caller is responsible for:
- * 1. Checking shouldSkipTarget
+ * 1. Checking `shouldSkipKeyboardShortcut` (and any host predicate)
  * 2. Passing the event to activeToolKeyHandler first
  * 3. Dispatching the returned actions
  */

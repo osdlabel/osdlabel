@@ -202,6 +202,8 @@ export type { ViewerControlSpec, ViewerControlAxisSpec, ToneField } from './view
 // Keyboard mapping
 export { DEFAULT_KEYBOARD_SHORTCUTS, MAX_GRID_SIZE, mapKeyEventToActions } from './keyboard.js';
 export type { KeyboardMappingState } from './keyboard.js';
+export { shouldSkipKeyboardShortcut } from './keyboard-target.js';
+export type { KeyboardShortcutTarget } from './keyboard-target.js';
 
 // Annotation context cycling
 export { getSelectableContexts, getCycledContextId } from './context-cycling.js';
@@ -215,6 +217,8 @@ export {
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
   CELL_ASSIGNMENT_CLEAR_LABEL,
+  CELL_ASSIGNMENT_STATE_LABEL,
+  getCellAssignmentLabel,
 } from './cell-assignment.js';
 export type { CellAssignmentState, CellAssignmentView, GridDimensions } from './cell-assignment.js';
 

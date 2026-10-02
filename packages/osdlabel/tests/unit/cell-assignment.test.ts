@@ -8,6 +8,9 @@ import {
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
   CELL_ASSIGNMENT_CLEAR_LABEL,
+  CELL_ASSIGNMENT_STATE_LABEL,
+  getCellAssignmentLabel,
+  type CellAssignmentState,
   type CellAssignmentView,
 } from '../../src/cell-assignment.js';
 
@@ -188,5 +191,27 @@ describe('getCellAssignmentState — an out-of-grid active cell is not "active"'
     const v = view({ 7: IMG_A }, 7, 1, 1);
 
     expect(getCellAssignmentState(v, IMG_A)).not.toBe('active');
+  });
+});
+
+describe('getCellAssignmentLabel', () => {
+  it('names the image and states its assignment', () => {
+    expect(getCellAssignmentLabel('Landscape', 'active')).toBe(
+      'Landscape, shown in the active cell',
+    );
+    expect(getCellAssignmentLabel('Landscape', 'other')).toBe('Landscape, shown in another cell');
+    expect(getCellAssignmentLabel('Landscape', 'none')).toBe('Landscape, not shown');
+  });
+
+  it('gives each state a distinct phrase that promises no gesture', () => {
+    // The accessible name must tell the three states apart, as the border does
+    // for sighted users. It describes state, not an action: "click" would be
+    // wrong for a keyboard user, and a thumbnail never clears.
+    const states: readonly CellAssignmentState[] = ['active', 'other', 'none'];
+    const phrases = states.map((s) => CELL_ASSIGNMENT_STATE_LABEL[s]);
+    expect(new Set(phrases).size).toBe(states.length);
+    for (const phrase of phrases) {
+      expect(phrase).not.toMatch(/click|clear|remove/i);
+    }
   });
 });

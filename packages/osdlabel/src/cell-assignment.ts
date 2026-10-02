@@ -109,3 +109,27 @@ export const CELL_ASSIGNMENT_TITLE: Readonly<Record<CellAssignmentState, string>
 
 /** Accessible name for the badge control that empties the active cell. */
 export const CELL_ASSIGNMENT_CLEAR_LABEL = 'Remove this image from the active cell';
+
+/**
+ * Short state phrase for a thumbnail's accessible name. Unlike
+ * {@link CELL_ASSIGNMENT_TITLE} (hover text, which describes what a click
+ * does), this states the thumbnail's state, so it reads correctly however the
+ * control is reached and activated.
+ */
+export const CELL_ASSIGNMENT_STATE_LABEL: Readonly<Record<CellAssignmentState, string>> = {
+  active: 'shown in the active cell',
+  other: 'shown in another cell',
+  none: 'not shown',
+};
+
+/**
+ * Accessible name for a filmstrip thumbnail: the image's name and its
+ * {@link CellAssignmentState}, e.g. `"Landscape, shown in the active cell"`.
+ *
+ * The state is part of the name rather than an `aria-description` because
+ * support for the latter is uneven, and the three states are exactly what the
+ * tri-state border shows sighted users.
+ */
+export function getCellAssignmentLabel(imageName: string, state: CellAssignmentState): string {
+  return `${imageName}, ${CELL_ASSIGNMENT_STATE_LABEL[state]}`;
+}
