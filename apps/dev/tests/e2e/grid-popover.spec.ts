@@ -161,3 +161,153 @@ test('the stock Annotator still opens it rightward', async ({ page }) => {
     'start',
   );
 });
+
+/**
+ * `getHorizontalClipBounds` against DOM fixtures, called directly. Each
+ * fixture builds a clipping box `clip` (240px wide, at x = 40) and an anchor
+ * somewhere inside it, then compares the helper's bounds with what really
+ * clips the anchor's popover. Built in the page so the browser's own layout
+ * and computed styles are what the helper reads.
+ */
+test.describe('getHorizontalClipBounds', () => {
+  type Bounds = { left: number; right: number };
+
+  const boundsFor = (page: Page, build: string): Promise<{ bounds: Bounds; clip: Bounds }> =>
+    page.evaluate((build) => {
+      const stage = document.createElement('div');
+      stage.id = 'stage';
+      stage.style.cssText = 'position: relative; margin-left: 40px; margin-top: 300px;';
+      document.body.append(stage);
+      // `build` populates `stage` and returns [anchor, clipping element].
+      const [anchor, clip] = new Function('stage', build)(stage) as [Element, Element];
+      const api = (
+        window as unknown as {
+          __popoverPlacement: { getHorizontalClipBounds: (el: Element) => Bounds };
+        }
+      ).__popoverPlacement;
+      const rect = clip.getBoundingClientRect();
+      return {
+        bounds: api.getHorizontalClipBounds(anchor),
+        clip: {
+          left: rect.left + clip.clientLeft,
+          right: rect.left + clip.clientLeft + clip.clientWidth,
+        },
+      };
+    }, build);
+
+  const viewportBounds = (page: Page) =>
+    page.evaluate(() => ({ left: 0, right: document.documentElement.clientWidth }));
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/grid-controls.html');
+  });
+
+  test('follows a shadow tree out to a clipping shadow host', async ({ page }) => {
+    const { bounds, clip } = await boundsFor(
+      page,
+      `const host = document.createElement('div');
+       host.style.cssText = 'overflow: hidden; width: 240px;';
+       stage.append(host);
+       const root = host.attachShadow({ mode: 'open' });
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       root.append(anchor);
+       return [anchor, host];`,
+    );
+    expect(bounds).toEqual(clip);
+  });
+
+  test('sees the shadow-tree wrapper around slotted content', async ({ page }) => {
+    const { bounds, clip } = await boundsFor(
+      page,
+      `const host = document.createElement('div');
+       stage.append(host);
+       const root = host.attachShadow({ mode: 'open' });
+       const wrapper = document.createElement('div');
+       wrapper.style.cssText = 'overflow: hidden; width: 240px;';
+       wrapper.append(document.createElement('slot'));
+       root.append(wrapper);
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       host.append(anchor);
+       return [anchor, wrapper];`,
+    );
+    expect(bounds).toEqual(clip);
+  });
+
+  test('counts a transformed clipping ancestor that contains an absolute box', async ({ page }) => {
+    // Static but transformed: the containing block of the absolute slot, so
+    // its overflow clips it.
+    const { bounds, clip } = await boundsFor(
+      page,
+      `const outer = document.createElement('div');
+       outer.style.cssText = 'transform: translateX(0); overflow: hidden; width: 240px; height: 80px;';
+       const slot = document.createElement('div');
+       slot.style.cssText = 'position: absolute; left: 150px; top: 0;';
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       slot.append(anchor); outer.append(slot); stage.append(outer);
+       return [anchor, outer];`,
+    );
+    expect(bounds).toEqual(clip);
+  });
+
+  test('counts a transformed clipping ancestor that contains a fixed box', async ({ page }) => {
+    const { bounds, clip } = await boundsFor(
+      page,
+      `const outer = document.createElement('div');
+       outer.style.cssText = 'transform: translateX(0); overflow: hidden; width: 240px; height: 80px;';
+       const slot = document.createElement('div');
+       slot.style.cssText = 'position: fixed; left: 150px; top: 0;';
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       slot.append(anchor); outer.append(slot); stage.append(outer);
+       return [anchor, outer];`,
+    );
+    expect(bounds).toEqual(clip);
+  });
+
+  test('counts paint containment as a clip', async ({ page }) => {
+    const { bounds, clip } = await boundsFor(
+      page,
+      `const outer = document.createElement('div');
+       outer.style.cssText = 'contain: paint; width: 240px;';
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       outer.append(anchor); stage.append(outer);
+       return [anchor, outer];`,
+    );
+    expect(bounds).toEqual(clip);
+  });
+
+  test('ignores display: contents, which has no box to clip with', async ({ page }) => {
+    const { bounds } = await boundsFor(
+      page,
+      `const outer = document.createElement('div');
+       outer.style.cssText = 'display: contents; overflow: hidden;';
+       const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       outer.append(anchor); stage.append(outer);
+       return [anchor, outer];`,
+    );
+    expect(bounds).toEqual(await viewportBounds(page));
+  });
+
+  test('counts the body when the root clips on the other axis', async ({ page }) => {
+    // Body overflow goes to the viewport only when the root is visible on both
+    // axes. Here it is not, so the body clips with its own box.
+    await page.evaluate(() => {
+      document.documentElement.style.overflow = 'visible clip';
+      document.body.style.overflowX = 'hidden';
+      document.body.style.width = 'calc(100vw - 200px)';
+    });
+    const { bounds, clip } = await boundsFor(
+      page,
+      `const anchor = document.createElement('div');
+       anchor.style.cssText = 'position: relative; width: 60px;';
+       stage.append(anchor);
+       return [anchor, document.body];`,
+    );
+    expect(bounds).toEqual(clip);
+  });
+});

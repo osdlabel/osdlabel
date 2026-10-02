@@ -1,5 +1,10 @@
 import { render } from 'solid-js/web';
-import { AnnotatorProvider, GridControls } from '@osdlabel/solid';
+import {
+  AnnotatorProvider,
+  GridControls,
+  choosePopoverAlignment,
+  getHorizontalClipBounds,
+} from '@osdlabel/solid';
 
 /**
  * `<GridControls>` in a host toolbar slot, for the popover edge-flip (#147).
@@ -15,6 +20,18 @@ import { AnnotatorProvider, GridControls } from '@osdlabel/solid';
  *   container might, or only the viewport does, with the slot pushed against
  *   the window's right edge (default `slot`).
  */
+
+// The placement helpers, for specs that check them directly against DOM
+// fixtures (shadow roots, containment, transformed containing blocks) that
+// would be awkward to mount the component into.
+(
+  window as unknown as {
+    __popoverPlacement: {
+      choosePopoverAlignment: typeof choosePopoverAlignment;
+      getHorizontalClipBounds: typeof getHorizontalClipBounds;
+    };
+  }
+).__popoverPlacement = { choosePopoverAlignment, getHorizontalClipBounds };
 
 const params = new URLSearchParams(window.location.search);
 const align = params.get('align') === 'end' ? 'end' : 'start';
