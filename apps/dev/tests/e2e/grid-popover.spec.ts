@@ -77,15 +77,78 @@ test('flips leftward at the right edge of the viewport', async ({ page }) => {
 });
 
 test('re-decides on every open', async ({ page }) => {
-  // The alignment is measured when the popover opens, not fixed once: a
-  // flipped popover reopens flipped, and the choice is not carried over from
-  // a different placement.
+  // The alignment is measured each time the popover opens, not once: move the
+  // button from the slot's right edge to its left between opens, and the
+  // popover follows.
   const popover = await open(page, 'align=end&clip=slot');
   await expect(popover).toHaveAttribute('data-alignment', 'end');
   await page.getByTestId('grid-selector-trigger').click();
   await expect(popover).toHaveCount(0);
+
+  await page
+    .getByTestId('grid-host-slot')
+    .evaluate((el) => ((el as HTMLElement).style.justifyContent = 'flex-start'));
   await page.getByTestId('grid-selector-trigger').click();
-  await expect(page.getByTestId('grid-selector-popover')).toHaveAttribute('data-alignment', 'end');
+  await expect(page.getByTestId('grid-selector-popover')).toHaveAttribute(
+    'data-alignment',
+    'start',
+  );
+});
+
+test.describe('only elements that really clip the popover count', () => {
+  // Each case wraps the control in something with hidden overflow that does
+  // NOT clip it, with room to open rightward. A walk over plain ancestors
+  // would see the hidden overflow and flip leftward for nothing.
+
+  test('a fixed-position box escapes a clipping ancestor', async ({ page }) => {
+    await page.goto('/grid-controls.html?align=start&clip=viewport');
+    await page.getByTestId('grid-host-slot').evaluate((slot) => {
+      const outer = slot.parentElement as HTMLElement;
+      outer.style.overflow = 'hidden';
+      outer.style.width = '200px';
+      Object.assign((slot as HTMLElement).style, { position: 'fixed', left: '600px', top: '40px' });
+    });
+    await page.getByTestId('grid-selector-trigger').click();
+    await expect(page.getByTestId('grid-selector-popover')).toHaveAttribute(
+      'data-alignment',
+      'start',
+    );
+  });
+
+  test('an absolutely positioned box escapes a static clipping ancestor', async ({ page }) => {
+    await page.goto('/grid-controls.html?align=start&clip=viewport');
+    await page.getByTestId('grid-host-slot').evaluate((slot) => {
+      const outer = slot.parentElement as HTMLElement;
+      // Static and clipping, so not the slot's containing block.
+      outer.style.overflow = 'hidden';
+      outer.style.width = '200px';
+      Object.assign((slot as HTMLElement).style, {
+        position: 'absolute',
+        left: '600px',
+        top: '40px',
+      });
+    });
+    await page.getByTestId('grid-selector-trigger').click();
+    await expect(page.getByTestId('grid-selector-popover')).toHaveAttribute(
+      'data-alignment',
+      'start',
+    );
+  });
+
+  test('a body whose overflow goes to the viewport does not clip', async ({ page }) => {
+    // With the root's overflow visible, the body's overflow-x applies to the
+    // viewport instead; the body box itself clips nothing.
+    await page.goto('/grid-controls.html?align=end&clip=viewport');
+    await page.evaluate(() => {
+      document.body.style.overflowX = 'hidden';
+      document.body.style.width = 'calc(100vw - 200px)';
+    });
+    await page.getByTestId('grid-selector-trigger').click();
+    await expect(page.getByTestId('grid-selector-popover')).toHaveAttribute(
+      'data-alignment',
+      'start',
+    );
+  });
 });
 
 test('the stock Annotator still opens it rightward', async ({ page }) => {
