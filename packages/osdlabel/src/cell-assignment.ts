@@ -98,13 +98,18 @@ export const CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND: Readonly<Record<CellAssignm
   };
 
 /**
- * Tooltip per state. A thumbnail click only ever assigns, so none of these
- * promises a clear — that is the separate badge control.
+ * Hover text per state, describing what pressing the thumbnail does. A
+ * thumbnail only ever assigns, so none of these promises a clear — that is the
+ * separate badge control.
+ *
+ * Gesture-neutral ("show", not "click"): next to the thumbnail's `aria-label`
+ * the `title` is exposed as its accessible description, so screen-reader and
+ * keyboard users hear it too.
  */
 export const CELL_ASSIGNMENT_TITLE: Readonly<Record<CellAssignmentState, string>> = {
   active: 'Shown in the active cell',
-  other: 'Shown in another cell — click to also show it in the active cell',
-  none: 'Click to show this image in the active cell',
+  other: 'Shown in another cell — also show it in the active cell',
+  none: 'Show this image in the active cell',
 };
 
 /** Accessible name for the badge control that empties the active cell. */
@@ -112,9 +117,8 @@ export const CELL_ASSIGNMENT_CLEAR_LABEL = 'Remove this image from the active ce
 
 /**
  * Short state phrase for a thumbnail's accessible name. Unlike
- * {@link CELL_ASSIGNMENT_TITLE} (hover text, which describes what a click
- * does), this states the thumbnail's state, so it reads correctly however the
- * control is reached and activated.
+ * {@link CELL_ASSIGNMENT_TITLE} (hover text, which describes what pressing it
+ * does), this states the thumbnail's state.
  */
 export const CELL_ASSIGNMENT_STATE_LABEL: Readonly<Record<CellAssignmentState, string>> = {
   active: 'shown in the active cell',

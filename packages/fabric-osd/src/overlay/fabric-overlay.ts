@@ -806,6 +806,26 @@ export class FabricOverlay {
   // ── Private: MouseTracker factory ──────────────────────────────
 
   /**
+   * Moves keyboard focus to the viewer, as the browser would have done itself.
+   *
+   * In annotation and custom-control mode the overlay prevents the default of
+   * every press it owns. That also cancels the browser's own focus change, so
+   * whatever had focus kept it: a toolbar button reached with Tab stayed
+   * focused while the user drew with the mouse, and a later Enter went to the
+   * button instead of finishing the polyline (#189). A press on the image
+   * would natively focus the nearest focusable ancestor, which is OSD's canvas
+   * (`tabIndex` 0); this restores exactly that. OSD's own key bindings on the
+   * canvas are suppressed (`_onCanvasKey`), so focusing it cannot trigger
+   * them, and it is where a navigation-mode click already puts focus.
+   */
+  private _focusViewerOnPress(): void {
+    const canvas = this._viewer.canvas;
+    if (canvas.ownerDocument.activeElement !== canvas) {
+      canvas.focus({ preventScroll: true });
+    }
+  }
+
+  /**
    * Create the OSD MouseTracker attached to Fabric's container element.
    *
    * OSD's innerTracker captures ALL pointer events on viewer.canvas via
@@ -889,11 +909,13 @@ export class FabricOverlay {
 
         const originalEvent = event.originalEvent as PointerEvent;
         if (this._mode === 'customControl') {
+          this._focusViewerOnPress();
           this._customControlHandler?.onPointerDown?.(this._buildCustomControlEvent(originalEvent));
           return;
         }
 
         if (this._panGestureActive) return;
+        this._focusViewerOnPress();
         this._forwardToFabric(POINTER_DOWN, originalEvent, this._recordPress(originalEvent));
       },
 

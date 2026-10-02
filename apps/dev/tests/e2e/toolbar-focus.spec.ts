@@ -76,4 +76,44 @@ test.describe('Toolbar focus', () => {
 
     expect(await readRotation(page)).not.toBe(before);
   });
+
+  test('a press on the image takes focus off a Tab-focused tool button (#189)', async ({
+    page,
+  }) => {
+    // The overlay prevents the default of every press it owns in annotation
+    // mode, which also cancelled the browser's own focus change. A tool picked
+    // from the keyboard kept focus while the user drew with the mouse, so a
+    // later Enter went to the button: since Enter on a focused button belongs
+    // to the button, the polyline was never finished.
+    await page.getByRole('combobox').selectOption({ label: 'General' });
+    const polyline = page.getByTestId('tool-polyline');
+    await polyline.focus();
+    await page.keyboard.press('Enter');
+    expect(await activeTestId(page)).toBe('tool-polyline');
+
+    const canvas = page.locator('canvas.upper-canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('canvas has no layout box');
+    await page.mouse.click(box.x + 100, box.y + 100);
+
+    // Focus moved to the viewer, as a native click on the image would do.
+    expect(
+      await page.evaluate(
+        () => document.activeElement?.classList.contains('openseadragon-canvas') ?? false,
+      ),
+    ).toBe(true);
+
+    await page.mouse.click(box.x + 200, box.y + 120);
+    await page.mouse.click(box.x + 260, box.y + 200);
+    await page.keyboard.press('Enter');
+
+    // Enter finished the polyline rather than re-pressing the tool button.
+    await expect
+      .poll(async () => {
+        const text = (await page.getByTestId('annotations-json').textContent()) ?? '{}';
+        const byImage = JSON.parse(text) as Record<string, Record<string, unknown>>;
+        return Object.values(byImage).flatMap((forImage) => Object.keys(forImage)).length;
+      })
+      .toBe(1);
+  });
 });

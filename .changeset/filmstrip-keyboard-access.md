@@ -1,5 +1,6 @@
 ---
 'osdlabel': minor
+'@osdlabel/fabric-osd': minor
 '@osdlabel/solid': minor
 '@osdlabel/react': minor
 ---
@@ -13,3 +14,7 @@ Make the filmstrip usable from the keyboard and by assistive tech, and stop Ente
 **Focus after a keyboard clear.** The clear button unmounts with the assignment, so focus fell to `<body>`. When the clear was made from the keyboard, focus now moves to the same image's thumbnail, where Enter puts the image back. A mouse clear leaves focus where it was.
 
 Like the toolbar, a mouse click on a thumbnail or the clear button no longer leaves keyboard focus on it (`preventButtonFocusSteal`), so a later Enter cannot re-press it.
+
+**A press on the image now moves keyboard focus to the viewer** (`@osdlabel/fabric-osd`). In annotation and custom-control mode, `FabricOverlay` prevents the default of every press it owns, and that also cancelled the browser's own focus change, so whatever had focus kept it. Combined with the button rule above, that would have broken a real flow: pick the polyline tool from the keyboard, draw with the mouse, and the final Enter went to the still-focused tool button. The overlay now focuses OSD's canvas on such a press, which is the element a native click would have focused and where a navigation-mode click already puts focus. OSD's own key bindings on it stay suppressed. As in any page, the press also blurs a host text field that had focus, so shortcuts resume once the user starts drawing.
+
+The thumbnails' hover text (`CELL_ASSIGNMENT_TITLE`) is now gesture-neutral ("Show this image in the active cell" rather than "Click to show…"). Next to the thumbnail's `aria-label` it is also announced as the accessible description.

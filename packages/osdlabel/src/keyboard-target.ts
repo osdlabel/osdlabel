@@ -37,9 +37,12 @@ function isObjectTarget(target: unknown): target is Partial<KeyboardShortcutTarg
  *   the shortcuts from a focused button, so tabbing through the toolbar does
  *   not disable `r`, `Delete` or the grid digits.
  *
- * Mouse clicks do not leave focus on chrome buttons (`preventButtonFocusSteal`),
- * so in practice the button rule only meets a user who tabbed to the button,
- * and then Enter or Space is a request to press it.
+ * Two things keep the button rule from catching a key meant for the image: a
+ * mouse click does not leave focus on the annotator's chrome buttons
+ * (`preventButtonFocusSteal`), and a press on the image moves focus to the
+ * viewer (`FabricOverlay`), so a button picked from the keyboard loses focus
+ * once the user starts drawing with the mouse. What remains is a user whose
+ * focus is genuinely on a button, for whom Enter or Space means "press it".
  *
  * Shared by the SolidJS and React keyboard hooks so the two cannot disagree.
  */

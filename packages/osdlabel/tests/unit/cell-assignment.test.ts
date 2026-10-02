@@ -105,10 +105,18 @@ describe('cell-assignment palette', () => {
   // Distinctness alone would let 'other' and 'none' swap: an unused image would
   // render in "in use elsewhere" blue and be tooltipped as shown in another
   // cell. Pin each state to its meaning, not just to being different.
-  it('maps each state to copy describing what its click does', () => {
-    expect(CELL_ASSIGNMENT_TITLE.active).toMatch(/active cell/i);
+  it('maps each state to copy describing what pressing it does', () => {
+    expect(CELL_ASSIGNMENT_TITLE.active).toMatch(/shown in the active cell/i);
     expect(CELL_ASSIGNMENT_TITLE.other).toMatch(/another cell/i);
-    expect(CELL_ASSIGNMENT_TITLE.none).toMatch(/click/i);
+    expect(CELL_ASSIGNMENT_TITLE.none).toMatch(/^show .* active cell/i);
+  });
+
+  it('describes no particular gesture, since it is also the accessible description', () => {
+    // With the thumbnail's aria-label set, its title is announced as the
+    // description: "click" would be wrong for a keyboard or screen-reader user.
+    for (const title of Object.values(CELL_ASSIGNMENT_TITLE)) {
+      expect(title).not.toMatch(/click|tap|press/i);
+    }
   });
 
   it('never promises a clear from a thumbnail, since only the badge clears', () => {
