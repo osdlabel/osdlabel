@@ -80,10 +80,26 @@ function flatTreeParent(el: Element): Element | null {
 
 const CONTAIN_LAYOUT = /\b(layout|paint|strict|content)\b/;
 const CONTAIN_PAINT = /\b(paint|strict|content)\b/;
-// `transform` also matches `transform-style`, and `filter` `backdrop-filter`.
-const WILL_CHANGE_CONTAINING_BLOCK =
-  /\b(transform|perspective|filter|translate|rotate|scale|contain|offset-path)\b/;
-const WILL_CHANGE_POSITION = /\bposition\b/;
+// Exact `will-change` tokens, not substrings: `scroll-position`,
+// `transform-origin` or `perspective-origin` name no containing block.
+const WILL_CHANGE_CONTAINING_BLOCK: ReadonlySet<string> = new Set([
+  'transform',
+  'transform-style',
+  'perspective',
+  'filter',
+  'backdrop-filter',
+  'translate',
+  'rotate',
+  'scale',
+  'contain',
+  'offset-path',
+  'offset-position',
+]);
+
+/** The comma-separated tokens of a computed `will-change`. */
+function willChangeTokens(style: CSSStyleDeclaration): readonly string[] {
+  return style.willChange.split(',').map((token) => token.trim());
+}
 
 /** A computed value that is set to something other than its initial `none`. */
 function isSet(value: string | undefined): boolean {
@@ -120,7 +136,7 @@ function establishesContainingBlockForFixed(style: CSSStyleDeclaration): boolean
     isSet(style.backdropFilter) ||
     CONTAIN_LAYOUT.test(style.contain) ||
     skipsContents(style) ||
-    WILL_CHANGE_CONTAINING_BLOCK.test(style.willChange)
+    willChangeTokens(style).some((token) => WILL_CHANGE_CONTAINING_BLOCK.has(token))
   );
 }
 
@@ -133,7 +149,7 @@ function establishesContainingBlockForAbsolute(style: CSSStyleDeclaration): bool
   return (
     style.position !== 'static' ||
     establishesContainingBlockForFixed(style) ||
-    WILL_CHANGE_POSITION.test(style.willChange)
+    willChangeTokens(style).includes('position')
   );
 }
 
@@ -189,9 +205,9 @@ function isInTopLayer(el: Element): boolean {
  *
  * Clipping comes from `overflow-x` other than `visible` and from paint
  * containment, `content-visibility`'s included. Neither clipping nor the
- * non-positioned containing blocks apply to an inline box. Each clipping element contributes its padding box
- * (`clientLeft` / `clientWidth`); the viewport contributes its `clientWidth`,
- * which excludes a vertical scrollbar.
+ * non-positioned containing blocks apply to an inline box. Each clipping
+ * element contributes its padding box (`clientLeft` / `clientWidth`); the
+ * viewport contributes its `clientWidth`, which excludes a vertical scrollbar.
  *
  * Not modelled: `clip-path` and other shaped clips; transforms other than
  * translation (or `zoom`) on a clipping ancestor, whose `getBoundingClientRect`

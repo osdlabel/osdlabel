@@ -278,6 +278,7 @@ test.describe('getHorizontalClipBounds', () => {
     'content-visibility: auto',
     'will-change: contain',
     'will-change: offset-path',
+    'will-change: offset-position',
   ]) {
     test(`counts \`${style}\` as a containing block for a fixed box`, async ({ page }) => {
       const { bounds, clip } = await boundsFor(
@@ -327,6 +328,28 @@ test.describe('getHorizontalClipBounds', () => {
     const fixed = await boundsFor(page, build('fixed'));
     expect(fixed.bounds).toEqual(await viewportBounds(page));
   });
+
+  // Only exact `will-change` tokens count: these merely contain the name of
+  // one (`position`, `transform`, `perspective`) and establish nothing, so an
+  // absolute slot escapes the scroller they sit on.
+  for (const value of ['scroll-position', 'transform-origin', 'perspective-origin']) {
+    test(`does not count \`will-change: ${value}\` as a containing block`, async ({ page }) => {
+      const { bounds } = await boundsFor(
+        page,
+        `const outer = document.createElement('div');
+         outer.style.cssText = 'will-change: ${value}; overflow: auto; width: 240px; height: 80px;';
+         const slot = document.createElement('div');
+         slot.style.cssText = 'position: absolute; left: 150px; top: 0;';
+         const anchor = document.createElement('div');
+         anchor.style.cssText = 'position: relative; width: 60px;';
+         slot.append(anchor); outer.append(slot); stage.append(outer);
+         return [anchor, stage];`,
+      );
+      // The stage (position: relative, not clipping) is the slot's containing
+      // block, so nothing clips it.
+      expect(bounds).toEqual(await viewportBounds(page));
+    });
+  }
 
   test('counts content-visibility as a clip', async ({ page }) => {
     const { bounds, clip } = await boundsFor(
