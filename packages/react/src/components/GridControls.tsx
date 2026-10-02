@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useAnnotator } from '../state/annotator-context.js';
-import { preventButtonFocusSteal } from 'osdlabel';
+import {
+  choosePopoverAlignment,
+  getHorizontalClipBounds,
+  preventButtonFocusSteal,
+  type PopoverAlignment,
+} from 'osdlabel';
 
 export interface GridControlsProps {
   readonly maxColumns: number;
@@ -23,6 +28,27 @@ function TableSelector({
   const [hoverCols, setHoverCols] = useState<number | null>(null);
   const [hoverRows, setHoverRows] = useState<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [alignment, setAlignment] = useState<PopoverAlignment>('start');
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Each time the popover opens, measure it and open it leftward if opening
+  // rightward would be clipped by the viewport or a host container (#147).
+  // A layout effect, so the flip lands before the browser paints and the
+  // popover never shows in the wrong place. `maxColumns` drives its width.
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    const popover = popoverRef.current;
+    if (!isOpen || !anchor || !popover) return;
+    const rect = anchor.getBoundingClientRect();
+    setAlignment(
+      choosePopoverAlignment(
+        { left: rect.left, right: rect.right },
+        popover.getBoundingClientRect().width,
+        getHorizontalClipBounds(anchor),
+      ),
+    );
+  }, [isOpen, maxColumns]);
 
   const getCellColor = (c: number, r: number) => {
     const targetCols = hoverCols ?? currentColumns;
@@ -32,6 +58,7 @@ function TableSelector({
 
   return (
     <div
+      ref={anchorRef}
       style={{ position: 'relative' }}
       onMouseLeave={() => setIsOpen(false)}
       onMouseDown={preventButtonFocusSteal}
@@ -73,11 +100,14 @@ function TableSelector({
 
       {isOpen && (
         <div
+          ref={popoverRef}
           data-testid="grid-selector-popover"
+          data-alignment={alignment}
           style={{
             position: 'absolute',
             top: '100%',
-            left: 0,
+            left: alignment === 'start' ? 0 : 'auto',
+            right: alignment === 'end' ? 0 : 'auto',
             paddingTop: '4px',
             pointerEvents: 'auto',
             minWidth: '100px',

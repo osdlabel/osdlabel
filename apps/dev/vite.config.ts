@@ -14,10 +14,12 @@ export default defineConfig({
     target: 'esnext',
     rollupOptions: {
       // `annotator.html` mounts the stock <Annotator> (App.tsx composes its own
-      // layout), so its layout has an E2E harness too (#147).
+      // layout), and `grid-controls.html` puts <GridControls> in a host slot,
+      // so both layouts have an E2E harness (#147).
       input: {
         main: resolve(__dirname, 'index.html'),
         annotator: resolve(__dirname, 'annotator.html'),
+        gridControls: resolve(__dirname, 'grid-controls.html'),
       },
     },
   },

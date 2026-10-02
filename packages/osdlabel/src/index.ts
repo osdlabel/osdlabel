@@ -253,3 +253,7 @@ export { resolveFullscreenTarget } from './fullscreen-target.js';
 // Chrome focus behaviour
 export { preventButtonFocusSteal } from './prevent-button-focus-steal.js';
 export type { ResolveFullscreenTargetOptions } from './fullscreen-target.js';
+
+// Dropdown placement: keep a popover inside the region that can show it
+export { choosePopoverAlignment, getHorizontalClipBounds } from './popover-placement.js';
+export type { PopoverAlignment, HorizontalSpan } from './popover-placement.js';

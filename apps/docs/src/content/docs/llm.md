@@ -447,6 +447,8 @@ UI controls for adjusting grid dimensions (columns and rows).
 <GridControls maxColumns={4} maxRows={4} />;
 ```
 
+Its popover opens down and to the right of the button. When that would be cut off, by the window or by a container of yours that hides overflow (a toolbar slot near a right edge, say), it opens leftward instead, lined up with the button's right edge. The choice is made each time it opens, so you can place the control anywhere in your toolbar. `choosePopoverAlignment` and `getHorizontalClipBounds` are exported if you build a similar dropdown of your own.
+
 ---
 
 # State Management & Hooks
