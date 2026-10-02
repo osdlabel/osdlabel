@@ -248,4 +248,6 @@ export { resolveFullscreenTarget } from './fullscreen-target.js';
 
 // Chrome focus behaviour
 export { preventButtonFocusSteal } from './prevent-button-focus-steal.js';
+export { choosePopoverAlignment, getHorizontalClipBounds } from './popover-placement.js';
+export type { PopoverAlignment, HorizontalSpan } from './popover-placement.js';
 export type { ResolveFullscreenTargetOptions } from './fullscreen-target.js';
