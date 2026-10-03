@@ -35,8 +35,8 @@ export function useKeyboard(
       if (shouldSuppressEscapeKey(e.key)) return;
 
       // Leave the key to the focused element when it owns it: text entry owns
-      // every key, a focused button owns Enter and Space (#189). Then the
-      // host's own predicate.
+      // every key; a focused button, <summary> or <select> owns Enter and
+      // Space; a link owns Enter (#189, #205). Then the host's own predicate.
       const target = e.target as HTMLElement;
       if (shouldSkipKeyboardShortcut(target, e.key) || shouldSkipTargetPredicate?.(target)) {
         return;
