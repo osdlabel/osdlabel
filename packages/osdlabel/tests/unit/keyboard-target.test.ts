@@ -6,11 +6,12 @@ import {
 
 const el = (
   tagName: string,
-  opts: { readonly role?: string; readonly contentEditable?: boolean } = {},
+  opts: { readonly role?: string; readonly href?: string; readonly contentEditable?: boolean } = {},
 ): KeyboardShortcutTarget => ({
   tagName,
   isContentEditable: opts.contentEditable ?? false,
-  getAttribute: (name: string) => (name === 'role' ? (opts.role ?? null) : null),
+  getAttribute: (name: string) =>
+    name === 'role' ? (opts.role ?? null) : name === 'href' ? (opts.href ?? null) : null,
 });
 
 describe('shouldSkipKeyboardShortcut', () => {
@@ -73,5 +74,39 @@ describe('shouldSkipKeyboardShortcut', () => {
     expect(shouldSkipKeyboardShortcut({} as unknown as KeyboardShortcutTarget, 'Enter')).toBe(
       false,
     );
+  });
+
+  describe('other focused controls keep the keys they act on (#205)', () => {
+    it('leaves Enter and Space to a <summary>, which toggles its <details>', () => {
+      expect(shouldSkipKeyboardShortcut(el('SUMMARY'), 'Enter')).toBe(true);
+      expect(shouldSkipKeyboardShortcut(el('SUMMARY'), ' ')).toBe(true);
+    });
+
+    it('leaves Enter to a link, which follows it, but not Space', () => {
+      // Space scrolls the page from a link rather than activating it.
+      expect(shouldSkipKeyboardShortcut(el('A', { href: '/next' }), 'Enter')).toBe(true);
+      expect(shouldSkipKeyboardShortcut(el('A', { href: '/next' }), ' ')).toBe(false);
+      expect(shouldSkipKeyboardShortcut(el('SPAN', { role: 'link' }), 'Enter')).toBe(true);
+    });
+
+    it('does not treat an <a> without href as a link', () => {
+      // No href, no link: it is not focusable or activatable as one.
+      expect(shouldSkipKeyboardShortcut(el('A'), 'Enter')).toBe(false);
+    });
+
+    it('leaves Enter and Space to a <select>, which opens on either', () => {
+      // Space opens it everywhere; Return opens it on macOS. One Enter must
+      // not both open it and finish a polyline.
+      expect(shouldSkipKeyboardShortcut(el('SELECT'), ' ')).toBe(true);
+      expect(shouldSkipKeyboardShortcut(el('SELECT'), 'Enter')).toBe(true);
+    });
+
+    it('still lets other keys through from these controls', () => {
+      for (const target of [el('SUMMARY'), el('A', { href: '/next' }), el('SELECT')]) {
+        for (const key of ['r', 'Delete', 'Escape', '1']) {
+          expect(shouldSkipKeyboardShortcut(target, key)).toBe(false);
+        }
+      }
+    });
   });
 });
