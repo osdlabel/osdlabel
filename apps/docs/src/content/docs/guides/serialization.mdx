@@ -171,6 +171,25 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 </AnnotatorProvider>
 ```
 
+## Annotations that cannot be rendered
+
+`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type and that type's key fields, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
+
+Such an annotation is skipped on the canvas and stays in state, and every other annotation on the image still renders. By default it is reported with a `console.warn` naming the annotation and its image. Pass `onAnnotationRenderError` to handle it yourself:
+
+```tsx
+<AnnotatorProvider
+  onAnnotationRenderError={({ annotation, error }) => {
+    // annotation: the skipped Annotation; error: what rebuilding it threw.
+    reportToMonitoring(`Annotation ${annotation.id} could not be rendered`, error);
+  }}
+>
+  {/* ... */}
+</AnnotatorProvider>
+```
+
+`<Annotator>` takes the same prop. It is called once per skipped annotation, each time the image's annotations are rebuilt. If your handler throws, the error is logged with `console.error` and the other skipped annotations are still reported.
+
 ## Getting all annotations
 
 Use `getAllAnnotationsFlat()` to extract a flat array from the state at any time:
