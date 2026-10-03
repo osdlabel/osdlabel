@@ -139,11 +139,18 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     const toRemove = ov.canvas.getObjects().filter((obj) => obj.id);
     if (toRemove.length > 0) ov.canvas.remove(...toRemove);
 
-    // Async load from rawAnnotationData
-    const capturedImageId = imageId;
-    void (async () => {
-      if (props.imageSource?.id !== capturedImageId) return; // stale check
+    // Rebuilding is asynchronous, so by the time this run's objects are ready
+    // a newer run may have cleared the canvas and started its own rebuild
+    // (#160), or the cell may have unmounted and destroyed the overlay (#190).
+    // Either way the effect's cleanup has run; adding now would duplicate
+    // objects or touch a disposed canvas, so a cancelled run adds nothing.
+    let cancelled = false;
+    onCleanup(() => {
+      cancelled = true;
+    });
 
+    // Async load from rawAnnotationData
+    void (async () => {
       const promises = matching.map(async (ann) => {
         const obj = await createFabricObjectFromRawData(ann);
         if (obj) {
@@ -159,6 +166,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
         return obj;
       });
       const objects = await Promise.all(promises);
+      if (cancelled) return;
       const validObjects = objects.filter((obj) => obj !== null);
       if (validObjects.length > 0) {
         ov.canvas.add(...validObjects);

@@ -129,7 +129,6 @@ export default function ViewerCell({
   useEffect(() => {
     if (!overlay || !imageSource?.id) return;
 
-    const imageId = imageSource.id;
     const activeContextId = contextState.activeContextId;
     const matching = visibleAnnotations;
 
@@ -137,10 +136,13 @@ export default function ViewerCell({
     const toRemove = overlay.canvas.getObjects().filter((obj) => obj.id);
     if (toRemove.length > 0) overlay.canvas.remove(...toRemove);
 
-    const capturedImageId = imageId;
+    // Rebuilding is asynchronous, so by the time this run's objects are ready
+    // a newer run may have cleared the canvas and started its own rebuild
+    // (#160), or the cell may have unmounted and destroyed the overlay (#190).
+    // Either way this effect's cleanup has run; adding now would duplicate
+    // objects or touch a disposed canvas, so a cancelled run adds nothing.
+    let cancelled = false;
     void (async () => {
-      if (imageSource?.id !== capturedImageId) return;
-
       const promises = matching.map(async (ann) => {
         const obj = await createFabricObjectFromRawData(ann);
         if (obj) {
@@ -154,6 +156,7 @@ export default function ViewerCell({
         return obj;
       });
       const objects = await Promise.all(promises);
+      if (cancelled) return;
       const validObjects = objects.filter((obj) => obj !== null);
       if (validObjects.length > 0) {
         overlay.canvas.add(...validObjects);
@@ -163,6 +166,9 @@ export default function ViewerCell({
       }
       overlay.canvas.requestRenderAll();
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [
     overlay,
     imageSource?.id,
