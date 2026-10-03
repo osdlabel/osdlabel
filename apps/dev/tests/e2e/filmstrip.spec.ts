@@ -391,3 +391,49 @@ test.describe('Filmstrip from the keyboard and assistive tech (#189)', () => {
     await expect.poll(() => committedAnnotationIds(page)).toHaveLength(1);
   });
 });
+
+test.describe('Filmstrip markup and targets (#205)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('[data-testid="filmstrip"]', { timeout: 10000 });
+  });
+
+  test('is announced as a labelled list with one item per image', async ({ page }) => {
+    // Assistive tech used to read a flat run of buttons, with nothing saying
+    // what they belonged to or how many there were.
+    const list = page.getByRole('list', { name: 'Images' });
+    await expect(list).toHaveAttribute('data-testid', 'filmstrip');
+    await expect(list.getByRole('listitem')).toHaveCount(4);
+    await expect(
+      list.getByRole('listitem').filter({ has: page.getByTestId('filmstrip-thumb-portrait') }),
+    ).toHaveCount(1);
+  });
+
+  test('holds only phrasing content inside a thumbnail button', async ({ page }) => {
+    // The dev images have no thumbnailUrl, so every thumbnail shows the text
+    // placeholder, which used to be a <div> inside the <button>.
+    const thumb = page.getByTestId('filmstrip-thumb-portrait');
+    await expect(thumb).toHaveText('Portrait');
+    expect(await thumb.locator('div').count()).toBe(0);
+    // Still filling the button, so the layout is unchanged.
+    const placeholder = await thumb.locator('span').first().boundingBox();
+    const button = await thumb.boundingBox();
+    expect(placeholder).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(placeholder!.width).toBeCloseTo(button!.width, 0);
+    expect(placeholder!.height).toBeCloseTo(button!.height, 0);
+  });
+
+  test('gives the clear badge at least a 24px target', async ({ page }) => {
+    // WCAG 2.5.8: the badge drawn is 16px, the button around it is 24px.
+    const clear = page.getByTestId('filmstrip-clear-landscape');
+    const box = await clear.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(24);
+    expect(box!.height).toBeGreaterThanOrEqual(24);
+
+    // A press in the target but outside the drawn badge still clears.
+    await page.mouse.click(box!.x + 2, box!.y + box!.height - 2);
+    await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
+  });
+});

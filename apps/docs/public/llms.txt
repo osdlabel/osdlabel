@@ -824,11 +824,11 @@ The `Filmstrip` component shows thumbnails of all available images and allows dr
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
-Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows simply re-assigns it.
+Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows re-assigns it, which also resets that cell's rotation, flip, negative, exposure and contrast.
 
-Thumbnails are buttons, so the filmstrip works from the keyboard too: `Tab` to a thumbnail and press `Enter` or `Space` to assign it. Each one is named with its image and its state for assistive tech (for example "Landscape, shown in the active cell"), and the active cell's image is marked `aria-current`.
+Thumbnails are buttons, so the filmstrip works from the keyboard too: `Tab` to a thumbnail and press `Enter` or `Space` to assign it. Each one is named with its image and its state for assistive tech (for example "Landscape, shown in the active cell"), and the active cell's image is marked `aria-current`. The filmstrip itself is a list labelled "Images" (`FILMSTRIP_LABEL`), so assistive tech announces it and how many images it holds.
 
-To empty a cell, use the `✕` badge on the thumbnail the active cell is showing. It is a real button: focusable, labelled for assistive tech, and the only control that clears. Clearing it from the keyboard moves focus to the same image's thumbnail, so `Enter` there puts the image straight back. Keeping it separate from the thumbnail matters because clearing also drops the cell's view transform with no undo — if a thumbnail click cleared, an ordinary double-click would assign and then immediately wipe the cell.
+To empty a cell, use the `✕` badge on the thumbnail the active cell is showing. It is a real button: focusable, labelled for assistive tech, and the only control that clears. The badge is drawn at 16px, but the button around it is a 24px target. Clearing it from the keyboard moves focus to the same image's thumbnail, so `Enter` there puts the image straight back. Keeping it separate from the thumbnail matters because clearing also drops the cell's view transform with no undo — if a thumbnail click cleared, an ordinary double-click would assign and then immediately wipe the cell.
 
 The border tells you how the image relates to the active cell:
 
@@ -852,7 +852,7 @@ actions.unassignImageFromCell(0);
 
 Each cell can display one image at a time. Multiple cells can show the same image, but annotations are shared (stored by image ID, not by cell).
 
-Clearing a cell affects only that cell's assignment and view transform — rotation, flip, exposure and contrast are reset, and there is no undo. Annotations are stored by image ID, so they survive a clear and reappear if the image is assigned again.
+Clearing a cell affects only that cell's assignment and view transform — rotation, flip, negative, exposure and contrast are reset, and there is no undo. Annotations are stored by image ID, so they survive a clear and reappear if the image is assigned again.
 
 ## Using the all-in-one Annotator
 
@@ -1397,9 +1397,28 @@ Unspecified keys keep their default bindings. See [`KeyboardShortcutMap`](/osdla
 
 Shortcuts are automatically suppressed when focus is in an `<input>`, `<textarea>`, or `contenteditable` element.
 
-`Enter` and `Space` are also left alone when focus is on a button (a `<button>` or an element with `role="button"`): the browser turns them into a click on that button, so a shortcut acting on the same keypress would make one press do two things. `Enter` is the polyline-finish key, so pressing a focused button mid-polyline used to finish the polyline as well. Every other key still reaches the shortcuts from a focused button, so tabbing through the toolbar does not switch off `r`, `Delete` or the grid digits. The rule is exported as `shouldSkipKeyboardShortcut(target, key)` for hosts that run their own key handling alongside the annotator's.
+`Enter` and `Space` are also left alone when focus is on a button (a `<button>` or an element with `role="button"`): the browser turns them into a click on that button, so a shortcut acting on the same keypress would make one press do two things. `Enter` is the polyline-finish key, so pressing a focused button mid-polyline used to finish the polyline as well. Every other key still reaches the shortcuts from a focused button, so tabbing through the toolbar does not switch off `r`, `Delete` or the grid digits.
+
+Other focused controls keep the keys they act on in the same way:
+
+- a `<summary>` keeps `Enter` and `Space`, which toggle its `<details>`;
+- a `<select>` keeps `Space`, which opens it, and `Enter`, which opens it on macOS;
+- a link (`<a href>` or `role="link"`) keeps `Enter`, which follows it.
+
+This doesn't get in the way of finishing a polyline after you pick a context from a `<select>`: your first press on the image moves focus off the `<select>`.
+
+The rule is exported as `shouldSkipKeyboardShortcut(target, key)` for hosts that run their own key handling alongside the annotator's.
 
 A left-button press on the image moves keyboard focus to the viewer, as a click on the image would in any page (a `Ctrl`/`Cmd`-drag pan, or a right or middle press, leaves focus where it was). So if you pick a tool from the keyboard and then draw with the mouse, focus leaves the tool's button with your first press, and `Enter` finishes the polyline rather than pressing the button again. The same press blurs a text field of your own that had focus, so shortcuts resume once you start drawing.
+
+The browser may draw its default focus ring around the image when the viewer takes focus this way. Chromium draws it when nothing else had focus, which is common on a first click, or when the element that had focus was showing its own focus ring, typically after keyboard use. A click on the image in navigation mode does the same. To match your own focus styling, target `.openseadragon-canvas`:
+
+```css
+.openseadragon-canvas:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: -2px;
+}
+```
 
 `Escape` is additionally ignored whenever an element is displayed fullscreen, including one your own app put there. The browser exits fullscreen on `Escape` and the keypress cannot be intercepted, so acting on it as well would make one press do two unrelated things. Every other shortcut keeps working while fullscreen. See [Fullscreen](/guides/basic-controls/#fullscreen).
 

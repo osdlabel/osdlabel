@@ -99,9 +99,28 @@ Unspecified keys keep their default bindings. See [`KeyboardShortcutMap`](/osdla
 
 Shortcuts are automatically suppressed when focus is in an `<input>`, `<textarea>`, or `contenteditable` element.
 
-`Enter` and `Space` are also left alone when focus is on a button (a `<button>` or an element with `role="button"`): the browser turns them into a click on that button, so a shortcut acting on the same keypress would make one press do two things. `Enter` is the polyline-finish key, so pressing a focused button mid-polyline used to finish the polyline as well. Every other key still reaches the shortcuts from a focused button, so tabbing through the toolbar does not switch off `r`, `Delete` or the grid digits. The rule is exported as `shouldSkipKeyboardShortcut(target, key)` for hosts that run their own key handling alongside the annotator's.
+`Enter` and `Space` are also left alone when focus is on a button (a `<button>` or an element with `role="button"`): the browser turns them into a click on that button, so a shortcut acting on the same keypress would make one press do two things. `Enter` is the polyline-finish key, so pressing a focused button mid-polyline used to finish the polyline as well. Every other key still reaches the shortcuts from a focused button, so tabbing through the toolbar does not switch off `r`, `Delete` or the grid digits.
+
+Other focused controls keep the keys they act on in the same way:
+
+- a `<summary>` keeps `Enter` and `Space`, which toggle its `<details>`;
+- a `<select>` keeps `Space`, which opens it, and `Enter`, which opens it on macOS;
+- a link (`<a href>` or `role="link"`) keeps `Enter`, which follows it.
+
+This doesn't get in the way of finishing a polyline after you pick a context from a `<select>`: your first press on the image moves focus off the `<select>`.
+
+The rule is exported as `shouldSkipKeyboardShortcut(target, key)` for hosts that run their own key handling alongside the annotator's.
 
 A left-button press on the image moves keyboard focus to the viewer, as a click on the image would in any page (a `Ctrl`/`Cmd`-drag pan, or a right or middle press, leaves focus where it was). So if you pick a tool from the keyboard and then draw with the mouse, focus leaves the tool's button with your first press, and `Enter` finishes the polyline rather than pressing the button again. The same press blurs a text field of your own that had focus, so shortcuts resume once you start drawing.
+
+The browser may draw its default focus ring around the image when the viewer takes focus this way. Chromium draws it when nothing else had focus, which is common on a first click, or when the element that had focus was showing its own focus ring, typically after keyboard use. A click on the image in navigation mode does the same. To match your own focus styling, target `.openseadragon-canvas`:
+
+```css
+.openseadragon-canvas:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: -2px;
+}
+```
 
 `Escape` is additionally ignored whenever an element is displayed fullscreen, including one your own app put there. The browser exits fullscreen on `Escape` and the keypress cannot be intercepted, so acting on it as well would make one press do two unrelated things. Every other shortcut keeps working while fullscreen. See [Fullscreen](/guides/basic-controls/#fullscreen).
 
