@@ -15,11 +15,13 @@ export default defineConfig({
     rollupOptions: {
       // `annotator.html` mounts the stock <Annotator> (App.tsx composes its own
       // layout), and `grid-controls.html` puts <GridControls> in a host slot,
-      // so both layouts have an E2E harness (#147).
+      // so both layouts have an E2E harness (#147). `viewer-cell.html` mounts
+      // a lone <ViewerCell> whose annotation rebuild a spec drives (#160).
       input: {
         main: resolve(__dirname, 'index.html'),
         annotator: resolve(__dirname, 'annotator.html'),
         gridControls: resolve(__dirname, 'grid-controls.html'),
+        viewerCell: resolve(__dirname, 'viewer-cell.html'),
       },
     },
   },
