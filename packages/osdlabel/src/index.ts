@@ -172,6 +172,17 @@ export type { OsdAnnotation, OsdFields } from './types.js';
 export { createAnnotationFromGeometry } from './create-annotation.js';
 export type { CreateAnnotationFromGeometryOptions } from './create-annotation.js';
 
+// Rebuilding canvas objects from stored annotations
+export {
+  settleAnnotationObjects,
+  warnAnnotationRenderError,
+  reportAnnotationRenderFailures,
+} from './annotation-render-failure.js';
+export type {
+  AnnotationRenderFailure,
+  SettledAnnotationObjects,
+} from './annotation-render-failure.js';
+
 // Pre-configured serialization (uses OSD validators)
 export { serialize, deserialize, SerializationError } from './serialization-configured.js';
 export type { DeserializeResult } from './serialization-configured.js';

@@ -6,11 +6,18 @@ import type { AnnotationState, KeyboardShortcutMap, UIState } from '@osdlabel/vi
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig, VertexMarkerOptions } from 'osdlabel';
+import type {
+  AnnotationRenderFailure,
+  OsdAnnotation,
+  OsdFields,
+  VertexEditConfig,
+  VertexMarkerOptions,
+} from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+  warnAnnotationRenderError,
 } from 'osdlabel';
 import { createAnnotationStore } from './annotation-store.js';
 import { createUIStore } from './ui-store.js';
@@ -65,6 +72,8 @@ interface AnnotatorContextValue {
   decorationProviders: readonly DecorationProvider<OsdFields>[];
   defaultPixelSpacing: PixelSpacing | undefined;
   renderDomDecoration: ((decoration: DomDecoration) => JSX.Element) | undefined;
+  /** Reports an annotation the canvas had to skip; see `onAnnotationRenderError`. */
+  reportAnnotationRenderError: (error: AnnotationRenderFailure) => void;
 }
 
 const KeyboardHandler = (props: {
@@ -137,6 +146,14 @@ export interface AnnotatorProviderProps {
    * the `DomDecoration` and returns the element to mount.
    */
   readonly renderDomDecoration?: ((decoration: DomDecoration) => JSX.Element) | undefined;
+  /**
+   * Called when a stored annotation cannot be rendered on the canvas, for
+   * example because its `rawAnnotationData` is malformed or names a Fabric
+   * class that is not registered. The annotation is skipped and stays in
+   * state; every other annotation on the image still renders. Defaults to a
+   * `console.warn` naming the annotation.
+   */
+  readonly onAnnotationRenderError?: ((error: AnnotationRenderFailure) => void) | undefined;
 }
 
 export function AnnotatorProvider(props: AnnotatorProviderProps) {
@@ -220,6 +237,9 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     decorationProviders: props.decorationProviders ?? [],
     defaultPixelSpacing: props.defaultPixelSpacing,
     renderDomDecoration: props.renderDomDecoration,
+    // Reads the prop when called, so a host can swap its handler at any time.
+    reportAnnotationRenderError: (error) =>
+      (props.onAnnotationRenderError ?? warnAnnotationRenderError)(error),
   };
 
   return (

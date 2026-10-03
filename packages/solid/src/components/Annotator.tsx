@@ -145,6 +145,7 @@ const Annotator: Component<AnnotatorProps> = (props) => {
       decorationProviders={props.decorationProviders}
       defaultPixelSpacing={props.defaultPixelSpacing}
       renderDomDecoration={props.renderDomDecoration}
+      onAnnotationRenderError={props.onAnnotationRenderError}
     >
       <AnnotatorSetup contexts={props.contexts} displayedContextIds={props.displayedContextIds} />
       <AnnotatorInner

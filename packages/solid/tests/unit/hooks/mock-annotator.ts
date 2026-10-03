@@ -102,6 +102,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
     decorationProviders: [],
     defaultPixelSpacing: undefined,
     renderDomDecoration: undefined,
+    reportAnnotationRenderError: vi.fn(),
   };
 
   return { ...base, ...overrides };

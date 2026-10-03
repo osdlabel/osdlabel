@@ -14,7 +14,11 @@ import { useAnnotationTool } from '../hooks/useAnnotationTool.js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
 import type { OsdFields } from 'osdlabel';
-import { enableLiveDecorationUpdates } from 'osdlabel';
+import {
+  enableLiveDecorationUpdates,
+  reportAnnotationRenderFailures,
+  settleAnnotationObjects,
+} from 'osdlabel';
 export interface ViewerCellProps {
   readonly imageSource: ImageSource | undefined;
   readonly isActive: boolean;
@@ -33,6 +37,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     decorationProviders,
     defaultPixelSpacing,
     renderDomDecoration,
+    reportAnnotationRenderError,
   } = useAnnotator();
   let containerRef: HTMLDivElement | undefined;
   let viewer: OpenSeadragon.Viewer | undefined;
@@ -151,7 +156,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
 
     // Async load from rawAnnotationData
     void (async () => {
-      const promises = matching.map(async (ann) => {
+      const { objects, failures } = await settleAnnotationObjects(matching, async (ann) => {
         const obj = await createFabricObjectFromRawData(ann);
         if (obj) {
           // Only active context annotations are interactive;
@@ -165,16 +170,17 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
         }
         return obj;
       });
-      const objects = await Promise.all(promises);
       if (cancelled) return;
-      const validObjects = objects.filter((obj) => obj !== null);
-      if (validObjects.length > 0) {
-        ov.canvas.add(...validObjects);
+      if (objects.length > 0) {
+        ov.canvas.add(...objects);
       }
       if (containerRef) {
-        containerRef.dataset.annotationCount = String(validObjects.length);
+        containerRef.dataset.annotationCount = String(objects.length);
       }
       ov.canvas.requestRenderAll();
+      // Each annotation is built on its own, so one that cannot be revived is
+      // skipped and reported instead of leaving the whole image empty (#209).
+      reportAnnotationRenderFailures(failures, reportAnnotationRenderError);
     })();
   });
 

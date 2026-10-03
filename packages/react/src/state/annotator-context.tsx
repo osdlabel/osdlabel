@@ -5,6 +5,7 @@ import {
   useMemo,
   useEffect,
   useRef,
+  useCallback,
   type ReactNode,
 } from 'react';
 import { castDraft, produce } from 'immer';
@@ -19,7 +20,13 @@ import type {
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
-import type { OsdAnnotation, OsdFields, VertexEditConfig, VertexMarkerOptions } from 'osdlabel';
+import type {
+  AnnotationRenderFailure,
+  OsdAnnotation,
+  OsdFields,
+  VertexEditConfig,
+  VertexMarkerOptions,
+} from 'osdlabel';
 import {
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -28,6 +35,7 @@ import {
   createInitialUIState,
   createInitialContextState,
   computeConstraintStatus,
+  warnAnnotationRenderError,
 } from 'osdlabel';
 import { annotationReducer, uiReducer, contextReducer } from './reducer.js';
 import { createActions } from './actions.js';
@@ -89,6 +97,8 @@ interface AnnotatorContextValue {
   decorationProviders: readonly DecorationProvider<OsdFields>[];
   defaultPixelSpacing: PixelSpacing | undefined;
   renderDomDecoration: ((decoration: DomDecoration) => ReactNode) | undefined;
+  /** Reports an annotation the canvas had to skip; see `onAnnotationRenderError`. */
+  reportAnnotationRenderError: (error: AnnotationRenderFailure) => void;
 }
 
 const AnnotatorContext = createContext<AnnotatorContextValue | null>(null);
@@ -149,6 +159,14 @@ export interface AnnotatorProviderProps {
    * the `DomDecoration` and returns the React node to mount.
    */
   readonly renderDomDecoration?: ((decoration: DomDecoration) => ReactNode) | undefined;
+  /**
+   * Called when a stored annotation cannot be rendered on the canvas, for
+   * example because its `rawAnnotationData` is malformed or names a Fabric
+   * class that is not registered. The annotation is skipped and stays in
+   * state; every other annotation on the image still renders. Defaults to a
+   * `console.warn` naming the annotation.
+   */
+  readonly onAnnotationRenderError?: ((error: AnnotationRenderFailure) => void) | undefined;
 }
 
 export function AnnotatorProvider({
@@ -166,6 +184,7 @@ export function AnnotatorProvider({
   decorationProviders,
   defaultPixelSpacing,
   renderDomDecoration,
+  onAnnotationRenderError,
 }: AnnotatorProviderProps) {
   const [annotationState, dispatchAnnotation] = useReducer(annotationReducer, undefined, () => {
     const initial = createInitialAnnotationState();
@@ -282,6 +301,17 @@ export function AnnotatorProvider({
 
   const stableDecorationProviders = useMemo(() => decorationProviders ?? [], [decorationProviders]);
 
+  // A stable reporter that reads the latest handler, so an inline
+  // `onAnnotationRenderError` does not change the context value (and with it
+  // re-run every ViewerCell's annotation rebuild) on each host render.
+  const onAnnotationRenderErrorRef = useRef(onAnnotationRenderError);
+  onAnnotationRenderErrorRef.current = onAnnotationRenderError;
+  const reportAnnotationRenderError = useCallback(
+    (error: AnnotationRenderFailure) =>
+      (onAnnotationRenderErrorRef.current ?? warnAnnotationRenderError)(error),
+    [],
+  );
+
   const value = useMemo<AnnotatorContextValue>(
     () => ({
       annotationState,
@@ -300,6 +330,7 @@ export function AnnotatorProvider({
       decorationProviders: stableDecorationProviders,
       defaultPixelSpacing,
       renderDomDecoration,
+      reportAnnotationRenderError,
     }),
     [
       annotationState,
@@ -318,6 +349,7 @@ export function AnnotatorProvider({
       stableDecorationProviders,
       defaultPixelSpacing,
       renderDomDecoration,
+      reportAnnotationRenderError,
     ],
   );
 
