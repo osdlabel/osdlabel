@@ -11,8 +11,25 @@ export interface KeyboardShortcutTarget {
   getAttribute(name: string): string | null;
 }
 
-/** The keys a focused button activates on, natively. */
-const BUTTON_ACTIVATION_KEYS: ReadonlySet<string> = new Set(['Enter', ' ']);
+const ENTER_AND_SPACE: ReadonlySet<string> = new Set(['Enter', ' ']);
+const ENTER: ReadonlySet<string> = new Set(['Enter']);
+const NONE: ReadonlySet<string> = new Set();
+
+/**
+ * The keys a focused control acts on natively, by kind of control:
+ *
+ * - a button (`<button>`, `role="button"`) is pressed by Enter and Space;
+ * - a `<summary>` toggles its `<details>` on Enter and Space;
+ * - a `<select>` opens on Space, and on Enter (Return) on macOS;
+ * - a link (`<a href>`, `role="link"`) is followed on Enter (Space scrolls).
+ */
+function activationKeys(tag: string, role: string | null, hasHref: boolean): ReadonlySet<string> {
+  if (tag === 'BUTTON' || tag === 'SUMMARY' || tag === 'SELECT' || role === 'button') {
+    return ENTER_AND_SPACE;
+  }
+  if ((tag === 'A' && hasHref) || role === 'link') return ENTER;
+  return NONE;
+}
 
 /**
  * Narrows to an object whose shortcut-relevant fields are read defensively.
@@ -36,8 +53,11 @@ function isObjectTarget(target: unknown): target is Partial<KeyboardShortcutTarg
  *   in-progress polyline *and* empty the cell (#189). Other keys still reach
  *   the shortcuts from a focused button, so tabbing through the toolbar does
  *   not disable `r`, `Delete` or the grid digits.
+ * - **Other focused controls** own the keys they act on in the same way: Enter
+ *   and Space on a `<summary>` or a `<select>`, and Enter on a link (`<a href>`
+ *   or `role="link"`) (#205).
  *
- * Two things keep the button rule from catching a key meant for the image: a
+ * Two things keep these rules from catching a key meant for the image: a
  * mouse click does not leave focus on the annotator's chrome buttons
  * (`preventButtonFocusSteal`), and a drawing or selecting press on the image
  * moves focus to the viewer (`FabricOverlay`), so a button picked from the keyboard loses focus
@@ -55,7 +75,9 @@ export function shouldSkipKeyboardShortcut(
   if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable === true) {
     return true;
   }
-  if (!BUTTON_ACTIVATION_KEYS.has(key)) return false;
-  if (tag === 'BUTTON') return true;
-  return typeof target.getAttribute === 'function' && target.getAttribute('role') === 'button';
+  const getAttribute =
+    typeof target.getAttribute === 'function' ? target.getAttribute.bind(target) : undefined;
+  const role = getAttribute?.('role') ?? null;
+  const hasHref = (getAttribute?.('href') ?? null) !== null;
+  return activationKeys(tag, role, hasHref).has(key);
 }

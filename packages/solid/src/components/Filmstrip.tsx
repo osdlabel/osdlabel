@@ -10,6 +10,7 @@ import {
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
   CELL_ASSIGNMENT_CLEAR_LABEL,
+  FILMSTRIP_LABEL,
   type CellAssignmentState,
 } from 'osdlabel';
 
@@ -45,6 +46,10 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
   return (
     <div
       data-testid="filmstrip"
+      // A list of images, so assistive tech announces the filmstrip and how
+      // many images it holds rather than a flat run of buttons (#205).
+      role="list"
+      aria-label={FILMSTRIP_LABEL}
       // A click on a thumbnail or the clear badge must not leave focus on it,
       // like the toolbar: Enter and Space would re-press it, and Enter is also
       // the polyline-finish key. Tab still reaches both buttons.
@@ -64,7 +69,9 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
       <For each={[...props.images]}>
         {(image) => {
           const state = createMemo(() => assignmentState(image.id));
-          const name = image.label ?? image.id;
+          // Read where it is used, so a host that changes an image's label sees
+          // it reflected (#205).
+          const name = () => image.label ?? image.id;
           let thumbnail: HTMLButtonElement | undefined;
 
           // The wrapper is a plain container holding two sibling buttons, so
@@ -72,6 +79,7 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
           // `data-assignment` and the state border.
           return (
             <div
+              role="listitem"
               data-testid={`filmstrip-item-${image.id}`}
               data-assignment={state()}
               style={{
@@ -92,7 +100,7 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                 type="button"
                 ref={thumbnail}
                 data-testid={`filmstrip-thumb-${image.id}`}
-                aria-label={getCellAssignmentLabel(name, state())}
+                aria-label={getCellAssignmentLabel(name(), state())}
                 aria-current={state() === 'active' ? 'true' : undefined}
                 title={CELL_ASSIGNMENT_TITLE[state()]}
                 onClick={() => assign(image)}
@@ -120,7 +128,9 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                     }}
                   />
                 ) : (
-                  <div
+                  // A span, not a div: a <button> may only hold phrasing
+                  // content (#205). Flex makes it a block-level box anyway.
+                  <span
                     aria-hidden="true"
                     style={{
                       width: '100%',
@@ -137,13 +147,18 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                       'box-sizing': 'border-box',
                     }}
                   >
-                    {name}
-                  </div>
+                    {name()}
+                  </span>
                 )}
               </button>
               {/* The only control that empties a cell. A real button, so it is
                   reachable by keyboard and named for assistive tech — which is
-                  also the one gesture in this component that loses work. */}
+                  also the one gesture in this component that loses work. The
+                  button is a 24px target (WCAG 2.5.8) around the 16px badge
+                  that is drawn (#205). The corner it covers belongs to the
+                  thumbnail already in the active cell, where a press would
+                  re-assign the same image and reset the cell's view
+                  transform. */}
               <Show when={state() === 'active'}>
                 <button
                   type="button"
@@ -153,25 +168,37 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                   onClick={(event) => clearActiveCell(event, thumbnail)}
                   style={{
                     position: 'absolute',
-                    top: '2px',
-                    right: '2px',
-                    width: '16px',
-                    height: '16px',
+                    top: '0',
+                    right: '0',
+                    width: '24px',
+                    height: '24px',
                     padding: '0',
                     display: 'flex',
                     'align-items': 'center',
                     'justify-content': 'center',
-                    'border-radius': '50%',
                     border: 'none',
-                    background: 'rgba(0, 0, 0, 0.65)',
-                    color: '#fff',
-                    'font-size': '11px',
-                    'line-height': '1',
-                    'font-family': 'system-ui, sans-serif',
+                    background: 'transparent',
                     cursor: 'pointer',
                   }}
                 >
-                  ✕
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      display: 'flex',
+                      'align-items': 'center',
+                      'justify-content': 'center',
+                      'border-radius': '50%',
+                      background: 'rgba(0, 0, 0, 0.65)',
+                      color: '#fff',
+                      'font-size': '11px',
+                      'line-height': '1',
+                      'font-family': 'system-ui, sans-serif',
+                    }}
+                  >
+                    ✕
+                  </span>
                 </button>
               </Show>
             </div>

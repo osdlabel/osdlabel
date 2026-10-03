@@ -112,6 +112,12 @@ export const CELL_ASSIGNMENT_TITLE: Readonly<Record<CellAssignmentState, string>
   none: 'Show this image in the active cell',
 };
 
+/**
+ * Accessible name for the filmstrip, which is exposed as a list of images, so
+ * assistive tech announces it and how many images it holds (#205).
+ */
+export const FILMSTRIP_LABEL = 'Images';
+
 /** Accessible name for the badge control that empties the active cell. */
 export const CELL_ASSIGNMENT_CLEAR_LABEL = 'Remove this image from the active cell';
 

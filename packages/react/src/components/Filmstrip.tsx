@@ -9,6 +9,7 @@ import {
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
   CELL_ASSIGNMENT_CLEAR_LABEL,
+  FILMSTRIP_LABEL,
   type CellAssignmentState,
 } from 'osdlabel';
 
@@ -25,6 +26,10 @@ export default function Filmstrip({ images, position }: FilmstripProps) {
   return (
     <div
       data-testid="filmstrip"
+      // A list of images, so assistive tech announces the filmstrip and how
+      // many images it holds rather than a flat run of buttons (#205).
+      role="list"
+      aria-label={FILMSTRIP_LABEL}
       // A click on a thumbnail or the clear badge must not leave focus on it,
       // like the toolbar: Enter and Space would re-press it, and Enter is also
       // the polyline-finish key. Tab still reaches both buttons.
@@ -86,6 +91,7 @@ function FilmstripItem({ image, state, isVertical, onAssign, onClear }: Filmstri
 
   return (
     <div
+      role="listitem"
       data-testid={`filmstrip-item-${image.id}`}
       data-assignment={state}
       style={{
@@ -129,7 +135,9 @@ function FilmstripItem({ image, state, isVertical, onAssign, onClear }: Filmstri
             style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <div
+          // A span, not a div: a <button> may only hold phrasing content
+          // (#205). Flex makes it a block-level box anyway.
+          <span
             aria-hidden="true"
             style={{
               width: '100%',
@@ -147,12 +155,16 @@ function FilmstripItem({ image, state, isVertical, onAssign, onClear }: Filmstri
             }}
           >
             {name}
-          </div>
+          </span>
         )}
       </button>
       {/* The only control that empties a cell. A real button, so it is
           reachable by keyboard and named for assistive tech — which is also
-          the one gesture in this component that loses work. */}
+          the one gesture in this component that loses work. The button is a
+          24px target (WCAG 2.5.8) around the 16px badge that is drawn (#205).
+          The corner it covers belongs to the thumbnail already in the active
+          cell, where a press would re-assign the same image and reset the
+          cell's view transform. */}
       {state === 'active' && (
         <button
           type="button"
@@ -162,25 +174,37 @@ function FilmstripItem({ image, state, isVertical, onAssign, onClear }: Filmstri
           onClick={clear}
           style={{
             position: 'absolute',
-            top: '2px',
-            right: '2px',
-            width: '16px',
-            height: '16px',
+            top: 0,
+            right: 0,
+            width: '24px',
+            height: '24px',
             padding: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: '50%',
             border: 'none',
-            background: 'rgba(0, 0, 0, 0.65)',
-            color: '#fff',
-            fontSize: '11px',
-            lineHeight: '1',
-            fontFamily: 'system-ui, sans-serif',
+            background: 'transparent',
             cursor: 'pointer',
           }}
         >
-          ✕
+          <span
+            aria-hidden="true"
+            style={{
+              width: '16px',
+              height: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              background: 'rgba(0, 0, 0, 0.65)',
+              color: '#fff',
+              fontSize: '11px',
+              lineHeight: '1',
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          >
+            ✕
+          </span>
         </button>
       )}
     </div>
