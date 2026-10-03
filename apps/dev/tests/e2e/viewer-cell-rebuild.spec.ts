@@ -15,7 +15,8 @@ interface CanvasLike {
   add(...objects: unknown[]): number;
 }
 interface Harness {
-  load(count: number): void;
+  load(count: number, broken?: number, malformed?: number): void;
+  readonly renderErrors: readonly string[];
   overlay: { canvas: CanvasLike } | undefined;
   unmount(): void;
 }
@@ -112,5 +113,73 @@ test.describe('ViewerCell annotation rebuild', () => {
       'data-annotation-count',
       '3',
     );
+  });
+});
+
+/**
+ * An annotation whose stored Fabric data cannot be revived must not take the
+ * rest of the image's annotations down with it (#209). The page's `broken-<i>`
+ * annotations name a Fabric class that does not exist, and its `malformed-<i>`
+ * polygons have no points, which Fabric's loader would otherwise drop silently.
+ */
+test.describe('ViewerCell annotation that cannot be rendered', () => {
+  const renderErrors = (page: Page): Promise<readonly string[]> =>
+    page.evaluate(() => [...(window as HarnessWindow).__viewerCell!.renderErrors]);
+
+  test('is skipped and reported, and the others still render (#209)', async ({ page }) => {
+    await page.goto('/viewer-cell.html');
+    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+
+    await page.evaluate(() => (window as HarnessWindow).__viewerCell!.load(2, 1));
+
+    await expect.poll(() => canvasAnnotationIds(page)).toEqual(['rect-0', 'rect-1']);
+    await expect.poll(() => renderErrors(page)).toEqual(['broken-0']);
+    await expect(page.locator('[data-annotation-count]')).toHaveAttribute(
+      'data-annotation-count',
+      '2',
+    );
+  });
+
+  test('is reported when its data is malformed, not dropped silently (#209)', async ({ page }) => {
+    // A polygon with no points: Fabric knows the class, but its loader drops
+    // the object without an error unless deserializeFabricObject surfaces it.
+    await page.goto('/viewer-cell.html');
+    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+
+    await page.evaluate(() => (window as HarnessWindow).__viewerCell!.load(1, 0, 1));
+
+    await expect.poll(() => canvasAnnotationIds(page)).toEqual(['rect-0']);
+    await expect.poll(() => renderErrors(page)).toEqual(['malformed-0']);
+  });
+
+  test('is reported with a console warning when no handler is given', async ({ page }) => {
+    const warnings: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'warning') warnings.push(message.text());
+    });
+    await page.goto('/viewer-cell.html?errors=default');
+    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+
+    await page.evaluate(() => (window as HarnessWindow).__viewerCell!.load(1, 1));
+
+    await expect.poll(() => canvasAnnotationIds(page)).toEqual(['rect-0']);
+    await expect.poll(() => warnings.filter((text) => text.includes('"broken-0"')).length).toBe(1);
+  });
+
+  test('is not reported by a rebuild that was superseded', async ({ page }) => {
+    // The first rebuild includes the broken annotation; the second, started in
+    // the same task, does not. Only the rebuild that lands may report.
+    await page.goto('/viewer-cell.html');
+    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+
+    await page.evaluate(() => {
+      const harness = (window as HarnessWindow).__viewerCell!;
+      harness.load(1, 1);
+      harness.load(1);
+    });
+
+    await expect.poll(() => canvasAnnotationIds(page)).toEqual(['rect-0']);
+    await settle(page);
+    expect(await renderErrors(page)).toEqual([]);
   });
 });
