@@ -1,5 +1,46 @@
 # @osdlabel/solid
 
+## 0.19.0
+
+### Minor Changes
+
+- 3944fcf: An annotation that cannot be rendered no longer empties its image's canvas, and is no longer dropped silently (#209).
+
+  `ViewerCell` rebuilt every annotation's Fabric object with `Promise.all`. One whose stored `rawAnnotationData` named a Fabric class that isn't registered failed the whole rebuild, so the canvas stayed empty for that image and the error surfaced only as an unhandled promise rejection. One whose data was malformed for a known class was dropped by Fabric's loader with no error at all.
+
+  Each annotation is now built on its own. One that fails is skipped on the canvas and stays in state, and the rest of the image's annotations render as usual. The failure is reported:
+  - **`onAnnotationRenderError({ annotation, error })`:** a new optional prop on `AnnotatorProvider` and `Annotator`, called once per skipped annotation. If it throws, the error is logged with `console.error` and the remaining failures are still reported.
+  - **Without it:** a `console.warn` naming the annotation and its image.
+
+  A rebuild that is superseded, or cancelled because the cell unmounted, reports nothing.
+
+  **Behaviour change in `@osdlabel/fabric-annotations`:** `deserializeFabricObject` (and so `createFabricObjectFromRawData`) now rejects with Fabric's error when a Fabric payload cannot be revived, including malformed data that Fabric's `enlivenObjects` used to swallow. It still resolves to `null` for an envelope whose `format` is not `'fabric'`.
+
+  `osdlabel` exports the pieces both frameworks use: `settleAnnotationObjects(annotations, build)`, `reportAnnotationRenderFailures(failures, report)`, `warnAnnotationRenderError`, and the `AnnotationRenderFailure` and `SettledAnnotationObjects` types.
+
+### Patch Changes
+
+- fd0cc76: Filmstrip accessibility follow-ups (#205):
+  - **Announced as a list.** The filmstrip is now a list labelled "Images" (`FILMSTRIP_LABEL`, exported from `osdlabel`), with one list item per image. Assistive tech announces what the thumbnails belong to and how many there are.
+  - **Larger clear target.** The clear badge's button is now a 24px target (WCAG 2.5.8). The badge is still drawn at 16px, centred in the target, so it sits 2px further in from the corner.
+  - **Valid markup.** The text placeholder inside a thumbnail button is a `<span>` rather than a `<div>`, since a button may only hold phrasing content. The layout is unchanged.
+  - **Label updates (SolidJS).** The filmstrip follows a change to an image's `label` again, matching React.
+  - **More focused controls keep their keys.** `shouldSkipKeyboardShortcut` now also leaves `Enter` and `Space` to a focused `<summary>` or `<select>`, and `Enter` to a link (`<a href>` or `role="link"`). A `<select>` opens on Space, and on Return on macOS.
+
+  The keyboard guide also explains when the browser may draw a focus ring around the viewer, and how to style it.
+
+- Updated dependencies [3944fcf]
+- Updated dependencies [fd0cc76]
+  - osdlabel@0.19.0
+  - @osdlabel/fabric-annotations@0.19.0
+  - @osdlabel/fabric-osd@0.19.0
+  - @osdlabel/annotation@0.19.0
+  - @osdlabel/annotation-context@0.19.0
+  - @osdlabel/decoration@0.19.0
+  - @osdlabel/osd-helper@0.19.0
+  - @osdlabel/validation@0.19.0
+  - @osdlabel/viewer-api@0.19.0
+
 ## 0.18.0
 
 ### Patch Changes
