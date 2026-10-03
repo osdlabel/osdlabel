@@ -13,7 +13,11 @@ import { useAnnotationTool } from '../hooks/useAnnotationTool.js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
 import type { OsdFields } from 'osdlabel';
-import { enableLiveDecorationUpdates } from 'osdlabel';
+import {
+  enableLiveDecorationUpdates,
+  reportAnnotationRenderFailures,
+  settleAnnotationObjects,
+} from 'osdlabel';
 
 export interface ViewerCellProps {
   readonly imageSource: ImageSource | undefined;
@@ -39,6 +43,7 @@ export default function ViewerCell({
     decorationProviders,
     defaultPixelSpacing,
     renderDomDecoration,
+    reportAnnotationRenderError,
   } = useAnnotator();
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<OpenSeadragon.Viewer | undefined>(undefined);
@@ -143,7 +148,7 @@ export default function ViewerCell({
     // objects or touch a disposed canvas, so a cancelled run adds nothing.
     let cancelled = false;
     void (async () => {
-      const promises = matching.map(async (ann) => {
+      const { objects, failures } = await settleAnnotationObjects(matching, async (ann) => {
         const obj = await createFabricObjectFromRawData(ann);
         if (obj) {
           const isActiveCtx = ann.contextId === activeContextId;
@@ -155,16 +160,17 @@ export default function ViewerCell({
         }
         return obj;
       });
-      const objects = await Promise.all(promises);
       if (cancelled) return;
-      const validObjects = objects.filter((obj) => obj !== null);
-      if (validObjects.length > 0) {
-        overlay.canvas.add(...validObjects);
+      if (objects.length > 0) {
+        overlay.canvas.add(...objects);
       }
       if (containerRef.current) {
-        containerRef.current.dataset.annotationCount = String(validObjects.length);
+        containerRef.current.dataset.annotationCount = String(objects.length);
       }
       overlay.canvas.requestRenderAll();
+      // Each annotation is built on its own, so one that cannot be revived is
+      // skipped and reported instead of leaving the whole image empty (#209).
+      reportAnnotationRenderFailures(failures, reportAnnotationRenderError);
     })();
     return () => {
       cancelled = true;
@@ -176,6 +182,7 @@ export default function ViewerCell({
     contextState.displayedContextIds,
     isActive,
     visibleAnnotations,
+    reportAnnotationRenderError,
   ]);
 
   // Sync decorations to overlay (pure derivation of visible annotations +

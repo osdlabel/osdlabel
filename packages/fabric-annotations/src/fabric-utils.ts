@@ -43,13 +43,25 @@ export function serializeFabricObject(obj: FabricObject): FabricRawAnnotationDat
 
 /**
  * Deserialize a RawAnnotationData envelope back into a Fabric object.
+ *
+ * Resolves to `null` only for an envelope that is not Fabric's. A Fabric
+ * payload that cannot be revived rejects with Fabric's error, whether it names
+ * a class that is not registered or its class's `fromObject` fails on
+ * malformed data. Fabric's `enlivenObjects` would otherwise drop the latter
+ * silently, and the annotation would vanish with nothing reported (#209).
  */
 export async function deserializeFabricObject(
   raw: FabricRawAnnotationData,
 ): Promise<FabricObject | null> {
   if (raw.format !== 'fabric') return null;
 
-  const objects = await util.enlivenObjects([raw.data]);
+  const objects = await util.enlivenObjects([raw.data], {
+    // Called with the error for an object whose `fromObject` rejected; the
+    // default reviver swallows it.
+    reviver: (_serialized, _instance, error) => {
+      if (error !== undefined) throw error;
+    },
+  });
   if (objects.length === 0) return null;
 
   return objects[0] as FabricObject;
