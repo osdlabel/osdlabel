@@ -28,6 +28,7 @@ catalog:
   '@types/react-dom': ^19.2.3
   '@vitejs/plugin-react': ^6.0.2
   immer: ^10.1.1
+  jsdom: ^26.1.0
 
 # Caret ranges used for PUBLISHED peerDependencies of fabric / openseadragon.
 # The default catalog above pins exact versions for reproducible dev installs;

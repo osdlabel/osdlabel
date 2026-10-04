@@ -174,6 +174,8 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };
   const fullscreenTargetRef: FullscreenTargetRef = { element: null };
+  // Read once, at setup: unlike React's provider, a later change to
+  // `keyboardShortcuts`, `vertexEdit*` or `vertexMarkers` is ignored here (#219).
   const mergedShortcuts = { ...DEFAULT_KEYBOARD_SHORTCUTS, ...props.keyboardShortcuts };
   const vertexEditConfig: VertexEditConfig = {
     longPressMs: props.vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
