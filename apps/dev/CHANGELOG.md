@@ -1,5 +1,13 @@
 # @osdlabel/dev
 
+## 0.0.29
+
+### Patch Changes
+
+- Updated dependencies [ef65287]
+  - @osdlabel/solid@0.20.0
+  - osdlabel@0.20.0
+
 ## 0.0.28
 
 ### Patch Changes

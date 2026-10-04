@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/osd-helper",
-  "version": "0.19.2",
+  "version": "0.20.0",
   "description": "OpenSeaDragon utility functions for osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
