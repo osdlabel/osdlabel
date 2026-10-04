@@ -1,4 +1,5 @@
-import { test, expect, type CDPSession, type Page } from '@playwright/test';
+import type { CDPSession, Page } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 
 /**
  * Touch input in annotation mode (issue #175).

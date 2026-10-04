@@ -37,7 +37,6 @@ function Harness() {
   actions.setActiveContext(HARNESS_CONTEXT_ID);
 
   const harness: ViewerCellHarness = {
-    framework: 'solid',
     load: (count, broken = 0, malformed = 0) =>
       actions.loadAnnotations(harnessAnnotations(count, broken, malformed)),
     renderErrors,

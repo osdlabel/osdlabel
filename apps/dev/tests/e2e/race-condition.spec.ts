@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 
 test.describe('Race Condition: Cell Switching & Key Handling', () => {
   test.beforeEach(async ({ page }) => {

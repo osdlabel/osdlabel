@@ -1,4 +1,5 @@
-import { test, expect, type Page, type Locator } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 import { selectedAnnotationId } from './helpers/selection.js';
 
 /**

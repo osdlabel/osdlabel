@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 
 // The dev app's "Fracture" context is scoped to [landscape, portrait].
 // - Line tool: maxCount 3, countScope 'per-image'

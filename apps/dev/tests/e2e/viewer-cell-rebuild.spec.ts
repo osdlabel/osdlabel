@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 
 /**
  * `ViewerCell` rebuilds its Fabric objects from state asynchronously: it clears
@@ -18,7 +19,6 @@ interface CanvasLike {
   add(...objects: unknown[]): number;
 }
 interface Harness {
-  readonly framework: string;
   load(count: number, broken?: number, malformed?: number): void;
   readonly renderErrors: readonly string[];
   overlay: { canvas: CanvasLike } | undefined;
@@ -26,19 +26,10 @@ interface Harness {
 }
 type HarnessWindow = Window & { __viewerCell?: Harness; __addedAfterUnmount?: number };
 
-/**
- * Opens the harness page and waits for the cell's overlay. Fails if the page
- * belongs to the other binding than this config's `metadata.framework`, or if
- * the config does not say, so a run can never pass by testing the wrong app.
- */
+/** Opens the harness page and waits for the cell's overlay. */
 async function openHarness(page: Page, query = ''): Promise<void> {
   await page.goto(`/viewer-cell.html${query}`);
   await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
-  const expected: unknown = test.info().config.metadata['framework'];
-  expect(expected, 'the Playwright config must set metadata.framework').toEqual(expect.any(String));
-  expect(await page.evaluate(() => (window as HarnessWindow).__viewerCell!.framework)).toBe(
-    expected,
-  );
 }
 
 /** Ids of the annotation objects on the cell's canvas, sorted. */

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 import { selectedAnnotationId } from './helpers/selection.js';
 
 // The dev app has 3 contexts: Fracture (ctx-1), Pneumothorax (ctx-2), General (ctx-3).
