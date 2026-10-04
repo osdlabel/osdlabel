@@ -89,4 +89,4 @@ osdlabel uses three state slices, managed by framework-agnostic pure reducers in
 State is accessed via the `useAnnotator()` hook and mutated through named action functions. Components never modify state directly.
 
 - **SolidJS** (`@osdlabel/solid`) — Uses `createStore` + `produce` for fine-grained reactive updates
-- **React** (`@osdlabel/react`) — Uses `useReducer` + Immer `produce` with React Context
+- **React** (`@osdlabel/react`) — Uses Immer `produce` in a small external store, read through `useSyncExternalStore` and provided with React Context

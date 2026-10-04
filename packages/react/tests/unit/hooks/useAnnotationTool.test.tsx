@@ -4,6 +4,7 @@ import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, ToolCallbacks } from '@osdlabel/fabric-annotations';
 import { createAnnotationId, type Geometry } from '@osdlabel/annotation';
 import { createImageId, type ImageId } from '@osdlabel/viewer-api';
+import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { useAnnotationTool } from '../../../src/hooks/useAnnotationTool.js';
 import { renderAnnotator, type AnnotatorHarness, type ProviderProps } from '../render-annotator.js';
 import { unmountAll } from '../mount.js';
@@ -19,8 +20,9 @@ import { byImage, contextId, imageId, rect } from '../fixtures.js';
  * which throws away anything in progress — an unfinished polyline, a vertex
  * edit. So the tool must survive a host re-render that passes equal-valued
  * inline props, and must be rebuilt when one of its real inputs changes. The
- * long-lived Fabric handlers read state through refs, so they must also see
- * state committed after they were registered.
+ * long-lived Fabric handlers and tool callbacks read the provider's store, so
+ * they must see state committed after they were registered — and, as in Solid,
+ * a write made earlier in the same task, before React has rendered it (#217).
  */
 
 /** One entry per tool the hook built, in order. */
@@ -122,15 +124,20 @@ function createMockOverlay() {
       };
     }),
   };
+  /** Fires every listener registered for `event`, in the caller's `act`. */
+  const emit = (event: string, payload: unknown): void => {
+    for (const cb of listeners.get(event) ?? []) cb(payload);
+  };
   return {
     overlay,
     asOverlay: overlay as unknown as FabricOverlay,
     /** Fires every listener registered for `event`, inside `act`. */
     fire(event: string, payload: unknown): void {
       act(() => {
-        for (const cb of listeners.get(event) ?? []) cb(payload);
+        emit(event, payload);
       });
     },
+    emit,
     listenerCount: (event: string) => listeners.get(event)?.size ?? 0,
     doubleClickListeners: () => doubleClickListeners,
   };
@@ -194,8 +201,8 @@ describe('useAnnotationTool', () => {
   });
 
   it('object:modified sees an annotation added after the handler was registered', () => {
-    // The handler is registered once per overlay/image and reads
-    // `annotationStateRef.current`; a stale ref would find nothing to update.
+    // The handler is registered once per overlay/image and reads the store;
+    // a value captured at registration would find nothing to update.
     const h = setup('select');
     h.run((a) => a.addAnnotation(rect('late')));
 
@@ -204,7 +211,7 @@ describe('useAnnotationTool', () => {
     expect(
       h.current.annotationState.byImage[imageId]![createAnnotationId('late')]!.geometry,
     ).toEqual(movedGeometry);
-    // Fresh through the ref, not by re-registering on every state change.
+    // Fresh through the store, not by re-registering on every state change.
     const registrations = mo.overlay.canvas.on.mock.calls.filter(([e]) => e === 'object:modified');
     expect(registrations).toHaveLength(1);
   });
@@ -400,6 +407,74 @@ describe('useAnnotationTool', () => {
 
       expect(built).toHaveLength(1);
       expect(callbacks!.getToolConstraint('rectangle')?.maxCount).toBe(7);
+    });
+  });
+
+  /**
+   * A tool calls back into the hook straight after an action it issued — it
+   * adds an annotation, then asks whether another is allowed — all inside one
+   * pointer event, before React renders. Each case does the same inside one
+   * bare `act` (one task, one batch) and reads the callback before it returns.
+   * Solid's `useAnnotationTool.config.test.ts` pins the same for its binding.
+   */
+  describe('the tool sees writes made earlier in the same task (#217)', () => {
+    it('canAddAnnotation, after an addAnnotation that fills the limit', () => {
+      // The select tool, so filling the limit does not trip the auto-switch.
+      const h = setup('select');
+      h.run((a) =>
+        a.setContexts([
+          { id: contextId, label: 'One', tools: [{ type: 'rectangle', maxCount: 1 }] },
+        ]),
+      );
+      const callbacks = built.at(-1)!.callbacks;
+      expect(callbacks).toBeDefined();
+
+      let canAdd: boolean | undefined;
+      act(() => {
+        h.current.actions.addAnnotation(rect('r1'));
+        canAdd = callbacks!.canAddAnnotation('rectangle');
+      });
+
+      expect(canAdd).toBe(false);
+    });
+
+    it('getAnnotation, getActiveContextId and getToolConstraint, after the matching writes', () => {
+      const h = setup('select');
+      const callbacks = built.at(-1)!.callbacks;
+      expect(callbacks).toBeDefined();
+      const otherContext = createAnnotationContextId('ctx-other');
+
+      let found: unknown;
+      let activeContextId: unknown;
+      let maxCount: number | undefined;
+      act(() => {
+        h.current.actions.addAnnotation(rect('r1'));
+        h.current.actions.setContexts([
+          { id: contextId, label: 'All', tools: [{ type: 'rectangle', maxCount: 7 }] },
+          { id: otherContext, label: 'Other', tools: [] },
+        ]);
+        found = callbacks!.getAnnotation(createAnnotationId('r1'), imageId);
+        maxCount = callbacks!.getToolConstraint('rectangle')?.maxCount;
+        h.current.actions.setActiveContext(otherContext);
+        activeContextId = callbacks!.getActiveContextId();
+      });
+
+      expect(found).toBeDefined();
+      expect(maxCount).toBe(7);
+      expect(activeContextId).toBe(otherContext);
+    });
+
+    it('object:modified, for an annotation added earlier in the task', () => {
+      const h = setup('select');
+
+      act(() => {
+        h.current.actions.addAnnotation(rect('late'));
+        mo.emit('object:modified', { target: { id: 'late' } });
+      });
+
+      expect(
+        h.current.annotationState.byImage[imageId]![createAnnotationId('late')]!.geometry,
+      ).toEqual(movedGeometry);
     });
   });
 

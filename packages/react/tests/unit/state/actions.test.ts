@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createAnnotationId } from '@osdlabel/annotation';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId, type AnnotationContext } from '@osdlabel/annotation-context';
@@ -11,9 +11,11 @@ import { circle, contextId, imageId, rect } from '../fixtures.js';
  *
  * It drives a real `AnnotatorProvider` rather than calling `createActions` on
  * hand-wired stores: in React the actions read state through
- * `getAnnotationState()` / `getContextState()` / `getUIState()`, which return
- * refs the provider refreshes on each render. That indirection is the part the
- * Solid suite cannot cover, and the part these tests exist for.
+ * `getAnnotationState()` / `getContextState()` / `getUIState()`, which read the
+ * provider's external store, while components see the snapshot React last
+ * rendered. That split is the part the Solid suite cannot cover, and the part
+ * these tests exist for — in particular that an action sees a write made
+ * earlier in the same batch, before any render (#217).
  */
 describe('State Management', () => {
   afterEach(unmountAll);
@@ -240,8 +242,7 @@ describe('State Management', () => {
     });
 
     it('converts an annotation that only arrived via initialAnnotations', () => {
-      // No action has run, so the getter's ref holds the reducer's lazily
-      // initialised state from the very first render.
+      // No action has run, so the getter reads the store's seeded state.
       const h = renderAnnotator({
         initialAnnotations: {
           [imageId]: {
@@ -343,19 +344,161 @@ describe('State Management', () => {
 
       expect(h.current.annotationState.byImage[imageId]![circleId]!.toolType).toBe('rectangle');
     });
+  });
 
-    /**
-     * Not yet true in React. The getters return refs the provider refreshes
-     * during render, so a state-reading action issued in the same batch as an
-     * earlier dispatch sees the pre-batch state. Verified: in one `act`,
-     * `addAnnotation(circle)` then `convertAnnotation(circle)` leaves a circle,
-     * and `setContexts([ctx scoped away from the image])` then
-     * `addAnnotation(...)` adds an annotation the scope guard should refuse.
-     * Solid applies each write synchronously, so both behave there. Fixing it
-     * means computing state eagerly inside `createActions` instead of reading
-     * the last render — an architectural change, tracked in #217.
-     */
-    it.todo('sees a dispatch made earlier in the same batch, as Solid does (#217)');
+  /**
+   * Each case issues every step in one `h.run()`, which is one `act()` and so
+   * one React batch: nothing renders until it returns. A state-reading action
+   * must still see the writes before it, as it does in Solid, where the same
+   * cases run inside `batch` (#217). The getters used to return refs the
+   * provider refreshed on render, and so read the pre-batch state.
+   */
+  describe('within one batch (#217)', () => {
+    const circleId = createAnnotationId('circle1');
+    const imageId2 = createImageId('img2');
+
+    function openContext(maxRectangles?: number): AnnotationContext {
+      return {
+        id: contextId,
+        label: 'Test Context',
+        tools: [
+          maxRectangles === undefined
+            ? { type: 'rectangle' }
+            : { type: 'rectangle', maxCount: maxRectangles },
+          { type: 'circle' },
+        ],
+      };
+    }
+
+    it('convertAnnotation finds a circle added earlier in the batch, in one render', () => {
+      const h = createTestStore();
+      h.run((a) => {
+        a.setContexts([openContext()]);
+        a.setActiveContext(contextId);
+      });
+      const renders = h.renderCount;
+
+      h.run((a) => {
+        a.addAnnotation(circle('circle1'));
+        a.convertAnnotation(circleId, imageId);
+      });
+
+      const converted = h.current.annotationState.byImage[imageId]?.[circleId];
+      expect(converted).toBeDefined();
+      expect(converted!.toolType).toBe('rectangle');
+      // Both writes reach the tree in a single commit: the store notifies once
+      // per write, and React batches the re-renders those notifications ask for.
+      expect(h.renderCount).toBe(renders + 1);
+    });
+
+    it('addAnnotation is refused by contexts set earlier in the batch', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const h = createTestStore();
+        h.run((a) => {
+          a.setContexts([{ ...openContext(), imageIds: [imageId2] }]);
+          a.setActiveContext(contextId);
+          a.addAnnotation(dummyAnnotation);
+        });
+
+        expect(h.current.annotationState.byImage[imageId]).toBeUndefined();
+        expect(warn).toHaveBeenCalledTimes(1);
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('addAnnotation is accepted by contexts widened earlier in the batch', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const h = createTestStore();
+        h.run((a) => {
+          a.setContexts([{ ...openContext(), imageIds: [imageId2] }]);
+          a.setActiveContext(contextId);
+        });
+
+        h.run((a) => {
+          a.setContexts([{ ...openContext(), imageIds: [imageId, imageId2] }]);
+          a.addAnnotation(dummyAnnotation);
+        });
+
+        expect(h.current.annotationState.byImage[imageId]?.[annId]).toBeDefined();
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('convertAnnotation counts a rectangle added earlier in the batch', () => {
+      // The circle is already committed, so a guard reading the pre-batch
+      // state finds it, counts no rectangle yet, and converts it — leaving two
+      // rectangles where the context allows one.
+      const h = createTestStore();
+      h.run((a) => {
+        a.setContexts([openContext(1)]);
+        a.setActiveContext(contextId);
+        a.addAnnotation(circle('circle1'));
+      });
+      const before = h.current.annotationState.changeCounter;
+
+      h.run((a) => {
+        a.addAnnotation(dummyAnnotation);
+        a.convertAnnotation(circleId, imageId);
+      });
+
+      expect(h.current.annotationState.byImage[imageId]![circleId]!.toolType).toBe('circle');
+      expect(h.current.annotationState.changeCounter).toBe(before + 1);
+    });
+
+    it('convertAnnotation refuses when the batch itself fills the rectangle limit', () => {
+      const h = createTestStore();
+      const before = h.current.annotationState.changeCounter;
+
+      h.run((a) => {
+        a.setContexts([openContext(1)]);
+        a.setActiveContext(contextId);
+        a.addAnnotation(dummyAnnotation);
+        a.addAnnotation(circle('circle1'));
+        // Decisive only if the guard can see the circle at all: a stale read
+        // would leave it a circle too, for the wrong reason.
+        expect(
+          h.current.store.getSnapshot().annotationState.byImage[imageId]![circleId],
+        ).toBeDefined();
+        a.convertAnnotation(circleId, imageId);
+      });
+
+      expect(h.current.annotationState.byImage[imageId]![circleId]!.toolType).toBe('circle');
+      expect(h.current.annotationState.changeCounter).toBe(before + 2);
+    });
+
+    it('a view action targets the cell made active earlier in the batch', () => {
+      const h = createTestStore();
+      h.run((a) => {
+        a.setActiveCell(1);
+        a.rotateActiveImageCW();
+      });
+
+      expect(h.current.uiState.cellTransforms[1]?.rotation).toBe(90);
+      expect(h.current.uiState.cellTransforms[0]?.rotation ?? 0).toBe(0);
+    });
+
+    it('store.getSnapshot() holds a write the tree has not rendered yet', () => {
+      const h = createTestStore();
+      let rendered: unknown = 'unread';
+      let latest: unknown = 'unread';
+
+      h.run((a) => {
+        a.setSelectedAnnotation(annId);
+        rendered = h.current.uiState.selectedAnnotationId;
+        latest = h.current.store.getSnapshot().uiState.selectedAnnotationId;
+      });
+
+      expect(rendered).toBeNull();
+      expect(latest).toBe(annId);
+      // Once the batch commits, the two agree again.
+      expect(h.current.uiState.selectedAnnotationId).toBe(annId);
+      expect(h.current.store.getSnapshot().uiState).toBe(h.current.uiState);
+    });
   });
 
   it('Constraint status handles no active context', () => {

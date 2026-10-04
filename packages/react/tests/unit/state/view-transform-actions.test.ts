@@ -6,9 +6,10 @@ import { imageId } from '../fixtures.js';
 
 /**
  * The React counterpart of Solid's `view-transform-actions.test.ts`. Every
- * view action targets `getUIState().activeCellIndex` — a ref the provider
- * refreshes on render — so these also pin that the getter follows the active
- * cell rather than the one current when `createActions` ran.
+ * view action targets `getUIState().activeCellIndex`, read from the provider's
+ * store, so these also pin that the getter follows the active cell rather than
+ * the one current when `createActions` ran. Following a cell made active
+ * earlier in the same batch is pinned in `actions.test.ts` (#217).
  */
 describe('View Transform Actions', () => {
   afterEach(unmountAll);
@@ -83,7 +84,7 @@ describe('View Transform Actions', () => {
     h.run((a) => a.flipActiveImageH());
 
     // Switch to cell 1 in its own commit, then rotate: the action must read
-    // the refreshed active cell, not the one in force at creation.
+    // the current active cell, not the one in force at creation.
     h.run((a) => a.setActiveCell(1));
     h.run((a) => a.rotateActiveImageCW());
 

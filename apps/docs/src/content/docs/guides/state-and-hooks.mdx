@@ -49,6 +49,33 @@ The `actions` object provides methods for:
 - **UI**: `setActiveTool`, `setActiveCell`, `setSelectedAnnotation`, `assignImageToCell`, `unassignImageFromCell`, `setGridDimensions`
 - **Contexts**: `setContexts`, `setActiveContext`, `setDisplayedContexts`
 
+Actions apply their writes immediately, so an action sees what the actions before it wrote, even inside one event handler: `addAnnotation(circle)` followed by `convertAnnotation(circle.id, imageId)` converts the new circle in both bindings.
+
+### Reading the latest state in React
+
+In React, the `annotationState`, `uiState`, `contextState` and `constraintStatus` that `useAnnotator()` returns are the values the component last rendered with, so inside an event handler they do not yet include writes the same handler just made. Code that runs outside render and needs those writes — an event handler that issues an action and then reads state, or a long-lived listener — reads `store` instead:
+
+```tsx
+import { useAnnotator, type OsdAnnotation } from '@osdlabel/react';
+
+type NewAnnotation = Omit<OsdAnnotation, 'createdAt' | 'updatedAt'>;
+
+function AddAndCheck({ annotation }: { annotation: NewAnnotation }) {
+  const { actions, store } = useAnnotator();
+  const onClick = () => {
+    actions.addAnnotation(annotation);
+    // Already counts the annotation just added; `constraintStatus` will once React re-renders.
+    const { enabled } = store.getConstraintStatus()[annotation.toolType];
+    console.log('Room for another:', enabled);
+  };
+  return <button onClick={onClick}>Add</button>;
+}
+```
+
+`store.getSnapshot()` returns `{ annotationState, uiState, contextState }` as of the latest write, and `store.getConstraintStatus()` the constraint status of that snapshot. Render code should keep using the values from `useAnnotator()`. Solid needs no equivalent: its stores are already live.
+
+Because the store is read through `useSyncExternalStore`, an action dispatched inside `startTransition` renders synchronously rather than as a transition.
+
 ## `useConstraints`
 
 A convenience hook for checking tool availability based on the active context's constraints.

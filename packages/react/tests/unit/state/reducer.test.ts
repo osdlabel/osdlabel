@@ -13,9 +13,10 @@ import { contextId, rect } from '../fixtures.js';
  * The React counterpart of Solid's `ui-store.test.ts`. Solid's store is a
  * proxy that tracks per-property reads; React's is a plain object replaced by
  * an Immer `produce` per action. Two properties of that replacement are load
- * bearing and covered here: the previous state is never mutated (React bails
- * out of a render when the reference is unchanged, and stale-closure refs hold
- * old states), and untouched sub-trees keep their identity (every granular
+ * bearing and covered here: the previous state is never mutated (the
+ * provider's store drops a write that returns the same reference, and a
+ * snapshot React has rendered must stay what it was), and untouched sub-trees
+ * keep their identity (every granular
  * `useMemo` / `useEffect` dependency in the binding relies on it — CLAUDE.md,
  * "Memo / effect deps must be as granular as Immer's structural sharing
  * allows").
