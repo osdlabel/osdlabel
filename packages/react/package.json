@@ -71,6 +71,7 @@
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "eslint": "catalog:",
+    "jsdom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "typescript": "catalog:",

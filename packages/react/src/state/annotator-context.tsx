@@ -241,9 +241,16 @@ export function AnnotatorProvider({
 
   const activeToolKeyHandlerRef = useRef<ActiveToolKeyHandlerRef>({ handler: null }).current;
   const fullscreenTargetRef = useRef<FullscreenTargetRef>({ element: null }).current;
-  const mergedShortcuts = useMemo(
+  // Keyed by value, not identity: the documented usage is an inline literal
+  // (`keyboardShortcuts={{ rectangleTool: 'b' }}`), and a new map on every host
+  // render rebuilt the active tool — discarding an in-progress polyline — and
+  // re-subscribed the keyboard listener. Every value is a string, so the JSON
+  // form is an exact key.
+  const keyboardShortcutsKey = JSON.stringify(keyboardShortcuts ?? {});
+  const mergedShortcuts = useMemo<KeyboardShortcutMap>(
     () => ({ ...DEFAULT_KEYBOARD_SHORTCUTS, ...keyboardShortcuts }),
-    [keyboardShortcuts],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [keyboardShortcutsKey],
   );
   const vertexEditConfig = useMemo<VertexEditConfig>(
     () => ({
