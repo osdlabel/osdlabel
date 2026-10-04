@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@osdlabel/react": "workspace:*",
+    "fabric": "catalog:",
     "osdlabel": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"

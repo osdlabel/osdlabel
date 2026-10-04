@@ -182,6 +182,9 @@ importers:
       '@osdlabel/react':
         specifier: workspace:*
         version: link:../../packages/react
+      fabric:
+        specifier: 'catalog:'
+        version: 7.4.0
       osdlabel:
         specifier: workspace:*
         version: link:../../packages/osdlabel

@@ -12,10 +12,14 @@ export default defineConfig({
   build: {
     target: 'esnext',
     rollupOptions: {
-      // `viewer-cell.html` mounts a lone <ViewerCell> for the E2E spec it
-      // shares with `apps/dev` (#152).
+      // The same pages as `apps/dev`, so every E2E spec runs against both
+      // bindings (#152): `annotator.html` mounts the stock <Annotator>,
+      // `grid-controls.html` puts <GridControls> in a host slot, and
+      // `viewer-cell.html` mounts a lone <ViewerCell>.
       input: {
         main: resolve(__dirname, 'index.html'),
+        annotator: resolve(__dirname, 'annotator.html'),
+        gridControls: resolve(__dirname, 'grid-controls.html'),
         viewerCell: resolve(__dirname, 'viewer-cell.html'),
       },
     },
