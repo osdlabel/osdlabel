@@ -73,7 +73,7 @@ interface AnnotatorContextValue {
   defaultPixelSpacing: PixelSpacing | undefined;
   renderDomDecoration: ((decoration: DomDecoration) => JSX.Element) | undefined;
   /** Reports an annotation the canvas had to skip; see `onAnnotationRenderError`. */
-  reportAnnotationRenderError: (error: AnnotationRenderFailure) => void;
+  reportAnnotationRenderError: (failure: AnnotationRenderFailure) => void;
 }
 
 const KeyboardHandler = (props: {
@@ -153,7 +153,7 @@ export interface AnnotatorProviderProps {
    * state; every other annotation on the image still renders. Defaults to a
    * `console.warn` naming the annotation.
    */
-  readonly onAnnotationRenderError?: ((error: AnnotationRenderFailure) => void) | undefined;
+  readonly onAnnotationRenderError?: ((failure: AnnotationRenderFailure) => void) | undefined;
 }
 
 export function AnnotatorProvider(props: AnnotatorProviderProps) {
@@ -238,8 +238,8 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     defaultPixelSpacing: props.defaultPixelSpacing,
     renderDomDecoration: props.renderDomDecoration,
     // Reads the prop when called, so a host can swap its handler at any time.
-    reportAnnotationRenderError: (error) =>
-      (props.onAnnotationRenderError ?? warnAnnotationRenderError)(error),
+    reportAnnotationRenderError: (failure) =>
+      (props.onAnnotationRenderError ?? warnAnnotationRenderError)(failure),
   };
 
   return (

@@ -98,7 +98,7 @@ interface AnnotatorContextValue {
   defaultPixelSpacing: PixelSpacing | undefined;
   renderDomDecoration: ((decoration: DomDecoration) => ReactNode) | undefined;
   /** Reports an annotation the canvas had to skip; see `onAnnotationRenderError`. */
-  reportAnnotationRenderError: (error: AnnotationRenderFailure) => void;
+  reportAnnotationRenderError: (failure: AnnotationRenderFailure) => void;
 }
 
 const AnnotatorContext = createContext<AnnotatorContextValue | null>(null);
@@ -166,7 +166,7 @@ export interface AnnotatorProviderProps {
    * state; every other annotation on the image still renders. Defaults to a
    * `console.warn` naming the annotation.
    */
-  readonly onAnnotationRenderError?: ((error: AnnotationRenderFailure) => void) | undefined;
+  readonly onAnnotationRenderError?: ((failure: AnnotationRenderFailure) => void) | undefined;
 }
 
 export function AnnotatorProvider({
@@ -307,8 +307,8 @@ export function AnnotatorProvider({
   const onAnnotationRenderErrorRef = useRef(onAnnotationRenderError);
   onAnnotationRenderErrorRef.current = onAnnotationRenderError;
   const reportAnnotationRenderError = useCallback(
-    (error: AnnotationRenderFailure) =>
-      (onAnnotationRenderErrorRef.current ?? warnAnnotationRenderError)(error),
+    (failure: AnnotationRenderFailure) =>
+      (onAnnotationRenderErrorRef.current ?? warnAnnotationRenderError)(failure),
     [],
   );
 

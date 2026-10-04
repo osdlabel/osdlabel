@@ -221,6 +221,10 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
     case 'ASSIGN_IMAGE_TO_CELL': {
       const cellIndex = toCellIndex(action.payload.cellIndex);
       if (cellIndex === undefined) break;
+      // Assigning the image a cell already shows changes nothing. Without this,
+      // pressing the active cell's own filmstrip thumbnail silently reset the
+      // cell's rotation, flip, negative, exposure and contrast (#212).
+      if (draft.gridAssignments[cellIndex] === action.payload.imageId) break;
       draft.gridAssignments[cellIndex] = action.payload.imageId;
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
       break;
@@ -228,7 +232,8 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
     case 'UNASSIGN_IMAGE_FROM_CELL': {
       // Back to the empty state every cell starts in, which `GridView` already
       // renders as the "Assign an image" placeholder. Dropping the transform
-      // mirrors ASSIGN_IMAGE_TO_CELL, which resets it on every assignment.
+      // mirrors ASSIGN_IMAGE_TO_CELL, which resets it whenever a cell's image
+      // changes.
       //
       // `selectedAnnotationId` is deliberately left alone: it is global, so
       // another cell may still show the image whose annotation is selected,
