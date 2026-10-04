@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/bench",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "author": "Guy Or <guydude1@gmail.com>",
   "private": true,
   "type": "module",

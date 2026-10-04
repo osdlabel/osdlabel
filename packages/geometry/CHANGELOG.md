@@ -1,5 +1,11 @@
 # @osdlabel/geometry
 
+## 0.19.2
+
+### Patch Changes
+
+- @osdlabel/annotation@0.19.2
+
 ## 0.19.1
 
 ### Patch Changes

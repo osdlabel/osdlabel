@@ -1,5 +1,19 @@
 # @osdlabel/solid
 
+## 0.19.2
+
+### Patch Changes
+
+- osdlabel@0.19.2
+- @osdlabel/annotation@0.19.2
+- @osdlabel/annotation-context@0.19.2
+- @osdlabel/decoration@0.19.2
+- @osdlabel/fabric-annotations@0.19.2
+- @osdlabel/fabric-osd@0.19.2
+- @osdlabel/osd-helper@0.19.2
+- @osdlabel/validation@0.19.2
+- @osdlabel/viewer-api@0.19.2
+
 ## 0.19.1
 
 ### Patch Changes
