@@ -91,10 +91,30 @@ export interface PixelSpacing {
   readonly unit: string;
 }
 
+/**
+ * What an {@link ImageSource} opens: a URL string, or anything OpenSeadragon's
+ * `viewer.open()` accepts as a tile source. That includes a tile-source options
+ * object (`{ type: 'image', url, buildPyramid: false }`, IIIF, Zoomify, TMS),
+ * an inline DZI descriptor (`{ Image: { … } }`) or a `TileSource` instance.
+ *
+ * Typed as `object` rather than OpenSeadragon's own types so this package keeps
+ * no viewer dependency; OpenSeadragon validates the object when it opens it.
+ * Plain objects are compared by value when deciding whether a cell's image
+ * changed, so re-creating an equal object does not reload it. OpenSeadragon
+ * is given a copy (with a TiledImage options wrapper's plain `tileSource`
+ * copied too), so the object you pass is never modified.
+ */
+export type TileSourceSpec = string | object;
+
 /** Image source descriptor */
 export interface ImageSource {
   readonly id: ImageId;
-  readonly tileSource: string;
+  /**
+   * A URL, or an OpenSeadragon tile-source object (see {@link TileSourceSpec}).
+   * A URL ending in a common image extension (`.png`, `.jpg`, …) opens as a
+   * single image; any other URL is handed to OpenSeadragon as is (e.g. a DZI).
+   */
+  readonly tileSource: TileSourceSpec;
   readonly thumbnailUrl?: string | undefined;
   readonly label?: string | undefined;
   /**

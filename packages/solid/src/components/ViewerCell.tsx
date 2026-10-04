@@ -1,4 +1,4 @@
-import { onMount, onCleanup, createEffect, on, createSignal, For } from 'solid-js';
+import { onMount, onCleanup, createEffect, on, createSignal, untrack, For } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import type { Component } from 'solid-js';
 import OpenSeadragon from 'openseadragon';
@@ -9,7 +9,7 @@ import type { OverlayMode } from '@osdlabel/fabric-osd';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import type { ImageSource } from '@osdlabel/viewer-api';
-import { DEFAULT_VIEWER_OPTIONS, openImage } from '@osdlabel/osd-helper';
+import { DEFAULT_VIEWER_OPTIONS, isSameTileSource, openImage } from '@osdlabel/osd-helper';
 import { useAnnotationTool } from '../hooks/useAnnotationTool.js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
@@ -77,12 +77,19 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     viewer = undefined;
   });
 
-  // Watch for image source changes
+  // Watch for image source changes. Compared by value against what is shown,
+  // so an equal tile-source object re-created by the host does not reload the
+  // image (#83). Tracked here rather than with `on`'s previous input: a
+  // deferred `on` records none on its skipped first run, so the first change
+  // would always compare against `undefined` and reload.
+  let shownTileSource = untrack(() => props.imageSource?.tileSource);
   createEffect(
     on(
       () => props.imageSource?.tileSource,
-      (url, prevUrl) => {
-        if (url !== prevUrl && viewer) {
+      (tileSource) => {
+        if (isSameTileSource(tileSource, shownTileSource)) return;
+        shownTileSource = tileSource;
+        if (viewer) {
           viewer.close();
           if (props.imageSource) {
             openImage(viewer, props.imageSource);

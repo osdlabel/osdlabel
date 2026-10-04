@@ -29,10 +29,23 @@ interface ConfigDraft {
   contexts: DraftContext[];
 }
 
+/** A URL, or a tile-source object written as JSON (`{ "type": "image", … }`). */
+function parseTileSource(text: string): string | object {
+  if (!text.startsWith('{') && !text.startsWith('[')) return text;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return typeof parsed === 'object' && parsed !== null ? parsed : text;
+  } catch {
+    return text;
+  }
+}
+
 function imageToDraft(img: ImageSource): DraftImage {
   return {
     id: img.id as string,
-    tileSource: img.tileSource,
+    // The editor is a text field: a tile-source object round-trips as JSON.
+    tileSource:
+      typeof img.tileSource === 'string' ? img.tileSource : JSON.stringify(img.tileSource),
     label: img.label ?? '',
     thumbnailUrl: img.thumbnailUrl ?? '',
   };
@@ -153,7 +166,7 @@ export default function ConfigPanel(props: ConfigPanelProps) {
     const images: ImageSource[] = draft.images.map((d) => {
       const base = {
         id: createImageId(d.id.trim()),
-        tileSource: d.tileSource.trim(),
+        tileSource: parseTileSource(d.tileSource.trim()),
       };
       const label = d.label.trim();
       const thumbnailUrl = d.thumbnailUrl.trim();
