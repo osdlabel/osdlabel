@@ -262,11 +262,12 @@ describe('State Management', () => {
   });
 
   /**
-   * `convertAnnotation` had no coverage at all until now (#162): its only
-   * callers are the two framework `Toolbar` components, and `@osdlabel/react`
-   * has no tests (#152). It has four exits and three of them are silent
-   * no-ops, so a regression that simply stopped converting would have looked
-   * identical to a regression that converted the wrong thing.
+   * `convertAnnotation` had no coverage at all until #162: its only callers
+   * are the two framework `Toolbar` components. It has four exits and three of
+   * them are silent no-ops, so a regression that simply stopped converting
+   * would have looked identical to a regression that converted the wrong
+   * thing. React's wrapper is covered by its own `state/actions.test.ts`
+   * (#152), since it reads state through getters rather than the store.
    */
   describe('convertAnnotation', () => {
     const circleId = createAnnotationId('circle1');
