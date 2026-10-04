@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 
 test.describe('View Controls', () => {
   test.beforeEach(async ({ page }) => {

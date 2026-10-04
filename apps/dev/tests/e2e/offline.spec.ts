@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test, expect } from './helpers/fixtures.js';
 
 /**
  * The suite must run without network access (issue #144).

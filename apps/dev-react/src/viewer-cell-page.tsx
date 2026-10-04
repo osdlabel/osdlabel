@@ -29,7 +29,6 @@ const renderErrors: string[] = [];
 
 /** Writable here, because `Harness` rebinds `load` and `unmount` on each render. */
 const harness: { -readonly [K in keyof ViewerCellHarness]: ViewerCellHarness[K] } = {
-  framework: 'react',
   load: () => {},
   renderErrors,
   overlay: undefined,

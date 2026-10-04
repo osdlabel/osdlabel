@@ -18,12 +18,8 @@ import {
  * runs against each (#152). Imports only from `osdlabel`.
  */
 
-/** Which binding a harness page mounts; a spec checks it against its config. */
-export type HarnessFramework = 'solid' | 'react';
-
 /** What `window.__viewerCell` exposes to specs, identically in both apps. */
 export interface ViewerCellHarness {
-  readonly framework: HarnessFramework;
   /**
    * Replaces the image's annotations with `count` rectangles, plus `broken`
    * and `malformed` annotations that cannot be rendered. Each call is its own

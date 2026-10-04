@@ -131,6 +131,28 @@ export default [
     },
   },
 
+  // E2E specs run against both dev apps (#152), and `helpers/fixtures.ts`'s
+  // `test` is what checks each run drove the binding its config names. A spec
+  // importing `test` straight from Playwright would silently skip that check.
+  {
+    files: ['apps/dev/tests/e2e/**/*.ts'],
+    ignores: ['apps/dev/tests/e2e/helpers/fixtures.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              importNames: ['test', 'expect'],
+              message: "Import `test` and `expect` from './helpers/fixtures.js'.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // React. Only the two classic rules. `exhaustive-deps` is what the
   // `eslint-disable` comments already in `@osdlabel/react` refer to, so
   // enabling it makes that existing reasoning load-bearing again rather than
