@@ -8,7 +8,7 @@ import type { OverlayMode } from '@osdlabel/fabric-osd';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import type { ImageSource } from '@osdlabel/viewer-api';
-import { DEFAULT_VIEWER_OPTIONS, openImage } from '@osdlabel/osd-helper';
+import { DEFAULT_VIEWER_OPTIONS, isSameTileSource, openImage } from '@osdlabel/osd-helper';
 import { useAnnotationTool } from '../hooks/useAnnotationTool.js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
@@ -87,17 +87,21 @@ export default function ViewerCell({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Watch for image source changes
-  const prevTileSourceRef = useRef(imageSource?.tileSource);
+  // Watch for image source changes. Compared by value against what is shown,
+  // so an equal tile-source object re-created on a host render does not
+  // reload the image (#83). As in Solid, the shown source advances only when
+  // the image is reloaded.
+  const shownTileSourceRef = useRef(imageSource?.tileSource);
   useEffect(() => {
-    const url = imageSource?.tileSource;
-    if (url !== prevTileSourceRef.current && viewerRef.current) {
+    const tileSource = imageSource?.tileSource;
+    if (isSameTileSource(tileSource, shownTileSourceRef.current)) return;
+    shownTileSourceRef.current = tileSource;
+    if (viewerRef.current) {
       viewerRef.current.close();
       if (imageSource) {
         openImage(viewerRef.current, imageSource);
       }
     }
-    prevTileSourceRef.current = url;
   }, [imageSource?.tileSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync view transforms

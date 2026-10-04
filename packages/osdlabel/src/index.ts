@@ -28,6 +28,7 @@ export type {
   CellTransform,
   AnnotationState,
   ImageSource,
+  TileSourceSpec,
 } from '@osdlabel/viewer-api';
 export { createImageId, DEFAULT_CELL_TRANSFORM, getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 export type { PixelSpacing } from '@osdlabel/viewer-api';
