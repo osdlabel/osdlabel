@@ -72,7 +72,8 @@
     },
     "test:e2e": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["PORT", "REACT_PORT"]
     },
     "dev": {
       "persistent": true,
