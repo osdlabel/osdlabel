@@ -147,7 +147,9 @@ const IMAGES: ImageSource[] = [
   },
   {
     id: createImageId('wide'),
-    tileSource: './sample-data/wide.png',
+    // An OpenSeadragon tile-source object rather than a URL, so the E2E suite
+    // opens the object form too (#83).
+    tileSource: { type: 'image', url: './sample-data/wide.png' },
     label: 'Wide image',
   },
   {
