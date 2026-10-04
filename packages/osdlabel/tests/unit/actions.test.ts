@@ -104,6 +104,40 @@ describe('applyUIAction — contrast', () => {
   });
 });
 
+describe('applyUIAction — ASSIGN_IMAGE_TO_CELL', () => {
+  const IMG_A = createImageId('img-a');
+  const IMG_B = createImageId('img-b');
+
+  const assign = (state: ReturnType<typeof createInitialUIState>, imageId: typeof IMG_A) =>
+    applyUIAction(state, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 0, imageId } });
+
+  it('keeps the cell’s view when it is given the image it already shows (#212)', () => {
+    // Pressing the active cell's own filmstrip thumbnail dispatches exactly
+    // this. It used to reset the view with nothing visible changing.
+    const state = createInitialUIState();
+    assign(state, IMG_A);
+    applyUIAction(state, { type: 'TOGGLE_NEGATIVE', payload: { cellIndex: 0 } });
+    const before = state.cellTransforms[0];
+    expect(before!.inverted).toBe(true);
+
+    assign(state, IMG_A);
+
+    expect(state.gridAssignments[0]).toBe(IMG_A);
+    expect(state.cellTransforms[0]).toEqual(before);
+  });
+
+  it('still resets the view when the cell is given a different image', () => {
+    const state = createInitialUIState();
+    assign(state, IMG_A);
+    applyUIAction(state, { type: 'TOGGLE_NEGATIVE', payload: { cellIndex: 0 } });
+
+    assign(state, IMG_B);
+
+    expect(state.gridAssignments[0]).toBe(IMG_B);
+    expect(state.cellTransforms[0]).toEqual(DEFAULT_CELL_TRANSFORM);
+  });
+});
+
 describe('applyUIAction — UNASSIGN_IMAGE_FROM_CELL', () => {
   const IMG_A = createImageId('img-a');
   const IMG_B = createImageId('img-b');

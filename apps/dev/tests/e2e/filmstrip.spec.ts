@@ -437,3 +437,44 @@ test.describe('Filmstrip markup and targets (#205)', () => {
     await expect(page.getByTestId('cell-placeholder-0')).toBeVisible();
   });
 });
+
+test.describe('Re-assigning the image a cell already shows (#212)', () => {
+  const readRotation = (page: Page): Promise<number | null> =>
+    page.evaluate(() => {
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & { __osdViewer?: { viewport?: { getRotation: () => number } } })
+        | null;
+      return el?.__osdViewer?.viewport?.getRotation() ?? null;
+    });
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('[data-testid="filmstrip"]', { timeout: 10000 });
+    await expect(page.getByTestId('filmstrip-item-landscape')).toHaveAttribute(
+      'data-assignment',
+      'active',
+    );
+    await page.keyboard.press('Shift+R');
+    await expect.poll(() => readRotation(page)).toBe(90);
+  });
+
+  test('a click on the active cell’s own thumbnail keeps its view', async ({ page }) => {
+    // Used to reset rotation, flip, negative, exposure and contrast, with
+    // nothing else visibly changing.
+    await page.getByTestId('filmstrip-thumb-landscape').click();
+    await page.waitForTimeout(300);
+    expect(await readRotation(page)).toBe(90);
+  });
+
+  test('Enter on the focused active thumbnail keeps its view too', async ({ page }) => {
+    await page.getByTestId('filmstrip-thumb-landscape').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    expect(await readRotation(page)).toBe(90);
+  });
+
+  test('assigning a different image still starts from a fresh view', async ({ page }) => {
+    await page.getByTestId('filmstrip-thumb-portrait').click();
+    await expect.poll(() => readRotation(page)).toBe(0);
+  });
+});

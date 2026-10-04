@@ -88,7 +88,7 @@ import { Filmstrip } from '@osdlabel/solid';
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
-Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows re-assigns it, which also resets that cell's rotation, flip, negative, exposure and contrast.
+Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows changes nothing, and the cell keeps its rotation, flip, negative, exposure and contrast. Assigning a different image starts it from a fresh view.
 
 Thumbnails are buttons, so the filmstrip works from the keyboard too: `Tab` to a thumbnail and press `Enter` or `Space` to assign it. Each one is named with its image and its state for assistive tech (for example "Landscape, shown in the active cell"), and the active cell's image is marked `aria-current`. The filmstrip itself is a list labelled "Images" (`FILMSTRIP_LABEL`), so assistive tech announces it and how many images it holds.
 

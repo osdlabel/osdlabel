@@ -818,7 +818,7 @@ The `Filmstrip` component shows thumbnails of all available images and allows dr
 
 The `position` prop accepts `'left'`, `'right'`, or `'bottom'`.
 
-Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows re-assigns it, which also resets that cell's rotation, flip, negative, exposure and contrast.
+Click an image in the filmstrip to assign it to the currently active grid cell. A thumbnail click only ever assigns, so clicking the image the active cell already shows changes nothing, and the cell keeps its rotation, flip, negative, exposure and contrast. Assigning a different image starts it from a fresh view.
 
 Thumbnails are buttons, so the filmstrip works from the keyboard too: `Tab` to a thumbnail and press `Enter` or `Space` to assign it. Each one is named with its image and its state for assistive tech (for example "Landscape, shown in the active cell"), and the active cell's image is marked `aria-current`. The filmstrip itself is a list labelled "Images" (`FILMSTRIP_LABEL`), so assistive tech announces it and how many images it holds.
 
@@ -1268,7 +1268,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 
 `deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type and that type's key fields, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
 
-Such an annotation is skipped on the canvas and stays in state, and every other annotation on the image still renders. By default it is reported with a `console.warn` naming the annotation and its image. Pass `onAnnotationRenderError` to handle it yourself:
+Such an annotation is skipped on the canvas and stays in state, and every other annotation on the image still renders. Its decorations, such as labels and measurements, are derived from its geometry rather than from the canvas object, so they still appear where the shape would be. By default it is reported with a `console.warn` naming the annotation and its image. Pass `onAnnotationRenderError` to handle it yourself:
 
 ```tsx
 <AnnotatorProvider
