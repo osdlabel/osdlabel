@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useLayoutEffect } from 'react';
 import {
   Toolbar,
   StatusBar,
@@ -7,12 +7,15 @@ import {
   GridControls,
   ViewControls,
   createImageId,
+  createInitialAnnotationState,
   AnnotatorProvider,
   useAnnotator,
   serialize,
   deserialize,
-  initFabricModule,
+  createMeasurementProvider,
   createLabelProvider,
+  createDistanceProvider,
+  withSelectionEmphasis,
   centroid,
   measureLength,
 } from '@osdlabel/react';
@@ -24,9 +27,35 @@ import type {
   DomDecoration,
   TextDecoration,
   OsdFields,
+  AnnotationState,
 } from '@osdlabel/react';
+import { FabricObject } from 'fabric';
 
-initFabricModule();
+// NOTE: initFabricModule() is intentionally NOT called here. The library
+// registers the Fabric `id` custom property automatically when a FabricOverlay
+// mounts, so this dev harness dogfoods that auto-registration. The E2E test
+// `auto-init-fabric.spec.ts`, which runs against both dev apps, relies on this.
+
+// Test-only hooks consumed by E2E (auto-init-fabric.spec.ts). Exposes the
+// current serialized document and the live Fabric `customProperties` array so
+// the test can assert the `id` registration is correct and idempotent.
+// Installed at module load, as the Solid app's are during its synchronous
+// first render: React's first render commits asynchronously, possibly after
+// `page.goto` resolves, so a hook installed by an effect could be missing
+// when a spec first reads it. `AppContent` keeps `latestAnnotationState`
+// current.
+let latestAnnotationState: AnnotationState<OsdFields> = createInitialAnnotationState();
+(
+  window as unknown as {
+    __osdTest?: {
+      serialize: () => ReturnType<typeof serialize>;
+      fabricCustomProperties: () => string[];
+    };
+  }
+).__osdTest = {
+  serialize: () => serialize(latestAnnotationState),
+  fabricCustomProperties: () => [...(FabricObject.customProperties ?? [])],
+};
 
 // Example DOM-decoration content payload (stable config).
 interface BadgeContent {
@@ -75,6 +104,34 @@ const lineRatioHudProvider: DecorationProvider<OsdFields> = ({ annotations, pixe
     } satisfies TextDecoration,
   ];
 };
+
+const SELECTED_TEXT_STYLE = { zIndex: 10, background: 'rgba(33, 150, 243, 0.9)', color: '#fff' };
+const SELECTED_LINE_STYLE = { stroke: '#2196f3', strokeWidth: 3 };
+
+// The same providers as `apps/dev`, so the E2E specs both apps run see the same
+// decorations. Module-level so the array keeps its identity across renders.
+const DECORATION_PROVIDERS: readonly DecorationProvider<OsdFields>[] = [
+  withSelectionEmphasis(
+    createMeasurementProvider({ area: true, perimeter: true, length: true, radius: true }),
+    { selectedTextStyle: SELECTED_TEXT_STYLE, selectedLineStyle: SELECTED_LINE_STYLE },
+  ),
+  withSelectionEmphasis(createLabelProvider(), { selectedTextStyle: SELECTED_TEXT_STYLE }),
+  withSelectionEmphasis(
+    createDistanceProvider({
+      pair: (annotations) => {
+        const points = annotations.filter((a) => a.geometry.type === 'point');
+        const pairs = [];
+        for (let i = 0; i < points.length - 1; i += 2) {
+          pairs.push({ a: points[i]!, b: points[i + 1]! });
+        }
+        return pairs;
+      },
+    }),
+    { selectedLineStyle: SELECTED_LINE_STYLE, selectedTextStyle: SELECTED_TEXT_STYLE },
+  ),
+  domBadgeProvider,
+  lineRatioHudProvider,
+];
 
 /** Local images only, matching `apps/dev` — see the note there and issue #144. */
 const IMAGES: ImageSource[] = [
@@ -127,7 +184,9 @@ const CONTEXTS: AnnotationContext[] = [
       { type: 'circle' },
       { type: 'line' },
       { type: 'point' },
-      { type: 'polyline' },
+      // A visible defaultStyle so the harness dogfoods it reaching the
+      // in-progress preview and vertex markers, not just the committed shape.
+      { type: 'polyline', defaultStyle: { strokeColor: '#00e5ff', strokeWidth: 3 } },
       { type: 'freeHandPath' },
     ],
   },
@@ -164,6 +223,12 @@ function AppContent() {
     actions.setActiveContext(CONTEXTS[0]!.id);
     actions.assignImageToCell(0, IMAGES[0]!.id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep `window.__osdTest` (installed at module load, below the imports)
+  // reading the latest committed state.
+  useLayoutEffect(() => {
+    latestAnnotationState = annotationState;
+  }, [annotationState]);
 
   const copyAnnotationsToClipboard = () => {
     const json = JSON.stringify(annotationState.byImage, null, 2);
@@ -327,6 +392,12 @@ function AppContent() {
       {/* Status bar */}
       <StatusBar imageId={activeImageId} showFps={true} />
 
+      {/* Hidden serialization of all annotations — a stable hook for E2E
+          assertions on geometry (type/point counts) without clipboard. */}
+      <div data-testid="annotations-json" style={{ display: 'none' }}>
+        {JSON.stringify(annotationState.byImage)}
+      </div>
+
       {/* JSON import panel */}
       {showImportPanel && (
         <div
@@ -458,7 +529,8 @@ export default function App() {
       onAnnotationsChange={(anns) => console.log('Annotations changed:', anns.length, 'total')}
       onConstraintChange={(status) => console.log('Constraint status changed:', status)}
       testMode={true}
-      decorationProviders={[createLabelProvider(), domBadgeProvider, lineRatioHudProvider]}
+      defaultPixelSpacing={{ x: 1, y: 1, unit: 'px' }}
+      decorationProviders={DECORATION_PROVIDERS}
       renderDomDecoration={(decoration) => {
         const content = decoration.content as BadgeContent;
         return (

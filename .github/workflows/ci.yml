@@ -59,12 +59,21 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
         
-      - name: Run Playwright tests
-        run: pnpm test:e2e
+      # One suite after the other, not `pnpm test:e2e`, which runs both at once:
+      # on a 4-core runner that is four browsers and two dev servers contending.
+      # The React step runs even when the Solid one fails, so both report.
+      - name: Run Playwright tests (SolidJS)
+        run: pnpm exec turbo run test:e2e --filter=@osdlabel/dev
+
+      - name: Run Playwright tests (React)
+        if: ${{ !cancelled() }}
+        run: pnpm exec turbo run test:e2e --filter=@osdlabel/dev-react
         
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            apps/dev/playwright-report/
+            apps/dev-react/playwright-report/
           retention-days: 30
