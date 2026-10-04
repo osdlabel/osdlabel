@@ -1,5 +1,26 @@
 # @osdlabel/react
 
+## 0.19.1
+
+### Patch Changes
+
+- 7b92ff1: Re-assigning the image a cell already shows no longer resets the cell's view (#212).
+
+  `ASSIGN_IMAGE_TO_CELL` reset the cell's view transform even when the cell already showed that image. So pressing the active cell's own filmstrip thumbnail (a click, or Enter or Space on the focused thumbnail) silently threw away its rotation, flip, negative, exposure and contrast, with nothing visible changing and no undo. Assigning the same image is now a no-op. Assigning a different image still starts it from a fresh view.
+
+  Also, `onAnnotationRenderError`'s parameter is now named `failure` in its type, since it receives an `AnnotationRenderFailure` record whose `error` field holds what was thrown. Nothing changes at runtime or in types.
+
+- Updated dependencies [7b92ff1]
+  - osdlabel@0.19.1
+  - @osdlabel/annotation@0.19.1
+  - @osdlabel/annotation-context@0.19.1
+  - @osdlabel/decoration@0.19.1
+  - @osdlabel/fabric-annotations@0.19.1
+  - @osdlabel/fabric-osd@0.19.1
+  - @osdlabel/osd-helper@0.19.1
+  - @osdlabel/validation@0.19.1
+  - @osdlabel/viewer-api@0.19.1
+
 ## 0.19.0
 
 ### Minor Changes
