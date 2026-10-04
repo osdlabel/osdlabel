@@ -63,6 +63,17 @@ const images: ImageSource[] = [
 ];
 ```
 
+`tileSource` can also be any tile source OpenSeadragon's `viewer.open()` accepts, instead of a URL. That covers an options object for IIIF, Zoomify or TMS, an image that should not build a pyramid, an inline DZI descriptor, or a `TileSource` instance:
+
+```ts
+{
+  id: createImageId('photo'),
+  tileSource: { type: 'image', url: '/photos/large.jpg', buildPyramid: false },
+}
+```
+
+A URL ending in a common image extension (`.png`, `.jpg`, …) opens as a single image, and any other URL is handed to OpenSeadragon as is. Objects are compared by value, so re-creating an equal one on a re-render does not reload the image, and OpenSeadragon is given a copy, so the object you pass is never modified. A function inside it, such as a custom `getTileUrl`, or a `TileSource` instance compares by identity; keep those stable, or the image reloads whenever they change.
+
 ## 2. Define annotation contexts
 
 Contexts define which tools are available and their constraints. Each context represents a labelling task (e.g., marking a specific pathology).
