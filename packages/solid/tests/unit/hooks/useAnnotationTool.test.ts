@@ -261,10 +261,4 @@ describe('useAnnotationTool', () => {
       });
     });
   });
-
-  // React rebuilds the tool when these props change after mount; Solid reads
-  // them once when the provider is set up (#219).
-  it.todo(
-    'rebuilds the tool when keyboardShortcuts, vertexMarkers or vertex-edit tuning change (#219)',
-  );
 });

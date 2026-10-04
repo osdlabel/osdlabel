@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createRoot } from 'solid-js';
+import { createRoot, createSignal } from 'solid-js';
 import { useKeyboard, DEFAULT_KEYBOARD_SHORTCUTS } from '../../../src/hooks/useKeyboard.js';
 import { createAnnotationId } from '@osdlabel/annotation';
 import { createImageId } from '@osdlabel/viewer-api';
@@ -211,6 +211,30 @@ describe('useKeyboard', () => {
 
     expect(handler).toHaveBeenCalled();
     expect(mockActions.setActiveTool).toHaveBeenCalledWith('select');
+  });
+
+  it('reads a getter for the shortcuts on every keypress (#219)', () => {
+    // Replace the beforeEach listener with one bound to a getter.
+    disposeRoot();
+    const [shortcuts, setShortcuts] = createSignal({
+      ...DEFAULT_KEYBOARD_SHORTCUTS,
+      rectangleTool: 'b',
+    });
+    createRoot((dispose) => {
+      disposeRoot = dispose;
+      useKeyboard(shortcuts, activeToolKeyHandlerRef);
+    });
+
+    dispatchKeyDown('b');
+    expect(mockActions.setActiveTool).toHaveBeenCalledWith('rectangle');
+
+    vi.clearAllMocks();
+    setShortcuts({ ...DEFAULT_KEYBOARD_SHORTCUTS, rectangleTool: 'j' });
+
+    dispatchKeyDown('b');
+    expect(mockActions.setActiveTool).not.toHaveBeenCalled();
+    dispatchKeyDown('j');
+    expect(mockActions.setActiveTool).toHaveBeenCalledWith('rectangle');
   });
 
   describe('Tool Selection Shortcuts', () => {
