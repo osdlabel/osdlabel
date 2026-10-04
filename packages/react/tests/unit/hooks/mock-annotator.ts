@@ -8,6 +8,10 @@ import {
   createInitialUIState,
   type ConstraintStatus,
 } from 'osdlabel';
+import type {
+  AnnotatorSnapshot,
+  AnnotatorStoreReader,
+} from '../../../src/state/annotator-store.js';
 import type { AnnotatorValue } from '../render-annotator.js';
 
 export type MockAnnotator = AnnotatorValue;
@@ -61,6 +65,39 @@ export function createMockActions(): MockActions {
 }
 
 /**
+ * A read-only store over the mock's own fields: `getSnapshot()` returns its
+ * three state slices and `getConstraintStatus()` its `constraintStatus`, so
+ * code reading the store sees what code reading the context value sees. It
+ * never notifies. The fields are read when called, so a test that reassigns
+ * one on the mock object is seen; a test that spreads the mock into a new
+ * object should rebuild it with `createMockAnnotator` instead.
+ */
+function createMockStore(read: () => Omit<MockAnnotator, 'store'>): AnnotatorStoreReader {
+  let snapshot: AnnotatorSnapshot | undefined;
+  const getSnapshot = (): AnnotatorSnapshot => {
+    const mock = read();
+    if (
+      !snapshot ||
+      snapshot.annotationState !== mock.annotationState ||
+      snapshot.uiState !== mock.uiState ||
+      snapshot.contextState !== mock.contextState
+    ) {
+      snapshot = {
+        annotationState: mock.annotationState,
+        uiState: mock.uiState,
+        contextState: mock.contextState,
+      };
+    }
+    return snapshot;
+  };
+  return {
+    getSnapshot,
+    subscribe: () => () => {},
+    getConstraintStatus: () => read().constraintStatus,
+  };
+}
+
+/**
  * A complete, type-checked stand-in for the annotator context, mirroring
  * `packages/solid/tests/unit/hooks/mock-annotator.ts`.
  *
@@ -76,7 +113,7 @@ export function createMockActions(): MockActions {
  * component pulls in OSD/Fabric machinery the test has to stub out anyway.
  */
 export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): MockAnnotator {
-  const base: MockAnnotator = {
+  const base: Omit<MockAnnotator, 'store'> = {
     annotationState: createInitialAnnotationState(),
     uiState: createInitialUIState(),
     contextState: createInitialContextState(),
@@ -98,5 +135,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
     renderDomDecoration: undefined,
     reportAnnotationRenderError: vi.fn(),
   };
-  return { ...base, ...overrides };
+  const { store, ...rest } = overrides;
+  const mock: MockAnnotator = { ...base, ...rest, store: store ?? createMockStore(() => mock) };
+  return mock;
 }

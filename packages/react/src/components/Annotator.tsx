@@ -61,7 +61,7 @@ function AnnotatorSetup({
   // Sync displayed context IDs
   useEffect(() => {
     actions.setDisplayedContexts(displayedContextIds ? [...displayedContextIds] : []);
-  }, [displayedContextIds]); // eslint-disable-line react-hooks/exhaustive-deps -- actions is stable (useMemo with [])
+  }, [displayedContextIds]); // eslint-disable-line react-hooks/exhaustive-deps -- actions is stable (memoised on the provider's store)
 
   return null;
 }

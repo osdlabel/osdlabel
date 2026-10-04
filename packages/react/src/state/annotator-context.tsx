@@ -1,11 +1,12 @@
 import {
   createContext,
   useContext,
-  useReducer,
   useMemo,
   useEffect,
   useRef,
   useCallback,
+  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import { castDraft, produce } from 'immer';
@@ -34,11 +35,14 @@ import {
   createInitialAnnotationState,
   createInitialUIState,
   createInitialContextState,
-  computeConstraintStatus,
   warnAnnotationRenderError,
 } from 'osdlabel';
-import { annotationReducer, uiReducer, contextReducer } from './reducer.js';
 import { createActions } from './actions.js';
+import {
+  createAnnotatorStore,
+  selectActiveImageId,
+  type AnnotatorStoreReader,
+} from './annotator-store.js';
 import { useKeyboard } from '../hooks/useKeyboard.js';
 
 export interface ActiveToolKeyHandlerRef {
@@ -86,6 +90,15 @@ interface AnnotatorContextValue {
   contextState: ContextState;
   constraintStatus: ConstraintStatus;
   actions: ReturnType<typeof createActions>;
+  /**
+   * The store behind the state above. `annotationState`, `uiState`,
+   * `contextState` and `constraintStatus` are what the tree last rendered;
+   * `store.getSnapshot()` and `store.getConstraintStatus()` include every
+   * write made since, so an event handler that issues an action and then reads
+   * state sees its own write, as it would in Solid (#217). Stable for the
+   * provider's lifetime.
+   */
+  store: AnnotatorStoreReader;
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef;
   fullscreenTargetRef: FullscreenTargetRef;
   fullscreenTarget: HTMLElement | (() => HTMLElement | null) | null | undefined;
@@ -169,6 +182,20 @@ export interface AnnotatorProviderProps {
   readonly onAnnotationRenderError?: ((failure: AnnotationRenderFailure) => void) | undefined;
 }
 
+/** The initial annotation state, holding `initialAnnotations` if any were given. */
+function seedAnnotationState(
+  initialAnnotations: AnnotatorProviderProps['initialAnnotations'],
+): AnnotationState<OsdFields> {
+  const initial = createInitialAnnotationState();
+  if (!initialAnnotations) return initial;
+  return produce(initial, (draft) => {
+    for (const [imageId, annMap] of Object.entries(initialAnnotations)) {
+      draft.byImage[imageId as ImageId] = castDraft({ ...annMap });
+    }
+    draft.changeCounter += 1;
+  });
+}
+
 export function AnnotatorProvider({
   children,
   initialAnnotations,
@@ -186,58 +213,48 @@ export function AnnotatorProvider({
   renderDomDecoration,
   onAnnotationRenderError,
 }: AnnotatorProviderProps) {
-  const [annotationState, dispatchAnnotation] = useReducer(annotationReducer, undefined, () => {
-    const initial = createInitialAnnotationState();
-    if (initialAnnotations) {
-      return produce(initial, (draft) => {
-        for (const [imageId, annMap] of Object.entries(initialAnnotations)) {
-          draft.byImage[imageId as ImageId] = castDraft({ ...annMap });
-        }
-        draft.changeCounter += 1;
-      });
-    }
-    return initial;
+  // The state lives in a store outside React, so every dispatch is applied
+  // immediately and the action getters read it back within the same batch
+  // (#217). `useReducer` would defer each reducer to the next render, leaving
+  // a second action in the same handler reading the pre-batch state.
+  //
+  // `reader` is what the context hands out: the same store without its
+  // dispatchers, so every write still goes through `actions`.
+  const [{ store, reader }] = useState(() => {
+    const created = createAnnotatorStore({
+      annotationState: seedAnnotationState(initialAnnotations),
+      uiState: createInitialUIState(),
+      contextState: createInitialContextState(),
+    });
+    const readOnly: AnnotatorStoreReader = {
+      getSnapshot: created.getSnapshot,
+      subscribe: created.subscribe,
+      getConstraintStatus: created.getConstraintStatus,
+    };
+    return { store: created, reader: readOnly };
   });
-  const [uiState, dispatchUI] = useReducer(uiReducer, undefined, createInitialUIState);
-  const [contextState, dispatchContext] = useReducer(
-    contextReducer,
-    undefined,
-    createInitialContextState,
-  );
-
-  // Refs for current state (needed to avoid stale closures in actions)
-  const contextStateRef = useRef(contextState);
-  contextStateRef.current = contextState;
-  const uiStateRef = useRef(uiState);
-  uiStateRef.current = uiState;
-  const annotationStateRef = useRef(annotationState);
-  annotationStateRef.current = annotationState;
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const { annotationState, uiState, contextState } = snapshot;
 
   const actions = useMemo(
     () =>
       createActions(
-        dispatchAnnotation,
-        dispatchUI,
-        dispatchContext,
-        () => contextStateRef.current,
-        () => uiStateRef.current,
-        () => annotationStateRef.current,
+        store.dispatchAnnotation,
+        store.dispatchUI,
+        store.dispatchContext,
+        () => store.getSnapshot().contextState,
+        () => store.getSnapshot().uiState,
+        () => store.getSnapshot().annotationState,
       ),
-    [],
+    [store],
   );
 
-  // Granular deps: depending on the whole `uiState` would bust this memo (and
-  // `constraintStatus` below) on every unrelated UI action, since Immer
-  // replaces the root reference.
-  const activeImageId = useMemo(
-    () => uiState.gridAssignments[uiState.activeCellIndex],
-    [uiState.gridAssignments, uiState.activeCellIndex],
-  );
-
-  const constraintStatus = useMemo(
-    () => computeConstraintStatus(contextState, annotationState, activeImageId),
-    [contextState, annotationState, activeImageId],
-  );
+  const activeImageId = selectActiveImageId(uiState);
+  // Derived from the rendered snapshot, so it always matches the state handed
+  // out beside it. The store memoises it on the identities of its inputs: an
+  // unrelated UI update returns the same object, which the onConstraintChange
+  // effect below and useAnnotationTool's auto-switch effect rely on.
+  const constraintStatus = store.selectConstraintStatus(snapshot);
 
   const activeToolKeyHandlerRef = useRef<ActiveToolKeyHandlerRef>({ handler: null }).current;
   const fullscreenTargetRef = useRef<FullscreenTargetRef>({ element: null }).current;
@@ -326,6 +343,7 @@ export function AnnotatorProvider({
       contextState,
       constraintStatus,
       actions,
+      store: reader,
       activeToolKeyHandlerRef,
       fullscreenTargetRef,
       fullscreenTarget,
@@ -345,6 +363,7 @@ export function AnnotatorProvider({
       contextState,
       constraintStatus,
       actions,
+      reader,
       activeToolKeyHandlerRef,
       fullscreenTargetRef,
       fullscreenTarget,
