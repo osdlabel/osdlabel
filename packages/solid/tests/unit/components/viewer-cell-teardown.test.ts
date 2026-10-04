@@ -62,7 +62,9 @@ vi.mock('@osdlabel/fabric-osd', () => ({
   },
 }));
 
-vi.mock('@osdlabel/osd-helper', () => ({
+vi.mock('@osdlabel/osd-helper', async () => ({
+  // The real tile-source comparison: ViewerCell calls it on every source change.
+  ...(await vi.importActual<typeof import('@osdlabel/osd-helper')>('@osdlabel/osd-helper')),
   DEFAULT_VIEWER_OPTIONS: {},
   openImage: vi.fn(),
 }));
