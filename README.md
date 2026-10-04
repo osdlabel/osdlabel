@@ -344,7 +344,7 @@ pnpm dev              # start dev server with HMR
 pnpm build            # build the library
 pnpm typecheck        # type-check all packages
 pnpm test             # run unit tests (Vitest)
-pnpm test:e2e         # run E2E tests (Playwright)
+pnpm test:e2e         # run E2E tests (Playwright): apps/dev, plus specs shared with apps/dev-react
 pnpm lint             # lint all packages
 pnpm format           # format with Prettier
 ```

@@ -6,8 +6,11 @@ import { test, expect, type Page } from '@playwright/test';
  * during that await, or an unmount, must stop the older one from adding.
  *
  * `viewer-cell.html` mounts one cell and exposes `window.__viewerCell`, so a
- * spec can start rebuilds within a single task (Solid runs the effect
- * synchronously on each store write) and count what reaches the canvas.
+ * spec can start rebuilds within a single task and count what reaches the
+ * canvas. Both dev apps serve the page, `apps/dev` for SolidJS and
+ * `apps/dev-react` for React, and both run this spec (#152). Each `load` is its
+ * own committed state change: Solid runs the effect synchronously on a store
+ * write, and the React page wraps each write in `flushSync`.
  */
 
 interface CanvasLike {
@@ -15,12 +18,28 @@ interface CanvasLike {
   add(...objects: unknown[]): number;
 }
 interface Harness {
+  readonly framework: string;
   load(count: number, broken?: number, malformed?: number): void;
   readonly renderErrors: readonly string[];
   overlay: { canvas: CanvasLike } | undefined;
   unmount(): void;
 }
 type HarnessWindow = Window & { __viewerCell?: Harness; __addedAfterUnmount?: number };
+
+/**
+ * Opens the harness page and waits for the cell's overlay. Fails if the page
+ * belongs to the other binding than this config's `metadata.framework`, or if
+ * the config does not say, so a run can never pass by testing the wrong app.
+ */
+async function openHarness(page: Page, query = ''): Promise<void> {
+  await page.goto(`/viewer-cell.html${query}`);
+  await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+  const expected: unknown = test.info().config.metadata['framework'];
+  expect(expected, 'the Playwright config must set metadata.framework').toEqual(expect.any(String));
+  expect(await page.evaluate(() => (window as HarnessWindow).__viewerCell!.framework)).toBe(
+    expected,
+  );
+}
 
 /** Ids of the annotation objects on the cell's canvas, sorted. */
 const canvasAnnotationIds = (page: Page): Promise<string[]> =>
@@ -43,8 +62,7 @@ const settle = (page: Page): Promise<void> => page.waitForTimeout(500);
 
 test.describe('ViewerCell annotation rebuild', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/viewer-cell.html');
-    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+    await openHarness(page);
   });
 
   test('a superseded rebuild does not add its objects (#160)', async ({ page }) => {
@@ -127,8 +145,7 @@ test.describe('ViewerCell annotation that cannot be rendered', () => {
     page.evaluate(() => [...(window as HarnessWindow).__viewerCell!.renderErrors]);
 
   test('is skipped and reported, and the others still render (#209)', async ({ page }) => {
-    await page.goto('/viewer-cell.html');
-    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+    await openHarness(page);
 
     await page.evaluate(() => (window as HarnessWindow).__viewerCell!.load(2, 1));
 
@@ -143,8 +160,7 @@ test.describe('ViewerCell annotation that cannot be rendered', () => {
   test('is reported when its data is malformed, not dropped silently (#209)', async ({ page }) => {
     // A polygon with no points: Fabric knows the class, but its loader drops
     // the object without an error unless deserializeFabricObject surfaces it.
-    await page.goto('/viewer-cell.html');
-    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+    await openHarness(page);
 
     await page.evaluate(() => (window as HarnessWindow).__viewerCell!.load(1, 0, 1));
 
@@ -157,8 +173,7 @@ test.describe('ViewerCell annotation that cannot be rendered', () => {
     page.on('console', (message) => {
       if (message.type() === 'warning') warnings.push(message.text());
     });
-    await page.goto('/viewer-cell.html?errors=default');
-    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+    await openHarness(page, '?errors=default');
 
     await page.evaluate(() => (window as HarnessWindow).__viewerCell!.load(1, 1));
 
@@ -169,8 +184,7 @@ test.describe('ViewerCell annotation that cannot be rendered', () => {
   test('is not reported by a rebuild that was superseded', async ({ page }) => {
     // The first rebuild includes the broken annotation; the second, started in
     // the same task, does not. Only the rebuild that lands may report.
-    await page.goto('/viewer-cell.html');
-    await page.waitForFunction(() => (window as HarnessWindow).__viewerCell?.overlay !== undefined);
+    await openHarness(page);
 
     await page.evaluate(() => {
       const harness = (window as HarnessWindow).__viewerCell!;
