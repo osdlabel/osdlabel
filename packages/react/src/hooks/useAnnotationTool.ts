@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import type { FabricObject } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
@@ -33,10 +33,9 @@ export function useAnnotationTool(
 ) {
   const {
     uiState,
-    contextState,
-    annotationState,
     constraintStatus,
     actions,
+    store,
     activeToolKeyHandlerRef,
     shortcuts,
     vertexEditConfig,
@@ -53,22 +52,18 @@ export function useAnnotationTool(
     }
   }, [uiState.activeTool, constraintStatus, actions]);
 
-  // Use refs for values needed in event handlers to avoid stale closures
-  const annotationStateRef = useRef(annotationState);
-  annotationStateRef.current = annotationState;
-  const contextStateRef = useRef(contextState);
-  contextStateRef.current = contextState;
-  const constraintStatusRef = useRef(constraintStatus);
-  constraintStatusRef.current = constraintStatus;
-  const uiStateRef = useRef(uiState);
-  uiStateRef.current = uiState;
+  // The Fabric handlers and tool callbacks below outlive many renders, and a
+  // tool can call back into them right after an action it issued itself (add
+  // an annotation, then ask whether another is allowed). So they read the
+  // store, which already holds every write, not the last rendered state (#217).
+  // `store` is stable, so depending on it never rebuilds the tool.
 
   // Handle object:modified events
   useEffect(() => {
     if (!overlay || !imageId) return;
 
     const handleObjectModified = (e: { target: FabricObject }) => {
-      const result = processObjectModified(e.target, annotationStateRef.current, imageId);
+      const result = processObjectModified(e.target, store.getSnapshot().annotationState, imageId);
       if (result) {
         actions.updateAnnotation(result.id, imageId, {
           geometry: result.geometry!,
@@ -81,7 +76,7 @@ export function useAnnotationTool(
     return () => {
       overlay.canvas.off('object:modified', handleObjectModified);
     };
-  }, [overlay, imageId, actions]);
+  }, [overlay, imageId, actions, store]);
 
   // Main tool lifecycle effect
   useEffect(() => {
@@ -90,19 +85,20 @@ export function useAnnotationTool(
     // A drag-driven viewer control takes precedence over annotation tools: the
     // overlay enters customControl mode and forwards pointer events to the
     // control's handler. This effect is the single authority over setMode, so
-    // no second effect can race it. getValue reads through a ref to avoid a
-    // stale closure across renders. Drag parameters come from the shared
+    // no second effect can race it. getValue reads the store, not a value
+    // captured when the effect ran. Drag parameters come from the shared
     // VIEWER_CONTROL_SPECS registry so React and Solid behave identically.
     const viewerControl = uiState.activeViewerControl;
     const spec = viewerControl ? VIEWER_CONTROL_SPECS[viewerControl] : undefined;
     if (isActive && viewerControl && spec) {
       const axis = (axisSpec: ViewerControlAxisSpec): DragAxisBehavior => ({
-        getValue: () =>
-          getToneValue(
-            uiStateRef.current.cellTransforms[uiStateRef.current.activeCellIndex] ??
-              DEFAULT_CELL_TRANSFORM,
+        getValue: () => {
+          const ui = store.getSnapshot().uiState;
+          return getToneValue(
+            ui.cellTransforms[ui.activeCellIndex] ?? DEFAULT_CELL_TRANSFORM,
             axisSpec.field,
-          ),
+          );
+        },
         setValue: (value) =>
           axisSpec.field === 'exposure'
             ? actions.setActiveImageExposure(value)
@@ -141,16 +137,16 @@ export function useAnnotationTool(
     }
 
     const callbacks: ToolCallbacks = {
-      getActiveContextId: () => contextStateRef.current.activeContextId,
+      getActiveContextId: () => store.getSnapshot().contextState.activeContextId,
       getToolConstraint: (toolType) => {
-        const cs = contextStateRef.current;
+        const cs = store.getSnapshot().contextState;
         const activeContextId = cs.activeContextId;
         if (!activeContextId) return undefined;
         const activeContext = cs.contexts.find((c) => c.id === activeContextId);
         return activeContext?.tools.find((t) => t.type === toolType);
       },
       canAddAnnotation: (toolType: ToolType) => {
-        return constraintStatusRef.current[toolType].enabled;
+        return store.getConstraintStatus()[toolType].enabled;
       },
       addAnnotation: (params: AddAnnotationParams) => {
         const processed = processToolAddAnnotation(params);
@@ -162,7 +158,7 @@ export function useAnnotationTool(
           id,
           imageIdArg,
           fabricObject,
-          annotationStateRef.current,
+          store.getSnapshot().annotationState,
         );
         if (!patch) return;
         actions.updateAnnotation(id, imageIdArg, patch);
@@ -170,7 +166,7 @@ export function useAnnotationTool(
       deleteAnnotation: (id, imageIdArg) => actions.deleteAnnotation(id, imageIdArg),
       setSelectedAnnotation: (id) => actions.setSelectedAnnotation(id),
       getAnnotation: (id, imageIdArg) => {
-        const imageAnns = annotationStateRef.current.byImage[imageIdArg];
+        const imageAnns = store.getSnapshot().annotationState.byImage[imageIdArg];
         return imageAnns?.[id];
       },
     };
@@ -244,6 +240,7 @@ export function useAnnotationTool(
     vertexEditConfig,
     vertexMarkerOptions,
     actions,
+    store,
     activeToolKeyHandlerRef,
   ]);
 }

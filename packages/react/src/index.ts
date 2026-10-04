@@ -5,6 +5,7 @@ export * from 'osdlabel';
 export { annotationReducer, uiReducer, contextReducer } from './state/reducer.js';
 export { createActions } from './state/actions.js';
 export { AnnotatorProvider, useAnnotator } from './state/annotator-context.js';
+export type { AnnotatorStoreReader, AnnotatorSnapshot } from './state/annotator-store.js';
 export type {
   AnnotatorProviderProps,
   ActiveToolKeyHandlerRef,
