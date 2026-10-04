@@ -1,5 +1,25 @@
 # @osdlabel/solid
 
+## 0.20.0
+
+### Minor Changes
+
+- ef65287: `keyboardShortcuts`, `vertexMarkers`, `vertexEditLongPressMs` and `vertexEditMoveTolerancePx` now follow changes after mount, as they already did in React (#219).
+
+  `AnnotatorProvider` used to read them once at setup and silently ignore later changes. They are now value-compared memos. A new binding takes effect on the next keypress, and a changed marker style or vertex-edit tuning rebuilds the active tool. An equal-valued object, such as an inline literal re-created by a parent, changes nothing. `useKeyboard` also accepts a getter for its `shortcuts`, read on every keypress; passing a plain map still works.
+
+### Patch Changes
+
+- osdlabel@0.20.0
+- @osdlabel/annotation@0.20.0
+- @osdlabel/annotation-context@0.20.0
+- @osdlabel/decoration@0.20.0
+- @osdlabel/fabric-annotations@0.20.0
+- @osdlabel/fabric-osd@0.20.0
+- @osdlabel/osd-helper@0.20.0
+- @osdlabel/validation@0.20.0
+- @osdlabel/viewer-api@0.20.0
+
 ## 0.19.2
 
 ### Patch Changes

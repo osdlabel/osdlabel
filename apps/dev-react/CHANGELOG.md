@@ -1,5 +1,12 @@
 # @osdlabel/dev-react
 
+## 0.0.29
+
+### Patch Changes
+
+- osdlabel@0.20.0
+- @osdlabel/react@0.20.0
+
 ## 0.0.28
 
 ### Patch Changes
