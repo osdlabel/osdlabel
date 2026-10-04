@@ -163,8 +163,10 @@ function FilmstripItem({ image, state, isVertical, onAssign, onClear }: Filmstri
           the one gesture in this component that loses work. The button is a
           24px target (WCAG 2.5.8) around the 16px badge that is drawn (#205).
           The corner it covers belongs to the thumbnail already in the active
-          cell, where a press would re-assign the same image and reset the
-          cell's view transform. */}
+          cell, where a press would only re-assign the image the cell already
+          shows, which changes nothing (#212). Square, not rounded: browsers
+          hit-test the rounded shape (CSS Backgrounds 3), which would shrink the
+          target to a 24px circle. */}
       {state === 'active' && (
         <button
           type="button"

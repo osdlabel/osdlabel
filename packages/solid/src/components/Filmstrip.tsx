@@ -157,8 +157,10 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
                   button is a 24px target (WCAG 2.5.8) around the 16px badge
                   that is drawn (#205). The corner it covers belongs to the
                   thumbnail already in the active cell, where a press would
-                  re-assign the same image and reset the cell's view
-                  transform. */}
+                  only re-assign the image the cell already shows, which
+                  changes nothing (#212). Square, not rounded: browsers
+                  hit-test the rounded shape (CSS Backgrounds 3), which would
+                  shrink the target to a 24px circle. */}
               <Show when={state() === 'active'}>
                 <button
                   type="button"
