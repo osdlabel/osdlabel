@@ -1,4 +1,12 @@
-import { createContext, useContext, createEffect, on, type JSX, type Accessor } from 'solid-js';
+import {
+  createContext,
+  useContext,
+  createEffect,
+  createMemo,
+  on,
+  type JSX,
+  type Accessor,
+} from 'solid-js';
 import { produce } from 'solid-js/store';
 import type { AnnotationId } from '@osdlabel/annotation';
 import type { ImageId, PixelSpacing } from '@osdlabel/viewer-api';
@@ -24,6 +32,7 @@ import { createUIStore } from './ui-store.js';
 import { createContextStore, createConstraintStatus } from './context-store.js';
 import { createActions } from './actions.js';
 import { useKeyboard } from '../hooks/useKeyboard.js';
+import { shallowEqual } from './shallow-equal.js';
 
 export interface ActiveToolKeyHandlerRef {
   handler: ((event: KeyboardEvent) => boolean) | null;
@@ -77,7 +86,7 @@ interface AnnotatorContextValue {
 }
 
 const KeyboardHandler = (props: {
-  shortcuts: KeyboardShortcutMap;
+  shortcuts: Accessor<KeyboardShortcutMap>;
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef;
   shouldSkipTargetPredicate?: ((target: HTMLElement) => boolean) | undefined;
 }) => {
@@ -111,8 +120,11 @@ export interface AnnotatorProviderProps {
    * Radii and colours default to values derived from the tool's resolved style;
    * pass `{ enabled: false }` to draw no markers.
    *
-   * Read once when the provider mounts (as `vertexEdit*` is), so later changes
-   * to this prop do not affect tools already created.
+   * Compared field-by-field, so a re-created object with the same values is
+   * ignored. A genuine value change rebuilds the active tool (as `vertexEdit*`
+   * and `keyboardShortcuts` do), which discards an in-progress path — so drive
+   * these from constants or settled state, not from a value that animates while
+   * the user draws.
    */
   readonly vertexMarkers?: VertexMarkerOptions | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
@@ -174,14 +186,28 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };
   const fullscreenTargetRef: FullscreenTargetRef = { element: null };
-  // Read once, at setup: unlike React's provider, a later change to
-  // `keyboardShortcuts`, `vertexEdit*` or `vertexMarkers` is ignored here (#219).
-  const mergedShortcuts = { ...DEFAULT_KEYBOARD_SHORTCUTS, ...props.keyboardShortcuts };
-  const vertexEditConfig: VertexEditConfig = {
-    longPressMs: props.vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
-    moveTolerancePx: props.vertexEditMoveTolerancePx ?? DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
-  };
-  const vertexMarkerOptions: VertexMarkerOptions = { ...props.vertexMarkers };
+  // Follow later changes to `keyboardShortcuts`, `vertexEdit*` and
+  // `vertexMarkers`, as React's provider does (#219). Each is compared by value,
+  // so a re-created but equal object notifies nobody and does not rebuild the
+  // active tool, which would discard an in-progress path.
+  const mergedShortcuts = createMemo(
+    (): KeyboardShortcutMap => ({ ...DEFAULT_KEYBOARD_SHORTCUTS, ...props.keyboardShortcuts }),
+    undefined,
+    { equals: shallowEqual },
+  );
+  const vertexEditConfig = createMemo(
+    (): VertexEditConfig => ({
+      longPressMs: props.vertexEditLongPressMs ?? DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
+      moveTolerancePx: props.vertexEditMoveTolerancePx ?? DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
+    }),
+    undefined,
+    { equals: shallowEqual },
+  );
+  const vertexMarkerOptions = createMemo(
+    (): VertexMarkerOptions => ({ ...props.vertexMarkers }),
+    undefined,
+    { equals: shallowEqual },
+  );
 
   // Load initial annotations if provided
   if (props.initialAnnotations) {
@@ -231,9 +257,17 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     activeToolKeyHandlerRef,
     fullscreenTargetRef,
     fullscreenTarget: props.fullscreenTarget,
-    shortcuts: mergedShortcuts,
-    vertexEditConfig,
-    vertexMarkerOptions,
+    // Getters, so a read inside an effect tracks the memo and the type stays a
+    // plain value for hosts that read the context.
+    get shortcuts() {
+      return mergedShortcuts();
+    },
+    get vertexEditConfig() {
+      return vertexEditConfig();
+    },
+    get vertexMarkerOptions() {
+      return vertexMarkerOptions();
+    },
     activeImageId,
     testMode: props.testMode ?? false,
     decorationProviders: props.decorationProviders ?? [],

@@ -31,6 +31,7 @@ export function useAnnotationTool(
   imageId: () => ImageId | undefined,
   isActive: () => boolean,
 ) {
+  const annotator = useAnnotator();
   const {
     uiState,
     contextState,
@@ -38,10 +39,7 @@ export function useAnnotationTool(
     constraintStatus,
     actions,
     activeToolKeyHandlerRef,
-    shortcuts,
-    vertexEditConfig,
-    vertexMarkerOptions,
-  } = useAnnotator();
+  } = annotator;
 
   // Auto-switch to select tool when active drawing tool becomes disabled (limit reached)
   createEffect(() => {
@@ -129,10 +127,13 @@ export function useAnnotationTool(
       return;
     }
 
+    // Read here, not destructured at setup: the provider's getters are memos,
+    // so a changed binding or marker style rebuilds the tool (#219).
     const tool: AnnotationTool | null = createAnnotationTool(type, {
-      vertexEdit: vertexEditConfig,
-      vertexMarkers: vertexMarkerOptions,
+      vertexEdit: annotator.vertexEditConfig,
+      vertexMarkers: annotator.vertexMarkerOptions,
     });
+    const shortcuts = annotator.shortcuts;
 
     if (!tool) {
       ov.setMode('navigation');

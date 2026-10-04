@@ -1,4 +1,4 @@
-import { onMount, onCleanup } from 'solid-js';
+import { onMount, onCleanup, type Accessor } from 'solid-js';
 import { useAnnotator, type ActiveToolKeyHandlerRef } from '../state/annotator-context.js';
 import { useConstraints } from './useConstraints.js';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
@@ -13,8 +13,12 @@ import type { AnnotationAction, ContextAction, UIAction } from 'osdlabel';
 
 export { MAX_GRID_SIZE, DEFAULT_KEYBOARD_SHORTCUTS };
 
+/**
+ * @param shortcuts The key bindings, or a getter for them. A getter is read on
+ *   every keypress, so the bindings can change while the listener stays put.
+ */
 export function useKeyboard(
-  shortcuts: KeyboardShortcutMap,
+  shortcuts: KeyboardShortcutMap | Accessor<KeyboardShortcutMap>,
   activeToolKeyHandlerRef: ActiveToolKeyHandlerRef,
   shouldSkipTargetPredicate?: (target: HTMLElement) => boolean,
 ) {
@@ -45,7 +49,7 @@ export function useKeyboard(
     const mappedActions = mapKeyEventToActions(
       e.key,
       e.shiftKey,
-      shortcuts,
+      typeof shortcuts === 'function' ? shortcuts() : shortcuts,
       {
         activeTool: uiState.activeTool,
         activeCellIndex: uiState.activeCellIndex,
