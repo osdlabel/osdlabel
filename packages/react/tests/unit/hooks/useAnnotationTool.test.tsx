@@ -312,13 +312,13 @@ describe('useAnnotationTool', () => {
       expect(other.listenerCount('mouse:down')).toBe(presses);
     });
 
+    // Solid covers these three in `useAnnotationTool.config.test.ts` (#219).
     it('the vertex-marker values', () => {
       const h = setup('polyline', { vertexMarkers: { radius: 4 } });
       h.rerender({ vertexMarkers: { radius: 6 } }, host());
       expectRebuiltOnce();
     });
 
-    // These three follow a change in React only; Solid reads them once (#219).
     it('the vertex-edit tuning', () => {
       const h = setup('polyline', { vertexEditLongPressMs: 500 });
       h.rerender({ vertexEditLongPressMs: 900 }, host());

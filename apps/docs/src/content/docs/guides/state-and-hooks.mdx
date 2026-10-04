@@ -107,3 +107,5 @@ Sets up keyboard shortcut handling. This is called automatically by `AnnotatorPr
 ```ts
 import { useKeyboard } from '@osdlabel/solid';
 ```
+
+In SolidJS, its first argument can be the shortcut map or a getter for it, such as a signal or memo. A getter is read on every keypress, so the bindings can change without re-registering the listener; `AnnotatorProvider` passes one so that a changed `keyboardShortcuts` prop takes effect on the next keypress.

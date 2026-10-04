@@ -561,6 +561,8 @@ Sets up keyboard shortcut handling. This is called automatically by `AnnotatorPr
 
 ```
 
+In SolidJS, its first argument can be the shortcut map or a getter for it, such as a signal or memo. A getter is read on every keypress, so the bindings can change without re-registering the listener; `AnnotatorProvider` passes one so that a changed `keyboardShortcuts` prop takes effect on the next keypress.
+
 ---
 
 # Basic Controls
@@ -1392,6 +1394,8 @@ Or via the `Annotator` component:
 ```
 
 Unspecified keys keep their default bindings. See [`KeyboardShortcutMap`](/osdlabel/api/types/#keyboardshortcutmap) for all available keys.
+
+The prop can change after mount, so a host can let users rebind keys. A new binding takes effect on the next keypress, in SolidJS and React alike. The bindings are compared by value, so an inline object literal that a re-rendering parent re-creates with the same keys changes nothing. A genuine change rebuilds the active tool, which discards a path being drawn, so change bindings from settled state, such as a settings dialog, rather than mid-stroke.
 
 ## Suppressing shortcuts
 
