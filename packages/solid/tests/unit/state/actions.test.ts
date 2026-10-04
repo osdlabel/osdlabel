@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { version as FABRIC_VERSION } from 'fabric';
-import { createRoot } from 'solid-js';
+import { batch, createRoot } from 'solid-js';
 import { createAnnotationStore } from '../../../src/state/annotation-store';
 import { createUIStore } from '../../../src/state/ui-store';
 import { createContextStore, createConstraintStatus } from '../../../src/state/context-store';
@@ -267,7 +267,7 @@ describe('State Management', () => {
    * them are silent no-ops, so a regression that simply stopped converting
    * would have looked identical to a regression that converted the wrong
    * thing. React's wrapper is covered by its own `state/actions.test.ts`
-   * (#152), since it reads state through getters rather than the store.
+   * (#152), since it reads state through getters over its own store.
    */
   describe('convertAnnotation', () => {
     const circleId = createAnnotationId('circle1');
@@ -379,6 +379,157 @@ describe('State Management', () => {
       expect(after!.toolType).toBe('circle');
       expect(after!.geometry).toEqual(circleAnnotation.geometry);
       expect(annotationState.changeCounter).toBe(before);
+      dispose();
+    });
+  });
+
+  /**
+   * The parity cases for React's `describe('within one batch (#217)')`. Each
+   * issues every step inside one `batch`, which defers effects but not store
+   * writes, so a state-reading action sees the writes before it. React's
+   * provider now matches this through its external store; before #217 it read
+   * the pre-batch state in every one of these.
+   */
+  describe('within one batch (#217)', () => {
+    const circleId = createAnnotationId('circle1');
+    const imageId2 = createImageId('img2');
+
+    const circleAnnotation: Omit<OsdAnnotation, 'createdAt' | 'updatedAt'> = {
+      ...dummyAnnotation,
+      id: circleId,
+      toolType: 'circle',
+      geometry: { type: 'circle', center: { x: 50, y: 50 }, radius: 10 },
+      rawAnnotationData: {
+        format: 'fabric' as const,
+        fabricVersion: FABRIC_VERSION,
+        data: { type: 'Circle', left: 40, top: 40, radius: 10 },
+      },
+    };
+
+    function openContext(maxRectangles?: number): AnnotationContext {
+      return {
+        id: dummyContextId,
+        label: 'Test Context',
+        tools: [
+          maxRectangles === undefined
+            ? { type: 'rectangle' }
+            : { type: 'rectangle', maxCount: maxRectangles },
+          { type: 'circle' },
+        ],
+      };
+    }
+
+    it('convertAnnotation finds a circle added earlier in the batch', () => {
+      const { annotationState, actions, dispose } = createTestStore();
+      actions.setContexts([openContext()]);
+      actions.setActiveContext(dummyContextId);
+
+      batch(() => {
+        actions.addAnnotation(circleAnnotation);
+        actions.convertAnnotation(circleId, dummyImageId);
+      });
+
+      expect(annotationState.byImage[dummyImageId]![circleId]!.toolType).toBe('rectangle');
+      dispose();
+    });
+
+    it('addAnnotation is refused by contexts set earlier in the batch', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { annotationState, actions, dispose } = createTestStore();
+      try {
+        batch(() => {
+          actions.setContexts([{ ...openContext(), imageIds: [imageId2] }]);
+          actions.setActiveContext(dummyContextId);
+          actions.addAnnotation(dummyAnnotation);
+        });
+
+        expect(annotationState.byImage[dummyImageId]).toBeUndefined();
+        expect(warn).toHaveBeenCalledTimes(1);
+      } finally {
+        warn.mockRestore();
+        dispose();
+      }
+    });
+
+    it('addAnnotation is accepted by contexts widened earlier in the batch', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { annotationState, actions, dispose } = createTestStore();
+      try {
+        actions.setContexts([{ ...openContext(), imageIds: [imageId2] }]);
+        actions.setActiveContext(dummyContextId);
+
+        batch(() => {
+          actions.setContexts([{ ...openContext(), imageIds: [dummyImageId, imageId2] }]);
+          actions.addAnnotation(dummyAnnotation);
+        });
+
+        expect(annotationState.byImage[dummyImageId]?.[dummyAnnotationId]).toBeDefined();
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
+        dispose();
+      }
+    });
+
+    it('convertAnnotation counts a rectangle added earlier in the batch', () => {
+      const { annotationState, actions, dispose } = createTestStore();
+      actions.setContexts([openContext(1)]);
+      actions.setActiveContext(dummyContextId);
+      actions.addAnnotation(circleAnnotation);
+      const before = annotationState.changeCounter;
+
+      batch(() => {
+        actions.addAnnotation(dummyAnnotation);
+        actions.convertAnnotation(circleId, dummyImageId);
+      });
+
+      expect(annotationState.byImage[dummyImageId]![circleId]!.toolType).toBe('circle');
+      expect(annotationState.changeCounter).toBe(before + 1);
+      dispose();
+    });
+
+    it('convertAnnotation refuses when the batch itself fills the rectangle limit', () => {
+      const { annotationState, actions, dispose } = createTestStore();
+      const before = annotationState.changeCounter;
+
+      batch(() => {
+        actions.setContexts([openContext(1)]);
+        actions.setActiveContext(dummyContextId);
+        actions.addAnnotation(dummyAnnotation);
+        actions.addAnnotation(circleAnnotation);
+        actions.convertAnnotation(circleId, dummyImageId);
+      });
+
+      expect(annotationState.byImage[dummyImageId]![circleId]!.toolType).toBe('circle');
+      expect(annotationState.changeCounter).toBe(before + 2);
+      dispose();
+    });
+
+    it('a view action targets the cell made active earlier in the batch', () => {
+      const { uiState, actions, dispose } = createTestStore();
+
+      batch(() => {
+        actions.setActiveCell(1);
+        actions.rotateActiveImageCW();
+      });
+
+      expect(uiState.cellTransforms[1]?.rotation).toBe(90);
+      expect(uiState.cellTransforms[0]?.rotation ?? 0).toBe(0);
+      dispose();
+    });
+
+    it('a write is readable before the batch ends', () => {
+      // React's twin contrasts the rendered value with `store.getSnapshot()`;
+      // Solid has only the one, live store, so it reads that.
+      const { uiState, actions, dispose } = createTestStore();
+      let seen: unknown = 'unread';
+
+      batch(() => {
+        actions.setSelectedAnnotation(dummyAnnotationId);
+        seen = uiState.selectedAnnotationId;
+      });
+
+      expect(seen).toBe(dummyAnnotationId);
       dispose();
     });
   });

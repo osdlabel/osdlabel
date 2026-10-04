@@ -11,11 +11,11 @@ import { imageId, type NewAnnotation, rect } from '../fixtures.js';
 /**
  * The React counterpart of Solid's `constraints/enforcement.test.ts`.
  *
- * Solid derives the status with `createMemo`; React with a `useMemo` over
- * `[contextState, annotationState, activeImageId]`, where `activeImageId` is
- * itself a memo over `[gridAssignments, activeCellIndex]`. These tests read
- * the status from the provider's context value after each committed action,
- * so a missing dependency shows up as a stale status.
+ * Solid derives the status with `createMemo`; React with the store's
+ * `selectConstraintStatus`, memoised on the identities of `contextState` and
+ * `annotationState` and on `activeImageId` (the image in the active cell).
+ * These tests read the status from the provider's context value after each
+ * committed action, so a missing input shows up as a stale status.
  */
 describe('Constraint Enforcement', () => {
   afterEach(unmountAll);
@@ -127,8 +127,7 @@ describe('Constraint Enforcement', () => {
     expect(status(h).circle.enabled).toBe(true);
     expect(status(h).circle.maxCount).toBeNull();
 
-    // One commit for all of them: addAnnotation reads only the context state,
-    // which this batch does not change.
+    // One commit for all of them.
     h.run((a) => {
       for (let i = 0; i < 100; i++) a.addAnnotation(circleAt(i));
     });
@@ -274,7 +273,7 @@ describe('Constraint Enforcement', () => {
     warn.mockRestore();
   });
 
-  // ── React-specific: the memo's inputs ──────────────────────────────────
+  // ── React-specific: the selector's inputs ──────────────────────────────
 
   describe('derivation follows every input of the memo', () => {
     const perImage: AnnotationContext = {
@@ -323,6 +322,39 @@ describe('Constraint Enforcement', () => {
       h.run((a) => a.rotateActiveImageCW());
 
       expect(status(h)).toBe(before);
+    });
+  });
+
+  describe('the store and the rendered status (#217)', () => {
+    it('are the same object once a batch commits', () => {
+      // One memoised selector serves both, so the status the tree rendered and
+      // the one a callback reads agree by identity, not just by value.
+      const h = createTestStore();
+      h.run((a) => {
+        a.setContexts([context1]);
+        a.setActiveContext(contextId1);
+        a.addAnnotation(rect('r1', { contextId: contextId1 }));
+      });
+
+      expect(status(h).rectangle.currentCount).toBe(1);
+      expect(status(h)).toBe(h.current.store.getConstraintStatus());
+    });
+
+    it('differ inside a batch: the store already counts the new annotation', () => {
+      const h = createTestStore();
+      activate(h, [context1]);
+      let rendered: number | undefined;
+      let latest: number | undefined;
+
+      h.run((a) => {
+        a.addAnnotation(rect('r1', { contextId: contextId1 }));
+        rendered = status(h).rectangle.currentCount;
+        latest = h.current.store.getConstraintStatus().rectangle.currentCount;
+      });
+
+      expect(rendered).toBe(0);
+      expect(latest).toBe(1);
+      expect(status(h).rectangle.currentCount).toBe(1);
     });
   });
 

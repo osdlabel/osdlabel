@@ -80,7 +80,7 @@ SolidJS annotator UI layer.
 
 React annotator UI layer.
 
-- Re-exports everything from `osdlabel` plus React-specific state management (Immer-based reducers + React Context + `useReducer`), hooks, and components with full parity to the SolidJS package.
+- Re-exports everything from `osdlabel` plus React-specific state management (Immer-based reducers applied by a small external store, read through `useSyncExternalStore` and provided with React Context), hooks, and components with full parity to the SolidJS package.
 - Depends on `osdlabel` + `react` + `immer`.
 
 ---

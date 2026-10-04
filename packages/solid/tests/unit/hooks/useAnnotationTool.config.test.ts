@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createComponent, createRoot, createSignal, untrack, type Setter } from 'solid-js';
+import { batch, createComponent, createRoot, createSignal, untrack, type Setter } from 'solid-js';
+import { version as FABRIC_VERSION } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import {
   PolylineTool,
   type AnnotationTool,
+  type ToolCallbacks,
   type VertexMarkerOptions,
 } from '@osdlabel/fabric-annotations';
+import { createAnnotationId } from '@osdlabel/annotation';
 import { createImageId, type KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { AnnotatorProvider, useAnnotator } from '../../../src/state/annotator-context.js';
@@ -222,6 +225,43 @@ describe('useAnnotationTool with the provider config (#219)', () => {
       h.setMarkers({ radius: 9 });
       expect(deactivate).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('canAddAnnotation sees an annotation added earlier in the same batch (#217)', () => {
+    // The parity case for React's "the tool sees writes made earlier in the
+    // same task": a tool adds an annotation and asks whether another is
+    // allowed within one pointer event. Solid's memo is read fresh inside a
+    // batch; React's callbacks read its store for the same reason.
+    const h = setup();
+    h.annotator.actions.setContexts([
+      {
+        id: contextId,
+        label: 'Test',
+        tools: [{ type: 'polyline' }, { type: 'rectangle', maxCount: 1 }],
+      },
+    ]);
+    expect(activate).toHaveBeenCalled();
+    const callbacks = activate.mock.calls.at(-1)![2] as ToolCallbacks;
+    expect(callbacks.canAddAnnotation('rectangle')).toBe(true);
+
+    let canAdd: boolean | undefined;
+    batch(() => {
+      h.annotator.actions.addAnnotation({
+        id: createAnnotationId('r1'),
+        imageId,
+        contextId,
+        toolType: 'rectangle',
+        geometry: { type: 'rectangle', origin: { x: 0, y: 0 }, width: 10, height: 10, rotation: 0 },
+        rawAnnotationData: {
+          format: 'fabric',
+          fabricVersion: FABRIC_VERSION,
+          data: { type: 'Rect', left: 0, top: 0, width: 10, height: 10 },
+        },
+      });
+      canAdd = callbacks.canAddAnnotation('rectangle');
+    });
+
+    expect(canAdd).toBe(false);
   });
 
   it('the keyboard follows a changed binding without remounting', () => {

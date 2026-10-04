@@ -19,12 +19,11 @@ export interface AnnotatorHarness {
    * Runs `fn` against the provider's actions inside its own `act()`, so the
    * dispatch commits and the provider re-renders before this returns.
    *
-   * This is the React-specific part. `createActions` reads state through
-   * `getAnnotationState()` / `getContextState()` / `getUIState()`, which return
-   * refs the provider refreshes on each render — not a live store as in Solid.
-   * An action that reads state (`addAnnotation`, `convertAnnotation`, the
-   * active-cell view actions) therefore sees what the last render committed,
-   * so dependent steps go in separate `run` calls.
+   * One `run` is one React batch. The actions read the provider's store,
+   * which applies each write immediately, so dependent steps can share a
+   * `run` as they would share a Solid `batch` (#217). Inside `fn`, `current`
+   * is still the value from the last commit — the tree has not re-rendered
+   * yet — while `current.store.getSnapshot()` already holds every write.
    */
   run(fn: (actions: AnnotatorActions) => void): void;
   /** Re-renders the provider with `props` merged over the previous props. */
@@ -35,8 +34,9 @@ export interface AnnotatorHarness {
 }
 
 /**
- * Mounts a real `AnnotatorProvider` — Immer `useReducer`s, the getter-based
- * `createActions`, the memoised constraint status — rather than a mock, so
+ * Mounts a real `AnnotatorProvider` — the Immer-backed store read through
+ * `useSyncExternalStore`, the getter-based `createActions`, the memoised
+ * constraint status — rather than a mock, so
  * tests exercise the React wiring itself.
  */
 export function renderAnnotator(
