@@ -3,13 +3,13 @@ import * as v from 'valibot';
 /** Finite number check (rejects NaN, Infinity, -Infinity) */
 const FiniteNumber = v.pipe(v.number(), v.finite());
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").Point}. */
+/** A schema for validating {@link @osdlabel/annotation!Point | Point}. */
 export const PointSchema = v.object({
   x: FiniteNumber,
   y: FiniteNumber,
 });
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").RectangleGeometry}. */
+/** A schema for validating {@link @osdlabel/annotation!RectangleGeometry | RectangleGeometry}. */
 export const RectangleGeometrySchema = v.object({
   type: v.literal('rectangle'),
   origin: PointSchema,
@@ -18,21 +18,21 @@ export const RectangleGeometrySchema = v.object({
   rotation: FiniteNumber,
 });
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").CircleGeometry}. */
+/** A schema for validating {@link @osdlabel/annotation!CircleGeometry | CircleGeometry}. */
 export const CircleGeometrySchema = v.object({
   type: v.literal('circle'),
   center: PointSchema,
   radius: FiniteNumber,
 });
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").LineGeometry}. */
+/** A schema for validating {@link @osdlabel/annotation!LineGeometry | LineGeometry}. */
 export const LineGeometrySchema = v.object({
   type: v.literal('line'),
   start: PointSchema,
   end: PointSchema,
 });
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").PointGeometry}. */
+/** A schema for validating {@link @osdlabel/annotation!PointGeometry | PointGeometry}. */
 export const PointGeometrySchema = v.object({
   type: v.literal('point'),
   position: PointSchema,
@@ -40,13 +40,13 @@ export const PointGeometrySchema = v.object({
 
 const PolyPointsSchema = v.pipe(v.array(PointSchema), v.minLength(2));
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").PolylineGeometry}. */
+/** A schema for validating {@link @osdlabel/annotation!PolylineGeometry | PolylineGeometry}. */
 export const PolylineGeometrySchema = v.object({
   type: v.literal('polyline'),
   points: PolyPointsSchema,
 });
 
-/** A schema for validating @see {@link import("@osdlabel/annotation/geometry").PolygonGeometry}. */
+/** A schema for validating {@link @osdlabel/annotation!PolygonGeometry | PolygonGeometry}. */
 export const PolygonGeometrySchema = v.object({
   type: v.literal('polygon'),
   points: PolyPointsSchema,

@@ -4,6 +4,9 @@ import sitemap from '@astrojs/sitemap';
 import solidJs from '@astrojs/solid-js';
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc';
 import mdx from '@astrojs/mdx';
+import typeDocOptions from './typedoc.config.mjs';
+
+const { entryPoints: typeDocEntryPoints, tsconfig: typeDocTsconfig, ...typeDoc } = typeDocOptions;
 
 export default defineConfig({
   site: 'https://guyo13.github.io',
@@ -27,27 +30,10 @@ export default defineConfig({
       customCss: ['./src/styles/custom.css'],
       plugins: [
         starlightTypeDoc({
-          entryPoints: [
-            '../../packages/annotation',
-            '../../packages/viewer-api',
-            '../../packages/annotation-context',
-            '../../packages/validation',
-            '../../packages/fabric-annotations',
-            '../../packages/fabric-osd',
-            '../../packages/osd-helper',
-            '../../packages/decoration',
-            '../../packages/osdlabel',
-            '../../packages/solid',
-            '../../packages/react',
-          ],
-          tsconfig: '../../packages/annotation/tsconfig.json',
+          entryPoints: typeDocEntryPoints,
+          tsconfig: typeDocTsconfig,
           output: 'api/reference',
-          typeDoc: {
-            entryPointStrategy: 'packages',
-            excludePrivate: true,
-            excludeInternal: true,
-            readme: 'none',
-          },
+          typeDoc,
           sidebar: {
             label: 'Package Reference',
             collapsed: true,
@@ -132,20 +118,34 @@ export default defineConfig({
         'openseadragon',
       ],
     },
+    // Only this app's own dependencies: Vite resolves these from apps/docs, so
+    // a package it reaches only through another one (fabric, openseadragon,
+    // the fabric-* and validation packages) cannot be listed here. Each such
+    // entry only printed "Failed to resolve dependency" and was skipped.
     optimizeDeps: {
       include: [
         'osdlabel',
         '@osdlabel/annotation',
         '@osdlabel/annotation-context',
         '@osdlabel/viewer-api',
-        '@osdlabel/validation',
-        '@osdlabel/fabric-annotations',
-        '@osdlabel/fabric-osd',
         '@osdlabel/solid',
         '@osdlabel/react',
-        'fabric',
-        'openseadragon',
       ],
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          // The demo islands pull in Fabric and OpenSeadragon. Bundled with
+          // the island they made one ~630 kB chunk, over Vite's 500 kB
+          // warning; on their own they stay under it and are cached across
+          // pages.
+          manualChunks(id) {
+            if (id.includes('/node_modules/fabric/')) return 'fabric';
+            if (id.includes('/node_modules/openseadragon/')) return 'openseadragon';
+            return undefined;
+          },
+        },
+      },
     },
   },
 });

@@ -33,6 +33,12 @@ interface MutableDomEntry {
   decoration: DomDecoration;
 }
 
+/**
+ * Receives the DOM decorations after each change. Inlined into the API
+ * reference rather than exported, so it adds no name to the public API.
+ *
+ * @inline
+ */
 type DomDecorationsCallback = (entries: readonly DomDecorationEntry[]) => void;
 
 /**

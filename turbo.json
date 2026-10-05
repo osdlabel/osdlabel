@@ -43,6 +43,7 @@
         "tsconfig*.json",
         "vite.config.*",
         "astro.config.*",
+        "typedoc.config.*",
         "package.json",
         "$TURBO_ROOT$/packages/*/typedoc.json",
         "$TURBO_ROOT$/packages/*/package.json"

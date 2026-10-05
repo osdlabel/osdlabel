@@ -4,7 +4,7 @@ import { ToolTypeSchema } from './tool.js';
 import { FabricRawAnnotationDataSchema } from './fabric-data.js';
 
 /**
- * Schema for @see {@link import("@osdlabel/annotation/annotation").BaseAnnotation} — validates core annotation fields.
+ * Schema for {@link @osdlabel/annotation!BaseAnnotation | BaseAnnotation} — validates core annotation fields.
  * Extension fields (contextId, rawAnnotationData, etc.) are not checked here;
  * they pass through via v.looseObject behavior inherited by intersections.
  */
@@ -18,7 +18,7 @@ export const BaseAnnotationSchema = v.object({
   updatedAt: v.string(),
 });
 
-/** Schema for @see {@link import("osdlabel").OsdAnnotation} - validates fields added by the Annotator. */
+/** Schema for the fields {@link osdlabel!OsdAnnotation | OsdAnnotation} adds to a base annotation. */
 export const OsdFieldsSchema = v.object({
   imageId: v.pipe(v.string(), v.minLength(1)),
   contextId: v.pipe(v.string(), v.minLength(1)),

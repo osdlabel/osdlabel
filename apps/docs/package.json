@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/generate-llm-page.js && astro build && node scripts/check-rendered-tables.js",
+    "build": "node scripts/generate-llm-page.js && pnpm check:typedoc && astro build && node scripts/check-rendered-tables.js",
+    "check:typedoc": "typedoc --options typedoc.config.mjs --emit none --treatWarningsAsErrors",
     "preview": "astro preview",
     "test": "node --test \"tests/**/*.test.js\"",
     "lint": "eslint ."

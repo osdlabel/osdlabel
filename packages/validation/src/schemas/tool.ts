@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 
-/** Schema for @see {@link import("@osdlabel/annotation/annotation-tools").ToolType} */
+/** Schema for {@link @osdlabel/annotation!ToolType | ToolType}. */
 export const ToolTypeSchema = v.union([
   v.literal('rectangle'),
   v.literal('circle'),
