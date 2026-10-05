@@ -1724,7 +1724,7 @@ const distances = createDistanceProvider({
 | `format`     | `FormatMeasurementOptions`          | `{ precision: 2 }`    | Forwarded to `formatMeasurement` for the default text. |
 | `formatLine` | `(m, defaultFormatter) => string`   | `defaultFormatter(m)` | Wrap or replace the default text.                      |
 
-Distances are computed between each annotation's geometric centroid and rendered via [`distance`](/osdlabel/api/reference/osdlabel/functions/distance/), so they respect `pixelSpacing` automatically.
+Distances are computed between each annotation's geometric centroid and rendered via [`distance`](/osdlabel/api/reference/osdlabel/geometry/functions/distance/), so they respect `pixelSpacing` automatically.
 
 ## Composing providers
 
@@ -1807,7 +1807,7 @@ You return an array of `TextDecoration`, `LineDecoration`, and / or `DomDecorati
 2. **Use stable IDs.** Return the same `Decoration.id` across recomputations for the same logical decoration (e.g. `` `bbox:${ann.id}` ``). The renderer diffs by id — stable ids let it update DOM/Fabric in place instead of recreating nodes.
 3. **Set `relatedAnnotationIds`.** This drives lifecycle (so decorations are cleaned up when their annotations are deleted) and powers `withSelectionEmphasis`. For per-annotation decorations, it's `[ann.id]`; for relational decorations it's the participating annotation ids.
 
-The decoration package also exports pure geometry utilities you can use to build anchors and derived values: `area`, `perimeter`, `length`, `radius`, `distance`, `centroid`, `midpoint`, `boundingBox`. See [`@osdlabel/decoration`](/osdlabel/api/reference/osdlabel/) for full signatures.
+The decoration package also re-exports the pure geometry utilities of `@osdlabel/geometry`, which you can use to build anchors and derived values: [`area`](/osdlabel/api/reference/osdlabel/geometry/functions/area/), [`perimeter`](/osdlabel/api/reference/osdlabel/geometry/functions/perimeter/), [`length`](/osdlabel/api/reference/osdlabel/geometry/functions/length/), [`radius`](/osdlabel/api/reference/osdlabel/geometry/functions/radius/), [`distance`](/osdlabel/api/reference/osdlabel/geometry/functions/distance/), [`centroid`](/osdlabel/api/reference/osdlabel/geometry/functions/centroid/), [`midpoint`](/osdlabel/api/reference/osdlabel/geometry/functions/midpoint/), [`boundingBox`](/osdlabel/api/reference/osdlabel/geometry/functions/boundingbox/).
 
 ### Typing providers with extension fields
 
@@ -2095,7 +2095,7 @@ When the user moves, scales, or rotates an annotation, providers are re-run agai
 
 This wiring is handled automatically inside `Annotator` / `ViewerCell` — there's nothing you need to do.
 
-For custom shells that bypass the built-in `ViewerCell`, [`enableLiveDecorationUpdates`](/osdlabel/api/reference/osdlabel/functions/enableLiveDecorationUpdates/) is the same helper the framework integrations use.
+For custom shells that bypass the built-in `ViewerCell`, [`enableLiveDecorationUpdates`](/osdlabel/api/reference/osdlabel/functions/enablelivedecorationupdates/) is the same helper the framework integrations use.
 
 ## Performance notes
 
