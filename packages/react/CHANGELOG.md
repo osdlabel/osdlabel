@@ -1,5 +1,38 @@
 # @osdlabel/react
 
+## 0.21.0
+
+### Minor Changes
+
+- a5d7caa: An action now sees a write made earlier in the same batch, as in Solid (#217).
+
+  `AnnotatorProvider` used to hold its state in three `useReducer`s and hand `createActions` getters backed by refs it refreshed on render. Two actions issued from one event handler therefore had the second read the state from before the first: `addAnnotation` then `convertAnnotation` left a circle, and `setContexts` then `addAnnotation` ran the scope guard against the old contexts. The state now lives in a small store that applies each write immediately and that the provider reads through `useSyncExternalStore`, so the action getters and `useAnnotationTool`'s Fabric callbacks read the latest write.
+
+  `useAnnotator()` gains a `store` field. Its `getSnapshot()` and `getConstraintStatus()` return the state as of the latest write, for code outside render that must see its own writes; `annotationState`, `uiState`, `contextState` and `constraintStatus` stay the last rendered values. The `AnnotatorStoreReader` and `AnnotatorSnapshot` types are exported. Nothing existing changes shape: the reducers, `createActions`, the provider's props and the existing `useAnnotator()` fields keep their types, and `actions` stays referentially stable.
+
+  Two behaviours move with the store, neither visible to a host that dispatches from ordinary event handlers and effects:
+  - An action dispatched inside `startTransition` now renders synchronously, as `useSyncExternalStore` requires, instead of as a transition. The package itself uses no transitions.
+  - A reducer that throws now throws inside the handler that called the action, instead of during the next render.
+
+- b829f81: `ImageSource.tileSource` accepts any tile source OpenSeadragon's `viewer.open()` takes, not just a URL. That covers an options object (IIIF, Zoomify, TMS, `{ type: 'image', url, buildPyramid: false }`), an inline DZI descriptor or a `TileSource` instance (#83).
+
+  The new `TileSourceSpec` type (`string | object`) is exported from `@osdlabel/viewer-api` and `osdlabel`. `openImage` gives OpenSeadragon a copy of a plain options object, and of a TiledImage options wrapper's plain `tileSource`, since OpenSeadragon writes into the tile source it opens, and passes anything else, such as a `TileSource` instance, as is. The new `isSameTileSource` in `@osdlabel/osd-helper` compares plain objects by value, and functions and class instances by identity. Both bindings use it to decide whether a cell's image changed, so re-creating an equal object does not reload the image.
+
+  This also fixes a SolidJS cell reloading its image the first time a new `ImageSource` arrived with the same URL.
+
+### Patch Changes
+
+- Updated dependencies [b829f81]
+  - @osdlabel/viewer-api@0.21.0
+  - @osdlabel/osd-helper@0.21.0
+  - osdlabel@0.21.0
+  - @osdlabel/annotation-context@0.21.0
+  - @osdlabel/decoration@0.21.0
+  - @osdlabel/fabric-annotations@0.21.0
+  - @osdlabel/fabric-osd@0.21.0
+  - @osdlabel/annotation@0.21.0
+  - @osdlabel/validation@0.21.0
+
 ## 0.20.0
 
 ### Patch Changes
