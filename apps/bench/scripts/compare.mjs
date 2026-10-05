@@ -120,7 +120,7 @@ function hasDist(root) {
 export function regressionLines(comparison) {
   const regressions = comparison.rows.filter((r) => r.verdict === 'regression');
   if (regressions.length === 0) return [];
-  const lines = [`\n${regressions.length} regression row(s) beyond their column's noise band:`];
+  const lines = [`\n${regressions.length} regression row(s) beyond their noise band:`];
   for (const r of regressions) {
     const delta = r.deltaPct === null ? 'from zero' : `+${r.deltaPct.toFixed(1)}%`;
     const base = r.usedMean ? r.baseMean : r.baseMedian;
@@ -161,11 +161,12 @@ async function main() {
   // Fail on a bad label now, not after the base install and build.
   validateLabels([baseLabel, headLabel]);
   if (common.reps < 5) {
-    // The bands are estimated from the run's own reps; with one rep there is no
-    // spread at all and every band sits on the ±5% floor.
+    // The bands are estimated from the run's own reps. The paired gate needs 3
+    // usable pairs per cell, and at R=5 identical code still flagged something
+    // in 2 of 21 rep subsets of one A/A run (README, "Noise and the gate").
     console.warn(
       `warning: --reps ${common.reps} is too few to estimate the noise bands; ` +
-        `expect noise to read as regressions (use 7; see #198)`,
+        `expect noise to read as regressions (use 7)`,
     );
   }
 

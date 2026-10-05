@@ -9,7 +9,8 @@
     "bench:compare": "node scripts/compare.mjs",
     "bench:analyze": "node scripts/analyze.mjs",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench:calibrate": "node scripts/calibrate.mjs"
   },
   "dependencies": {
     "@osdlabel/fabric-osd": "workspace:*",
