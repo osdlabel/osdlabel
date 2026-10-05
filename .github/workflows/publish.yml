@@ -31,7 +31,8 @@ jobs:
           node-version: 24
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        # v6.1.0 is the first release with pnpm 12 support; the floating v6 tag predates it.
+        uses: pnpm/action-setup@v6.1.0
         with:
           run_install: false
 
