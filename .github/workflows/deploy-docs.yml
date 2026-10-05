@@ -1,16 +1,38 @@
 name: Deploy Docs
 
+# The site renders TypeDoc from every package and builds them first (`^build`;
+# the demos bundle their output), so a change to any package's source, TypeDoc
+# config, manifest or build config, or to the workspace's build setup, changes
+# what gets deployed. Keep the push and pull_request lists identical.
 on:
   push:
     branches: [main]
     paths:
       - 'apps/docs/**'
-      - 'packages/osdlabel/src/**'
+      - 'packages/*/src/**'
+      - 'packages/*/typedoc.json'
+      - 'packages/*/package.json'
+      - 'packages/*/tsconfig*.json'
+      - 'packages/*/vite.config.*'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/deploy-docs.yml'
   pull_request:
     branches: [main]
     paths:
       - 'apps/docs/**'
-      - 'packages/osdlabel/src/**'
+      - 'packages/*/src/**'
+      - 'packages/*/typedoc.json'
+      - 'packages/*/package.json'
+      - 'packages/*/tsconfig*.json'
+      - 'packages/*/vite.config.*'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -18,9 +40,11 @@ permissions:
   pages: write
   id-token: write
 
+# One group per ref, so a new push only cancels that branch's own older run
+# and never another PR's build or a deploy from main (#231).
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -43,7 +67,15 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name != 'pull_request'
+    # Only main deploys: a workflow_dispatch from another branch builds it but
+    # must not publish it, or take a pending main deploy's place in `pages`.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Deploys queue rather than cancel each other, so a run already uploading
+    # to Pages always finishes; a newer pending one still replaces an older
+    # pending one.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment:
       name: github-pages
