@@ -12,24 +12,23 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@astrojs/mdx": "^5.0.6",
-    "@astrojs/sitemap": "^3.7.3",
-    "@astrojs/starlight": "^0.39.3",
+    "@astrojs/sitemap": "^3.7.4",
+    "@astrojs/starlight": "^0.42.5",
     "@osdlabel/annotation": "workspace:*",
     "@osdlabel/annotation-context": "workspace:*",
     "@osdlabel/react": "workspace:*",
     "@osdlabel/solid": "workspace:*",
     "@osdlabel/viewer-api": "workspace:*",
-    "astro": "^6.4.4",
+    "astro": "^7.3.5",
     "osdlabel": "workspace:*",
     "sharp": "^0.33.5",
-    "starlight-package-managers": "0.12.0",
+    "starlight-package-managers": "0.13.0",
     "starlight-typedoc": "^0.23.1",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.13.1"
   },
   "devDependencies": {
-    "@astrojs/solid-js": "^6.0.1",
+    "@astrojs/solid-js": "^7.0.2",
     "solid-js": "catalog:"
   }
 }
