@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { analyze, noiseBandFor, verdictFor } from '../scripts/analyze.mjs';
+import { analyze, noiseBandFor, verdictFor, GATE_K } from '../scripts/analyze.mjs';
 import { regressionLines } from '../scripts/compare.mjs';
 
 // ── fixtures ───────────────────────────────────────────────────────────
@@ -175,9 +175,11 @@ describe('analyze', () => {
 
   it('identifies the row schema and gating rule', () => {
     const { comparison } = analyze({ inDir: resultsDir(reps(same), reps(same)) });
-    expect(comparison.schemaVersion).toBe(1);
-    expect(comparison.gate).toBe('column-p95-spread');
+    expect(comparison.schemaVersion).toBe(2);
+    expect(comparison.gate).toBe('paired-log-ratio');
+    expect(comparison.gateK).toBe(GATE_K);
     expect(comparison.rows.every((r) => typeof r.noiseBandPct === 'number')).toBe(true);
+    expect(comparison.rows.every((r) => r.paired === true && r.pairs === 3)).toBe(true);
   });
 
   it('writes a zero-baseline regression as deltaPct null', () => {
@@ -228,13 +230,18 @@ describe('noiseBandFor', () => {
 describe('analyze noise bands', () => {
   const noisy = (r, set) => set.map((liveSet) => ({ ...r, liveSet }));
 
-  it('scopes the band per (phase, metric): a noisy setDecorations does not widen _reposition', () => {
+  it('one outlier rep does not move the verdict or widen the other columns (#198)', () => {
+    // The old gate took the slowest rep over the median as the spread, so this
+    // one rep set a ±40% band for every column. The paired gate's spread is an
+    // SD, so the outlier does widen its own cell's band (column-level robustness
+    // across scenarios is the next describe's concern), but the median ratio is
+    // unmoved and no other column is touched.
     const dir = resultsDir(reps(same), noisy(same, [500, 700, 500]));
     const { comparison } = analyze({ inDir: dir });
-    expect(comparison.noiseBandsPct['live:setDecorations']).toBeCloseTo(40);
     expect(comparison.noiseBandsPct.pan).toBe(5);
-    const panRow = comparison.rows.find((r) => r.phase === 'pan');
-    expect(panRow.noiseBandPct).toBe(5);
+    const setRow = comparison.rows.find((r) => r.metric === 'setDecorations');
+    expect(setRow.verdict).toBe('neutral');
+    expect(setRow.deltaPct).toBe(0);
   });
 
   it('catches a regression in a quiet column that a global band would have hidden', () => {

@@ -3,8 +3,13 @@
  *
  * Starts one Vite dev server per build (each pointed at a different checkout
  * via BENCH_ROOT), opens one page against each in a single local Chromium, and
- * runs the scenario matrix interleaved (build A, build B, build A, …) so
- * thermal/GC drift is shared between them.
+ * runs the scenario matrix interleaved so thermal/GC drift is shared between
+ * them. The order alternates by rep (A then B, then B then A, …), so a bias
+ * toward whichever build runs first or second in a pair (warm caches, a GC
+ * owed by the previous run) falls on each build equally; analyze.mjs reads
+ * the order back from `seq` and cancels it (#198). Each rep after the first
+ * also reopens every build's page, so per-page state is not carried across
+ * reps (see `reopenPages`).
  *
  * CLI:
  *   node scripts/run.mjs [--root <path>] [--label <name>]
@@ -207,25 +212,38 @@ export async function runBench({
     args: ['--no-sandbox', '--disable-dev-shm-usage', '--hide-scrollbars'],
   });
 
+  /**
+   * A new browser context and page on `build`'s server, with its failures
+   * logged, loaded and checked to be serving `build.root`.
+   */
+  const openPage = async (build) => {
+    const context = await browser.newContext({ viewport: { width: 1000, height: 780 } });
+    const page = await context.newPage();
+    page.on('requestfailed', (r) => console.error(`[${build.name}] reqfail ${r.url()}`));
+    page.on('response', (r) => {
+      if (r.status() >= 400) console.error(`[${build.name}] HTTP ${r.status()} ${r.url()}`);
+    });
+    page.on('pageerror', (e) => console.error(`[${build.name}] pageerror`, e.message));
+    await page.goto(`http://127.0.0.1:${build.port}/index.html`, { waitUntil: 'load' });
+    await page.waitForFunction('window.__bench !== undefined', null, { timeout: 60000 });
+    await waitReady(page);
+    const loadedRoot = await page.evaluate('window.__bench.root');
+    if (loadedRoot !== build.root) {
+      await context.close().catch(() => {});
+      throw new Error(`build mixup: ${loadedRoot} != ${build.root}`);
+    }
+    return { context, page, loadedRoot };
+  };
+
   const ctxs = [];
   try {
     for (const build of plan) {
       build.server = await startServer(build);
-      const context = await browser.newContext({ viewport: { width: 1000, height: 780 } });
-      const page = await context.newPage();
-      page.on('requestfailed', (r) => console.error(`[${build.name}] reqfail ${r.url()}`));
-      page.on('response', (r) => {
-        if (r.status() >= 400) console.error(`[${build.name}] HTTP ${r.status()} ${r.url()}`);
-      });
-      page.on('pageerror', (e) => console.error(`[${build.name}] pageerror`, e.message));
-      await page.goto(`http://127.0.0.1:${build.port}/index.html`, { waitUntil: 'load' });
-      await page.waitForFunction('window.__bench !== undefined', null, { timeout: 60000 });
-      await waitReady(page);
+      const { context, page, loadedRoot } = await openPage(build);
+      ctxs.push(context);
       const hookOk = await page.evaluate('window.__bench.transformHookOk()');
       const coi = await page.evaluate('window.__bench.crossOriginIsolated()');
       const timerUs = await page.evaluate('window.__bench.timerResolutionUs()');
-      const loadedRoot = await page.evaluate('window.__bench.root');
-      if (loadedRoot !== build.root) throw new Error(`build mixup: ${loadedRoot} != ${build.root}`);
       // Capability probe, not a build-name check: decides how the HUD rows of
       // S5/S6/S7 are emitted on this build.
       build.cellAnchor = await page.evaluate('window.__bench.supportsCellAnchor()');
@@ -257,35 +275,65 @@ export async function runBench({
         build.degraded = failed;
       }
       build.page = page;
+      build.context = context;
       build.hookOk = hookOk;
       build.coi = coi;
       build.timerUs = timerUs;
-      ctxs.push(context);
     }
 
     const results = Object.fromEntries(plan.map((b) => [b.name, []]));
 
-    // Warm-up: 1 short run per scenario per build, discarded.
-    for (const s of scenarios) {
-      for (const build of plan) {
-        await build.page.evaluate(
-          ({ scenario, hudMode, frameCount, phaseList }) =>
-            window.__bench.run({ scenario, hudMode, frameCount, phases: phaseList }),
-          {
-            scenario: s,
-            hudMode: build.hudMode,
-            frameCount: Math.min(60, frames),
-            phaseList: phases,
-          },
-        );
+    /** One short run per scenario per build, discarded, so measured runs are not cold. */
+    const warmUp = async (order) => {
+      for (const s of scenarios) {
+        for (const build of order) {
+          await build.page.evaluate(
+            ({ scenario, hudMode, frameCount, phaseList }) =>
+              window.__bench.run({ scenario, hudMode, frameCount, phases: phaseList }),
+            {
+              scenario: s,
+              hudMode: build.hudMode,
+              frameCount: Math.min(60, frames),
+              phaseList: phases,
+            },
+          );
+        }
       }
-    }
+    };
+
+    /**
+     * A fresh browser context and page per build for every rep after the
+     * first (#198). A page kept for the whole run carries its own JIT, heap
+     * and GC history, which an A/A run showed can hold one build 5–10% apart
+     * from the other in some cells for every rep, on identical code. That is
+     * a per-run constant no within-run statistic can see. Reopening makes
+     * each rep an independent replicate, so the difference shows up as rep
+     * to rep noise, which the paired gate measures.
+     */
+    const reopenPages = async () => {
+      for (const build of plan) {
+        const old = build.context;
+        const { context, page } = await openPage(build);
+        build.page = page;
+        build.context = context;
+        ctxs.splice(ctxs.indexOf(old), 1, context);
+        await old.close().catch(() => {});
+      }
+    };
+
+    await warmUp(plan);
     log('warm-up done');
 
     let seq = 0;
     for (let rep = 0; rep < reps; rep++) {
+      // Counterbalanced: reverse the build order on odd reps (see the header).
+      const order = rep % 2 === 0 ? plan : [...plan].reverse();
+      if (rep > 0) {
+        await reopenPages();
+        await warmUp(order);
+      }
       for (const s of scenarios) {
-        for (const build of plan) {
+        for (const build of order) {
           const t = Date.now();
           const r = await build.page.evaluate(
             ({ scenario, hudMode, frameCount, phaseList }) =>

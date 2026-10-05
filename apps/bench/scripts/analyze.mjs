@@ -66,11 +66,12 @@ function metricOf(runs, phase, metric) {
     spread: spreadOf(perRepMedian),
     meanSpread: spreadOf(perRepMean),
     calls: Math.round(med(runs.map((r) => r.phases[phase][metric].n))),
-    // Raw per-rep values in run order, so a different gating rule (e.g. a
-    // paired head/base ratio, #198) can be swapped in without touching the
-    // aggregation or table code.
+    // Raw per-rep values in run order, which the paired gate (#198) matches
+    // up across builds by rep.
     perRep: {
       rep: runs.map((r) => r.rep),
+      // Interleave position, which tells which build of a pair ran first.
+      seq: runs.map((r) => r.seq),
       median: perRepMedian,
       mean: perRepMean,
     },
@@ -150,6 +151,112 @@ export function noiseBandFor(groups, quantumUs = 5) {
 }
 
 /**
+ * Standard errors of the paired median a change must exceed to count: the
+ * gate's multiplier, calibrated with A/A runs of identical code (README,
+ * "Noise and the gate"). About 32 cells are gated per run, so this sits well
+ * above a single-test 95% level.
+ */
+export const GATE_K = 3;
+
+/** Rounding slack, in percentage points, when a delta is compared with its band. */
+const BAND_EPSILON_PCT = 1e-9;
+
+/** Fewer paired reps than this cannot estimate a spread; the cell falls back. */
+export const MIN_PAIRS = 3;
+
+/** Standard error of a median, in standard deviations, times √n. */
+const MEDIAN_SE = 1.2533;
+
+/**
+ * The paired statistic for one cell (#198).
+ *
+ * run.mjs interleaves the builds within each rep, so the base and head values
+ * of the same rep share that rep's machine state. Their log ratio cancels it,
+ * and its spread is the variance the verdict actually faces, which neither
+ * build's own run-to-run spread measures. Pairs where a side is zero
+ * (sub-quantum) are dropped.
+ *
+ * Whichever build runs second in a pair can be systematically faster or
+ * slower: an A/A run showed one scenario 5–8% "faster" for the second build
+ * in every phase. run.mjs therefore alternates the order by rep, and the
+ * pairs here are split by which build ran first (from `seq`). The estimate is
+ * the mean of the two groups' median log ratios, which cancels an order bias
+ * exactly; the spread is the standard deviation of each pair's deviation
+ * from its own group's median. With every pair in one order (results from
+ * before the runner alternated), this reduces to the plain median and the
+ * spread around it.
+ *
+ * @returns `{ n, logMedian, sigma, seFactor }`: how many pairs were usable,
+ *   the order-balanced log ratio (head over base), the spread of the log
+ *   ratios around it (a standard deviation), and the standard error of the
+ *   estimate per unit of spread; or `null` with fewer than MIN_PAIRS pairs.
+ */
+export function pairedStats(baseMetric, headMetric, useMean) {
+  const key = useMean ? 'mean' : 'median';
+  const base = baseMetric.perRep;
+  const head = headMetric.perRep;
+  if (!base || !head) return null;
+  const headByRep = new Map(
+    head.rep.map((rep, i) => [rep, { value: head[key][i], seq: head.seq?.[i] }]),
+  );
+  /** Log ratios, by whether the base ran first in its pair. */
+  const groups = { baseFirst: [], headFirst: [] };
+  base.rep.forEach((rep, i) => {
+    const b = base[key][i];
+    const h = headByRep.get(rep);
+    // Dropping sub-quantum pairs can bias the ratio when only one side has
+    // them (its fastest reps go missing); it only touches cells near the
+    // resolvability floor, which the starred-mean path already covers.
+    if (h === undefined || !(b > 0) || !(h.value > 0)) return;
+    const bSeq = base.seq?.[i];
+    // Without `seq` (older results) every pair counts as base-first.
+    const headFirst = Number.isFinite(bSeq) && Number.isFinite(h.seq) && h.seq < bSeq;
+    groups[headFirst ? 'headFirst' : 'baseFirst'].push(Math.log(h.value / b));
+  });
+  const parts = [groups.baseFirst, groups.headFirst].filter((g) => g.length > 0);
+  const n = parts.reduce((sum, g) => sum + g.length, 0);
+  if (n < MIN_PAIRS) return null;
+  const centres = parts.map((g) => med(g));
+  const logMedian = centres.reduce((a, c) => a + c, 0) / centres.length;
+  const residuals = parts.flatMap((g, i) => g.map((x) => Math.abs(x - centres[i])));
+  // A standard deviation, not a MAD: at R=7 the 5 µs clock leaves many tied
+  // values, which collapse a MAD toward zero and made identical code read as
+  // significant in A/A runs (README, "Noise and the gate"). The centres are
+  // medians, so one slow rep moves the estimate little; it widens only its
+  // own cell's spread, never the column's pooled one.
+  const sigma = Math.sqrt(
+    residuals.reduce((sum, r) => sum + r * r, 0) / Math.max(1, residuals.length - parts.length),
+  );
+  // SE of a median is MEDIAN_SE·σ/√n; of the mean of the two group medians,
+  // half the root-sum-square of theirs.
+  const seFactor =
+    (MEDIAN_SE / parts.length) * Math.sqrt(parts.reduce((a, g) => a + 1 / g.length, 0));
+  return { n, logMedian, sigma, seFactor };
+}
+
+/**
+ * The ±% the paired estimate must exceed: GATE_K standard errors, where the
+ * standard error is `seFactor · sigma` (see pairedStats), floored at ±5%.
+ */
+export function pairedBandPct(sigma, seFactor, k = GATE_K) {
+  return Math.max(5, (Math.exp(k * seFactor * sigma) - 1) * 100);
+}
+
+/**
+ * The column's pooled spread: the median of its resolvable cells' paired
+ * spreads. At R=7 one cell's SD is itself noisy, and one slow rep inflates
+ * it; pooling over the column's scenarios steadies it, and a median keeps one
+ * unlucky cell from setting it. A cell is still judged against its own spread
+ * when that is wider (see analyze), so a genuinely noisy scenario is not held
+ * to a quiet column's band.
+ *
+ * @param {Array<{ sigma: number }>} stats the column's paired stats.
+ */
+export function pooledSigma(stats) {
+  return stats.length === 0 ? 0 : med(stats.map((x) => x.sigma));
+}
+
+/**
  * Verdict for one (scenario, phase, metric) cell.
  *
  * `performance.now()` is quantized (5 µs when cross-origin isolated), and so is
@@ -159,9 +266,14 @@ export function noiseBandFor(groups, quantumUs = 5) {
  * side's mean is within RESOLVE_MIN_QUANTA quanta the cell is not resolvable
  * at all.
  */
-export function verdictFor(baseCell, headCell, bandPct, quantumUs = 5) {
+export function verdictFor(baseCell, headCell, bandPct, quantumUs = 5, pairedDeltaPct = null) {
   const useMean = usesMean([baseCell, headCell], quantumUs);
-  const delta = useMean ? pct(baseCell.mean, headCell.mean) : pct(baseCell.median, headCell.median);
+  // The paired median ratio when there are enough paired reps (#198), else
+  // the ratio of the two builds' aggregates (e.g. a zero baseline, which has
+  // no usable pairs).
+  const delta =
+    pairedDeltaPct ??
+    (useMean ? pct(baseCell.mean, headCell.mean) : pct(baseCell.median, headCell.median));
   if (!isResolvable([baseCell, headCell], quantumUs)) {
     return {
       kind: 'not-resolvable',
@@ -170,7 +282,15 @@ export function verdictFor(baseCell, headCell, bandPct, quantumUs = 5) {
       text: `not resolvable (< ${RESOLVE_MIN_QUANTA} timer quanta)`,
     };
   }
-  const kind = delta > bandPct ? 'regression' : delta < -bandPct ? 'improvement' : 'neutral';
+  // Symmetric in percent, so an improvement must move the log ratio slightly
+  // further than a regression of the same band (−x% is a larger log step than
+  // +x%). That errs toward neutral, which is the side a gate should err on.
+  // A change exactly on the band is neutral. The paired delta comes back
+  // through exp(log(r)), which lands an exact 105/100 at 5.000000000000004%,
+  // just over the ±5% floor, so compare with a tolerance far below any real
+  // difference.
+  const over = (x) => x - bandPct > BAND_EPSILON_PCT;
+  const kind = over(delta) ? 'regression' : over(-delta) ? 'improvement' : 'neutral';
   const text =
     (kind === 'regression'
       ? Number.isFinite(delta)
@@ -182,7 +302,23 @@ export function verdictFor(baseCell, headCell, bandPct, quantumUs = 5) {
   return { kind, delta, useMean, text };
 }
 
-export function analyze({ inDir, compareDir = null }) {
+/**
+ * @param {object} opts
+ * @param {string} opts.inDir results directory
+ * @param {string | null} [opts.compareDir] an earlier run, for a three-way table
+ * @param {number} [opts.gateK] the gate's multiplier (see GATE_K); calibrate.mjs varies it
+ * @param {number[] | null} [opts.resample] rep numbers to use, applied to every
+ *   build alike so pairs stay intact (calibrate.mjs re-gates subsets of the
+ *   reps with it)
+ * @param {boolean} [opts.write] write summary.md, verdicts.json and comparison.json
+ */
+export function analyze({
+  inDir,
+  compareDir = null,
+  gateK = GATE_K,
+  resample = null,
+  write = true,
+}) {
   const meta = JSON.parse(fs.readFileSync(path.join(inDir, 'meta.json'), 'utf8'));
   const labels = meta.labels ?? [meta.headLabel];
   const BASE = meta.baseLabel ?? null;
@@ -195,6 +331,14 @@ export function analyze({ inDir, compareDir = null }) {
   for (const l of labels) {
     if (!Array.isArray(data[l]) || data[l].length === 0) {
       throw new Error(`no results for build '${l}' in ${inDir}`);
+    }
+  }
+  if (resample) {
+    for (const l of labels) {
+      const byRep = data[l];
+      data[l] = resample.flatMap((rep, i) =>
+        byRep.filter((r) => r.rep === rep).map((r) => ({ ...r, rep: i })),
+      );
     }
   }
   const cell = (label, s, p) => cellOf(data[label], s, p);
@@ -236,8 +380,47 @@ export function analyze({ inDir, compareDir = null }) {
   for (const p of PHASES)
     for (const m of METRICS) {
       const groups = SCENARIOS.map((s) => metricCells(s, p, m)).filter(Boolean);
-      if (groups.length) columns.push({ phase: p, metric: m, ...noiseBandFor(groups, QUANTUM) });
+      if (!groups.length) continue;
+      // Within-build spread, reported for context; with two builds the gate is
+      // the paired statistic below (#198).
+      const spread = noiseBandFor(groups, QUANTUM);
+      const paired = new Map();
+      if (BASE) {
+        for (const s of SCENARIOS) {
+          const g = metricCells(s, p, m);
+          if (!g || !isResolvable(g, QUANTUM)) continue;
+          const st = pairedStats(g[0], g[1], usesMean(g, QUANTUM));
+          if (st) paired.set(s, st);
+        }
+      }
+      const pooled = pooledSigma([...paired.values()]);
+      columns.push({
+        phase: p,
+        metric: m,
+        ...spread,
+        spreadBand: spread.band,
+        paired,
+        pooledSigma: pooled,
+        // The column's band at its pooled spread and a typical cell's standard
+        // error; a cell's own band can be wider (see cellBand). With no paired
+        // cell there is no pooled spread, and the within-build band stands in.
+        band: paired.size
+          ? pairedBandPct(pooled, med([...paired.values()].map((x) => x.seFactor)), gateK)
+          : spread.band,
+      });
     }
+  /**
+   * A cell's band: with enough pairs, its paired band at the wider of its own
+   * and the column's spread; without (fewer than MIN_PAIRS usable reps, e.g.
+   * a zero baseline or a very short run), the within-build band its
+   * aggregate ratio was always judged against.
+   */
+  const cellBand = (col, s) => {
+    const st = col.paired.get(s);
+    return st
+      ? pairedBandPct(Math.max(st.sigma, col.pooledSigma), st.seFactor, gateK)
+      : col.spreadBand;
+  };
   // `_reposition` keeps the bare phase key (and header) it always had.
   const colKey = (c) => (c.metric === 'reposition' ? c.phase : `${c.phase}:${c.metric}`);
   const colHead = (c) =>
@@ -258,7 +441,7 @@ export function analyze({ inDir, compareDir = null }) {
   out += `| RAM | ${meta.totalMemGB} GB |\n`;
   out += `| Chromium | ${meta.chromium} |\n`;
   out += `| Headless | ${meta.headless ? 'yes' : 'no'} |\n`;
-  out += `| Repetitions (R) | ${meta.reps}${BASE ? ', interleaved base/head' : ''}, 1 warm-up run per scenario discarded |\n`;
+  out += `| Repetitions (R) | ${meta.reps}${BASE ? ', interleaved base/head' : ''}, 1 warm-up run per scenario per build discarded each rep |\n`;
   out += `| Frames per phase | ${meta.frames} rAFs |\n`;
   out += `| Phases | ${PHASES.join(', ')} |\n`;
   out += `| \`performance.now()\` resolution | ${labels.map((l) => `${l}=${f(meta.timerResolutionUs[l], 2)} µs`).join(', ')} (crossOriginIsolated = ${labels.map((l) => `${l}=${meta.crossOriginIsolated[l]}`).join(', ')}) |\n`;
@@ -358,10 +541,18 @@ export function analyze({ inDir, compareDir = null }) {
   }
 
   out += `## Noise bands\n\n`;
-  out += `One band per (phase, timed method). Each build × scenario contributes the run-to-run spread (p95/median across the ${meta.reps} reps) of the statistic its verdict compares — the per-rep means for starred cells, the per-rep medians otherwise. The band is the p95 of those spreads (with fewer than 20 of them, the widest), floored at ±5%.\n\n`;
-  out += `| Column | spread median | spread p95 | band |\n|---|---|---|---|\n`;
-  for (const c of columns) {
-    out += `| ${colHead(c)} | ${sign(c.median)}${f(c.median)}% | ${sign(c.p95)}${f(c.p95)}% | **±${f(c.band)}%** |\n`;
+  if (BASE) {
+    out += `The gate is paired (#198). The builds are interleaved within each rep, so each cell's statistic is built from per-rep log(head / base), which cancels machine drift both builds share. The run alternates which build goes first, and the estimate is the mean of the median log ratio for each order, which cancels a bias toward the first or second build. Its noise is the standard deviation of the log ratios around their order's median, pooled over the column's scenarios by their median; a cell is judged at the wider of its own and the pooled spread. A change counts when the estimate exceeds ${gateK} standard errors, floored at ±5%. "Within-build spread" is each build's own run-to-run spread (p95/median of the per-rep statistic), shown for context only.\n\n`;
+    out += `| Column | pooled σ (log) | band at pooled σ | within-build spread median | within-build spread p95 |\n|---|---|---|---|---|\n`;
+    for (const c of columns) {
+      out += `| ${colHead(c)} | ${f(c.pooledSigma, 3)} | **±${f(c.band)}%** | ${sign(c.median)}${f(c.median)}% | ${sign(c.p95)}${f(c.p95)}% |\n`;
+    }
+  } else {
+    out += `Single build: no gate. The run-to-run spread (p95/median across the ${meta.reps} reps) of each build × scenario's statistic, with its p95 across scenarios:\n\n`;
+    out += `| Column | spread median | spread p95 |\n|---|---|---|\n`;
+    for (const c of columns) {
+      out += `| ${colHead(c)} | ${sign(c.median)}${f(c.median)}% | ${sign(c.p95)}${f(c.p95)}% |\n`;
+    }
   }
   out += `\n`;
 
@@ -370,8 +561,9 @@ export function analyze({ inDir, compareDir = null }) {
   const comparison = {
     // Bumped when the row shape or the gating rule changes; `gate` names the
     // rule that produced `verdict` / `noiseBandPct` (see README and #198).
-    schemaVersion: 1,
-    gate: 'column-p95-spread',
+    schemaVersion: 2,
+    gate: 'paired-log-ratio',
+    gateK,
     date: meta.date,
     baseLabel: BASE,
     headLabel: HEAD,
@@ -393,7 +585,15 @@ export function analyze({ inDir, compareDir = null }) {
         if (!cm || !cb || !gatedMetrics(cm, cb).includes(col.metric)) continue;
         const bm = cm.metrics[col.metric];
         const hm = cb.metrics[col.metric];
-        const res = verdictFor(bm, hm, col.band, QUANTUM);
+        const st = col.paired.get(s);
+        const band = cellBand(col, s);
+        const res = verdictFor(
+          bm,
+          hm,
+          band,
+          QUANTUM,
+          st ? (Math.exp(st.logMedian) - 1) * 100 : null,
+        );
         v[colKey(col)] = res.text;
         kinds.push(res.kind);
         comparison.rows.push({
@@ -408,8 +608,12 @@ export function analyze({ inDir, compareDir = null }) {
           // is still `verdict: 'regression'`.
           deltaPct: Number.isFinite(res.delta) ? res.delta : null,
           usedMean: res.useMean,
+          // Whether deltaPct is the paired median ratio (#198) or, with too
+          // few usable pairs, the ratio of the aggregates.
+          paired: st !== undefined,
+          pairs: st?.n ?? 0,
           verdict: res.kind,
-          noiseBandPct: col.band,
+          noiseBandPct: band,
         });
       }
       // A scenario with no comparable cell (missing on one side) has no
@@ -445,9 +649,11 @@ export function analyze({ inDir, compareDir = null }) {
   out += `pnpm --filter @osdlabel/bench bench:analyze -- --in ${path.relative(process.cwd(), inDir) || inDir}\n`;
   out += `\`\`\`\n`;
 
-  fs.writeFileSync(path.join(inDir, 'summary.md'), out);
-  fs.writeFileSync(path.join(inDir, 'verdicts.json'), JSON.stringify(verdicts, null, 2));
-  fs.writeFileSync(path.join(inDir, 'comparison.json'), JSON.stringify(comparison, null, 2));
+  if (write) {
+    fs.writeFileSync(path.join(inDir, 'summary.md'), out);
+    fs.writeFileSync(path.join(inDir, 'verdicts.json'), JSON.stringify(verdicts, null, 2));
+    fs.writeFileSync(path.join(inDir, 'comparison.json'), JSON.stringify(comparison, null, 2));
+  }
   return { summary: out, verdicts, comparison };
 }
 
