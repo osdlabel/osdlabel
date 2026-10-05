@@ -27,7 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      # v6.1.0 is the first release with pnpm 12 support; the floating v6 tag predates it.
+      - uses: pnpm/action-setup@v6.1.0
       - uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
