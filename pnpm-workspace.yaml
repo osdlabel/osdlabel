@@ -15,7 +15,7 @@ catalog:
   openseadragon: 5.0.1
   prettier: ^3.8.3
   solid-js: ^1.9.13
-  turbo: ^2.9.16
+  turbo: ^2.11.7
   typescript: ^5.9.3
   vite: ^8.0.16
   vite-plugin-solid: ^2.11.12
