@@ -13,6 +13,12 @@
 // `typedoc.json`: in `packages` mode each package is converted, and checked,
 // with its own options, and a shared list is reported unused wherever a
 // symbol does not occur.
+//
+// Each symbol is documented once, in the package that declares it:
+// scripts/typedoc-plugin-reexports.mjs turns a re-export from another package
+// into a reference to the declaring package's reflection, instead of a copy.
+
+import { fileURLToPath } from 'node:url';
 
 /** @type {import('typedoc').TypeDocOptions} */
 export default {
@@ -33,6 +39,7 @@ export default {
   entryPointStrategy: 'packages',
   tsconfig: '../../packages/annotation/tsconfig.json',
   readme: 'none',
+  plugin: [fileURLToPath(new URL('./scripts/typedoc-plugin-reexports.mjs', import.meta.url))],
   packageOptions: {
     excludePrivate: true,
     excludeInternal: true,
