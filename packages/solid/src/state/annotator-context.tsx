@@ -64,6 +64,13 @@ export interface FullscreenTargetRef {
   element: HTMLElement | null;
 }
 
+/**
+ * What {@link useAnnotator} returns. Inlined into the API reference rather
+ * than exported, so it adds no name to the public API; name it in host code as
+ * `ReturnType<typeof useAnnotator>`.
+ *
+ * @inline
+ */
 interface AnnotatorContextValue {
   annotationState: AnnotationState<OsdFields>;
   uiState: UIState;

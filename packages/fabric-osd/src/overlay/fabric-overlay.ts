@@ -171,7 +171,7 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  * attached to Fabric's container element. Events are forwarded to Fabric
  * as synthetic PointerEvents with a re-entrancy guard to prevent infinite
  * recursion (a dispatched event that bubbles reaches the tracker's element).
- * The press is dispatched non-bubbling; see {@link FabricOverlay._forwardToFabric}.
+ * The press is dispatched non-bubbling; see `_forwardToFabric`.
  *
  * Three interaction modes:
  * - **navigation**: OSD handles all input, Fabric is display-only.
@@ -685,7 +685,7 @@ export class FabricOverlay {
     }
   }
 
-  /** Remember where and when a press started, for {@link _detectDoubleClick}. */
+  /** Remember where and when a press started, for `_detectDoubleClick`. */
   private _recordPress(originalEvent: PointerEvent): number {
     const { x, y } = this._toElementPoint(originalEvent);
     this._pendingPress = {
