@@ -41,7 +41,7 @@ const failures = files.flatMap((file) =>
 if (failures.length > 0) {
   console.error(
     `check-rendered-tables: ${failures.length} Markdown table(s) rendered as plain text ` +
-      '(is remark-gfm running for this page type? see the mdx() note in astro.config.mjs):\n' +
+      '(is GFM enabled for this page type in the markdown processor or the mdx() integration?):\n' +
       failures.join('\n'),
   );
   process.exit(1);

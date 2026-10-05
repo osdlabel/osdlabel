@@ -3,7 +3,6 @@ import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
 import solidJs from '@astrojs/solid-js';
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc';
-import mdx from '@astrojs/mdx';
 import typeDocOptions from './typedoc.config.mjs';
 
 const { entryPoints: typeDocEntryPoints, tsconfig: typeDocTsconfig, ...typeDoc } = typeDocOptions;
@@ -11,10 +10,11 @@ const { entryPoints: typeDocEntryPoints, tsconfig: typeDocTsconfig, ...typeDoc }
 export default defineConfig({
   site: 'https://guyo13.github.io',
   base: '/osdlabel',
-  legacy: { collections: true },
   integrations: [
     starlight({
       title: 'osdlabel',
+      // src/pages/404.astro replaces Starlight's 404 route; see the note there.
+      disable404Route: true,
       description:
         'Web-based image annotation library with rich controls, customization, and serialization',
       social: [
@@ -84,21 +84,6 @@ export default defineConfig({
         },
       ],
     }),
-    // Starlight adds `mdx({ optimize: true })` itself unless the config already
-    // contains an `@astrojs/mdx` integration — we add it here only to set
-    // `gfm`, and must therefore restate `optimize`. It has to sit *after*
-    // `starlight()`, which splices its own integrations (including the
-    // expressive-code one that must precede mdx) in right behind itself.
-    //
-    // Unless its own `gfm` option is set, `@astrojs/mdx` v5 falls back to
-    // `markdown.gfm`, which Astro 6 deprecated and now leaves *undefined* by
-    // default (the real default moved into the markdown processor). `.md` pages still get GFM from that
-    // processor default, but every `.mdx` page silently lost it — tables
-    // rendered as literal pipe-and-dash text, along with strikethrough,
-    // autolinks and task lists. Setting it on the integration fixes MDX without
-    // touching the deprecated `markdown.*` keys (whose suggested `unified({…})`
-    // replacement MDX does not read).
-    mdx({ optimize: true, gfm: true }),
     sitemap(),
     solidJs(),
   ],
