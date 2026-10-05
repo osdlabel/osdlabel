@@ -68,7 +68,7 @@ served through Vite's `/@fs/` prefix, and both builds are fed the identical file
 | `--root <path>`          | this repo (resolved from the config file's location) | Checkout whose `dist/` the page loads. Also settable as `BENCH_ROOT`.                                              |
 | `--label <name>`         | short sha of that checkout's `HEAD`                  | Label for the build in the output files. Must match `[A-Za-z0-9._-]+` (it becomes a file name), so not `feat/x`.   |
 | `--build <label>=<path>` | —                                                    | Repeatable; run several checkouts interleaved. Overrides `--root`/`--label`. The first one is treated as the base. |
-| `--reps <n>`             | `7`                                                  | Repetitions of the whole matrix. Builds alternate within each rep.                                                 |
+| `--reps <n>`             | `7`                                                  | Repetitions of the whole matrix. Builds alternate within each rep, and which goes first flips every rep.           |
 | `--frames <n>`           | `240`                                                | rAF frames per measurement window.                                                                                 |
 | `--scenarios <list>`     | `S0,…,S7`                                            | Comma-separated scenario filter.                                                                                   |
 | `--phases <list>`        | `pan,static,live`                                    | Comma-separated phase filter.                                                                                      |
@@ -186,9 +186,22 @@ way. Report the new series in `runPhase`'s return value and add a column in
   clamps `performance.now()` to 100 µs, coarser than most per-call costs here;
   isolated it is ~5 µs. Both the flag and the measured resolution go into
   `meta.json`.
-- **Runs are interleaved** (base, head, base, head, …) within each repetition so
-  thermal and GC drift is shared, and one short warm-up run per scenario per
-  build is discarded.
+- **Runs are interleaved** within each repetition so thermal and GC drift is
+  shared, and one short warm-up run per scenario per build is discarded.
+- **The order flips every rep** (base then head, then head then base, …).
+  Whichever build runs second in a pair can be systematically faster or
+  slower; one A/A run showed a scenario 5–8% "faster" for the second build in
+  every phase. Alternating spreads that bias over both builds, and the gate
+  (below) cancels it exactly.
+- **Every rep gets fresh pages.** After the first rep each build's page and
+  browser context are closed and reopened, then warmed up again. A page that
+  lives for the whole run carries its own JIT, GC and layout state, and A/A
+  runs showed that state as a persistent 7–10% offset between two pages of
+  identical code — which no amount of pairing within the run can cancel,
+  since it is the same in every pair. The cost is a full warm-up pass per
+  rep instead of one per run.
+- **The run is long.** At the defaults a two-build comparison takes about
+  40 minutes on a 4-core machine, most of it the 8 × 2 × 7 measured runs.
 - **HUD rows are feature-probed, never inferred from a build name.**
   `window.__bench.supportsCellAnchor()` places a probe decoration at cell
   `{x:1, y:0}` and checks it landed on the right-hand half of the host. Builds
@@ -203,13 +216,12 @@ way. Report the new series in `runPhase`'s return value and add a column in
 - Per-phase tables give `_reposition` median / mean / p95 in µs, the transform
   write count and the call count for the whole window, plus `setDecorations`
   medians in P3.
-- There is one **noise band** per verdict column, i.e. per (phase, timed
-  method), so one noisy method or phase cannot widen the gate for the others.
-  Each build × scenario contributes the run-to-run spread (p95 / median across
-  reps) of the statistic its verdict compares: the per-rep means for starred
-  cells, the per-rep medians otherwise. The band is the p95 of those spreads —
-  with fewer than 20 of them, simply the widest — floored at ±5%. A delta inside
-  the band is `neutral`, not a win or a loss.
+- Each verdict cell is judged by the **paired gate** (#198); see
+  [Noise and the gate](#noise-and-the-gate). Its `noiseBandPct` is the ±% the
+  cell's base-vs-head change had to exceed. A delta inside the band is
+  `neutral`, not a win or a loss. The noise table under the verdict shows each
+  column's band at its pooled spread, next to each build's own run-to-run
+  spread ("within-build spread"), which is context only and gates nothing.
 - A verdict row starred with `*` was computed from the per-call **mean**
   because at least one side's median was within 20 timer quanta (100 µs at the
   usual 5 µs resolution). Medians are quantized to the clock, so below that a
@@ -227,18 +239,85 @@ way. Report the new series in `runPhase`'s return value and add a column in
 - `comparison.json` carries the same thing machine-readably: one row per
   (scenario, phase, metric) with `metric` (`reposition` or `setDecorations`),
   `baseMedian`, `headMedian`, `baseMean`, `headMean`, `deltaPct`, `usedMean`,
-  `verdict` and the `noiseBandPct` of its column; the top-level
-  `noiseBandsPct` maps each column key to its band. `deltaPct` is `null`
-  whenever the base is zero, since JSON has no `Infinity`: the row is a
-  regression once the head's mean clears 5 quanta, and not resolvable below
-  that. `schemaVersion` and `gate` (currently `column-p95-spread`) identify the
-  row shape and the rule that produced the verdicts. Each result row in
+  `verdict`, `noiseBandPct` (the cell's own band), `paired` and `pairs`.
+  `paired` says whether `deltaPct` is the paired estimate (true when at least
+  3 reps had a non-zero value on both sides; `pairs` is how many) or, failing
+  that, the ratio of the two builds' aggregates against the within-build band. The
+  top-level `noiseBandsPct` maps each column key to its band at the pooled
+  spread, and `gateK` records the multiplier. `deltaPct` is `null` whenever
+  the base is zero, since JSON has no `Infinity`: the row is a regression once
+  the head's mean clears 5 quanta, and not resolvable below that.
+  `schemaVersion` (2) and `gate` (`paired-log-ratio`; 1 was
+  `column-p95-spread`) identify the row shape and the rule that produced the
+  verdicts. Each result row in
   `<label>.json` also carries `rep`, `seq` (interleave position) and
   `startedAt`.
   `verdicts.json` is the per-scenario rollup, keyed by phase for `_reposition`
   and by `<phase>:setDecorations` for the other metric; a scenario that ran on
   only one build has `overall: "no data"`. A comparison with no rows at all
   (nothing ran on both builds) is an error, never a pass.
+
+## Noise and the gate
+
+A comparison has 32 cells (8 scenarios × `_reposition` in three phases plus
+`setDecorations` in P3), about 26 of them large enough to resolve and gate,
+so a gate that is right 95% of the time per cell would fail most runs of
+identical code. The gate is built to keep that per-run false-positive rate
+low without going blind to a real ~15% slowdown.
+
+**The statistic is paired.** The builds run interleaved, so the base and head
+values from the same rep share that rep's machine state. For each cell the
+gate takes the per-rep `log(head / base)`, splits the pairs by which build ran
+first, and averages the two groups' medians: the medians make one slow rep
+harmless to the estimate, and averaging the two orders cancels any
+first/second bias. The spread is the standard deviation of each pair's
+deviation from its group's median.
+
+**The band is k standard errors of that estimate**, k=3, floored at ±5%. A
+cell's spread is taken as the wider of its own and its column's pooled spread
+(the median of the column's cell spreads): at R=7 one cell's own SD is noisy,
+so a quiet cell is not held to a band its handful of pairs happened to make
+too narrow, and a genuinely noisy cell is not held to a quiet column's band.
+
+**Why an SD and not a MAD.** `performance.now()` ticks in 5 µs, so many cells'
+per-rep values tie. A MAD over tied values collapses toward zero and gives a
+band of ±5% to cells whose real spread is several times that.
+
+**Calibration.** `pnpm --filter @osdlabel/bench bench:calibrate` re-gates
+saved runs at several values of k:
+
+```bash
+pnpm --filter @osdlabel/bench bench:calibrate -- \
+  --aa results/<a-a run> --slow results/<injected run> --k 2,2.5,3,3.5,4
+```
+
+- `--aa` runs compare identical library code, e.g. `bench:compare` on a branch
+  that changes only `apps/bench`. Every non-neutral verdict is a false
+  positive. Besides the run as recorded, each is re-gated on every subset of
+  `--subset m` of its reps (default: all but two) to estimate the rate at
+  lower R. Subsets are drawn without replacement; a bootstrap's duplicated
+  reps would shrink the spread and report false positives the gate does not
+  make.
+- `--slow` runs are a head with a known slowdown injected (a busy-wait in
+  `DecorationLayer._reposition` costing 15% of each call); the output lists
+  which cells were caught.
+
+With fresh pages per rep and order alternation, on a 4-core container:
+
+| Spread estimator | k   | A/A false positives, R=7 | Runs with any false positive, R=6 subsets | R=5 subsets | +15% `_reposition` cells caught |
+| ---------------- | --- | ------------------------ | ----------------------------------------- | ----------- | ------------------------------- |
+| MAD              | 3   | 1                        | 57%                                       | 71%         | —                               |
+| mean abs. dev.   | 3.5 | 0                        | 14%                                       | 24%         | —                               |
+| SD               | 3   | 0                        | 0%                                        | 10%         | 19 of 19, in all 7 scenarios    |
+
+The MAD and mean-absolute-deviation rows were evaluated on the A/A run only,
+and were rejected on it. For comparison, the previous gate (each column's p95
+within-build spread) gave bands of ±15–75% on an A/A run on the same machine,
+too wide to see a 15% slowdown in most columns.
+
+A second A/A run, made after the estimator was settled, confirmed it: no
+false positive at R=7 or in any R=6 subset, 1 of 21 R=5 subsets with one,
+cell bands of ±5.8–17.6% and no A/A delta beyond 4.9%.
 
 ## Known limitations
 
@@ -253,14 +332,14 @@ way. Report the new series in `runPhase`'s return value and add a column in
 - **Absolute numbers are machine-specific.** Only the base-vs-head delta from a
   single interleaved run is meaningful; do not compare µs across machines or
   across runs.
-- **The noise band is fragile at low repetition counts.** It is the widest
-  run-to-run spread in its column (at R < 20, p95 is the max), so one slow rep
-  widens the whole column. It also measures spread within one build rather
-  than the variance of the base-vs-head difference, so at R ≤ 5 identical code
-  can cross a quiet column's band. Gate at the default R=7; `compare.mjs`
-  warns below 5 reps, where a single rep leaves every band on the ±5% floor. A robust or paired
-  statistic is tracked in
-  [#198](https://github.com/osdlabel/osdlabel/issues/198).
+- **The gate wants R=7.** At R=7 the calibration above saw no false positive;
+  at R=5 identical code still flagged something in 2 of the 21 rep subsets
+  of one A/A run, a rough one-in-ten; below 3 usable pairs a cell cannot be paired at all and falls back to the
+  within-build band. `compare.mjs` warns below 5 reps.
+- **The gate is calibrated on one machine.** k=3 was chosen from A/A and
+  injected-slowdown runs on a 4-core cloud container. A quieter machine only
+  makes it more conservative; a much noisier one should be re-calibrated with
+  `bench:calibrate` before the gate is trusted there.
 - **jsdom cannot substitute for this.** CSSOM reserialization and forced layout
   do not exist there, which is the whole reason this harness is a browser.
 
@@ -272,7 +351,7 @@ shape that fits this harness is:
 
 ```yaml
 - run: pnpm bench:compare -- --base origin/${{ github.base_ref }} \
-    --reps 5 --frames 240 --fail-on-regression
+    --reps 7 --frames 240 --fail-on-regression
 - uses: actions/upload-artifact@v4
   if: always()
   with:
@@ -283,5 +362,6 @@ shape that fits this harness is:
 Run it on a dedicated, non-shared runner, on a label (`perf`) rather than on
 every PR, and treat `comparison.json` as the gate: `--fail-on-regression` exits
 1 when any (scenario, phase, metric) is outside the run's own noise band, so the
-threshold adapts to the runner instead of being hard-coded. CI needs no
+threshold adapts to the runner instead of being hard-coded. Calibrate on the
+runner first (see [Noise and the gate](#noise-and-the-gate)). CI needs no
 `--chromium` override — it installs Playwright's browsers normally.
