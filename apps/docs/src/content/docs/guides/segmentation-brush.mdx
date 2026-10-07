@@ -88,6 +88,35 @@ Two consequences worth knowing:
   working in — that annotation may not even be displayed. The brush starts a
   new mask instead.
 
+### Telling the selected mask apart
+
+Every mask renders in its own tint, so with several on an image nothing marks
+the one the next stroke will refine — a mask has no handles to show. While a
+mask is selected, the **others are dimmed** to 40% of their opacity; with
+nothing selected, all masks render as they are. Both bindings do this by
+default, and the dimming is a per-object opacity, so a selection change costs
+no decoding.
+
+Tune it, or recolour the selected mask too, with `brushOptions.maskStyle`:
+
+```tsx
+<Annotator
+  brushOptions={{
+    maskStyle: {
+      unselectedOpacity: 0.25, // default 0.4; 1 turns dimming off
+      selectedFill: 'rgba(255, 193, 7, 0.6)', // optional
+    },
+  }}
+/>
+```
+
+`selectedFill` is display only: the mask's recorded `fill` is untouched, so what
+you export is what you painted. The brush's live preview paints in the selected
+tint while refining, so the mask does not flash a different colour for the
+length of a stroke. Recolouring re-decodes the two masks whose tint changed —
+the one that lost the selection and the one that gained it — and swaps them in
+place.
+
 ## How a mask is stored
 
 Masks pass through three representations. The split is the point: what is fast
@@ -378,11 +407,6 @@ refused preview is reported through `onCapacityExceeded` and the stroke is
 abandoned with the mask unchanged; a mask too large to render is skipped and
 reported like any other annotation that cannot be revived. On devices with
 such limits, set `maxPixels` below them.
-
-A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
-before any pixel is written, so the mask is left exactly as it was rather than
-half-painted. `onCapacityExceeded` is your only chance to tell the user why
-nothing happened.
 
 A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
 before any pixel is written, so the mask is left exactly as it was rather than

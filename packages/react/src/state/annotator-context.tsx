@@ -24,6 +24,7 @@ import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
 import type {
   AnnotationRenderFailure,
   BrushOptions,
+  MaskStyle,
   OsdAnnotation,
   OsdFields,
   VertexEditConfig,
@@ -313,14 +314,23 @@ export function AnnotatorProvider({
   // that kept invalidating it. The callback goes through a ref instead and only
   // the primitive participates.
   const maxPixels = brushOptionsProp?.maxPixels;
+  const selectedFill = brushOptionsProp?.maskStyle?.selectedFill;
+  const unselectedOpacity = brushOptionsProp?.maskStyle?.unselectedOpacity;
   const onCapacityExceededRef = useRef(brushOptionsProp?.onCapacityExceeded);
   onCapacityExceededRef.current = brushOptionsProp?.onCapacityExceeded;
+  // Its own memo, so a `maxPixels` change does not hand `ViewerCell`'s
+  // selection effect a new `maskStyle` and make it re-decode the selected mask.
+  const maskStyle = useMemo<MaskStyle>(
+    () => ({ selectedFill, unselectedOpacity }),
+    [selectedFill, unselectedOpacity],
+  );
   const brushOptions = useMemo<BrushOptions>(
     () => ({
       maxPixels,
+      maskStyle,
       onCapacityExceeded: (error) => onCapacityExceededRef.current?.(error),
     }),
-    [maxPixels],
+    [maxPixels, maskStyle],
   );
 
   // Fire onAnnotationsChange when annotations change (skip initial render)

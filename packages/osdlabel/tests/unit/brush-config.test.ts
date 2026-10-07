@@ -37,6 +37,7 @@ function harness(options: {
   selectedId?: string | null;
   annotations?: OsdAnnotation[];
   activeContextId?: AnnotationContextId | null;
+  selectedFill?: string | undefined;
 }) {
   const dispatchers = {
     addAnnotation: vi.fn(),
@@ -56,11 +57,52 @@ function harness(options: {
       getImageId: () => imageId,
       getActiveContextId: () =>
         options.activeContextId === undefined ? contextId : options.activeContextId,
+      ...(options.selectedFill !== undefined
+        ? { getSelectedFill: () => options.selectedFill }
+        : {}),
     },
     dispatchers,
   );
   return { config, dispatchers };
 }
+
+describe('the live preview tint while refining', () => {
+  const red = createMaskAnnotation(snapshot(), {
+    id: createAnnotationId('red'),
+    imageId,
+    contextId,
+    fill: 'rgba(255, 0, 0, 0.5)',
+  });
+
+  it("paints in the mask's own tint by default", () => {
+    const { config } = harness({ selectedId: 'red', annotations: [red] });
+    expect(config.getTarget()?.fill).toBe('rgba(255, 0, 0, 0.5)');
+  });
+
+  it('paints in the selected tint when the host displays one, without recording it', () => {
+    // The selected mask is *shown* in `selectedFill`; a preview in its own
+    // tint would flash a different colour for the length of the stroke. The
+    // commit still records the mask's own fill: the override is display only.
+    const { config, dispatchers } = harness({
+      selectedId: 'red',
+      annotations: [red],
+      selectedFill: '#00ff00',
+    });
+    const target = config.getTarget();
+    expect(target?.fill).toBe('#00ff00');
+
+    config.onCommit({
+      annotationId: target!.annotationId,
+      imageId,
+      contextId,
+      snapshot: snapshot(),
+    });
+    const patch = dispatchers.updateAnnotation.mock.calls[0]![2] as {
+      rawAnnotationData: { data: { fill?: string } };
+    };
+    expect(patch.rawAnnotationData.data.fill).toBe('rgba(255, 0, 0, 0.5)');
+  });
+});
 
 describe('nextBrushRadius', () => {
   it('steps proportionally so both fine and coarse brushes feel responsive', () => {

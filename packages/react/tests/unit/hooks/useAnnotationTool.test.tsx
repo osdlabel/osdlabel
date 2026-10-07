@@ -267,6 +267,14 @@ describe('useAnnotationTool', () => {
         shouldSkipKeyboardShortcutPredicate: () => false,
       }),
       defaultPixelSpacing: () => ({ defaultPixelSpacing: { x: 0.5, y: 0.5, unit: 'mm' } }),
+      // The #152 shape itself: a callback that is a new function every render.
+      brushOptions: () => ({
+        brushOptions: {
+          maxPixels: 1024,
+          maskStyle: { selectedFill: '#f00', unselectedOpacity: 0.3 },
+          onCapacityExceeded: () => {},
+        },
+      }),
     };
 
     for (const [name, make] of Object.entries(inlineProps)) {
@@ -288,6 +296,20 @@ describe('useAnnotationTool', () => {
       h.run((a) => a.setSelectedAnnotation(createAnnotationId('r1')));
       h.run((a) => a.rotateActiveImageCW());
       h.run((a) => a.setDisplayedContexts([contextId]));
+      h.run((a) => a.setBrushRadius(20));
+      h.run((a) => a.setBrushErasing(true));
+
+      expect(built).toHaveLength(1);
+      expect(built[0]!.deactivate).not.toHaveBeenCalled();
+    });
+
+    it('when the brush radius or eraser changes while the brush is active', () => {
+      // The brush reads both on every pointer event; rebuilding on a change
+      // would cancel the stroke in progress (see the mid-stroke E2E test).
+      const h = setup('segmentationBrush');
+      h.run((a) => a.setBrushRadius(20));
+      h.run((a) => a.adjustBrushRadius(1));
+      h.run((a) => a.setBrushErasing(true));
 
       expect(built).toHaveLength(1);
       expect(built[0]!.deactivate).not.toHaveBeenCalled();

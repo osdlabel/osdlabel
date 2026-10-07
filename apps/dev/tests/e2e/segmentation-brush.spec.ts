@@ -199,6 +199,53 @@ test.describe('Segmentation brush', () => {
     expect(annotations[0]?.geometry.pixelCount ?? 0).toBeGreaterThan(0);
   });
 
+  test('dims the other masks while one is selected', async ({ page }) => {
+    const box = await page.locator('canvas.upper-canvas').boundingBox();
+    if (!box) throw new Error('canvas not found');
+
+    /** Alpha of the Fabric layer at a screen point: only annotations draw there. */
+    const alphaAt = (x: number, y: number) =>
+      page.evaluate(
+        ([px, py]) => {
+          const canvas = document.querySelector<HTMLCanvasElement>('canvas.lower-canvas');
+          if (!canvas) throw new Error('no lower canvas');
+          const rect = canvas.getBoundingClientRect();
+          const scale = canvas.width / rect.width;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('no 2d context');
+          const sx = Math.round((px - rect.left) * scale);
+          const sy = Math.round((py - rect.top) * scale);
+          return ctx.getImageData(sx, sy, 1, 1).data[3] ?? 0;
+        },
+        [x, y] as const,
+      );
+
+    await page.getByTestId('tool-segmentationBrush').click();
+    // Mask A, then let go of it; mask B stays selected after its stroke.
+    await stroke(page, { x: box.x + 200, y: box.y + 160 }, { x: box.x + 260, y: box.y + 160 });
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+    const aAlone = await alphaAt(box.x + 230, box.y + 160);
+    expect(aAlone).toBeGreaterThan(60);
+
+    await stroke(page, { x: box.x + 200, y: box.y + 220 }, { x: box.x + 260, y: box.y + 220 });
+    expect(await readAnnotations(page)).toHaveLength(2);
+    await page.waitForTimeout(200);
+
+    // Nothing marks a selected mask otherwise — it has no handles — so the
+    // selection shows by the others fading. B keeps its full alpha; A drops to
+    // the default 40% of it.
+    const aDimmed = await alphaAt(box.x + 230, box.y + 160);
+    const bSelected = await alphaAt(box.x + 230, box.y + 220);
+    expect(bSelected).toBeGreaterThan(60);
+    expect(aDimmed).toBeLessThan(bSelected * 0.6);
+
+    // Deselecting restores it.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    expect(await alphaAt(box.x + 230, box.y + 160)).toBe(aAlone);
+  });
+
   test('a second finger resting mid-stroke ends the stroke instead of losing it', async ({
     page,
   }) => {

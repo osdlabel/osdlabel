@@ -144,6 +144,8 @@ export function useAnnotationTool(
           getImageId: () => imgId,
           getActiveContextId: () => contextState.activeContextId,
           maxPixels: annotator.brushOptions.maxPixels,
+          // Read per stroke, inside the accessor, so it is not a dependency here.
+          getSelectedFill: () => annotator.brushOptions.maskStyle?.selectedFill,
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),
