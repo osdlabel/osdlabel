@@ -18,6 +18,7 @@ const pageOrder = [
   'guides/viewer-grid.mdx',
   'guides/annotation-contexts.mdx',
   'guides/serialization.mdx',
+  'guides/segmentation-brush.mdx',
   'guides/keyboard-shortcuts.mdx',
   'guides/coordinate-systems.mdx',
   'guides/decorations.mdx',

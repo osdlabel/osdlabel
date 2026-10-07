@@ -1,4 +1,5 @@
 import type { Dispatch } from 'react';
+import type { AnnotationId } from '@osdlabel/annotation';
 import type { AnnotationState, ImageId, UIState } from '@osdlabel/viewer-api';
 import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-context';
 import type { AnnotationAction, ContextAction, OsdFields, UIAction } from 'osdlabel';
@@ -93,22 +94,33 @@ export function createAnnotatorStore(initial: AnnotatorSnapshot): AnnotatorStore
   let cachedContextState: ContextState | undefined;
   let cachedAnnotationState: AnnotationState<OsdFields> | undefined;
   let cachedActiveImageId: ImageId | undefined;
+  let cachedSelectedAnnotationId: AnnotationId | null | undefined;
   let cachedStatus: ConstraintStatus | undefined;
 
   function selectConstraintStatus(s: AnnotatorSnapshot): ConstraintStatus {
     const activeImageId = selectActiveImageId(s.uiState);
+    // The selection is an input: the brush stays enabled at its limit while a
+    // mask it can refine is selected.
+    const selectedAnnotationId = s.uiState.selectedAnnotationId;
     if (
       cachedStatus !== undefined &&
       cachedContextState === s.contextState &&
       cachedAnnotationState === s.annotationState &&
-      cachedActiveImageId === activeImageId
+      cachedActiveImageId === activeImageId &&
+      cachedSelectedAnnotationId === selectedAnnotationId
     ) {
       return cachedStatus;
     }
-    const status = computeConstraintStatus(s.contextState, s.annotationState, activeImageId);
+    const status = computeConstraintStatus(
+      s.contextState,
+      s.annotationState,
+      activeImageId,
+      selectedAnnotationId,
+    );
     cachedContextState = s.contextState;
     cachedAnnotationState = s.annotationState;
     cachedActiveImageId = activeImageId;
+    cachedSelectedAnnotationId = selectedAnnotationId;
     cachedStatus = status;
     return status;
   }

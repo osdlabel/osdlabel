@@ -134,6 +134,7 @@ function anchorPlacementFor(geometry: Geometry): ResolvedAnchor {
         placement: 'left',
       };
     case 'polyline':
+    case 'mask':
       return { anchor: geom.centroid(geometry), placement: 'center' };
   }
 }

@@ -4,7 +4,7 @@ import {
   DEFAULT_POINT_RADIUS,
   createAnnotationId,
 } from '@osdlabel/annotation';
-import type { Geometry } from '@osdlabel/annotation';
+import type { Geometry, VectorGeometry } from '@osdlabel/annotation';
 import { buildFabricObjectFromGeometry } from '../../src/build-fabric-object.js';
 import { getFabricOptions, getGeometryFromFabricObject } from '../../src/fabric-utils.js';
 import { initFabricModule } from '../../src/fabric-module.js';
@@ -17,7 +17,7 @@ const id = createAnnotationId('test-1');
 const options = getFabricOptions(DEFAULT_ANNOTATION_STYLE, id);
 
 /** Build a Fabric object from geometry and read it straight back. */
-function roundTrip(geometry: Geometry): Geometry {
+function roundTrip(geometry: VectorGeometry): Geometry {
   const obj = buildFabricObjectFromGeometry(geometry, options);
   const back = getGeometryFromFabricObject(obj, geometry.type);
   expect(back).not.toBeNull();

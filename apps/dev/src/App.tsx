@@ -12,6 +12,9 @@ import {
   useAnnotator,
   serialize,
   deserialize,
+  cocoRleCodec,
+  cocoRleUncompressedCodec,
+  createMaskCodecRegistry,
   createMeasurementProvider,
   createLabelProvider,
   createDistanceProvider,
@@ -107,9 +110,13 @@ const CONTEXTS: AnnotationContext[] = [
       // in-progress preview and vertex markers, not just the committed shape.
       { type: 'polyline', defaultStyle: { strokeColor: '#00e5ff', strokeWidth: 3 } },
       { type: 'freeHandPath' },
+      { type: 'segmentationBrush' },
     ],
   },
 ];
+
+/** Mask formats the import panel can read back in, beyond the canonical one. */
+const MASK_CODECS = createMaskCodecRegistry(cocoRleCodec, cocoRleUncompressedCodec);
 
 function AppContent() {
   const { uiState, annotationState, actions, activeImageId, fullscreenTargetRef } = useAnnotator();
@@ -166,6 +173,19 @@ function AppContent() {
     setExportedJson(json);
   };
 
+  /**
+   * Exports osdlabel annotations with mask payloads re-encoded as COCO RLE, so
+   * the codec path can be eyeballed by hand. Vector annotations are untouched.
+   *
+   * This is **not** a COCO dataset document — there are no `images`,
+   * `annotations`, or `categories` sections. Assembling one from these
+   * segmentations is the consumer's job.
+   */
+  const handleExportCoco = () => {
+    const doc = serialize(annotationState, { maskCodec: cocoRleCodec });
+    setExportedJson(JSON.stringify(doc, null, 2));
+  };
+
   const openImportPanel = () => {
     setImportJsonText('');
     setShowImportPanel(true);
@@ -176,7 +196,15 @@ function AppContent() {
     if (!json.trim()) return;
     try {
       const parsed: unknown = JSON.parse(json);
-      const { byImage } = deserialize(parsed);
+      const { byImage, skipped } = deserialize(parsed, { maskCodecs: MASK_CODECS });
+      // A mask whose pixels cannot be decoded is dropped rather than failing
+      // the import, so a silent partial load is possible unless this is checked.
+      if (skipped.length > 0) {
+        alert(
+          `${skipped.length} annotation(s) could not be loaded:\n` +
+            skipped.map((s) => `  ${s.id ?? '(no id)'}: ${s.reason}`).join('\n'),
+        );
+      }
       actions.loadAnnotations(byImage);
       setShowImportPanel(false);
       setImportJsonText('');
@@ -285,6 +313,9 @@ function AppContent() {
           </button>
           <button onClick={handleExportJson} style={buttonStyle}>
             Export JSON
+          </button>
+          <button data-testid="export-coco" onClick={handleExportCoco} style={buttonStyle}>
+            Export COCO RLE
           </button>
           <button onClick={openImportPanel} style={buttonStyle}>
             Import JSON
@@ -422,6 +453,7 @@ function AppContent() {
             </button>
           </div>
           <textarea
+            data-testid="exported-json"
             value={exportedJson()}
             onInput={(e) => setExportedJson(e.currentTarget.value)}
             style={{
@@ -495,6 +527,16 @@ const lineRatioHudProvider: DecorationProvider<OsdFields> = ({ annotations, pixe
 function App() {
   return (
     <AnnotatorProvider
+      // The brush's pixel cap and what to do when a stroke exceeds it. The
+      // stroke is abandoned whole and nothing on screen changes, so this
+      // callback is the only chance to say why — a harness that omits it is
+      // showing consumers a silent failure.
+      brushOptions={{
+        onCapacityExceeded: (error) => {
+          console.warn('osdlabel: brush stroke exceeded its pixel cap', error);
+          alert(`Stroke too large: ${error.message}`);
+        },
+      }}
       renderDomDecoration={(decoration) => {
         const content = decoration.content as BadgeContent;
         return (

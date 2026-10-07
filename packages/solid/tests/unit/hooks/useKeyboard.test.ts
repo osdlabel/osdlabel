@@ -50,6 +50,7 @@ function makeConstraintStatus(overrides: Partial<ConstraintStatus> = {}): Constr
     point: { ...allEnabled },
     polyline: { ...allEnabled },
     freeHandPath: { ...allEnabled },
+    segmentationBrush: { ...allEnabled },
     ...overrides,
   };
 }
@@ -218,20 +219,20 @@ describe('useKeyboard', () => {
     disposeRoot();
     const [shortcuts, setShortcuts] = createSignal({
       ...DEFAULT_KEYBOARD_SHORTCUTS,
-      rectangleTool: 'b',
+      rectangleTool: 'q',
     });
     createRoot((dispose) => {
       disposeRoot = dispose;
       useKeyboard(shortcuts, activeToolKeyHandlerRef);
     });
 
-    dispatchKeyDown('b');
+    dispatchKeyDown('q');
     expect(mockActions.setActiveTool).toHaveBeenCalledWith('rectangle');
 
     vi.clearAllMocks();
     setShortcuts({ ...DEFAULT_KEYBOARD_SHORTCUTS, rectangleTool: 'j' });
 
-    dispatchKeyDown('b');
+    dispatchKeyDown('q');
     expect(mockActions.setActiveTool).not.toHaveBeenCalled();
     dispatchKeyDown('j');
     expect(mockActions.setActiveTool).toHaveBeenCalledWith('rectangle');

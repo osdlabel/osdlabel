@@ -17,6 +17,7 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   pointTool: 'p',
   polylineTool: 'd',
   freeHandPathTool: 'f',
+  segmentationBrushTool: 'b',
   cancel: 'Escape',
   delete: 'Delete',
   deleteAlt: 'Backspace',
@@ -46,6 +47,8 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   decreaseExposure: 'D',
   increaseContrast: 'C',
   decreaseContrast: 'X',
+  increaseBrushRadius: ']',
+  decreaseBrushRadius: '[',
   nextContext: '.',
   previousContext: ',',
 } as const;
@@ -158,6 +161,9 @@ export function mapKeyEventToActions(
   } else if (!shiftKey && keyLower === shortcuts.freeHandPathTool.toLowerCase()) {
     if (constraintStatus.freeHandPath.enabled)
       actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'freeHandPath' });
+  } else if (!shiftKey && keyLower === shortcuts.segmentationBrushTool.toLowerCase()) {
+    if (constraintStatus.segmentationBrush.enabled)
+      actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'segmentationBrush' });
   }
 
   // Cancel / Escape

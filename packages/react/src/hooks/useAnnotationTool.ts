@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { FabricObject } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
@@ -6,6 +6,7 @@ import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
+  buildSegmentationBrushConfig,
   createAnnotationTool,
   createDragVectorControl,
   getScenePointFromEvent,
@@ -14,6 +15,7 @@ import {
   processToolUpdateAnnotation,
   processObjectModified,
   VIEWER_CONTROL_SPECS,
+  canAddAnnotation,
 } from 'osdlabel';
 import type { DragAxisBehavior, ViewerControlAxisSpec } from 'osdlabel';
 import type { ToolCallbacks } from '@osdlabel/fabric-annotations';
@@ -40,7 +42,16 @@ export function useAnnotationTool(
     shortcuts,
     vertexEditConfig,
     vertexMarkerOptions,
+    brushOptions,
   } = useAnnotator();
+
+  // Read per stroke through a ref, as Solid reads them per stroke through its
+  // getters: the selected tint and the capacity callback must not be
+  // dependencies of the tool effect, or changing them mid-drag would rebuild
+  // the tool and discard the stroke. Only `maxPixels` sizes the buffer at
+  // construction and so has to rebuild.
+  const brushOptionsRef = useRef(brushOptions);
+  brushOptionsRef.current = brushOptions;
 
   // Auto-switch to select tool when active drawing tool becomes disabled
   useEffect(() => {
@@ -129,6 +140,31 @@ export function useAnnotationTool(
     const tool: AnnotationTool | null = createAnnotationTool(uiState.activeTool, {
       vertexEdit: vertexEditConfig,
       vertexMarkers: vertexMarkerOptions,
+      // Reads the store, not rendered state: the brush asks for the radius,
+      // eraser flag and selection on every pointer event, and must see the
+      // write it made a moment ago (#217).
+      segmentationBrush: buildSegmentationBrushConfig(
+        {
+          getBrushRadius: () => store.getSnapshot().uiState.brushRadius,
+          isErasing: () => store.getSnapshot().uiState.brushErasing,
+          getImageSize: () => overlay.getImageSize(),
+          getSelectedAnnotationId: () => store.getSnapshot().uiState.selectedAnnotationId,
+          getAnnotationState: () => store.getSnapshot().annotationState,
+          getImageId: () => imageId,
+          getActiveContextId: () => store.getSnapshot().contextState.activeContextId,
+          maxPixels: brushOptions.maxPixels,
+          getSelectedFill: () => brushOptionsRef.current.maskStyle?.selectedFill,
+        },
+        {
+          addAnnotation: (annotation) => actions.addAnnotation(annotation),
+          updateAnnotation: (id, imageIdArg, patch) =>
+            actions.updateAnnotation(id, imageIdArg, patch),
+          deleteAnnotation: (id, imageIdArg) => actions.deleteAnnotation(id, imageIdArg),
+          setSelectedAnnotation: (id) => actions.setSelectedAnnotation(id),
+          adjustBrushRadius: (direction) => actions.adjustBrushRadius(direction),
+          onCapacityExceeded: (error) => brushOptionsRef.current.onCapacityExceeded?.(error),
+        },
+      ),
     });
 
     if (!tool) {
@@ -145,9 +181,8 @@ export function useAnnotationTool(
         const activeContext = cs.contexts.find((c) => c.id === activeContextId);
         return activeContext?.tools.find((t) => t.type === toolType);
       },
-      canAddAnnotation: (toolType: ToolType) => {
-        return store.getConstraintStatus()[toolType].enabled;
-      },
+      canAddAnnotation: (toolType: ToolType) =>
+        canAddAnnotation(store.getConstraintStatus(), toolType),
       addAnnotation: (params: AddAnnotationParams) => {
         const processed = processToolAddAnnotation(params);
         if (!processed) return;
@@ -171,13 +206,17 @@ export function useAnnotationTool(
       },
     };
 
-    overlay.setMode('annotation');
+    // The brush writes into an annotation rather than transforming one, so
+    // objects stay inert while it is active — a stroke over an existing shape
+    // must paint, not drag it.
+    overlay.setMode(uiState.activeTool === 'segmentationBrush' ? 'paint' : 'annotation');
     tool.activate(overlay, imageId, callbacks, shortcuts);
 
     const keyHandler = (e: KeyboardEvent) => tool.onKeyDown(e);
     activeToolKeyHandlerRef.handler = keyHandler;
 
-    const isDrawingTool = uiState.activeTool !== 'select';
+    const isDrawingTool =
+      uiState.activeTool !== 'select' && uiState.activeTool !== 'segmentationBrush';
     let suppressedDown = false;
 
     const handleDown = (opt: FabricPointerEvent) => {
@@ -239,6 +278,7 @@ export function useAnnotationTool(
     shortcuts,
     vertexEditConfig,
     vertexMarkerOptions,
+    brushOptions.maxPixels,
     actions,
     store,
     activeToolKeyHandlerRef,

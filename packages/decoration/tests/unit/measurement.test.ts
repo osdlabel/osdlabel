@@ -229,3 +229,26 @@ describe('measurePerimeter', () => {
     expect(measurePerimeter(line(0, 0, 10, 10), ANISO)).toEqual({ value: 0, unit: 'mm' });
   });
 });
+
+describe('masks', () => {
+  const mask = {
+    type: 'mask',
+    origin: { x: 10, y: 20 },
+    width: 8,
+    height: 4,
+    pixelCount: 13,
+  } as const;
+  const spacing: PixelSpacing = { x: 0.5, y: 0.25, unit: 'mm' };
+
+  it('has no open-curve length, with or without spacing', () => {
+    // A mask stores a box and a pixel count, not a boundary, so there is
+    // nothing to measure along. Mirrors `length` in `@osdlabel/geometry`.
+    expect(measureLength(mask, undefined)).toEqual({ value: 0, unit: 'px' });
+    expect(measureLength(mask, spacing)).toEqual({ value: 0, unit: 'mm' });
+  });
+
+  it('has no perimeter, with or without spacing', () => {
+    expect(measurePerimeter(mask, undefined)).toEqual({ value: 0, unit: 'px' });
+    expect(measurePerimeter(mask, spacing)).toEqual({ value: 0, unit: 'mm' });
+  });
+});
