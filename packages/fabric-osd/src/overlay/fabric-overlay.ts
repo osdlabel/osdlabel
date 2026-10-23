@@ -83,6 +83,9 @@ export type DoubleClickCallback = (
   pressSeqs?: readonly [number, number],
 ) => void;
 
+/** What `OpenSeadragon.Viewer.requestDrawer` accepts: a built-in type or a `DrawerBase` subclass. */
+export type DrawerCandidate = 'webgl' | 'canvas' | 'html' | OpenSeadragon.DrawerConstructor;
+
 /** Options for creating a FabricOverlay */
 export interface OverlayOptions {
   /** Initial interactive state (default: false) */
@@ -264,6 +267,9 @@ export class FabricOverlay {
    */
   private _pressSeq = 0;
   private readonly _pressSeqByEvent = new WeakMap<PointerEvent, number>();
+
+  /** The last tone filter applied, carried over to a replacement drawer. */
+  private _filterCss = '';
 
   /** Tears down the device-pixel-ratio media-query observer. */
   private _disposeDevicePixelRatioObserver: (() => void) | null = null;
@@ -525,8 +531,39 @@ export class FabricOverlay {
    * itself is composed by the pure {@link composeImageFilterCss}.
    */
   applyImageFilters(filters: ImageFilters): void {
+    this._filterCss = composeImageFilterCss(filters);
     const drawerCanvas = this._viewer.drawer.canvas as HTMLElement;
-    drawerCanvas.style.filter = composeImageFilterCss(filters);
+    drawerCanvas.style.filter = this._filterCss;
+  }
+
+  /**
+   * Replace OpenSeadragon's drawer at runtime, e.g. so a cell that is not
+   * being annotated drops from `'webgl'` to `'canvas'` and gives its WebGL
+   * context back (browsers keep ~16 live per page).
+   *
+   * `viewer.requestDrawer` alone is not enough once this overlay exists: OSD
+   * appends the new drawer canvas *after* the Fabric container, which is in
+   * normal flow, and gives it no `top`, so the image lands below the cell, out
+   * of view; the CSS filter is lost too. This moves the canvas back to first
+   * child (under the overlay) and re-applies the filter.
+   *
+   * Returns false when OSD reports the drawer unsupported (it keeps the old one).
+   */
+  replaceDrawer(candidate: DrawerCandidate): boolean {
+    const viewer = this._viewer as unknown as {
+      requestDrawer(
+        c: DrawerCandidate,
+        o: { mainDrawer: boolean; redrawImmediately: boolean },
+      ): unknown;
+    };
+    if (!viewer.requestDrawer(candidate, { mainDrawer: true, redrawImmediately: true })) {
+      return false;
+    }
+    const drawerCanvas = this._viewer.drawer.canvas as HTMLElement;
+    this._viewer.canvas.prepend(drawerCanvas);
+    drawerCanvas.style.filter = this._filterCss;
+    this.sync();
+    return true;
   }
 
   resetView(): void {

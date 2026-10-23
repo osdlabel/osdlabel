@@ -5,6 +5,7 @@ export type {
   CustomControlEvent,
   CustomControlHandler,
   DoubleClickCallback,
+  DrawerCandidate,
 } from './overlay/fabric-overlay.js';
 export { composeImageFilterCss } from './overlay/image-filters.js';
 export type { ImageFilters } from './overlay/image-filters.js';
