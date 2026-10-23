@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAM model latency</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 16px; }
+      pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>SAM model latency (H1)</h1>
+    <p id="status">loading…</p>
+    <p>
+      Driven by <code>scripts/bench.mjs</code>. To run one configuration by hand in a desktop
+      Chrome, open the console and call
+      <code>await __runModelBench({ model: 'mobile_sam', ep: 'wasm', threads: 4, encoderReps: 5, decoderReps: 20 })</code>.
+    </p>
+    <pre id="out"></pre>
+    <script type="module" src="/src/bench-models.ts"></script>
+  </body>
+</html>

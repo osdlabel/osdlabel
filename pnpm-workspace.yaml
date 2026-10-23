@@ -48,3 +48,7 @@ allowBuilds:
   canvas: true
   esbuild: true
   sharp: true
+  # PoC (apps/poc-sam): the CPU binaries ship inside the package; its
+  # postinstall only fetches optional CUDA/TensorRT providers.
+  onnxruntime-node: false
+  protobufjs: false

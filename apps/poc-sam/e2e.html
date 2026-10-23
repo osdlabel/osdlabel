@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAM on a gigapixel DZI</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #222; }
+      #viewer { position: absolute; inset: 0; }
+      #status { position: absolute; top: 4px; left: 8px; color: #eee; font: 12px system-ui; z-index: 10; }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <div id="status">loading…</div>
+    <!--
+      Driven by scripts/bench.mjs. By hand (desktop Chrome):
+        await __e2e.init({ image: 'synth', model: 'mobile_sam', mode: 'local', threads: 4 })
+        then click on the image; __e2e.analyze({ kind: 'none' }); __e2e.commit('mask').
+    -->
+    <script type="module" src="/src/e2e.ts"></script>
+  </body>
+</html>

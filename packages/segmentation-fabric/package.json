@@ -1,0 +1,45 @@
+{
+  "name": "@osdlabel/segmentation-fabric",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: the interactive SAM-style segmentation tool (click/box prompts, live mask preview, commit as a mask or polygon) on top of @osdlabel/fabric-annotations.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/annotation-context": "workspace:*",
+    "@osdlabel/fabric-annotations": "workspace:*",
+    "@osdlabel/mask": "workspace:*",
+    "@osdlabel/mask-contour": "workspace:*",
+    "@osdlabel/segmentation": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*"
+  },
+  "peerDependencies": {
+    "fabric": "catalog:peers"
+  },
+  "devDependencies": {
+    "fabric": "catalog:",
+    "jsdom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

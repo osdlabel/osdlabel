@@ -1,0 +1,10 @@
+# Model weights (fetched / exported by scripts; tens to hundreds of MB).
+models/
+# Upstream model source downloaded by scripts/export_models.py.
+.model-src/
+# Rendered synthetic gigapixel tiles.
+.synth-cache/
+# Benchmark runs. One representative run is committed explicitly as
+# results/representative.json.
+results/*
+!results/representative.json
