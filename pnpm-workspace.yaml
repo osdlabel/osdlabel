@@ -45,6 +45,8 @@ overrides:
 gitChecks: false
 publishBranch: main
 allowBuilds:
+  # dcmjs (PoC comparison only) pulls core-js-pure, whose postinstall is a banner.
+  core-js-pure: false
   canvas: true
   esbuild: true
   sharp: true
