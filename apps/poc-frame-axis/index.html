@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-framework="vanilla">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Frame axis harness</title>
+    <script>
+      // Installed before any module evaluates, so OpenSeadragon and Fabric
+      // capture the wrapped requestAnimationFrame. Every callback runs with
+      // window.__frame = { ts, seq, start } describing the display frame it
+      // belongs to; the event log uses it to decide which paint an image draw
+      // or a Fabric render landed in.
+      (function () {
+        var orig = window.requestAnimationFrame.bind(window);
+        var frame = { ts: -1, seq: 0, start: 0, last: 0 };
+        window.__frame = frame;
+        window.__inRaf = false;
+        // Per display frame: when its first and last rAF callbacks started.
+        // Lets the analysis place work done *between* two callbacks of one
+        // frame (a microtask, say) in that frame's paint, not the next.
+        window.__frameLog = [];
+        window.requestAnimationFrame = function (cb) {
+          return orig(function (ts) {
+            var now = performance.now();
+            if (ts !== frame.ts) {
+              frame.ts = ts;
+              frame.seq += 1;
+              frame.start = now;
+              window.__frameLog.push({ seq: frame.seq, start: now, last: now });
+            } else {
+              var log = window.__frameLog;
+              if (log.length) log[log.length - 1].last = now;
+            }
+            window.__inRaf = true;
+            try {
+              cb(ts);
+            } finally {
+              window.__inRaf = false;
+            }
+          });
+        };
+      })();
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #111;
+        color: #ddd;
+        font:
+          12px system-ui,
+          sans-serif;
+      }
+      #cell {
+        position: relative;
+        width: 768px;
+        height: 768px;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cell"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

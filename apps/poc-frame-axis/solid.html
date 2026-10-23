@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-framework="solid">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Frame axis Solid harness</title>
+    <script>
+      // Same display-frame clock as index.html (see the comment there).
+      (function () {
+        var orig = window.requestAnimationFrame.bind(window);
+        var frame = { ts: -1, seq: 0, start: 0, last: 0 };
+        window.__frame = frame;
+        window.__inRaf = false;
+        window.__frameLog = [];
+        window.requestAnimationFrame = function (cb) {
+          return orig(function (ts) {
+            var now = performance.now();
+            if (ts !== frame.ts) {
+              frame.ts = ts;
+              frame.seq += 1;
+              frame.start = now;
+              window.__frameLog.push({ seq: frame.seq, start: now, last: now });
+            } else {
+              var log = window.__frameLog;
+              if (log.length) log[log.length - 1].last = now;
+            }
+            window.__inRaf = true;
+            try {
+              cb(ts);
+            } finally {
+              window.__inRaf = false;
+            }
+          });
+        };
+      })();
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #111;
+      }
+      #root {
+        position: relative;
+        width: 768px;
+        height: 768px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/solid/main.tsx"></script>
+  </body>
+</html>

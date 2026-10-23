@@ -1,0 +1,38 @@
+{
+  "name": "@osdlabel/poc-frame-axis",
+  "version": "0.0.0",
+  "author": "Guy Or <guydude1@gmail.com>",
+  "private": true,
+  "type": "module",
+  "description": "PoC: frame axis (CT/MR stacks, cine, video) - model, navigation strategies and the benchmark that compares them.",
+  "scripts": {
+    "dev": "vite",
+    "bench": "node scripts/bench.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/annotation-context": "workspace:*",
+    "@osdlabel/decoration": "workspace:*",
+    "@osdlabel/fabric-annotations": "workspace:*",
+    "@osdlabel/fabric-osd": "workspace:*",
+    "@osdlabel/frame": "workspace:*",
+    "@osdlabel/frame-osd": "workspace:*",
+    "@osdlabel/osd-helper": "workspace:*",
+    "@osdlabel/solid": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*",
+    "fabric": "catalog:",
+    "openseadragon": "catalog:",
+    "osdlabel": "workspace:*",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "playwright": "^1.60.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:",
+    "vitest": "catalog:"
+  }
+}
