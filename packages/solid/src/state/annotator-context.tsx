@@ -201,6 +201,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     annotationState,
     activeImageId,
     () => uiState.selectedAnnotationId,
+    () => uiState.cellFrames[uiState.activeCellIndex]?.index,
   );
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };

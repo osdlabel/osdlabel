@@ -59,6 +59,7 @@ export function useKeyboard(
         activeImageId: activeImageId(),
         contexts: contextState.contexts,
         activeContextId: contextState.activeContextId,
+        activeCellHasFrames: uiState.cellFrames[uiState.activeCellIndex] !== undefined,
       },
       constraintStatus(),
     );
@@ -129,6 +130,9 @@ function dispatchAction(
       break;
     case 'DELETE_ANNOTATION':
       actions.deleteAnnotation(action.payload.id, action.payload.imageId);
+      break;
+    case 'STEP_CELL_FRAME':
+      actions.stepCellFrame(action.payload.cellIndex, action.payload.delta, action.payload.wrap);
       break;
     default:
       break;

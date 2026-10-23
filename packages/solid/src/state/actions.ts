@@ -57,7 +57,13 @@ export function createActions(
   function convertAnnotation(id: AnnotationId, imageId: ImageId): void {
     const annotation = annotationState.byImage[imageId]?.[id];
     if (!annotation) return;
-    const status = computeConstraintStatus(contextState, annotationState, imageId);
+    const status = computeConstraintStatus(
+      contextState,
+      annotationState,
+      imageId,
+      null,
+      uiState.cellFrames[uiState.activeCellIndex]?.index,
+    );
     if (!status.rectangle.enabled) return;
     const patch = processConvertCircleToRectangle(annotation);
     if (!patch) return;
@@ -132,6 +138,27 @@ export function createActions(
     setUIState(
       produce((draft) =>
         applyUIAction(draft, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex } }),
+      ),
+    );
+  }
+
+  /** Show `frame` in a cell whose source has a frame axis of `frameCount` frames (registers the axis). */
+  function setCellFrame(cellIndex: number, frame: number, frameCount: number): void {
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, {
+          type: 'SET_CELL_FRAME',
+          payload: { cellIndex, frame, frameCount },
+        }),
+      ),
+    );
+  }
+
+  /** Step a cell's frame (wheel, keyboard); a no-op for a cell without a frame axis. */
+  function stepCellFrame(cellIndex: number, delta: number, wrap = false): void {
+    setUIState(
+      produce((draft) =>
+        applyUIAction(draft, { type: 'STEP_CELL_FRAME', payload: { cellIndex, delta, wrap } }),
       ),
     );
   }
@@ -284,6 +311,8 @@ export function createActions(
     setSelectedAnnotation,
     assignImageToCell,
     unassignImageFromCell,
+    setCellFrame,
+    stepCellFrame,
     setGridDimensions,
     setContexts,
     setActiveContext,

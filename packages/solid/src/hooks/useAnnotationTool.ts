@@ -4,6 +4,7 @@ import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
 import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
+import type { FrameRef } from 'osdlabel';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
   buildSegmentationBrushConfig,
@@ -32,6 +33,8 @@ export function useAnnotationTool(
   overlay: () => FabricOverlay | undefined,
   imageId: () => ImageId | undefined,
   isActive: () => boolean,
+  /** The frame being annotated, for a multi-frame source; new annotations are placed on it. */
+  frame: () => FrameRef | undefined = () => undefined,
 ) {
   const annotator = useAnnotator();
   const {
@@ -146,6 +149,7 @@ export function useAnnotationTool(
           maxPixels: annotator.brushOptions.maxPixels,
           // Read per stroke, inside the accessor, so it is not a dependency here.
           getSelectedFill: () => annotator.brushOptions.maskStyle?.selectedFill,
+          getFrame: () => untrack(frame),
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),
@@ -182,7 +186,8 @@ export function useAnnotationTool(
       addAnnotation: (params: AddAnnotationParams) => {
         const processed = processToolAddAnnotation(params);
         if (!processed) return;
-        actions.addAnnotation(processed);
+        const onFrame = untrack(frame);
+        actions.addAnnotation(onFrame ? { ...processed, frame: onFrame } : processed);
       },
       updateAnnotation: (id: AnnotationId, imageIdArg: ImageId, fabricObject: FabricObject) => {
         const patch = processToolUpdateAnnotation(id, imageIdArg, fabricObject, annotationState);

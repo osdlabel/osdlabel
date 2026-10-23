@@ -18,6 +18,8 @@ export function createConstraintStatus(
   currentImageId: () => ImageId | undefined,
   /** The brush stays enabled at its limit while a mask it can refine is selected. */
   selectedAnnotationId: () => AnnotationId | null = () => null,
+  /** The active cell's frame, for a multi-frame source ('per-frame' limits). */
+  currentFrame: () => number | undefined = () => undefined,
 ) {
   return createMemo<ConstraintStatus>(() =>
     computeConstraintStatus(
@@ -25,6 +27,7 @@ export function createConstraintStatus(
       annotationState,
       currentImageId(),
       selectedAnnotationId(),
+      currentFrame(),
     ),
   );
 }

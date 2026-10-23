@@ -1,4 +1,13 @@
-import { onMount, onCleanup, createEffect, on, createSignal, untrack, For } from 'solid-js';
+import {
+  onMount,
+  onCleanup,
+  createEffect,
+  createMemo,
+  on,
+  createSignal,
+  untrack,
+  For,
+} from 'solid-js';
 import { Portal } from 'solid-js/web';
 import type { Component } from 'solid-js';
 import OpenSeadragon from 'openseadragon';
@@ -10,11 +19,16 @@ import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import type { ImageSource } from '@osdlabel/viewer-api';
 import { DEFAULT_VIEWER_OPTIONS, isSameTileSource, openImage } from '@osdlabel/osd-helper';
+import { FramePresenter, isFramedImageSource } from '@osdlabel/frame-osd';
+import type { FramedImageSource } from '@osdlabel/frame-osd';
 import { useAnnotationTool } from '../hooks/useAnnotationTool.js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
-import type { OsdFields } from 'osdlabel';
+import type { FrameRef, OsdFields } from 'osdlabel';
 import {
+  annotationsOnFrame,
+  bucketByFrame,
+  frameRefAt,
   applyMaskSelectionStyle,
   desiredMaskTint,
   enableLiveDecorationUpdates,
@@ -47,9 +61,53 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     renderDomDecoration,
     reportAnnotationRenderError,
     brushOptions,
+    actions,
   } = useAnnotator();
   let containerRef: HTMLDivElement | undefined;
   let viewer: OpenSeadragon.Viewer | undefined;
+  /** Set while the cell shows a multi-frame source: one tile, repainted per frame. */
+  let presenter: FramePresenter | undefined;
+
+  const framed = (): FramedImageSource | undefined =>
+    isFramedImageSource(props.imageSource) ? props.imageSource : undefined;
+  const frameIndex = (): number | undefined => uiState.cellFrames[props.cellIndex]?.index;
+  const frameRef = (): FrameRef | undefined => {
+    const source = framed();
+    const index = frameIndex();
+    return source && index !== undefined ? frameRefAt(source.frameAxis, index) : undefined;
+  };
+
+  /** Open the cell's source: a frame presenter for a multi-frame source, else as before. */
+  const openSource = (v: OpenSeadragon.Viewer, source: ImageSource): void => {
+    presenter = undefined;
+    if (!isFramedImageSource(source)) {
+      openImage(v, source);
+      return;
+    }
+    const initial = untrack(frameIndex) ?? 0;
+    presenter = new FramePresenter(v, source.frameSource, { initialFrame: initial });
+    presenter.open();
+    // Registers the axis length with the frame, so wheel and keyboard can step it.
+    actions.setCellFrame(props.cellIndex, presenter.frame, source.frameSource.count);
+  };
+
+  /**
+   * On a multi-frame source the plain wheel steps frames (the clinical
+   * convention); Ctrl/Cmd+wheel still zooms. Captured on the cell before OSD's
+   * and the overlay's trackers see it, in every interaction mode.
+   */
+  let wheelAccumulator = 0;
+  const onWheel = (e: WheelEvent): void => {
+    if (!framed() || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // One frame per mouse notch; a trackpad's many small deltas accumulate.
+    wheelAccumulator += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY;
+    const steps = Math.trunc(wheelAccumulator / 40);
+    if (steps === 0) return;
+    wheelAccumulator -= steps * 40;
+    actions.stepCellFrame(props.cellIndex, Math.sign(steps) * Math.min(Math.abs(steps), 3));
+  };
   const [overlay, setOverlay] = createSignal<FabricOverlay>();
   const [decorationLayer, setDecorationLayer] = createSignal<DecorationLayer>();
   const [domEntries, setDomEntries] = createSignal<readonly DomDecorationEntry[]>([]);
@@ -70,13 +128,17 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       props.onOverlayReady?.(ov);
     });
 
+    containerRef.addEventListener('wheel', onWheel, { capture: true, passive: false });
+
     // Open initial image if provided
     if (props.imageSource) {
-      openImage(viewer, props.imageSource);
+      openSource(viewer, props.imageSource);
     }
   });
 
   onCleanup(() => {
+    containerRef?.removeEventListener('wheel', onWheel, { capture: true });
+    presenter = undefined;
     decorationLayer()?.destroy();
     setDecorationLayer(undefined);
     const ov = overlay();
@@ -92,22 +154,33 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
   // deferred `on` records none on its skipped first run, so the first change
   // would always compare against `undefined` and reload.
   let shownTileSource = untrack(() => props.imageSource?.tileSource);
+  let shownFrameSource = untrack(() => framed()?.frameSource);
   createEffect(
     on(
-      () => props.imageSource?.tileSource,
-      (tileSource) => {
-        if (isSameTileSource(tileSource, shownTileSource)) return;
+      () => [props.imageSource?.tileSource, framed()?.frameSource] as const,
+      ([tileSource, frameSource]) => {
+        if (isSameTileSource(tileSource, shownTileSource) && frameSource === shownFrameSource) {
+          return;
+        }
         shownTileSource = tileSource;
+        shownFrameSource = frameSource;
         if (viewer) {
           viewer.close();
           if (props.imageSource) {
-            openImage(viewer, props.imageSource);
+            openSource(viewer, props.imageSource);
           }
         }
       },
       { defer: true },
     ),
   );
+
+  // Present the cell's frame. One tile repainted in place: the viewport, the
+  // world's single item and the overlay's transform are untouched.
+  createEffect(() => {
+    const index = frameIndex();
+    if (index !== undefined) presenter?.show(index);
+  });
 
   // Sync view transforms from state to canvas
   createEffect(() => {
@@ -125,7 +198,16 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     overlay,
     () => props.imageSource?.id,
     () => props.isActive,
+    frameRef,
   );
+
+  // Per-frame index over this image's bucket: rebuilt when its annotations
+  // change, not when the frame changes, so a frame step is an O(1) lookup.
+  const frameBuckets = createMemo(() => {
+    const imageId = props.imageSource?.id;
+    if (!imageId || !framed()) return undefined;
+    return bucketByFrame(Object.values(annotationState.byImage[imageId] ?? {}));
+  });
 
   // Compute visible annotations for the current cell — used by both the
   // annotation sync effect (Fabric objects) and the decoration sync effect
@@ -137,10 +219,13 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     const displayedIds = contextState.displayedContextIds;
     const visibleSet = new Set<AnnotationContextId>(displayedIds);
     if (activeContextId) visibleSet.add(activeContextId);
-    const imageAnns = annotationState.byImage[imageId] || {};
-    return visibleSet.size > 0
-      ? Object.values(imageAnns).filter((a) => visibleSet.has(a.contextId))
-      : Object.values(imageAnns);
+    const buckets = frameBuckets();
+    const index = frameIndex();
+    const pool =
+      buckets && index !== undefined
+        ? annotationsOnFrame(buckets, index)
+        : Object.values(annotationState.byImage[imageId] || {});
+    return visibleSet.size > 0 ? pool.filter((a) => visibleSet.has(a.contextId)) : pool;
   };
 
   /** Rasterized masks reused across rebuilds; see `MaskObjectCache`. */
