@@ -1,0 +1,44 @@
+{
+  "name": "@osdlabel/dicom-export",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: export osdlabel annotations to DICOM - Structured Report TID 1500 (measurements, SCOORD/SCOORD3D), Segmentation (from @osdlabel/mask snapshots) and Microscopy Bulk Simple Annotations - and read them back.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/decoration": "workspace:*",
+    "@osdlabel/dicom": "workspace:*",
+    "@osdlabel/geometry": "workspace:*",
+    "@osdlabel/mask": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
