@@ -33,6 +33,24 @@ export function printSummary(r) {
       ]),
     );
   }
+  if (r.h1AnalyticProjection) {
+    const rows = [];
+    for (const [mod, ws] of Object.entries(r.h1AnalyticProjection)) {
+      for (const [w, c] of Object.entries(ws)) {
+        rows.push([
+          mod,
+          w,
+          `${c.correct.distinctLevels} / ${c.correct.maxStep}`,
+          `${c.best8bit.distinctLevels} / ${c.best8bit.maxStep} / ${c.best8bit.maxBandWidth}`,
+        ]);
+      }
+    }
+    table(
+      'H1 analytic, projection modalities: distinct levels / max step (/ widest band, stored units)',
+      ['data', 'window', 'correct', 'best possible 8-bit'],
+      rows,
+    );
+  }
   if (r.h1Browser) {
     table(
       'H1 in Chromium (screenshot of the value ramp): distinct levels / max step / mismatches vs model',
@@ -196,6 +214,32 @@ export function printSummary(r) {
         r.h3.alignment.cases.map((c) => [c.rotation, c.flippedH, `${c.matched}/${c.total}`]),
       );
     }
+  }
+  if (r.osd6) {
+    const o = r.osd6;
+    table(
+      `OSD ${o.osdVersion} probe: the same VOI pieces on OSD 6's data pipeline (CT 512x512 viewer)`,
+      ['check', 'result'],
+      [
+        [
+          'VOI drawer vs OSD 6 WebGLDrawer, differing px / >2 levels',
+          `${f(o.equivalence.differingFraction * 100, 2)}% / ${f(o.equivalence.over2Fraction * 100, 2)}%`,
+        ],
+        ['VOI drawer non-blank px', `${f(o.equivalence.voiDrawerNonBlankFraction * 100, 1)}%`],
+        [
+          'GPU W/L step (uniforms), median ms',
+          `${f(o.gpuWindowLevel.medianMs, 2)} (uploads during drag: ${o.gpuWindowLevel.uploadsDuringDrag})`,
+        ],
+        [
+          'CPU W/L step via requestInvalidate(), median ms',
+          f(o.cpuWindowLevelViaInvalidate.medianMs, 1),
+        ],
+        [
+          'CPU path shows the new window (expect 255)',
+          o.cpuWindowLevelViaInvalidate.whiteAfterInvalidate,
+        ],
+      ],
+    );
   }
   if (r.h4) {
     for (const [name, rows] of Object.entries(r.h4.sweeps ?? {})) {

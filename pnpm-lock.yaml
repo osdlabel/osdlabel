@@ -454,6 +454,9 @@ importers:
       '@types/openseadragon':
         specifier: 'catalog:'
         version: 5.0.2
+      openseadragon6:
+        specifier: npm:openseadragon@6.1.1
+        version: openseadragon@6.1.1
       playwright:
         specifier: ^1.60.0
         version: 1.60.0
@@ -3386,6 +3389,9 @@ packages:
 
   openseadragon@5.0.1:
     resolution: {integrity: sha512-a/hjouW9i3UfWxRADVYN2MyRhXMGnE7x9VVL7/4jXCcDLFyO4UM5o4RStYtqa5BfaHw/wMNAaD2WbxQF8f1pJg==}
+
+  openseadragon@6.1.1:
+    resolution: {integrity: sha512-g4iKe2q8B642SaBT3+x4ZF3/8b1TxPPydyjmtrOLgDrlYWMKd9ZXM+1Cb/xa9DVySkvs/7l6HR1nHKfD5F3Tsw==}
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -6984,6 +6990,8 @@ snapshots:
       regex-recursion: 6.0.2
 
   openseadragon@5.0.1: {}
+
+  openseadragon@6.1.1: {}
 
   optionator@0.9.4:
     dependencies:

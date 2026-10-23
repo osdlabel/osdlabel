@@ -1,3 +1,4 @@
+/* global window, document -- used inside page.evaluate callbacks, which run in the browser */
 /**
  * Pixel-pipeline PoC benchmark: one non-interactive command.
  *
@@ -8,7 +9,7 @@
  * experiment, writes results/<timestamp>.json and prints a summary table.
  *
  * Options:
- *   --only h1,h2,h3,h4,devapp   subset of experiment groups (default: all)
+ *   --only h1,h2,h3,osd6,h4,devapp  subset of experiment groups (default: all)
  *   --quick                     fewer steps / shorter rAF windows (smoke run)
  *   --headed                    show the browser (real-GPU runs on a desktop)
  *   --chromium <path>           browser binary (default: $POC_CHROMIUM,
@@ -38,7 +39,7 @@ const opt = (f, d) => {
   return i === -1 ? d : argv[i + 1];
 };
 
-const GROUPS = ['h1', 'h2', 'h3', 'h4', 'devapp'];
+const GROUPS = ['h1', 'h2', 'h3', 'osd6', 'h4', 'devapp'];
 const only = (opt('--only', GROUPS.join(',')) ?? '').split(',').filter(Boolean);
 for (const g of only) if (!GROUPS.includes(g)) throw new Error(`unknown group ${g}`);
 const quick = flag('--quick');
@@ -156,6 +157,18 @@ try {
         results.h1Analytic[rname][wname] = pixel.compareWindowPaths(w, range);
       }
     }
+    // Projection modalities: a 12-bit CR/DX and a 16-bit mammogram, typical
+    // soft-tissue (narrow) and overview (wide) windows in stored units.
+    results.h1AnalyticProjection = {
+      dx12bit: {
+        narrow: pixel.compareWindowPaths({ center: 2048, width: 600 }, { min: 0, max: 4095 }),
+        wide: pixel.compareWindowPaths({ center: 2048, width: 3000 }, { min: 0, max: 4095 }),
+      },
+      mammo16bit: {
+        narrow: pixel.compareWindowPaths({ center: 30000, width: 4000 }, { min: 0, max: 65535 }),
+        wide: pixel.compareWindowPaths({ center: 32768, width: 30000 }, { min: 0, max: 65535 }),
+      },
+    };
     log('H1 browser pixel check');
     const range = { min: -1000, max: 3000 };
     results.h1Browser = {};
@@ -331,8 +344,25 @@ try {
     }
     log('H3 alignment with FabricOverlay');
     results.h3.alignment = await page.evaluate(() => window.__poc.h3Alignment());
+    log('H3 tone seam: FabricOverlay.applyImageFilters -> VOI window');
+    results.h3.toneSeam = await page.evaluate(() => window.__poc.h3ToneSeam());
   }
   await context.close();
+
+  // ── OSD 6 probe ────────────────────────────────────────────────────
+  if (only.includes('osd6')) {
+    log('OSD 6.1.1 probe');
+    const c6 = await browser.newContext({ viewport: { width: 1100, height: 600 } });
+    const p6 = await c6.newPage();
+    p6.on('pageerror', (e) => console.error('[osd6 pageerror]', e.message));
+    await p6.goto(`${base}/osd6.html`);
+    await p6.waitForFunction(() => document.documentElement.dataset.ready === 'true', null, {
+      timeout: 60000,
+    });
+    results.osd6 = await p6.evaluate(() => window.__osd6.run());
+    log('  ', JSON.stringify(results.osd6));
+    await c6.close();
+  }
 
   // ── H4 ─────────────────────────────────────────────────────────────
   if (only.includes('h4')) {

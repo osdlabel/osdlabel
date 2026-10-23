@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@types/openseadragon": "catalog:",
+    "openseadragon6": "npm:openseadragon@6.1.1",
     "playwright": "^1.60.0",
     "typescript": "catalog:",
     "vite": "catalog:",

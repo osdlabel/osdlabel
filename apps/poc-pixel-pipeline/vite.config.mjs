@@ -17,7 +17,7 @@ export default {
     __REPO_ROOT__: JSON.stringify(REPO_ROOT),
   },
   optimizeDeps: {
-    include: ['openseadragon', 'fabric'],
+    include: ['openseadragon', 'openseadragon6', 'fabric'],
   },
   server: {
     headers: {

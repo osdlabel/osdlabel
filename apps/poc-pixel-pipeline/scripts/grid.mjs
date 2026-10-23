@@ -1,3 +1,4 @@
+/* global window, document, atob, createImageBitmap, Blob, OffscreenCanvas -- used inside page.evaluate callbacks, which run in the browser */
 /**
  * H4 drivers: the WebGL context budget of a grid of cells.
  *

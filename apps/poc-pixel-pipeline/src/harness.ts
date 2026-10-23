@@ -2,7 +2,7 @@ import OpenSeadragon from 'openseadragon';
 import { getImage, jsHeapMB } from './common.js';
 import { decodeRamp, h1Setup } from './exp-h1.js';
 import { h2Full, h2Osd, h2Workers } from './exp-h2.js';
-import { h3Alignment, h3Equivalence, h3Osd, h3Upload } from './exp-h3.js';
+import { h3Alignment, h3Equivalence, h3Osd, h3ToneSeam, h3Upload } from './exp-h3.js';
 
 /** Capabilities the report's caveats depend on. */
 function environment(): object {
@@ -53,6 +53,7 @@ const api = {
   h3Osd,
   h3Equivalence,
   h3Alignment,
+  h3ToneSeam,
   jsHeapMB,
 };
 

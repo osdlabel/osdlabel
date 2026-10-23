@@ -111,7 +111,7 @@ function isFullyLoadable(v: unknown): v is FullyLoadable {
 /** Wait until every tile the current view needs is loaded and drawn. */
 export async function waitFullyLoaded(
   viewer: OpenSeadragon.Viewer,
-  timeoutMs = 30000,
+  timeoutMs = 120000,
 ): Promise<void> {
   const t0 = performance.now();
   for (;;) {

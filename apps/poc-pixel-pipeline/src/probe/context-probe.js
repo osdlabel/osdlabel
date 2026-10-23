@@ -1,3 +1,4 @@
+/* global window, performance, HTMLCanvasElement, OffscreenCanvas -- a browser init script */
 // Installed with Playwright's addInitScript before any page script runs, on
 // both the harness grid page and the stock osdlabel dev app, so the two are
 // measured identically. Records every WebGL context a page creates, and

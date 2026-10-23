@@ -333,3 +333,36 @@ export async function h3Alignment(): Promise<object> {
   el.remove();
   return { cases: out };
 }
+
+/**
+ * The integration seam: osdlabel's existing tone path
+ * (`FabricOverlay.applyImageFilters`, fed from `CellTransform` by both
+ * bindings) drives the VOI window when the drawer is tone-capable, with no
+ * CSS filter. Checked on the CT phantom with osdlabel's real overlay.
+ */
+export async function h3ToneSeam(): Promise<object> {
+  const img = getImage('ct');
+  const el = host('tone', 512, 512);
+  const rv = await openRasterViewer(el, img, VoiWebGLDrawer, { format: 'r16i' });
+  const { viewer, voi } = rv;
+  const overlay = new FabricOverlay(viewer);
+  const canvas = viewer.drawer.canvas as HTMLCanvasElement;
+  const centre = (): number => {
+    viewer.world.draw();
+    return readCanvas(canvas)[(256 * 512 + 256) * 4]!;
+  };
+  const before = { window: voi.transform.window, centre: centre() };
+  const t0 = performance.now();
+  overlay.applyImageFilters({ exposure: 0.25, contrast: 0.5, inverted: true });
+  const applyMs = performance.now() - t0;
+  const after = {
+    window: voi.transform.window,
+    invert: voi.transform.invert,
+    centre: centre(),
+    cssFilter: canvas.style.filter,
+  };
+  overlay.destroy();
+  viewer.destroy();
+  el.remove();
+  return { base: voi.baseWindow, before, after, applyMs };
+}
