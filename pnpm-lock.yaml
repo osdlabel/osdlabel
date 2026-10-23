@@ -427,6 +427,46 @@ importers:
         specifier: 'catalog:'
         version: 1.9.13
 
+  apps/poc-pixel-pipeline:
+    dependencies:
+      '@osdlabel/fabric-osd':
+        specifier: workspace:*
+        version: link:../../packages/fabric-osd
+      '@osdlabel/osd-helper':
+        specifier: workspace:*
+        version: link:../../packages/osd-helper
+      '@osdlabel/osd-pixel':
+        specifier: workspace:*
+        version: link:../../packages/osd-pixel
+      '@osdlabel/pixel':
+        specifier: workspace:*
+        version: link:../../packages/pixel
+      '@osdlabel/viewer-api':
+        specifier: workspace:*
+        version: link:../../packages/viewer-api
+      fabric:
+        specifier: 'catalog:'
+        version: 7.4.0
+      openseadragon:
+        specifier: 'catalog:'
+        version: 5.0.1
+    devDependencies:
+      '@types/openseadragon':
+        specifier: 'catalog:'
+        version: 5.0.2
+      playwright:
+        specifier: ^1.60.0
+        version: 1.60.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
+
   packages/annotation:
     devDependencies:
       '@standard-schema/spec':
@@ -577,6 +617,25 @@ importers:
         specifier: 'catalog:'
         version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
 
+  packages/osd-pixel:
+    dependencies:
+      '@osdlabel/pixel':
+        specifier: workspace:*
+        version: link:../pixel
+    devDependencies:
+      '@types/openseadragon':
+        specifier: 'catalog:'
+        version: 5.0.2
+      openseadragon:
+        specifier: 'catalog:'
+        version: 5.0.1
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
+
   packages/osdlabel:
     dependencies:
       '@osdlabel/annotation':
@@ -628,6 +687,15 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.4.1
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
+
+  packages/pixel:
+    devDependencies:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

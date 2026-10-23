@@ -1,0 +1,3 @@
+# Benchmark output. Only the one representative run the report cites is kept.
+results/*
+!results/representative.json

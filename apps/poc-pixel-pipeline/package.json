@@ -1,0 +1,30 @@
+{
+  "name": "@osdlabel/poc-pixel-pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Proof of concept: can OpenSeadragon stay osdlabel's 2D renderer for 12-16-bit modalities with real-time window/level, and can a grid fit the WebGL context budget? See REPORT.md.",
+  "author": "Guy Or <guydude1@gmail.com>",
+  "type": "module",
+  "scripts": {
+    "bench": "node scripts/run.mjs",
+    "dev": "vite",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@osdlabel/fabric-osd": "workspace:*",
+    "@osdlabel/osd-helper": "workspace:*",
+    "@osdlabel/osd-pixel": "workspace:*",
+    "@osdlabel/pixel": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*",
+    "fabric": "catalog:",
+    "openseadragon": "catalog:"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "playwright": "^1.60.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

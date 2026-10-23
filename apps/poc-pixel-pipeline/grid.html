@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel pipeline PoC: grid</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1280px;
+        height: 960px;
+        overflow: hidden;
+        background: #102030;
+      }
+      /* Above the page-wide GL canvas the 'page' target prepends to <body>. */
+      #grid {
+        position: relative;
+        z-index: 1;
+        width: 1280px;
+        height: 960px;
+      }
+      .cell {
+        position: absolute;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="grid"></div>
+    <script type="module" src="./src/grid.ts"></script>
+  </body>
+</html>
