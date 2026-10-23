@@ -83,6 +83,23 @@ export type DoubleClickCallback = (
   pressSeqs?: readonly [number, number],
 ) => void;
 
+/**
+ * An OpenSeadragon drawer that applies a cell's tonal adjustments itself,
+ * e.g. as a VOI window over high-bit-depth tiles, instead of the CSS filter
+ * {@link FabricOverlay.applyImageFilters} would otherwise put on its canvas.
+ */
+export interface ToneCapableDrawer {
+  applyImageFilters(filters: ImageFilters): void;
+}
+
+function isToneCapableDrawer(drawer: unknown): drawer is ToneCapableDrawer {
+  return (
+    typeof drawer === 'object' &&
+    drawer !== null &&
+    typeof (drawer as { applyImageFilters?: unknown }).applyImageFilters === 'function'
+  );
+}
+
 /** What `OpenSeadragon.Viewer.requestDrawer` accepts: a built-in type or a `DrawerBase` subclass. */
 export type DrawerCandidate = 'webgl' | 'canvas' | 'html' | OpenSeadragon.DrawerConstructor;
 
@@ -268,8 +285,8 @@ export class FabricOverlay {
   private _pressSeq = 0;
   private readonly _pressSeqByEvent = new WeakMap<PointerEvent, number>();
 
-  /** The last tone filter applied, carried over to a replacement drawer. */
-  private _filterCss = '';
+  /** The last tone adjustment applied, carried over to a replacement drawer. */
+  private _filters: ImageFilters | null = null;
 
   /** Tears down the device-pixel-ratio media-query observer. */
   private _disposeDevicePixelRatioObserver: (() => void) | null = null;
@@ -531,9 +548,17 @@ export class FabricOverlay {
    * itself is composed by the pure {@link composeImageFilterCss}.
    */
   applyImageFilters(filters: ImageFilters): void {
-    this._filterCss = composeImageFilterCss(filters);
+    this._filters = filters;
+    const drawer: unknown = this._viewer.drawer;
     const drawerCanvas = this._viewer.drawer.canvas as HTMLElement;
-    drawerCanvas.style.filter = this._filterCss;
+    // A drawer that renders tone itself (a VOI window on 16-bit data) gets the
+    // adjustment instead of a CSS filter on already-quantised 8-bit pixels.
+    if (isToneCapableDrawer(drawer)) {
+      drawerCanvas.style.filter = '';
+      drawer.applyImageFilters(filters);
+      return;
+    }
+    drawerCanvas.style.filter = composeImageFilterCss(filters);
   }
 
   /**
@@ -559,9 +584,8 @@ export class FabricOverlay {
     if (!viewer.requestDrawer(candidate, { mainDrawer: true, redrawImmediately: true })) {
       return false;
     }
-    const drawerCanvas = this._viewer.drawer.canvas as HTMLElement;
-    this._viewer.canvas.prepend(drawerCanvas);
-    drawerCanvas.style.filter = this._filterCss;
+    this._viewer.canvas.prepend(this._viewer.drawer.canvas as HTMLElement);
+    if (this._filters) this.applyImageFilters(this._filters);
     this.sync();
     return true;
   }

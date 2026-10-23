@@ -21,6 +21,15 @@ describe('VoiState', () => {
     expect(s.transform.invert).toBe(true);
   });
 
+  it('applies relative tone around the base window', () => {
+    const s = make();
+    s.applyTone({ exposure: 0, contrast: 1, inverted: true });
+    expect(s.transform.window).toEqual({ center: 40, width: 20 });
+    expect(s.transform.invert).toBe(true);
+    s.applyTone({ exposure: 0, contrast: 0, inverted: false });
+    expect(s.transform.window).toEqual(s.baseWindow);
+  });
+
   it('builds the LUT once per version', () => {
     const s = make();
     const a = s.lut();

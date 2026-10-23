@@ -50,6 +50,18 @@ describe('FabricOverlay.replaceDrawer', () => {
     expect(viewer.drawer.canvas.style.filter).toBe('brightness(1.5) invert(1)');
   });
 
+  it('hands tone to a drawer that renders it itself, with no CSS filter', () => {
+    const applied: unknown[] = [];
+    (viewer.drawer as unknown as { applyImageFilters: (f: unknown) => void }).applyImageFilters = (
+      f,
+    ) => applied.push(f);
+    viewer.drawer.canvas.style.filter = 'brightness(2)';
+    const filters = { exposure: 0.25, contrast: -0.5, inverted: false };
+    overlay.applyImageFilters(filters);
+    expect(applied).toEqual([filters]);
+    expect(viewer.drawer.canvas.style.filter).toBe('');
+  });
+
   it('reports an unsupported drawer and leaves the old one', () => {
     const before = viewer.drawer.canvas;
     expect(overlay.replaceDrawer('html')).toBe(false);

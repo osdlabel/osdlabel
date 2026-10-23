@@ -129,6 +129,16 @@ export class VoiWebGLDrawer extends OpenSeadragon.DrawerBase {
   }
 
   /**
+   * fabric-osd's `ToneCapableDrawer` seam: `FabricOverlay.applyImageFilters`
+   * hands the cell's relative tone here instead of setting a CSS filter, so
+   * the existing exposure/contrast/invert controls window the 16-bit data.
+   */
+  applyImageFilters(filters: { exposure: number; contrast: number; inverted: boolean }): void {
+    this.options.voi?.applyTone(filters);
+    this.viewer.forceRedraw();
+  }
+
+  /**
    * Block until the GPU has finished the last frame (benchmarks only). A
    * 1-pixel `readPixels` is used rather than `gl.finish()`, which some
    * implementations return from early.

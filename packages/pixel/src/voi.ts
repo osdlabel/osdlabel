@@ -88,6 +88,24 @@ export function applyVoi(x: number, window: VoiWindow, yMin = 0, yMax = 255): nu
 }
 
 /**
+ * osdlabel's relative tone controls (`CellTransform.exposure` / `.contrast`,
+ * each in [-1, 1], 0 = unchanged) expressed as a window around `base`, with
+ * the same sense as the CSS filters they drive on 8-bit images: more exposure
+ * lowers the centre (brighter), more contrast narrows the width. `contrast`
+ * = +-1 narrows/widens by 4x; `exposure` = +-1 shifts by one base width.
+ */
+export function windowFromTone(
+  base: VoiWindow,
+  tone: { readonly exposure: number; readonly contrast: number },
+): VoiWindow {
+  return {
+    ...base,
+    center: base.center - tone.exposure * base.width,
+    width: Math.max(1, base.width * Math.pow(2, -2 * tone.contrast)),
+  };
+}
+
+/**
  * Standard CT windows used throughout the report (center / width in HU).
  * Values are the common radiology defaults; sites vary them.
  */

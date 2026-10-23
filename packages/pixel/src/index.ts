@@ -10,6 +10,7 @@ export {
   voiLinear,
   voiLinearExact,
   voiSigmoid,
+  windowFromTone,
 } from './voi.js';
 
 export type { DisplayTransform, VoiLut } from './voi-lut.js';

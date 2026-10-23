@@ -6,6 +6,7 @@ import {
   voiLinear,
   voiLinearExact,
   voiSigmoid,
+  windowFromTone,
 } from '../../src/voi.js';
 
 describe('voiLinear (DICOM C.11.2.1.2.1)', () => {
@@ -44,6 +45,14 @@ describe('other VOI functions', () => {
     const w = CT_WINDOW_PRESETS.brain;
     expect(applyVoi(39.5, w)).toBeCloseTo(127.5, 10);
     expect(applyVoi(40, { ...w, fn: 'LINEAR_EXACT' })).toBeCloseTo(127.5, 10);
+  });
+
+  it('windowFromTone maps relative tone onto a window, identity at 0', () => {
+    const base = CT_WINDOW_PRESETS.abdomen;
+    expect(windowFromTone(base, { exposure: 0, contrast: 0 })).toEqual(base);
+    expect(windowFromTone(base, { exposure: 0.5, contrast: 0 }).center).toBe(50 - 200);
+    expect(windowFromTone(base, { exposure: 0, contrast: 1 }).width).toBe(100);
+    expect(windowFromTone(base, { exposure: 0, contrast: -1 }).width).toBe(1600);
   });
 
   it('applyRescale maps stored values to modality units', () => {

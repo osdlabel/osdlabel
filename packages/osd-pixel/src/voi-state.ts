@@ -1,5 +1,5 @@
 import type { DisplayTransform, StoredRange, VoiLut, VoiWindow } from '@osdlabel/pixel';
-import { buildVoiLut } from '@osdlabel/pixel';
+import { buildVoiLut, windowFromTone } from '@osdlabel/pixel';
 
 /**
  * The current display transform of one image, shared by its tile source (CPU
@@ -16,11 +16,28 @@ export class VoiState {
   private _lut: VoiLut | null = null;
   private readonly _listeners = new Set<() => void>();
 
+  /** The image's own window (e.g. from DICOM); relative tone is applied around it. */
+  readonly baseWindow: VoiWindow;
+
   constructor(
     readonly storedRange: StoredRange,
     initial: DisplayTransform,
   ) {
     this._transform = initial;
+    this.baseWindow = initial.window;
+  }
+
+  /**
+   * osdlabel's relative tone (`CellTransform.exposure/contrast/inverted`) as a
+   * window around {@link baseWindow}: what `FabricOverlay.applyImageFilters`
+   * delivers to a tone-capable drawer.
+   */
+  applyTone(tone: { exposure: number; contrast: number; inverted: boolean }): void {
+    this.set({
+      ...this._transform,
+      window: windowFromTone(this.baseWindow, tone),
+      invert: tone.inverted,
+    });
   }
 
   get transform(): DisplayTransform {
