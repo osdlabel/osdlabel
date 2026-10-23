@@ -11,6 +11,7 @@
  * Options:
  *   --only h1,h2,h3,osd6,h4,devapp  subset of experiment groups (default: all)
  *   --quick                     fewer steps / shorter rAF windows (smoke run)
+ *   --h4-sections a,b           H4 subset: sweeps,records,recovery,foreign,swap
  *   --headed                    show the browser (real-GPU runs on a desktop)
  *   --chromium <path>           browser binary (default: $POC_CHROMIUM,
  *                               /opt/pw-browsers/chromium if present, else
@@ -367,7 +368,10 @@ try {
   // ── H4 ─────────────────────────────────────────────────────────────
   if (only.includes('h4')) {
     results.h4 = {};
-    await runGridExperiments({ browser, base, quick, log, out: results.h4 });
+    const sections = (opt('--h4-sections', 'sweeps,records,recovery,foreign,swap') ?? '').split(
+      ',',
+    );
+    await runGridExperiments({ browser, base, quick, log, out: results.h4, sections });
   }
   if (only.includes('devapp')) {
     results.devApp = await runDevAppExperiment({

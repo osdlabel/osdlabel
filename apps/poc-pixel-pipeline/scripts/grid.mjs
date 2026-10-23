@@ -34,6 +34,23 @@ async function gridPage(browser, base) {
   return { context, page, consoleErrors };
 }
 
+/**
+ * Screenshot one cell, pan it by 20% of the image width, screenshot again:
+ * the fraction of image pixels that changed. ~0 means a frozen image.
+ */
+async function imageChangeOnPan(page, index) {
+  const rect = (await page.evaluate(() => window.__grid.cellRects()))[index];
+  const clip = { x: rect.x, y: rect.y, width: rect.w, height: rect.h };
+  const before = await page.screenshot({ clip });
+  await page.evaluate((i) => window.__grid.panCell(i, 0.2), index);
+  await page.waitForTimeout(300);
+  const after = await page.screenshot({ clip });
+  return page.evaluate(
+    ([a, b]) => window.__grid.imageChange(a, b),
+    [before.toString('base64'), after.toString('base64')],
+  );
+}
+
 async function screenshotCells(page) {
   const png = await page.screenshot();
   return page.evaluate((b64) => window.__grid.analyzeScreenshot(b64), png.toString('base64'));
@@ -80,12 +97,22 @@ async function section(out, key, log, fn) {
   }
 }
 
-export async function runGridExperiments({ browser, base, quick, log, out }) {
+export const H4_SECTIONS = ['sweeps', 'records', 'recovery', 'foreign', 'swap'];
+
+export async function runGridExperiments({
+  browser,
+  base,
+  quick,
+  log,
+  out,
+  sections = H4_SECTIONS,
+}) {
   Object.assign(out, { sweeps: {}, recovery: {}, foreign: {}, swap: null, records: {} });
+  const on = (name) => sections.includes(name);
   const fullSweep = quick ? [1, 8, 15, 16, 17, 20] : Array.from({ length: 24 }, (_, i) => i + 1);
   const panAt = new Set([1, 4, 9, 16, 24]);
   const modes = ['stock-default', 'stock-canvas', 'voi-own', 'voi-shared', 'voi-page'];
-  for (const mode of modes) {
+  for (const mode of on('sweeps') ? modes : []) {
     const ns =
       mode === 'stock-default' ? fullSweep : quick ? [1, 16, 17] : [1, 4, 9, 16, 17, 20, 24];
     out.sweeps[mode] = [];
@@ -103,15 +130,16 @@ export async function runGridExperiments({ browser, base, quick, log, out }) {
   }
 
   // Where do one cell's contexts come from? (stack of each getContext)
-  await section(out, 'records', log, async () => {
-    const { context, page } = await gridPage(browser, base);
-    await page.evaluate(() => window.__grid.build(1, 'stock-default'));
-    out.records.oneStockCell = await page.evaluate(() => window.__grid.probeRecords());
-    await context.close();
-  });
+  if (on('records'))
+    await section(out, 'records', log, async () => {
+      const { context, page } = await gridPage(browser, base);
+      await page.evaluate(() => window.__grid.build(1, 'stock-default'));
+      out.records.oneStockCell = await page.evaluate(() => window.__grid.probeRecords());
+      await context.close();
+    });
 
   // Recovery: 17 cells evict cell 0; free 16 contexts; does cell 0 come back?
-  for (const mode of ['stock-default', 'voi-own']) {
+  for (const mode of on('recovery') ? ['stock-default', 'voi-own'] : []) {
     log(`H4 recovery ${mode}`);
     await section(out, `recovery-${mode}`, log, async () => {
       const { context, page } = await gridPage(browser, base);
@@ -120,6 +148,8 @@ export async function runGridExperiments({ browser, base, quick, log, out }) {
       const before = await screenshotCells(page);
       const cell0Liveness = await page.evaluate(() => window.__grid.liveness(0));
       const cell16Liveness = await page.evaluate(() => window.__grid.liveness(16));
+      const cell0Pan = await imageChangeOnPan(page, 0);
+      const cell16Pan = await imageChangeOnPan(page, 16);
       const afterDestroy = await page.evaluate(() => window.__grid.destroyRange(1, 17));
       await page.waitForTimeout(3000);
       await page.evaluate(() => window.__grid.redrawAll());
@@ -128,6 +158,8 @@ export async function runGridExperiments({ browser, base, quick, log, out }) {
         cell0VisibleWith17: before[0].imageVisible,
         cell0UpdateViewportEventsDuringPan: cell0Liveness.updates,
         healthyCellUpdateViewportEventsDuringPan: cell16Liveness.updates,
+        cell0ImageChangeOnPan: cell0Pan,
+        healthyCellImageChangeOnPan: cell16Pan,
         contextsAfterFreeing16: afterDestroy,
         cell0VisibleAfterFreeing: after[0].imageVisible,
         contextsFinal: await page.evaluate(() => window.__grid.probeSummary()),
@@ -137,7 +169,7 @@ export async function runGridExperiments({ browser, base, quick, log, out }) {
   }
 
   // A competing WebGL user next to a full 4x4 grid.
-  for (const mode of ['stock-default', 'voi-shared', 'stock-canvas']) {
+  for (const mode of on('foreign') ? ['stock-default', 'voi-shared', 'stock-canvas'] : []) {
     log(`H4 foreign context with 16 ${mode} cells`);
     await section(out, `foreign-${mode}`, log, async () => {
       const { context, page } = await gridPage(browser, base);
@@ -160,7 +192,7 @@ export async function runGridExperiments({ browser, base, quick, log, out }) {
 
   // Mitigation (i): swap non-active cells to the CanvasDrawer at runtime.
   out.swap = {};
-  for (const via of ['raw', 'overlay']) {
+  for (const via of on('swap') ? ['raw', 'overlay'] : []) {
     await section(out, `swap-${via}`, log, async () => {
       log(`H4 runtime drawer swap via ${via} (cells 1-15 of 16 to canvas)`);
       const { context, page } = await gridPage(browser, base);

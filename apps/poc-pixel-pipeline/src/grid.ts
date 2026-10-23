@@ -376,7 +376,53 @@ async function liveness(i: number): Promise<{ updates: number }> {
   return { updates };
 }
 
+/** Pan one cell by `fraction` of the image width, immediately. */
+async function panCell(i: number, fraction: number): Promise<void> {
+  const c = cells[i];
+  if (!c || c.destroyed) return;
+  c.viewer.viewport.panBy(new OpenSeadragon.Point(fraction, 0), true);
+  c.viewer.forceRedraw();
+  await frames(5);
+}
+
+async function decodePng(b64: string): Promise<Uint8ClampedArray> {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+  const oc = new OffscreenCanvas(bmp.width, bmp.height);
+  const ctx = oc.getContext('2d')!;
+  ctx.drawImage(bmp, 0, 0);
+  return ctx.getImageData(0, 0, bmp.width, bmp.height).data;
+}
+
+/**
+ * Fraction of image pixels (red annotation pixels excluded, they move with
+ * the overlay either way) that differ between two screenshots of one cell.
+ * Zero after a pan means the image is frozen while the overlay moves on.
+ */
+async function imageChange(beforeB64: string, afterB64: string): Promise<number> {
+  const a = await decodePng(beforeB64);
+  const b = await decodePng(afterB64);
+  const isRed = (p: Uint8ClampedArray, o: number): boolean =>
+    p[o]! > 200 && p[o + 1]! < 60 && p[o + 2]! < 60;
+  let n = 0;
+  let changed = 0;
+  for (let o = 0; o < a.length && o < b.length; o += 4) {
+    if (isRed(a, o) || isRed(b, o)) continue;
+    n++;
+    if (
+      Math.abs(a[o]! - b[o]!) + Math.abs(a[o + 1]! - b[o + 1]!) + Math.abs(a[o + 2]! - b[o + 2]!) >
+      6
+    )
+      changed++;
+  }
+  return n ? changed / n : 0;
+}
+
 const api = {
+  panCell,
+  imageChange,
   liveness,
   inspect,
   build,
