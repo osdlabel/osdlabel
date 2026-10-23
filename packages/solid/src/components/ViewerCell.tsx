@@ -50,6 +50,9 @@ export interface ViewerCellProps {
   readonly onOverlayReady?: (overlay: FabricOverlay) => void;
 }
 
+/** Wheel travel (CSS px) that steps one frame on a multi-frame source. */
+const WHEEL_NOTCH_PX = 50;
+
 const ViewerCell: Component<ViewerCellProps> = (props) => {
   const {
     uiState,
@@ -101,12 +104,18 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     if (!framed() || e.ctrlKey || e.metaKey) return;
     e.preventDefault();
     e.stopPropagation();
-    // One frame per mouse notch; a trackpad's many small deltas accumulate.
-    wheelAccumulator += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY;
-    const steps = Math.trunc(wheelAccumulator / 40);
-    if (steps === 0) return;
-    wheelAccumulator -= steps * 40;
-    actions.stepCellFrame(props.cellIndex, Math.sign(steps) * Math.min(Math.abs(steps), 3));
+    // One frame per mouse notch (any delta of a notch's size, whatever the
+    // platform reports for one); a trackpad's many small deltas accumulate.
+    const delta = e.deltaMode === 1 ? e.deltaY * WHEEL_NOTCH_PX : e.deltaY;
+    if (Math.abs(delta) >= WHEEL_NOTCH_PX) {
+      wheelAccumulator = 0;
+      actions.stepCellFrame(props.cellIndex, Math.sign(delta));
+      return;
+    }
+    wheelAccumulator += delta;
+    if (Math.abs(wheelAccumulator) < WHEEL_NOTCH_PX) return;
+    actions.stepCellFrame(props.cellIndex, Math.sign(wheelAccumulator));
+    wheelAccumulator = 0;
   };
   const [overlay, setOverlay] = createSignal<FabricOverlay>();
   const [decorationLayer, setDecorationLayer] = createSignal<DecorationLayer>();

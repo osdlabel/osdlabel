@@ -23,6 +23,7 @@ import type {
   VertexMarkerOptions,
 } from 'osdlabel';
 import {
+  usesPerFrameScope,
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
@@ -201,7 +202,11 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     annotationState,
     activeImageId,
     () => uiState.selectedAnnotationId,
-    () => uiState.cellFrames[uiState.activeCellIndex]?.index,
+    // Tracked only under a per-frame limit: a scroll must not recount the series.
+    () =>
+      usesPerFrameScope(contextState)
+        ? uiState.cellFrames[uiState.activeCellIndex]?.index
+        : undefined,
   );
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };

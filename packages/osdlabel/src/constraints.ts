@@ -141,6 +141,17 @@ function canRefineSelectedMask(
 }
 
 /**
+ * Whether the active context limits any tool per frame. Bindings read the
+ * current frame into their constraint memo only when this is true: otherwise
+ * every frame step of a scroll would recount every annotation of the series
+ * for a status that cannot change.
+ */
+export function usesPerFrameScope(contextState: ContextState): boolean {
+  const active = contextState.contexts.find((c) => c.id === contextState.activeContextId);
+  return active?.tools.some((t) => t.countScope === 'per-frame') ?? false;
+}
+
+/**
  * Whether `type` may add an annotation now: enabled, and under its limit.
  *
  * Distinct from `enabled` for the brush, which stays usable at its limit to

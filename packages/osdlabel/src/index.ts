@@ -331,6 +331,7 @@ export {
   computeConstraintStatus,
   countAnnotationsForContextAndType,
   canAddAnnotation,
+  usesPerFrameScope,
 } from './constraints.js';
 
 // Drag-driven viewer control registry
