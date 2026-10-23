@@ -67,6 +67,12 @@ export interface UIState {
   selectedAnnotationId: AnnotationId | null;
   cellTransforms: Record<number, CellTransform>;
   /**
+   * The frame each cell shows, for cells whose image source has a frame axis
+   * (a CT/MR stack, a cine loop, a video). Absent means frame 0. Per cell, like
+   * `cellTransforms`, so one series can be shown at two slices side by side.
+   */
+  cellFrames: Record<number, number>;
+  /**
    * Radius of the segmentation brush, in **image** pixels — so a stroke covers
    * the same real area at any zoom and masks stay reproducible.
    */

@@ -8,6 +8,7 @@ import type {
   ContextState,
 } from '@osdlabel/annotation-context';
 import { isContextScopedToImage } from '@osdlabel/annotation-context';
+import { clampFrameIndex } from '@osdlabel/frame';
 import type { OsdAnnotation, OsdFields } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,18 @@ export type UIAction =
   | {
       readonly type: 'UNASSIGN_IMAGE_FROM_CELL';
       readonly payload: { readonly cellIndex: number };
+    }
+  | {
+      /**
+       * Show frame `frame` of the cell's multi-frame source. The reducer has no
+       * view of image sources, so the caller passes the axis length to clamp to.
+       */
+      readonly type: 'SET_CELL_FRAME';
+      readonly payload: {
+        readonly cellIndex: number;
+        readonly frame: number;
+        readonly frameCount: number;
+      };
     }
   | {
       readonly type: 'SET_GRID_DIMENSIONS';
@@ -250,6 +263,8 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       if (draft.gridAssignments[cellIndex] === action.payload.imageId) break;
       draft.gridAssignments[cellIndex] = action.payload.imageId;
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
+      // A new image starts at its first frame.
+      delete draft.cellFrames[cellIndex];
       break;
     }
     case 'UNASSIGN_IMAGE_FROM_CELL': {
@@ -266,6 +281,17 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       if (cellIndex === undefined) break;
       delete draft.gridAssignments[cellIndex];
       delete draft.cellTransforms[cellIndex];
+      delete draft.cellFrames[cellIndex];
+      break;
+    }
+    case 'SET_CELL_FRAME': {
+      const cellIndex = toCellIndex(action.payload.cellIndex);
+      if (cellIndex === undefined) break;
+      const frame = clampFrameIndex(action.payload.frame, action.payload.frameCount);
+      // Equal writes are skipped so a wheel tick at the end of a stack does not
+      // notify every reader of the cell.
+      if ((draft.cellFrames[cellIndex] ?? 0) === frame) break;
+      draft.cellFrames[cellIndex] = frame;
       break;
     }
     case 'SET_GRID_DIMENSIONS': {
@@ -290,6 +316,8 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
           delete draft.cellTransforms[index];
         }
       }
+      // Frame positions are kept with the assignments (restored on expand),
+      // unlike transforms: they are where the user was, not how it was shown.
       // Assignments for pruned cells are deliberately NOT removed: a
       // shrink/expand round trip is expected to restore what those cells were
       // showing. Consumers that must ignore them scope by the cell count

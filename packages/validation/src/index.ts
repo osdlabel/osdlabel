@@ -7,6 +7,7 @@ export {
 export { ToolTypeSchema } from './schemas/tool.js';
 export { FabricRawAnnotationDataSchema } from './schemas/fabric-data.js';
 export { MaskRawAnnotationDataSchema } from './schemas/mask-data.js';
+export { FrameRefSchema, MAX_FRAME_INDEX } from './schemas/frame.js';
 export {
   MAX_IMAGE_DIMENSION,
   MAX_MASK_COUNTS_LENGTH,

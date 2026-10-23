@@ -21,8 +21,12 @@ export interface ContextFields {
 
 // ── Constraint System ───────────────────────────────────────────────────
 
-/** Count scope for tool constraints */
-export type CountScope = 'per-image' | 'global';
+/**
+ * Count scope for tool constraints. `'per-frame'` counts only the current
+ * frame of a multi-frame source (one slice of a stack); on a single-frame
+ * image it is the same as `'per-image'`, which on a stack means per series.
+ */
+export type CountScope = 'per-image' | 'per-frame' | 'global';
 
 /** Tool constraint within an annotation context */
 export interface ToolConstraint {

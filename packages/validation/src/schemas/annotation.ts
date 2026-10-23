@@ -4,6 +4,7 @@ import { GeometrySchema } from './geometry.js';
 import { ToolTypeSchema } from './tool.js';
 import { FabricRawAnnotationDataSchema } from './fabric-data.js';
 import { MaskRawAnnotationDataSchema } from './mask-data.js';
+import { FrameRefSchema } from './frame.js';
 
 /**
  * Schema for {@link @osdlabel/annotation!BaseAnnotation | BaseAnnotation} — validates core annotation fields.
@@ -29,6 +30,9 @@ export const OsdFieldsSchema = v.object({
     FabricRawAnnotationDataSchema,
     MaskRawAnnotationDataSchema,
   ]),
+  // Optional: absent means series-level (every frame), which is also what
+  // every document written before frames existed means.
+  frame: v.optional(FrameRefSchema),
 });
 
 /**

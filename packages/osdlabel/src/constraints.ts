@@ -6,6 +6,7 @@ import type {
   ConstraintStatus,
 } from '@osdlabel/annotation-context';
 import { isContextScopedToImage, getCountableImageIds } from '@osdlabel/annotation-context';
+import { isOnFrame } from '@osdlabel/frame';
 import type { OsdFields } from './types.js';
 
 const ALL_TOOL_TYPES: readonly ToolType[] = [
@@ -35,6 +36,11 @@ export function computeConstraintStatus(
   annotationState: AnnotationState<OsdFields>,
   currentImageId: ImageId | undefined,
   selectedAnnotationId: AnnotationId | null = null,
+  /**
+   * The frame the active cell shows, for a multi-frame source. `undefined`
+   * for a single-frame image, where `'per-frame'` counts like `'per-image'`.
+   */
+  currentFrame?: number,
 ): ConstraintStatus {
   const activeContext = contextState.contexts.find((c) => c.id === contextState.activeContextId);
 
@@ -58,6 +64,7 @@ export function computeConstraintStatus(
         activeContext.id,
         type,
         getCountableImageIds(activeContext, currentImageId, countScope),
+        countScope === 'per-frame' ? currentFrame : undefined,
       );
       const maxCount = toolConstraint.maxCount ?? null;
       const underLimit = maxCount === null || currentCount < maxCount;
@@ -69,6 +76,7 @@ export function computeConstraintStatus(
             currentImageId,
             activeContext.id,
             selectedAnnotationId,
+            currentFrame,
           ));
 
       result[type] = {
@@ -86,6 +94,11 @@ export function countAnnotationsForContextAndType(
   contextId: AnnotationContextId,
   type: ToolType,
   scopedImageIds?: readonly ImageId[] | undefined,
+  /**
+   * When set, only annotations shown on this frame count: placed on it, or
+   * series-level (shown on every frame, so present on this one too).
+   */
+  frame?: number | undefined,
 ): number {
   let count = 0;
   const imageBuckets = scopedImageIds
@@ -95,7 +108,11 @@ export function countAnnotationsForContextAndType(
   for (const imageAnns of imageBuckets) {
     if (!imageAnns) continue;
     for (const ann of Object.values(imageAnns)) {
-      if (ann.contextId === contextId && ann.toolType === type) {
+      if (
+        ann.contextId === contextId &&
+        ann.toolType === type &&
+        (frame === undefined || isOnFrame(ann, frame))
+      ) {
         count++;
       }
     }
@@ -110,13 +127,16 @@ function canRefineSelectedMask(
   currentImageId: ImageId,
   activeContextId: AnnotationContextId,
   selectedAnnotationId: AnnotationId | null,
+  currentFrame: number | undefined,
 ): boolean {
   if (selectedAnnotationId === null) return false;
   const selected = annotationState.byImage[currentImageId]?.[selectedAnnotationId];
   return (
     selected !== undefined &&
     selected.geometry.type === 'mask' &&
-    selected.contextId === activeContextId
+    selected.contextId === activeContextId &&
+    // A mask painted on another slice is not on screen to refine.
+    (currentFrame === undefined || isOnFrame(selected, currentFrame))
   );
 }
 

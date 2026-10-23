@@ -229,6 +229,31 @@ export {
   MAX_MASK_PIXELS,
 } from '@osdlabel/validation';
 
+// Frame axis (re-exported from @osdlabel/frame)
+export type {
+  FrameRef,
+  FrameFields,
+  FrameAxis,
+  FrameAxisKind,
+  FrameBuckets,
+  MaybeFramed,
+  ReconcileResult,
+} from '@osdlabel/frame';
+export {
+  hasFrame,
+  isOnFrame,
+  sameFrame,
+  clampFrameIndex,
+  stepFrameIndex,
+  frameIndexAtTime,
+  frameRefAt,
+  bucketByFrame,
+  annotationsOnFrame,
+  annotatedFrameIndices,
+  reconcileFrameRefs,
+} from '@osdlabel/frame';
+export { FrameRefSchema } from '@osdlabel/validation';
+
 // Own types
 export type { OsdAnnotation, OsdFields } from './types.js';
 

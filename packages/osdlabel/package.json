@@ -41,6 +41,7 @@
     "@osdlabel/decoration": "workspace:*",
     "@osdlabel/fabric-annotations": "workspace:*",
     "@osdlabel/fabric-osd": "workspace:*",
+    "@osdlabel/frame": "workspace:*",
     "@osdlabel/geometry": "workspace:*",
     "@osdlabel/mask": "workspace:*",
     "@osdlabel/validation": "workspace:*",

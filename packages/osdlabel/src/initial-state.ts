@@ -20,6 +20,7 @@ export function createInitialUIState(): UIState {
     gridAssignments: {},
     selectedAnnotationId: null,
     cellTransforms: {},
+    cellFrames: {},
     brushRadius: DEFAULT_BRUSH_RADIUS,
     brushErasing: false,
   };
