@@ -1,3 +1,4 @@
+/* global window -- page.evaluate callbacks run in the browser */
 /**
  * Frame-axis PoC benchmark: one non-interactive command.
  *
@@ -54,7 +55,7 @@ const HEADED = flag('--headed');
 // ── memory (Linux /proc) ──────────────────────────────────────────────────
 function childrenOf(pid) {
   const out = [];
-  let entries = [];
+  let entries;
   try {
     entries = fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d));
   } catch {

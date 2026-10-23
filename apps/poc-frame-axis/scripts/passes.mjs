@@ -1,3 +1,4 @@
+/* global window -- page.evaluate callbacks run in the browser */
 /**
  * Diagnostic: scroll the Solid harness three times over the same frames and
  * report fps / slices shown / canvas object counts per pass (first visits,

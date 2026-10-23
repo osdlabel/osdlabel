@@ -1,3 +1,4 @@
+/* global window -- page.evaluate callbacks run in the browser */
 /**
  * CPU-profile one harness configuration while it scrolls, and print the
  * functions with the most self time. A diagnostic, not part of the bench.

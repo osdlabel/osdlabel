@@ -1,3 +1,4 @@
+/* global window -- page.evaluate callbacks run in the browser */
 /**
  * Record a Chrome timeline trace of one harness configuration while it
  * scrolls, and print where the renderer main thread's time went by trace
