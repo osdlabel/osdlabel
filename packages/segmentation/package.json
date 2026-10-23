@@ -1,0 +1,36 @@
+{
+  "name": "@osdlabel/segmentation",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: the assisted-segmentation provider contract (prompts, encode views, raster mask results), the viewport-crop embedding cache, and pure output conversion to @osdlabel/mask snapshots and polygons.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/mask": "workspace:*",
+    "@osdlabel/mask-contour": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
