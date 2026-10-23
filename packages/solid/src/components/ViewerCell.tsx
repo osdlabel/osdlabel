@@ -88,7 +88,31 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
    * decorations twice per paint, and a slow swap would queue a backlog.
    */
   const [shownFrame, setShownFrame] = createSignal<number | undefined>(untrack(frameIndex));
-  const frameThrottle = createFrameThrottle<number | undefined>((index) => setShownFrame(index));
+  /**
+   * The throttle releases the next frame step right after OSD has drawn the
+   * previous one, inside OSD's own animation-frame callback. A step taken
+   * there has its pixels drawn by OSD's next callback and its annotations by
+   * Fabric's, which is queued behind it — the same paint. Released from a
+   * plain rAF instead, a step could run after OSD's callback for the frame and
+   * before Fabric's, putting the annotations one paint ahead of the image.
+   * A step that draws nothing still releases, two frames later.
+   */
+  const afterNextDraw = (release: () => void): void => {
+    const v = viewer;
+    let done = false;
+    const run = (): void => {
+      if (done) return;
+      done = true;
+      v?.removeHandler('update-viewport', run);
+      release();
+    };
+    v?.addHandler('update-viewport', run);
+    requestAnimationFrame(() => requestAnimationFrame(run));
+  };
+  const frameThrottle = createFrameThrottle<number | undefined>(
+    (index) => setShownFrame(index),
+    afterNextDraw,
+  );
   onCleanup(() => frameThrottle.cancel());
   createEffect(() => frameThrottle.request(frameIndex()));
   const frameRef = (): FrameRef | undefined => {
