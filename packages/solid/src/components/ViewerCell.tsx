@@ -9,6 +9,7 @@ import {
   For,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { unwrap } from 'solid-js/store';
 import type { Component } from 'solid-js';
 import OpenSeadragon from 'openseadragon';
 import { DecorationLayer, FabricOverlay } from '@osdlabel/fabric-osd';
@@ -26,6 +27,7 @@ import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
 import type { FrameRef, OsdFields } from 'osdlabel';
 import {
+  createFrameThrottle,
   annotationsOnFrame,
   bucketByFrame,
   frameRefAt,
@@ -41,6 +43,9 @@ import {
   settleAnnotationObjects,
   swapMaskTints,
 } from 'osdlabel';
+/** A revived annotation's canvas object (typed without importing Fabric here). */
+type AnnotationObject = NonNullable<Awaited<ReturnType<typeof createFabricObjectFromRawData>>>;
+
 export interface ViewerCellProps {
   readonly imageSource: ImageSource | undefined;
   readonly isActive: boolean;
@@ -73,10 +78,21 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
 
   const framed = (): FramedImageSource | undefined =>
     isFramedImageSource(props.imageSource) ? props.imageSource : undefined;
+  /** The frame the cell is asked to show (state). */
   const frameIndex = (): number | undefined => uiState.cellFrames[props.cellIndex]?.index;
+  /**
+   * The frame actually presented: follows `frameIndex` at most once per
+   * display frame. Solid runs effects synchronously inside the wheel handler,
+   * so without this a 120 Hz trackpad would swap pixels, annotations and
+   * decorations twice per paint, and a slow swap would queue a backlog.
+   */
+  const [shownFrame, setShownFrame] = createSignal<number | undefined>(untrack(frameIndex));
+  const frameThrottle = createFrameThrottle<number | undefined>((index) => setShownFrame(index));
+  onCleanup(() => frameThrottle.cancel());
+  createEffect(() => frameThrottle.request(frameIndex()));
   const frameRef = (): FrameRef | undefined => {
     const source = framed();
-    const index = frameIndex();
+    const index = shownFrame();
     return source && index !== undefined ? frameRefAt(source.frameAxis, index) : undefined;
   };
 
@@ -187,7 +203,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
   // Present the cell's frame. One tile repainted in place: the viewport, the
   // world's single item and the overlay's transform are untouched.
   createEffect(() => {
-    const index = frameIndex();
+    const index = shownFrame();
     if (index !== undefined) presenter?.show(index);
   });
 
@@ -229,13 +245,23 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     const visibleSet = new Set<AnnotationContextId>(displayedIds);
     if (activeContextId) visibleSet.add(activeContextId);
     const buckets = frameBuckets();
-    const index = frameIndex();
+    const index = shownFrame();
     const pool =
       buckets && index !== undefined
         ? annotationsOnFrame(buckets, index)
         : Object.values(annotationState.byImage[imageId] || {});
     return visibleSet.size > 0 ? pool.filter((a) => visibleSet.has(a.contextId)) : pool;
   };
+
+  /**
+   * Vector annotation objects reused across rebuilds, keyed by the payload
+   * (`rawAnnotationData`) they were revived from. Every edit writes a new
+   * payload, so a changed annotation misses and is revived afresh; an
+   * unchanged one — the annotations of a frame scrolled back to — is re-added
+   * as is instead of being revived again. Weak, so a payload that leaves the
+   * store takes its object with it.
+   */
+  const vectorObjects = new WeakMap<object, AnnotationObject>();
 
   /** Rasterized masks reused across rebuilds; see `MaskObjectCache`. */
   const maskObjects = new MaskObjectCache();
@@ -259,7 +285,13 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       return;
     }
 
-    const matching = visibleAnnotations();
+    // Track only what a rebuild depends on — each annotation's payload, which
+    // a store write may replace in place — then read plain objects: the reads
+    // below (and in the async revive) otherwise go through the store proxy and
+    // create a subscription per field, a large share of a scroll's CPU.
+    const tracked = visibleAnnotations();
+    for (const a of tracked) void a.rawAnnotationData;
+    const matching = tracked.map((a) => unwrap(a));
 
     // Clear all existing annotation objects from canvas
     const toRemove = ov.canvas.getObjects().filter((obj) => obj.id);
@@ -293,11 +325,16 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
         const fill = maskFillFor(ann.id, selectedId, maskStyle);
         const isMask = ann.geometry.type === 'mask';
         const cached = isMask ? maskObjects.get(ann, fill) : undefined;
-        const obj = cached ?? (await createFabricObjectFromRawData(ann, { maskFill: fill }));
+        // Keyed by the payload: the object is a function of it alone.
+        const key = ann.rawAnnotationData;
+        const reused = isMask ? undefined : vectorObjects.get(key);
+        const obj =
+          cached ?? reused ?? (await createFabricObjectFromRawData(ann, { maskFill: fill }));
         // Not after this run was superseded: a newer run has already retained
         // its own set, and a write now would outlive that until the next
         // rebuild, which a cell showing a static image never has.
         if (obj && isMask && !cached && !cancelled) maskObjects.set(ann, fill, obj);
+        if (obj && !isMask && !reused) vectorObjects.set(key, obj);
         if (obj) {
           // Only active-context annotations may be interactive; mark the rest
           // `_readOnly` so setMode() keeps them inert too.
@@ -405,12 +442,16 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     void annotationState.changeCounter;
     void contextState.activeContextId;
     void contextState.displayedContextIds;
+    void props.imageSource?.id;
+    void shownFrame();
     const providers = decorationProviders;
     if (!providers || providers.length === 0) {
       layer.setDecorations([]);
       return;
     }
-    const annotations = visibleAnnotations();
+    // The dependencies above already cover every change; providers read plain
+    // objects, untracked, instead of subscribing to each geometry field.
+    const annotations = untrack(visibleAnnotations).map((a) => unwrap(a));
     const pixelSpacing = props.imageSource?.pixelSpacing ?? defaultPixelSpacing;
     const selectedAnnotationId = uiState.selectedAnnotationId;
     const ctx = { annotations, pixelSpacing, selectedAnnotationId };
@@ -427,7 +468,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     if (!ov || !layer) return;
     const dispose = enableLiveDecorationUpdates<OsdFields>({
       overlay: ov,
-      getVisibleAnnotations: visibleAnnotations,
+      getVisibleAnnotations: () => visibleAnnotations().map((a) => unwrap(a)),
       getPixelSpacing: () => props.imageSource?.pixelSpacing ?? defaultPixelSpacing,
       getSelectedAnnotationId: () => uiState.selectedAnnotationId,
       getProviders: () => decorationProviders ?? [],

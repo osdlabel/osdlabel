@@ -7,6 +7,7 @@ import { BaseAnnotationSchema, FabricRawAnnotationDataSchema } from '@osdlabel/v
 import { vi } from 'vitest';
 import { BoundedDenseMaskBuffer, stampCircle } from '@osdlabel/mask';
 import { applyUIAction } from '../../src/actions.js';
+import { createFrameThrottle } from '../../src/frame-throttle.js';
 import { buildSegmentationBrushConfig } from '../../src/brush-config.js';
 import { createMaskAnnotation } from '../../src/create-mask-annotation.js';
 import { DEFAULT_KEYBOARD_SHORTCUTS, mapKeyEventToActions } from '../../src/keyboard.js';
@@ -267,5 +268,30 @@ describe('the brush on a multi-frame source', () => {
       index: 12,
       key: 'uid-12',
     });
+  });
+});
+
+describe('createFrameThrottle', () => {
+  it('applies the first request now and collapses the rest of the frame to the newest', () => {
+    const queue: (() => void)[] = [];
+    const applied: number[] = [];
+    const t = createFrameThrottle<number>(
+      (v) => applied.push(v),
+      (cb) => queue.push(cb),
+    );
+    t.request(1);
+    t.request(2);
+    t.request(3);
+    expect(applied).toEqual([1]);
+    queue.shift()!();
+    expect(applied).toEqual([1, 3]);
+    queue.shift()!();
+    expect(queue).toEqual([]);
+    t.request(4);
+    expect(applied).toEqual([1, 3, 4]);
+    t.cancel();
+    t.request(5);
+    queue.shift()!();
+    expect(applied).toEqual([1, 3, 4]);
   });
 });

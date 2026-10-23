@@ -254,6 +254,9 @@ export {
 } from '@osdlabel/frame';
 export { FrameRefSchema } from '@osdlabel/validation';
 
+export { createFrameThrottle } from './frame-throttle.js';
+export type { FrameThrottle } from './frame-throttle.js';
+
 // Own types
 export type { OsdAnnotation, OsdFields } from './types.js';
 
