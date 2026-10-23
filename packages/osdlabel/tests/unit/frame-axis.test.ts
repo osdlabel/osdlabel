@@ -4,7 +4,12 @@ import { createAnnotationId } from '@osdlabel/annotation';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createImageId } from '@osdlabel/viewer-api';
 import { BaseAnnotationSchema, FabricRawAnnotationDataSchema } from '@osdlabel/validation';
+import { vi } from 'vitest';
+import { BoundedDenseMaskBuffer, stampCircle } from '@osdlabel/mask';
 import { applyUIAction } from '../../src/actions.js';
+import { buildSegmentationBrushConfig } from '../../src/brush-config.js';
+import { createMaskAnnotation } from '../../src/create-mask-annotation.js';
+import { DEFAULT_KEYBOARD_SHORTCUTS, mapKeyEventToActions } from '../../src/keyboard.js';
 import { computeConstraintStatus } from '../../src/constraints.js';
 import {
   createInitialAnnotationState,
@@ -50,23 +55,37 @@ describe('SET_CELL_FRAME', () => {
       type: 'SET_CELL_FRAME',
       payload: { cellIndex: 0, frame: 400, frameCount: 300 },
     });
-    expect(ui.cellFrames[0]).toBe(299);
+    expect(ui.cellFrames[0]).toEqual({ index: 299, count: 300 });
     applyUIAction(ui, {
       type: 'SET_CELL_FRAME',
       payload: { cellIndex: 0, frame: -5, frameCount: 300 },
     });
-    expect(ui.cellFrames[0]).toBe(0);
+    expect(ui.cellFrames[0]).toEqual({ index: 0, count: 300 });
     applyUIAction(ui, {
       type: 'SET_CELL_FRAME',
       payload: { cellIndex: 0, frame: 42, frameCount: 300 },
     });
     applyUIAction(ui, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 0, imageId: series } });
-    expect(ui.cellFrames[0]).toBe(42); // same image: #212 rule, nothing resets
+    expect(ui.cellFrames[0]?.index).toBe(42); // same image: #212 rule, nothing resets
     applyUIAction(ui, {
       type: 'ASSIGN_IMAGE_TO_CELL',
       payload: { cellIndex: 0, imageId: createImageId('other') },
     });
     expect(ui.cellFrames[0]).toBeUndefined();
+  });
+
+  it('steps within the registered axis, and only for a cell that has one', () => {
+    const ui = createInitialUIState();
+    applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 1 } });
+    expect(ui.cellFrames[0]).toBeUndefined();
+    applyUIAction(ui, {
+      type: 'SET_CELL_FRAME',
+      payload: { cellIndex: 0, frame: 298, frameCount: 300 },
+    });
+    applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 5 } });
+    expect(ui.cellFrames[0]).toEqual({ index: 299, count: 300 });
+    applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 1, wrap: true } });
+    expect(ui.cellFrames[0]).toEqual({ index: 0, count: 300 });
   });
 
   it('ignores an invalid cell index', () => {
@@ -151,5 +170,102 @@ describe('serialization of frames', () => {
     const preFrame = v.intersect([BaseAnnotationSchema, PreFrameOsdFields]);
     const parsed = v.parse(preFrame, JSON.parse(JSON.stringify(point('a', 12))));
     expect('frame' in parsed).toBe(false);
+  });
+});
+
+describe('frame shortcuts', () => {
+  const state = {
+    activeTool: null,
+    activeCellIndex: 2,
+    gridColumns: 2,
+    gridRows: 2,
+    selectedAnnotationId: null,
+    activeImageId: series,
+  };
+  const status = computeConstraintStatus(
+    createInitialContextState(),
+    createInitialAnnotationState(),
+    undefined,
+  );
+
+  it('step the active cell when it shows a multi-frame source', () => {
+    const map = (key: string, framed: boolean) =>
+      mapKeyEventToActions(
+        key,
+        false,
+        DEFAULT_KEYBOARD_SHORTCUTS,
+        { ...state, activeCellHasFrames: framed },
+        status,
+      );
+    expect(map('ArrowDown', true)).toEqual([
+      { type: 'STEP_CELL_FRAME', payload: { cellIndex: 2, delta: 1 } },
+    ]);
+    expect(map('ArrowUp', true)).toEqual([
+      { type: 'STEP_CELL_FRAME', payload: { cellIndex: 2, delta: -1 } },
+    ]);
+    expect(map('ArrowDown', false)).toEqual([]);
+  });
+});
+
+describe('the brush on a multi-frame source', () => {
+  function mask(id: string, frame: number) {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 64, imageHeight: 64 });
+    stampCircle(buffer, 20.5, 20.5, 4, 1);
+    return {
+      ...createMaskAnnotation(buffer.snapshot(), {
+        id: createAnnotationId(id),
+        imageId: series,
+        contextId: ctx,
+      }),
+      frame: { index: frame },
+    };
+  }
+
+  function harness(selected: OsdAnnotation, frame: number) {
+    const addAnnotation = vi.fn();
+    const state = createInitialAnnotationState();
+    state.byImage[series] = { [selected.id]: selected } as never;
+    const config = buildSegmentationBrushConfig(
+      {
+        getBrushRadius: () => 5,
+        isErasing: () => false,
+        getImageSize: () => ({ width: 64, height: 64 }),
+        getSelectedAnnotationId: () => selected.id,
+        getAnnotationState: () => state,
+        getImageId: () => series,
+        getActiveContextId: () => ctx,
+        getFrame: () => ({ index: frame, key: `uid-${frame}` }),
+      },
+      {
+        addAnnotation,
+        updateAnnotation: vi.fn(),
+        deleteAnnotation: vi.fn(),
+        setSelectedAnnotation: vi.fn(),
+        adjustBrushRadius: vi.fn(),
+      },
+    );
+    return { config, addAnnotation };
+  }
+
+  it('does not refine a mask selected on another slice', () => {
+    expect(harness(mask('m', 11), 12).config.getTarget()).toBeNull();
+    expect(harness(mask('m', 12), 12).config.getTarget()).not.toBeNull();
+  });
+
+  it('places a new mask on the painted frame', () => {
+    const { config, addAnnotation } = harness(mask('m', 11), 12);
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 64, imageHeight: 64 });
+    stampCircle(buffer, 30.5, 30.5, 3, 1);
+    config.onCommit({
+      annotationId: null,
+      imageId: series,
+      contextId: ctx,
+      snapshot: buffer.snapshot(),
+    });
+    expect(addAnnotation).toHaveBeenCalled();
+    expect((addAnnotation.mock.calls[0]![0] as OsdAnnotation).frame).toEqual({
+      index: 12,
+      key: 'uid-12',
+    });
   });
 });

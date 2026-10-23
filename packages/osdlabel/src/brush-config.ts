@@ -18,6 +18,8 @@ import type {
   SegmentationBrushToolConfig,
 } from '@osdlabel/fabric-annotations';
 import { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
+import type { FrameRef } from '@osdlabel/frame';
+import { isOnFrame } from '@osdlabel/frame';
 import type { OsdAnnotation, OsdFields } from './types.js';
 
 /**
@@ -53,6 +55,12 @@ export interface BrushConfigAccessors {
    * `DEFAULT_MAX_MASK_PIXELS` ceiling — see {@link BrushOptions.maxPixels}.
    */
   readonly maxPixels?: number | undefined;
+  /**
+   * The frame being painted, for a multi-frame source. A stroke then refines
+   * only a mask on that frame (or a series-level one), and a new mask is
+   * placed on it.
+   */
+  readonly getFrame?: (() => FrameRef | undefined) | undefined;
 }
 
 /** State mutations the brush triggers. */
@@ -120,6 +128,11 @@ export function buildSegmentationBrushConfig(
     const activeContextId = accessors.getActiveContextId();
     if (activeContextId && annotation.contextId !== activeContextId) return null;
 
+    // Nor into another slice: a mask selected on frame 11 is not on screen
+    // while painting frame 12, and a stroke would silently edit it.
+    const frame = accessors.getFrame?.();
+    if (frame && !isOnFrame(annotation, frame.index)) return null;
+
     // Remember the mask's own tint; re-encoding without it would silently
     // repaint an imported red mask in the default blue.
     targetFill = annotation.rawAnnotationData.data.fill;
@@ -160,15 +173,17 @@ export function buildSegmentationBrushConfig(
     if (isEmpty) return;
 
     const fill = accessors.getFill?.();
+    const frame = accessors.getFrame?.();
     const id = createAnnotationId(generateId());
-    dispatchers.addAnnotation(
-      createMaskAnnotation(stroke.snapshot, {
+    dispatchers.addAnnotation({
+      ...createMaskAnnotation(stroke.snapshot, {
         id,
         imageId: stroke.imageId,
         contextId: stroke.contextId,
         ...(fill !== undefined ? { fill } : {}),
       }),
-    );
+      ...(frame !== undefined ? { frame } : {}),
+    });
     // Select it so the next stroke refines this mask instead of starting another.
     dispatchers.setSelectedAnnotation(id);
   };

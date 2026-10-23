@@ -8,7 +8,7 @@ import type {
   ContextState,
 } from '@osdlabel/annotation-context';
 import { isContextScopedToImage } from '@osdlabel/annotation-context';
-import { clampFrameIndex } from '@osdlabel/frame';
+import { clampFrameIndex, stepFrameIndex } from '@osdlabel/frame';
 import type { OsdAnnotation, OsdFields } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -55,13 +55,23 @@ export type UIAction =
   | {
       /**
        * Show frame `frame` of the cell's multi-frame source. The reducer has no
-       * view of image sources, so the caller passes the axis length to clamp to.
+       * view of image sources, so the caller passes the axis length, which is
+       * stored with the frame (a cell registers its axis this way on open).
        */
       readonly type: 'SET_CELL_FRAME';
       readonly payload: {
         readonly cellIndex: number;
         readonly frame: number;
         readonly frameCount: number;
+      };
+    }
+  | {
+      /** Step the cell's frame by `delta`, clamped (or wrapped) to its registered axis. */
+      readonly type: 'STEP_CELL_FRAME';
+      readonly payload: {
+        readonly cellIndex: number;
+        readonly delta: number;
+        readonly wrap?: boolean | undefined;
       };
     }
   | {
@@ -287,11 +297,28 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
     case 'SET_CELL_FRAME': {
       const cellIndex = toCellIndex(action.payload.cellIndex);
       if (cellIndex === undefined) break;
-      const frame = clampFrameIndex(action.payload.frame, action.payload.frameCount);
+      const count = Math.max(1, Math.trunc(action.payload.frameCount) || 1);
+      const index = clampFrameIndex(action.payload.frame, count);
+      const current = draft.cellFrames[cellIndex];
       // Equal writes are skipped so a wheel tick at the end of a stack does not
       // notify every reader of the cell.
-      if ((draft.cellFrames[cellIndex] ?? 0) === frame) break;
-      draft.cellFrames[cellIndex] = frame;
+      if (current && current.index === index && current.count === count) break;
+      draft.cellFrames[cellIndex] = { index, count };
+      break;
+    }
+    case 'STEP_CELL_FRAME': {
+      const cellIndex = toCellIndex(action.payload.cellIndex);
+      if (cellIndex === undefined) break;
+      const current = draft.cellFrames[cellIndex];
+      if (!current) break;
+      const index = stepFrameIndex(
+        current.index,
+        action.payload.delta,
+        current.count,
+        action.payload.wrap ?? false,
+      );
+      if (index === current.index) break;
+      draft.cellFrames[cellIndex] = { index, count: current.count };
       break;
     }
     case 'SET_GRID_DIMENSIONS': {

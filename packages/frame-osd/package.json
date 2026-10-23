@@ -1,0 +1,51 @@
+{
+  "name": "@osdlabel/frame-osd",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC (frame-axis): present the frames of a multi-frame source in one OpenSeadragon viewer by swapping a single tile's pixels in place. SolidJS/React-agnostic.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@osdlabel/frame": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*"
+  },
+  "peerDependencies": {
+    "openseadragon": "catalog:peers"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "jsdom": "catalog:",
+    "openseadragon": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/osdlabel/osdlabel.git"
+  }
+}

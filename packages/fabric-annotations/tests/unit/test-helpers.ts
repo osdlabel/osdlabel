@@ -55,6 +55,8 @@ export function createTestKeyboardShortcuts(): KeyboardShortcutMap {
     decreaseBrushRadius: '[',
     nextContext: '.',
     previousContext: ',',
+    nextFrame: 'ArrowDown',
+    previousFrame: 'ArrowUp',
   };
 }
 

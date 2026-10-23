@@ -51,6 +51,8 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   decreaseBrushRadius: '[',
   nextContext: '.',
   previousContext: ',',
+  nextFrame: 'ArrowDown',
+  previousFrame: 'ArrowUp',
 } as const;
 
 /** Maximum grid size */
@@ -75,6 +77,8 @@ export interface KeyboardMappingState {
    */
   readonly contexts?: readonly AnnotationContext[] | undefined;
   readonly activeContextId?: AnnotationContextId | null | undefined;
+  /** Whether the active cell shows a multi-frame source (enables the frame shortcuts). */
+  readonly activeCellHasFrames?: boolean | undefined;
 }
 
 /**
@@ -259,6 +263,18 @@ export function mapKeyEventToActions(
     if (nextContextId !== null && nextContextId !== activeContextId) {
       actions.push({ type: 'SET_ACTIVE_CONTEXT', payload: nextContextId });
     }
+  }
+
+  // Frame stepping, only for a cell showing a multi-frame source, so the keys
+  // stay free for the host everywhere else.
+  else if (
+    state.activeCellHasFrames &&
+    (key === shortcuts.nextFrame || key === shortcuts.previousFrame)
+  ) {
+    actions.push({
+      type: 'STEP_CELL_FRAME',
+      payload: { cellIndex: state.activeCellIndex, delta: key === shortcuts.nextFrame ? 1 : -1 },
+    });
   }
 
   return actions;
