@@ -1,0 +1,48 @@
+{
+  "name": "@osdlabel/osd-pixel",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC (claude/poc-pixel-pipeline): high-bit-depth rendering for OpenSeadragon 5 through its public extension points: a raw-raster TileSource, a CPU VOI tile path, and a WebGL2 drawer that windows 16-bit textures in a shader.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/pixel": "workspace:*"
+  },
+  "peerDependencies": {
+    "openseadragon": "catalog:peers"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "openseadragon": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/osdlabel/osdlabel.git"
+  }
+}
