@@ -1,0 +1,40 @@
+{
+  "name": "@osdlabel/dicom-wsi",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: open a DICOM VL Whole Slide Microscopy series in OpenSeadragon - pyramid description, frame sources (Part 10 files, DICOMweb WADO-RS) and a custom tile source with pluggable frame decoders.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/dicom": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
