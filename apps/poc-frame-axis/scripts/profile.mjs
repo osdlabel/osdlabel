@@ -35,6 +35,9 @@ try {
   await page.goto(`http://127.0.0.1:${port}/${which === 'solid' ? 'solid.html' : 'index.html'}`);
   await page.waitForFunction('window.__poc && window.__poc.ready');
   await page.evaluate((o) => window.__poc.setup(o), opts);
+  if (process.env.PROFILE_WARM) {
+    await page.evaluate(() => window.__poc.scroll({ rate: 60, durationMs: 2000 }));
+  }
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Profiler.enable');
   await cdp.send('Profiler.setSamplingInterval', { interval: 200 });

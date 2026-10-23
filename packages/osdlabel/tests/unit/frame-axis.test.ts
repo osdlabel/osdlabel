@@ -8,6 +8,7 @@ import { vi } from 'vitest';
 import { BoundedDenseMaskBuffer, stampCircle } from '@osdlabel/mask';
 import { applyUIAction } from '../../src/actions.js';
 import { createFrameThrottle } from '../../src/frame-throttle.js';
+import { VectorObjectCache } from '../../src/vector-object-cache.js';
 import { buildSegmentationBrushConfig } from '../../src/brush-config.js';
 import { createMaskAnnotation } from '../../src/create-mask-annotation.js';
 import { DEFAULT_KEYBOARD_SHORTCUTS, mapKeyEventToActions } from '../../src/keyboard.js';
@@ -293,5 +294,21 @@ describe('createFrameThrottle', () => {
     t.request(5);
     queue.shift()!();
     expect(applied).toEqual([1, 3, 4]);
+  });
+});
+
+describe('VectorObjectCache', () => {
+  it('reuses by payload identity and evicts the least recently used past its bound', () => {
+    const cache = new VectorObjectCache(2);
+    const [p1, p2, p3] = [{}, {}, {}];
+    const o = (n: number) => ({ n }) as never;
+    cache.set(p1, o(1));
+    cache.set(p2, o(2));
+    expect(cache.get(p1)).toEqual({ n: 1 }); // p1 is now the most recent
+    cache.set(p3, o(3));
+    expect(cache.get(p2)).toBeUndefined();
+    expect(cache.get(p1)).toEqual({ n: 1 });
+    expect(cache.get({})).toBeUndefined();
+    expect(cache.size).toBe(2);
   });
 });

@@ -337,26 +337,40 @@ async function groupCine(browser, pid) {
 
 async function groupSolid(browser, pid) {
   const out = [];
+  const base = { frames: 300, width: 512, height: 512, drawer: 'canvas', model: 'frame-axis' };
   const variants = QUICK
-    ? [{ drawer: 'canvas', annotationsPerFrame: 10, objectCaching: true }]
+    ? [{ ...base, annotationsPerFrame: 10, objectCaching: true }]
     : [
-        { drawer: 'canvas', annotationsPerFrame: 0, objectCaching: true },
-        { drawer: 'canvas', annotationsPerFrame: 10, objectCaching: true },
-        { drawer: 'canvas', annotationsPerFrame: 50, objectCaching: true },
-        { drawer: 'canvas', annotationsPerFrame: 10, objectCaching: false },
-        { drawer: 'canvas', annotationsPerFrame: 50, objectCaching: false },
-        { drawer: 'webgl', annotationsPerFrame: 10, objectCaching: true },
+        { ...base, annotationsPerFrame: 0, objectCaching: true },
+        { ...base, annotationsPerFrame: 10, objectCaching: true },
+        { ...base, annotationsPerFrame: 50, objectCaching: true },
+        { ...base, annotationsPerFrame: 10, objectCaching: false },
+        { ...base, annotationsPerFrame: 50, objectCaching: false },
+        { ...base, drawer: 'webgl', annotationsPerFrame: 10, objectCaching: true },
+        // The alternative model: one ImageSource / ImageId per slice.
+        { ...base, model: 'image-per-slice', annotationsPerFrame: 0, objectCaching: true },
+        { ...base, model: 'image-per-slice', annotationsPerFrame: 10, objectCaching: false },
       ];
   for (const v of variants) {
-    const name = `solid/${v.drawer}/${v.annotationsPerFrame}${v.objectCaching ? '' : '/nocache'}`;
+    const name =
+      `solid/${v.model === 'image-per-slice' ? 'per-slice/' : ''}${v.drawer}/${v.annotationsPerFrame}` +
+      (v.objectCaching ? '' : '/nocache');
     process.stdout.write(`  ${name} ... `);
     const t = Date.now();
     const { context, page } = await openPage(browser, 'solid.html');
     const mem0 = pssMB(pid);
     const r = { name, opts: v, loadAvgBefore: load() };
     try {
-      r.setup = await call(page, 'setup', { frames: 300, width: 512, height: 512, ...v });
-      // Real input: Playwright mouse.wheel over the cell (the browser's own wheel pipeline).
+      r.setup = await call(page, 'setup', v);
+      // A non-default view (rotated, zoomed): does navigation keep it?
+      r.viewBefore = await call(page, 'prepareView');
+      // First visits (each frame's annotations revived once), then the same
+      // frames again (objects reused): cold vs warm.
+      r.scripted = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
+      r.scriptedWarm = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
+      r.viewAfter = await call(page, 'viewState');
+      // Real input: Playwright mouse.wheel over the cell (the browser's own
+      // wheel pipeline). Its rate is bounded by the CDP round trip, not by us.
       await page.mouse.move(400, 400);
       const wheelMs = QUICK ? 1000 : 3000;
       await call(page, 'startRecording');
@@ -368,11 +382,8 @@ async function groupSolid(browser, pid) {
         await new Promise((res) => setTimeout(res, 16));
       }
       r.realWheel = { ...(await call(page, 'stopRecording')), wheelEventsSent: n };
-      // First visits (each frame's annotations revived once), then the same
-      // frames again (objects reused): cold vs warm.
-      r.scripted = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
-      r.scriptedWarm = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
       r.memory = { before: mem0, after: pssMB(pid), deltaMB: delta(mem0, pssMB(pid)) };
+      r.loadAvgAfter = load();
     } catch (err) {
       r.error = String(err?.message ?? err);
       console.error(`  ${name}: ${r.error}`);
@@ -474,8 +485,17 @@ function summary(results) {
       ['cold shown/s', (r) => f1(r.scripted?.shownSlicesPerSec)],
       ['warm fps', (r) => f1(r.scriptedWarm?.displayFps)],
       ['warm shown/s', (r) => f1(r.scriptedWarm?.shownSlicesPerSec)],
-      ['incoherent', (r) => r.scripted?.incoherentFrames ?? '-'],
-      ['effect ms p95', (r) => f1(r.scripted?.applyMs?.p95)],
+      ['incoherent', (r) => r.scriptedWarm?.incoherentFrames ?? '-'],
+      ['blank', (r) => r.scriptedWarm?.blankFrames ?? '-'],
+      ['effect ms p95', (r) => f1(r.scriptedWarm?.applyMs?.p95)],
+      [
+        'view kept',
+        (r) =>
+          r.viewAfter
+            ? `rot ${r.viewBefore?.rotation}->${r.viewAfter.rotation} zoom ${r.viewBefore?.zoomOverHome}->${r.viewAfter.zoomOverHome}`
+            : '-',
+      ],
+      ['mem MB', (r) => f1(r.memory?.deltaMB)],
       ['err', (r) => (r.error ? 'ERR' : '')],
     ]);
   }

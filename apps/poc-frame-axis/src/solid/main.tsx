@@ -1,16 +1,23 @@
 /**
  * The Solid binding under test: the real <AnnotatorProvider> + <ViewerCell>
- * (from @osdlabel/solid's built dist) showing a 300-slice FramedImageSource
- * with per-slice annotations and live decorations. A wheel over the cell goes
- * through the binding's own path: capture listener -> stepCellFrame ->
- * STEP_CELL_FRAME -> the presenter effect + the annotation rebuild effect +
- * the decoration effect.
+ * (from @osdlabel/solid's built dist) showing a 300-slice stack with
+ * per-slice annotations and live decorations, in either model:
+ *
+ * - `frame-axis` (the PoC): ONE FramedImageSource, annotations carry `frame`.
+ *   A wheel over the cell goes through the binding's own path: capture
+ *   listener -> stepCellFrame -> STEP_CELL_FRAME -> frame throttle -> the
+ *   presenter effect + the annotation rebuild effect + the decoration effect.
+ * - `image-per-slice` (the alternative): one ImageSource and ImageId per
+ *   slice; navigation re-assigns the cell's image, through wheel handling the
+ *   host has to write itself (below).
  */
 import { render } from 'solid-js/web';
 import { onMount } from 'solid-js';
-import { AnnotatorProvider, ViewerCell, useAnnotator } from '@osdlabel/solid';
+import { AnnotatorProvider, ViewerCell, createFrameThrottle, useAnnotator } from '@osdlabel/solid';
 import type { AnnotationContextId, OsdAnnotation, OsdFields, ImageId } from '@osdlabel/solid';
 import type { FramedImageSource } from '@osdlabel/frame-osd';
+import { createCanvasTileSource, createFrameCanvas } from '@osdlabel/frame-osd';
+import type { ImageSource } from '@osdlabel/viewer-api';
 import OpenSeadragon from 'openseadragon';
 import { Circle, Line, Polygon, Polyline, Rect } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
@@ -39,6 +46,7 @@ interface SolidSetup {
   readonly objectCaching?: boolean;
   /** Decoration providers on (default) or off. */
   readonly decorations?: boolean;
+  readonly model?: 'frame-axis' | 'image-per-slice';
 }
 
 const root = document.getElementById('root') as HTMLDivElement;
@@ -47,6 +55,10 @@ const handlerMs: number[] = [];
 let viewer: OpenSeadragon.Viewer | undefined;
 let overlay: FabricOverlay | undefined;
 let annotated = false;
+let frameCount = 0;
+let resetFrame: () => void = () => {};
+let rotateCell: () => void = () => {};
+let cellRotation: () => number = () => 0;
 
 function drawnFrame(): number {
   if (!viewer) return -1;
@@ -73,33 +85,62 @@ async function setup(opts: SolidSetup): Promise<Record<string, unknown>> {
     (C as unknown as { ownDefaults: Record<string, unknown> }).ownDefaults['objectCaching'] =
       opts.objectCaching ?? true;
   }
+  frameCount = opts.frames;
+  const perSlice = opts.model === 'image-per-slice';
   const t0 = performance.now();
   const gray = renderCtStack(opts.frames, opts.width, opts.height);
   const store = new Gray8FrameStore(opts.width, opts.height, opts.frames, gray);
   const imageId: ImageId = createImageId('ct-series');
   const contextId: AnnotationContextId = createAnnotationContextId('ctx');
   const keys = Array.from({ length: opts.frames }, (_, i) => `1.2.840.99999.${i + 1}`);
+  const pixelSpacing = { x: 0.7, y: 0.7, unit: 'mm' };
   const source: FramedImageSource = {
     id: imageId,
     tileSource: '',
     label: 'CT phantom',
-    pixelSpacing: { x: 0.7, y: 0.7, unit: 'mm' },
+    pixelSpacing,
     frameAxis: { kind: 'spatial', count: opts.frames, keys },
     frameSource: store,
   };
-  const byFrame: Record<string, OsdAnnotation> = {};
-  if (opts.annotationsPerFrame > 0) {
-    for (let f = 0; f < opts.frames; f++) {
-      const specs = fixtureGeometry(
-        f,
-        opts.annotationsPerFrame,
-        opts.width,
-        opts.height,
-        lesionsOnSlice(f, opts.frames, opts.width, opts.height),
-      );
-      for (const spec of specs) {
-        const a = buildAnnotation(spec, imageId, contextId, keys[f]);
-        byFrame[a.id] = a;
+  const sliceIds = Array.from({ length: opts.frames }, (_, i) => createImageId(`slice-${i}`));
+  const sliceSources = new Map<ImageId, ImageSource>(
+    sliceIds.map((id, i) => [
+      id,
+      {
+        id,
+        pixelSpacing,
+        // Best case for this model: no network, no decode — the same pixels
+        // the frame-axis presenter paints, through one tile source per slice.
+        tileSource: createCanvasTileSource({
+          width: opts.width,
+          height: opts.height,
+          cacheKey: `slice-${i}`,
+          provide: () => {
+            const ctx = createFrameCanvas(opts.width, opts.height);
+            store.paint(i, ctx);
+            return ctx;
+          },
+        }),
+      },
+    ]),
+  );
+  const byImage: Record<string, Record<string, OsdAnnotation>> = {};
+  for (let f = 0; f < opts.frames && opts.annotationsPerFrame > 0; f++) {
+    const specs = fixtureGeometry(
+      f,
+      opts.annotationsPerFrame,
+      opts.width,
+      opts.height,
+      lesionsOnSlice(f, opts.frames, opts.width, opts.height),
+    );
+    for (const spec of specs) {
+      const framed = buildAnnotation(spec, imageId, contextId, keys[f]);
+      if (perSlice) {
+        const a: OsdAnnotation = { ...framed, imageId: sliceIds[f]! };
+        delete (a as { frame?: unknown }).frame;
+        (byImage[sliceIds[f]!] ??= {})[a.id] = a;
+      } else {
+        (byImage[imageId] ??= {})[framed.id] = framed;
       }
     }
   }
@@ -109,15 +150,42 @@ async function setup(opts: SolidSetup): Promise<Record<string, unknown>> {
   let ready!: () => void;
   const mounted = new Promise<void>((r) => (ready = r));
   const Harness = () => {
-    const { actions } = useAnnotator();
+    const { actions, uiState } = useAnnotator();
+    let slice = 0;
+    const throttle = createFrameThrottle<number>((i) => actions.assignImageToCell(0, sliceIds[i]!));
+    resetFrame = perSlice
+      ? () => {
+          slice = 0;
+          actions.assignImageToCell(0, sliceIds[0]!);
+        }
+      : () => actions.setCellFrame(0, 0, opts.frames);
+    rotateCell = () => actions.rotateActiveImageCW();
+    cellRotation = () => uiState.cellTransforms[0]?.rotation ?? 0;
     onMount(() => {
       actions.setContexts([{ id: contextId, label: 'Lesions', tools: [{ type: 'rectangle' }] }]);
       actions.setActiveContext(contextId);
-      actions.assignImageToCell(0, imageId);
+      actions.assignImageToCell(0, perSlice ? sliceIds[0]! : imageId);
+      if (perSlice) {
+        // What a host has to write for this model: its own wheel handling,
+        // ahead of OSD (which would zoom), mapping notches to image ids.
+        root.addEventListener(
+          'wheel',
+          (e) => {
+            if (e.ctrlKey || e.metaKey) return;
+            e.preventDefault();
+            e.stopPropagation();
+            slice = Math.max(0, Math.min(opts.frames - 1, slice + Math.sign(e.deltaY)));
+            throttle.request(slice);
+          },
+          { capture: true, passive: false },
+        );
+      }
     });
+    const current = (): ImageSource | undefined =>
+      perSlice ? sliceSources.get(uiState.gridAssignments[0]!) : source;
     return (
       <ViewerCell
-        imageSource={source}
+        imageSource={current()}
         isActive={true}
         cellIndex={0}
         onActivate={() => {}}
@@ -134,9 +202,7 @@ async function setup(opts: SolidSetup): Promise<Record<string, unknown>> {
   render(
     () => (
       <AnnotatorProvider
-        initialAnnotations={
-          { [imageId]: byFrame } as Record<ImageId, Record<string, OsdAnnotation>>
-        }
+        initialAnnotations={byImage as Record<ImageId, Record<string, OsdAnnotation>>}
         decorationProviders={
           opts.decorations === false
             ? []
@@ -161,9 +227,31 @@ async function setup(opts: SolidSetup): Promise<Record<string, unknown>> {
   return roundDeep({
     genMs,
     mountMs,
-    annotations: Object.keys(byFrame).length,
+    model: perSlice ? 'image-per-slice' : 'frame-axis',
+    annotations: Object.values(byImage).reduce((n, b) => n + Object.keys(b).length, 0),
     drawer: (viewer!.drawer as unknown as { getType(): string }).getType(),
     objectCachingEffective: new Rect().objectCaching,
+  });
+}
+
+/**
+ * Put the cell in a non-default view (rotated 90°, zoomed 2x) so a scroll
+ * can show whether navigation keeps the user's view.
+ */
+async function prepareView(): Promise<Record<string, number>> {
+  rotateCell();
+  await waitFrames(2);
+  const vp = viewer!.viewport;
+  vp.zoomTo(vp.getHomeZoom() * 2, undefined, true);
+  await waitFrames(3);
+  return viewState();
+}
+
+function viewState(): Record<string, number> {
+  const vp = viewer!.viewport;
+  return roundDeep({
+    rotation: cellRotation(),
+    zoomOverHome: vp.getZoom(true) / vp.getHomeZoom(),
   });
 }
 
@@ -202,12 +290,18 @@ async function stopRecording(): Promise<Record<string, unknown>> {
   });
 }
 
-/** Synthetic wheel at `rate`/s dispatched on OSD's canvas, through the binding's capture listener. */
+/**
+ * Synthetic wheel at `rate`/s dispatched on OSD's canvas (so it passes the
+ * binding's — or the host's — capture listener first). Every pass starts at
+ * frame 0 and walks the same frames, so a second pass measures revisits.
+ */
 async function scroll(opts: {
   rate: number;
   durationMs: number;
 }): Promise<Record<string, unknown>> {
   const target = viewer!.canvas;
+  resetFrame();
+  await waitFrames(3);
   startRecording();
   const interval = 1000 / opts.rate;
   const start = performance.now();
@@ -222,10 +316,10 @@ async function scroll(opts: {
         Math.ceil(opts.durationMs / interval),
       );
       while (sent < due) {
-        if (pos + dir < 0 || pos + dir >= 300) dir = -dir;
+        if (pos + dir < 0 || pos + dir >= frameCount) dir = -dir;
         pos += dir;
-        // Solid effects run synchronously inside the binding's wheel handler,
-        // so the dispatch time is the binding's whole synchronous frame step.
+        // Solid effects run synchronously inside the wheel handler, so the
+        // dispatch time is the binding's whole synchronous frame step.
         const t0 = performance.now();
         target.dispatchEvent(
           new WheelEvent('wheel', { deltaY: 100 * dir, bubbles: true, cancelable: true }),
@@ -247,4 +341,17 @@ declare global {
   }
 }
 
-window.__poc = { ready: true, setup, startRecording, stopRecording, scroll };
+window.__poc = {
+  ready: true,
+  setup,
+  startRecording,
+  stopRecording,
+  scroll,
+  prepareView,
+  viewState,
+  /** Objects on the Fabric canvas: annotations (with an id) and the rest (decoration lines). */
+  objectCount: () => {
+    const objs = overlay?.canvas.getObjects() ?? [];
+    return { withId: objs.filter((o) => o.id).length, total: objs.length };
+  },
+};

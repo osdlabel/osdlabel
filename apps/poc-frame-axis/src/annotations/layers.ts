@@ -16,6 +16,7 @@ import {
   buildFabricObjectFromGeometry,
   createFabricObjectFromRawData,
   getFabricOptions,
+  initFabricModule,
   serializeFabricObject,
 } from '@osdlabel/fabric-annotations';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
@@ -34,6 +35,12 @@ export function buildAnnotation(
   contextId: AnnotationContextId,
   frameKey: string | undefined,
 ): OsdAnnotation {
+  // Fixtures may be serialized before any FabricOverlay exists (the Solid
+  // harness builds them before mounting). Without the `id` custom property the
+  // payload carries no id, and ViewerCell — which clears annotation objects by
+  // `obj.id` — then never removes the revived objects: they pile up on the
+  // canvas (found here: 1720 stray objects after three scroll passes).
+  initFabricModule();
   const id = `f${spec.frame}-a${spec.ordinal}` as AnnotationId;
   const style = {
     ...DEFAULT_ANNOTATION_STYLE,

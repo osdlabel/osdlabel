@@ -35,6 +35,7 @@ import {
   desiredMaskTint,
   enableLiveDecorationUpdates,
   MaskObjectCache,
+  VectorObjectCache,
   maskFillFor,
   maskOpacityFor,
   MaskTintState,
@@ -253,15 +254,9 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     return visibleSet.size > 0 ? pool.filter((a) => visibleSet.has(a.contextId)) : pool;
   };
 
-  /**
-   * Vector annotation objects reused across rebuilds, keyed by the payload
-   * (`rawAnnotationData`) they were revived from. Every edit writes a new
-   * payload, so a changed annotation misses and is revived afresh; an
-   * unchanged one — the annotations of a frame scrolled back to — is re-added
-   * as is instead of being revived again. Weak, so a payload that leaves the
-   * store takes its object with it.
-   */
-  const vectorObjects = new WeakMap<object, AnnotationObject>();
+  /** Vector annotation objects reused across rebuilds; see `VectorObjectCache`. */
+  const vectorObjects = new VectorObjectCache();
+  onCleanup(() => vectorObjects.clear());
 
   /** Rasterized masks reused across rebuilds; see `MaskObjectCache`. */
   const maskObjects = new MaskObjectCache();
@@ -316,50 +311,41 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       maskIds,
     );
     const styleAtBuild = untrack(() => brushOptions.maskStyle);
-    void (async () => {
-      const { objects, failures } = await settleAnnotationObjects(matching, async (ann) => {
-        const selectedId = selectedAtBuild;
-        const maskStyle = styleAtBuild;
-        // A mask's raster is reused while its payload and tint are unchanged;
-        // the stroke that changed one mask must not re-rasterize the others.
-        const fill = maskFillFor(ann.id, selectedId, maskStyle);
-        const isMask = ann.geometry.type === 'mask';
-        const cached = isMask ? maskObjects.get(ann, fill) : undefined;
-        // Keyed by the payload: the object is a function of it alone.
-        const key = ann.rawAnnotationData;
-        const reused = isMask ? undefined : vectorObjects.get(key);
-        const obj =
-          cached ?? reused ?? (await createFabricObjectFromRawData(ann, { maskFill: fill }));
-        // Not after this run was superseded: a newer run has already retained
-        // its own set, and a write now would outlive that until the next
-        // rebuild, which a cell showing a static image never has.
-        if (obj && isMask && !cached && !cancelled) maskObjects.set(ann, fill, obj);
-        if (obj && !isMask && !reused) vectorObjects.set(key, obj);
-        if (obj) {
-          // Only active-context annotations may be interactive; mark the rest
-          // `_readOnly` so setMode() keeps them inert too.
-          //
-          // Interactivity itself is the overlay's call, not ours: the current
-          // mode decides. Setting `selectable`/`evented` here directly used to
-          // undo `paint` mode on the first rebuild, so a brush stroke over a
-          // shape started dragging it again after the first commit.
-          const isActiveCtx = ann.contextId === activeContextId;
-          obj._readOnly = !isActiveCtx;
-          ov.applyModeToObject(obj, !isActiveCtx);
-          if (ann.geometry.type === 'mask') {
-            obj.set('opacity', maskOpacityFor(ann.id, selectedId, maskStyle));
-          }
-        }
-        return obj;
-      });
-      if (cancelled) return;
+
+    /** The object this run can use without reviving: a cached raster or a reused vector. */
+    const cachedFor = (ann: (typeof matching)[number]): AnnotationObject | undefined =>
+      ann.geometry.type === 'mask'
+        ? maskObjects.get(ann, maskFillFor(ann.id, selectedAtBuild, styleAtBuild))
+        : vectorObjects.get(ann.rawAnnotationData);
+
+    const prepare = (ann: (typeof matching)[number], obj: AnnotationObject): AnnotationObject => {
+      // Only active-context annotations may be interactive; mark the rest
+      // `_readOnly` so setMode() keeps them inert too.
+      //
+      // Interactivity itself is the overlay's call, not ours: the current
+      // mode decides. Setting `selectable`/`evented` here directly used to
+      // undo `paint` mode on the first rebuild, so a brush stroke over a
+      // shape started dragging it again after the first commit.
+      const isActiveCtx = ann.contextId === activeContextId;
+      obj._readOnly = !isActiveCtx;
+      ov.applyModeToObject(obj, !isActiveCtx);
+      if (ann.geometry.type === 'mask') {
+        obj.set('opacity', maskOpacityFor(ann.id, selectedAtBuild, styleAtBuild));
+      }
+      return obj;
+    };
+
+    const finish = (
+      objects: readonly AnnotationObject[],
+      failures: Parameters<typeof reportAnnotationRenderFailures>[0],
+    ): void => {
       maskObjects.retain(maskIds);
       if (objects.length > 0) {
         ov.canvas.add(...objects);
       }
       // The selection may have moved while the objects were being built. A
       // brush commit adds its mask and then selects it, and this effect runs
-      // between the two writes, so the build above saw the old selection — and
+      // between the two writes, so the build above saw the old selection - and
       // the selection effect found an empty canvas. Re-apply against the
       // current selection now that the objects exist. The objects carry the
       // tint they were built under; the selection effect takes over from
@@ -386,6 +372,39 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       // Each annotation is built on its own, so one that cannot be revived is
       // skipped and reported instead of leaving the whole image empty (#209).
       reportAnnotationRenderFailures(failures, reportAnnotationRenderError);
+    };
+
+    // Every object already built (a frame scrolled back to, an unrelated edit):
+    // add them in this same tick, so they land in the same paint as the frame's
+    // pixels. Going through the async revive put them one paint late, and that
+    // extra paint doubled the compositor's work per slice.
+    const ready = matching.map(cachedFor);
+    if (ready.every((o) => o !== undefined)) {
+      finish(
+        ready.map((o, i) => prepare(matching[i]!, o!)),
+        [],
+      );
+      return;
+    }
+
+    void (async () => {
+      const { objects, failures } = await settleAnnotationObjects(matching, async (ann) => {
+        // A mask's raster is reused while its payload and tint are unchanged;
+        // the stroke that changed one mask must not re-rasterize the others.
+        const fill = maskFillFor(ann.id, selectedAtBuild, styleAtBuild);
+        const isMask = ann.geometry.type === 'mask';
+        const cached = cachedFor(ann);
+        const obj = cached ?? (await createFabricObjectFromRawData(ann, { maskFill: fill }));
+        // Not after this run was superseded: a newer run has already retained
+        // its own set, and a write now would outlive that until the next
+        // rebuild, which a cell showing a static image never has.
+        if (obj && isMask && !cached && !cancelled) maskObjects.set(ann, fill, obj);
+        // Keyed by the payload: the object is a function of it alone.
+        if (obj && !isMask && !cached) vectorObjects.set(ann.rawAnnotationData, obj);
+        return obj ? prepare(ann, obj) : obj;
+      });
+      if (cancelled) return;
+      finish(objects, failures);
     })();
   });
 
