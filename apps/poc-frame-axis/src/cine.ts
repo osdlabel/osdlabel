@@ -62,6 +62,14 @@ export interface CineOptions {
   readonly annotationsPerFrame: number;
   readonly decorations: boolean;
   readonly loops: number;
+  /**
+   * `video` only. `nominal`: map `mediaTime` to a frame as `floor(t * fps)`.
+   * `calibrated`: through per-frame presentation times (`FrameAxis.times`),
+   * which a production adapter reads from the container (or DICOM's Frame
+   * Time Vector); here they are recorded in a first playback pass by decoding
+   * each presented frame's barcode, a stand-in for demuxing.
+   */
+  readonly videoTimes?: 'nominal' | 'calibrated';
 }
 
 const imageId = createImageId('cine-1');
@@ -324,6 +332,50 @@ class VideoElementSource implements FrameSource {
   }
 }
 
+function once(target: EventTarget, type: string): Promise<void> {
+  return new Promise((resolve) => target.addEventListener(type, () => resolve(), { once: true }));
+}
+
+/**
+ * Per-frame presentation times of a <video>, recorded over one playback pass:
+ * the barcode decoded from each presented frame, against rVFC's `mediaTime`.
+ * Frames the element skipped get the nominal time; times are made ascending.
+ */
+async function calibrateTimes(
+  v: HTMLVideoElement,
+  count: number,
+  fps: number,
+): Promise<{ times: number[]; seen: number }> {
+  const reader = new MarkerReader();
+  const seen = new Map<number, number>();
+  v.currentTime = 0;
+  await once(v, 'seeked');
+  await v.play();
+  await new Promise<void>((resolve) => {
+    let last = -1;
+    const onFrame = (_now: number, meta: VideoFrameCallbackMetadata): void => {
+      const i = reader.read(v);
+      if (i >= 0 && !seen.has(i)) seen.set(i, meta.mediaTime);
+      // Stop at the loop's wrap (or once every frame has been seen).
+      if (seen.size >= count || (i >= 0 && last >= 0 && i < last)) {
+        resolve();
+        return;
+      }
+      if (i >= 0) last = i;
+      v.requestVideoFrameCallback(onFrame);
+    };
+    v.requestVideoFrameCallback(onFrame);
+  });
+  v.pause();
+  const times = Array.from({ length: count }, (_, i) => seen.get(i) ?? i / fps);
+  for (let i = 1; i < count; i++) {
+    if (times[i]! <= times[i - 1]!) times[i] = times[i - 1]! + 1e-6;
+  }
+  v.currentTime = 0;
+  await once(v, 'seeked');
+  return { times, seen: seen.size };
+}
+
 export async function runCine(
   cell: HTMLElement,
   opts: CineOptions,
@@ -412,7 +464,13 @@ export async function runCine(
     createMeasurementProvider<OsdFields>({ area: true, length: true, perimeter: false }),
     createLabelProvider<OsdFields>(),
   ];
-  const axis: FrameAxis = { kind: 'temporal', count: opts.frames, frameRate: opts.fps };
+  let axis: FrameAxis = { kind: 'temporal', count: opts.frames, frameRate: opts.fps };
+  let calibratedFrames: number | null = null;
+  if (video && opts.videoTimes === 'calibrated') {
+    const cal = await calibrateTimes(video, opts.frames, opts.fps);
+    axis = { kind: 'temporal', count: opts.frames, times: cal.times };
+    calibratedFrames = cal.seen;
+  }
 
   const recorder = new Recorder();
   const renderMs: number[] = [];
@@ -581,6 +639,8 @@ export async function runCine(
     videoDroppedByElement: quality ? quality.droppedVideoFrames : null,
     timeVsPixelMismatches: video ? truthMismatch : null,
     markerGaps: video ? markerGaps.length : null,
+    videoTimes: video ? (opts.videoTimes ?? 'nominal') : null,
+    calibratedFrames,
   });
   decoding?.stop();
   layer.dispose();

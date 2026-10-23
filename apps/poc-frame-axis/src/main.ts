@@ -568,6 +568,18 @@ async function verify(opts: { steps: number }): Promise<Record<string, unknown>>
   };
 }
 
+/** Force `count` redraws (one per display frame) without changing the frame. */
+async function redraw(opts: { count: number }): Promise<Record<string, unknown>> {
+  const s = need();
+  startRecording(s);
+  for (let k = 0; k < opts.count; k++) {
+    s.viewer.forceRedraw();
+    await waitFrames(2);
+  }
+  s.recorder.recording = false;
+  return roundDeep({ mode: 'redraw', count: opts.count, osdDrawMs: summarize(s.drawMs) });
+}
+
 function need(): Session {
   if (!session) throw new Error('call setup() first');
   return session;
@@ -628,6 +640,7 @@ window.__poc = {
   latency,
   scroll,
   verify,
+  redraw,
   teardown,
   cine: (opts: CineOptions) => runCine(cell, opts),
   /** Objects currently on the Fabric canvas (sanity). */

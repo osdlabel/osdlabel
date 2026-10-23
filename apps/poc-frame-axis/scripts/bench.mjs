@@ -190,6 +190,9 @@ const STRATEGY_RUNS = () => [
   ['scroll60', 'scroll', { rate: 60, durationMs: SCROLL_MS, policy: 'latest' }],
   ['scroll60d', 'scroll', { rate: 60, durationMs: SCROLL_MS, policy: 'await-drawn' }],
   ['verify', 'verify', { steps: QUICK ? 5 : 15 }],
+  // Redraw without changing the frame: the drawer's per-draw cost alone, so
+  // the frame swap's own cost (upload) is the difference.
+  ['redraw', 'redraw', { count: QUICK ? 10 : 30 }],
 ];
 
 async function groupStrategies(browser, pid) {
@@ -248,15 +251,19 @@ async function groupStrategies(browser, pid) {
 
 async function groupLayers(browser, pid) {
   const out = [];
-  const drawers = (opt('--layer-drawers', 'webgl,canvas') ?? '').split(',');
+  const drawers = (opt('--layer-drawers', 'canvas,webgl') ?? '').split(',');
   // `cache-nocache` = the per-frame object cache with Fabric's per-object
   // render caching switched off (simple shapes redraw faster than they blit).
-  const layers = ['cache', 'cache-nocache', 'rebuild-sync', 'rebuild-async', 'visibility'];
+  const allLayers = ['cache', 'cache-nocache', 'rebuild-sync', 'rebuild-async', 'visibility'];
   const counts = QUICK ? [0, 50] : [0, 10, 50, 200];
   for (const drawer of drawers) {
+    // The full matrix on the canvas drawer; on WebGL (CPU-emulated here) only
+    // the recommended layer, to show the drawer's share.
+    const layers = drawer === 'canvas' ? allLayers : ['cache-nocache'];
     for (const layerName of layers) {
       for (const n of counts) {
         if (n === 0 && layerName !== 'cache') continue;
+        if (drawer !== 'canvas' && n === 200) continue;
         const layer = layerName === 'cache-nocache' ? 'cache' : layerName;
         const objectCaching = layerName !== 'cache-nocache';
         const name = `${layerName}/${n}/${drawer}`;
@@ -302,11 +309,13 @@ async function groupCine(browser, pid) {
         { source: 'bitmap', drawer: 'canvas', fps: 60 },
         { source: 'webcodecs', drawer: 'canvas', fps: 30 },
         { source: 'webcodecs', drawer: 'canvas', fps: 60 },
-        { source: 'video', drawer: 'canvas', fps: 30 },
-        { source: 'video', drawer: 'canvas', fps: 60 },
+        { source: 'video', drawer: 'canvas', fps: 30, videoTimes: 'nominal' },
+        { source: 'video', drawer: 'canvas', fps: 30, videoTimes: 'calibrated' },
+        { source: 'video', drawer: 'canvas', fps: 60, videoTimes: 'nominal' },
+        { source: 'video', drawer: 'canvas', fps: 60, videoTimes: 'calibrated' },
       ];
   for (const v of variants) {
-    const name = `cine/${v.source}/${v.drawer}/${v.fps}`;
+    const name = `cine/${v.source}${v.videoTimes ? `-${v.videoTimes}` : ''}/${v.drawer}/${v.fps}`;
     process.stdout.write(`  ${name} ... `);
     const t = Date.now();
     const { context, page } = await openPage(browser);
@@ -431,6 +440,7 @@ function summary(results) {
       ['shown/s(await)', (r) => f1(r.scroll60d?.shownSlicesPerSec)],
       ['blank(await)', (r) => r.scroll60d?.blankFrames ?? '-'],
       ['draw p50', (r) => f1(r.scroll60?.osdDrawMs?.p50)],
+      ['static draw p50', (r) => f1(r.redraw?.osdDrawMs?.p50)],
       ['paint ms', (r) => f1(r.scroll60?.paintMsPerFrame)],
       [
         'pixelOK',
@@ -469,6 +479,9 @@ function summary(results) {
       ['achieved fps', (r) => f1(r.result?.achievedFps)],
       ['dropped %', (r) => f1(r.result?.droppedPct)],
       ['incoherent', (r) => r.result?.incoherentFrames ?? '-'],
+      ['time/pixel mismatch', (r) => r.result?.timeVsPixelMismatches ?? '-'],
+      ['element dropped', (r) => r.result?.videoDroppedByElement ?? '-'],
+      ['apply p95', (r) => f1(r.result?.applyMs?.p95)],
       ['frame ms p95', (r) => f1(r.result?.frameIntervalMs?.p95)],
       ['err', (r) => (r.error ? 'ERR' : '')],
     ]);
