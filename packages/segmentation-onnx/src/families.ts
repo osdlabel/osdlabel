@@ -47,16 +47,25 @@ export interface FamilyAdapter {
   readonly layout: InputLayout;
   readonly normalization: PixelNormalization;
   readonly embeddingNames: readonly string[];
-  encoderFeeds(ort: OrtModuleLike, session: OrtSessionLike, input: Float32Array, inputSize: number): Record<string, OrtTensorLike>;
-  decoderFeeds(
-    ort: OrtModuleLike,
-    session: OrtSessionLike,
+  encoderFeeds<T extends OrtTensorLike>(
+    ort: OrtModuleLike<T>,
+    session: OrtSessionLike<T>,
+    input: Float32Array,
+    inputSize: number,
+  ): Record<string, T>;
+  decoderFeeds<T extends OrtTensorLike>(
+    ort: OrtModuleLike<T>,
+    session: OrtSessionLike<T>,
     embedding: SamEmbedding,
     prompt: SegmentationPrompt,
-  ): Record<string, OrtTensorLike>;
+  ): Record<string, T>;
   /** Output names to fetch (skipping full-resolution upsamples when the graph has them). */
-  decoderFetches(session: OrtSessionLike): readonly string[];
-  candidates(outputs: Record<string, OrtTensorLike>, embedding: SamEmbedding, prompt: SegmentationPrompt): MaskCandidate[];
+  decoderFetches(): readonly string[];
+  candidates(
+    outputs: Record<string, OrtTensorLike>,
+    embedding: SamEmbedding,
+    prompt: SegmentationPrompt,
+  ): MaskCandidate[];
 }
 
 /** Prompt -> SAM point list in model pixels (box corners labelled 2/3). */
@@ -103,10 +112,10 @@ function orderSam4(iou: Float32Array, prompt: SegmentationPrompt): number[] {
   return nPrompts <= 1 ? [...multi, 0] : [0, ...multi];
 }
 
-function maskInputFeeds(
-  ort: OrtModuleLike,
+function maskInputFeeds<T extends OrtTensorLike>(
+  ort: OrtModuleLike<T>,
   prompt: SegmentationPrompt,
-): { mask_input: OrtTensorLike; has_mask_input: OrtTensorLike } {
+): { mask_input: T; has_mask_input: T } {
   const prev = prompt.previous;
   const data = new Float32Array(LOW_RES * LOW_RES);
   let has = 0;
@@ -118,8 +127,8 @@ function maskInputFeeds(
     has = 1;
   }
   return {
-    mask_input: new ort.Tensor('float32', data, [1, 1, LOW_RES, LOW_RES]),
-    has_mask_input: new ort.Tensor('float32', Float32Array.from([has]), [1]),
+    mask_input: ort.float32(data, [1, 1, LOW_RES, LOW_RES]),
+    has_mask_input: ort.float32(Float32Array.from([has]), [1]),
   };
 }
 
@@ -146,22 +155,21 @@ export const SAM1: FamilyAdapter = {
   normalization: 'imagenet',
   embeddingNames: ['image_embeddings'],
   encoderFeeds(ort, session, input, inputSize) {
-    return { [session.inputNames[0]!]: new ort.Tensor('float32', input, [1, 3, inputSize, inputSize]) };
+    return { [session.inputNames[0]!]: ort.float32(input, [1, 3, inputSize, inputSize]) };
   },
   decoderFeeds(ort, session, embedding, prompt) {
     const emb = tensor(embedding, 'image_embeddings');
     const pts = samPoints(embedding.frame, prompt, 1, true);
-    const feeds: Record<string, OrtTensorLike> = {
-      image_embeddings: new ort.Tensor('float32', emb.data, emb.dims),
-      point_coords: new ort.Tensor('float32', pts.coords, [1, pts.n, 2]),
-      point_labels: new ort.Tensor('float32', pts.labels, [1, pts.n]),
+    const feeds: Record<string, ReturnType<typeof ort.float32>> = {
+      image_embeddings: ort.float32(emb.data, emb.dims),
+      point_coords: ort.float32(pts.coords, [1, pts.n, 2]),
+      point_labels: ort.float32(pts.labels, [1, pts.n]),
       ...maskInputFeeds(ort, prompt),
     };
     if (session.inputNames.includes('orig_im_size')) {
       // Full graph: keep its internal upsample at model size — passing the
       // region's image-space size here costs seconds on a gigapixel crop.
-      feeds['orig_im_size'] = new ort.Tensor(
-        'float32',
+      feeds['orig_im_size'] = ort.float32(
         Float32Array.from([embedding.frame.contentHeight, embedding.frame.contentWidth]),
         [2],
       );
@@ -184,20 +192,20 @@ export const SAM2: FamilyAdapter = {
   normalization: 'imagenet',
   embeddingNames: ['image_embed', 'high_res_feats_0', 'high_res_feats_1'],
   encoderFeeds(ort, session, input, inputSize) {
-    return { [session.inputNames[0]!]: new ort.Tensor('float32', input, [1, 3, inputSize, inputSize]) };
+    return { [session.inputNames[0]!]: ort.float32(input, [1, 3, inputSize, inputSize]) };
   },
   decoderFeeds(ort, _session, embedding, prompt) {
     const pts = samPoints(embedding.frame, prompt, 1, true);
-    const t = (n: string): OrtTensorLike => {
+    const t = (n: string): ReturnType<typeof ort.float32> => {
       const x = tensor(embedding, n);
-      return new ort.Tensor('float32', x.data, x.dims);
+      return ort.float32(x.data, x.dims);
     };
     return {
       image_embed: t('image_embed'),
       high_res_feats_0: t('high_res_feats_0'),
       high_res_feats_1: t('high_res_feats_1'),
-      point_coords: new ort.Tensor('float32', pts.coords, [1, pts.n, 2]),
-      point_labels: new ort.Tensor('float32', pts.labels, [1, pts.n]),
+      point_coords: ort.float32(pts.coords, [1, pts.n, 2]),
+      point_labels: ort.float32(pts.labels, [1, pts.n]),
       ...maskInputFeeds(ort, prompt),
     };
   },
@@ -217,7 +225,7 @@ export const EFFICIENT_SAM: FamilyAdapter = {
   normalization: 'unit',
   embeddingNames: ['image_embeddings'],
   encoderFeeds(ort, session, input, inputSize) {
-    return { [session.inputNames[0]!]: new ort.Tensor('float32', input, [1, 3, inputSize, inputSize]) };
+    return { [session.inputNames[0]!]: ort.float32(input, [1, 3, inputSize, inputSize]) };
   },
   decoderFeeds(ort, _session, embedding, prompt) {
     const emb = tensor(embedding, 'image_embeddings');
@@ -225,10 +233,10 @@ export const EFFICIENT_SAM: FamilyAdapter = {
     // output keeps the graph's own upsample at the low-res grid.
     const pts = samPoints(embedding.frame, prompt, LOW_RES / embedding.frame.inputSize, false);
     return {
-      image_embeddings: new ort.Tensor('float32', emb.data, emb.dims),
-      batched_point_coords: new ort.Tensor('float32', pts.coords, [1, 1, pts.n, 2]),
-      batched_point_labels: new ort.Tensor('float32', pts.labels, [1, 1, pts.n]),
-      orig_im_size: new ort.Tensor('int64', BigInt64Array.from([BigInt(LOW_RES), BigInt(LOW_RES)]), [2]),
+      image_embeddings: ort.float32(emb.data, emb.dims),
+      batched_point_coords: ort.float32(pts.coords, [1, 1, pts.n, 2]),
+      batched_point_labels: ort.float32(pts.labels, [1, 1, pts.n]),
+      orig_im_size: ort.int64(BigInt64Array.from([BigInt(LOW_RES), BigInt(LOW_RES)]), [2]),
     };
   },
   decoderFetches: () => ['output_masks', 'iou_predictions'],

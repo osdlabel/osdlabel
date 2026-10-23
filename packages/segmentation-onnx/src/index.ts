@@ -1,11 +1,4 @@
-export type {
-  OrtTensorType,
-  OrtTensorLike,
-  OrtSessionOptionsLike,
-  OrtSessionLike,
-  OrtEnvLike,
-  OrtModuleLike,
-} from './ort-like.js';
+export type { OrtTensorLike, OrtSessionOptionsLike, OrtSessionLike, OrtModuleLike } from './ort-like.js';
 export type { PixelNormalization } from './preprocess.js';
 export { rgbaToChw } from './preprocess.js';
 export type { ModelFamily, SamTensor, SamEmbedding, FamilyAdapter } from './families.js';

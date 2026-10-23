@@ -26,15 +26,13 @@ class FakeTensor implements OrtTensorLike {
   ) {}
 }
 
-const ort: OrtModuleLike = {
-  env: { wasm: {} },
-  InferenceSession: {
-    create: () => Promise.reject(new Error('not used')),
-  },
-  Tensor: FakeTensor,
+const ort: OrtModuleLike<FakeTensor> = {
+  createSession: () => Promise.reject(new Error('not used')),
+  float32: (data, dims) => new FakeTensor('float32', data, dims),
+  int64: (data, dims) => new FakeTensor('int64', data, dims),
 };
 
-const session = (inputNames: string[]): OrtSessionLike => ({
+const session = (inputNames: string[]): OrtSessionLike<FakeTensor> => ({
   inputNames,
   outputNames: [],
   run: () => Promise.resolve({}),

@@ -1,7 +1,7 @@
 import type { RgbaImage } from '@osdlabel/region-reader';
 import type { MaskCandidate, ModelFrame, SegmentationPrompt } from '@osdlabel/segmentation';
 import { adapterFor, type FamilyAdapter, type ModelFamily, type SamEmbedding } from './families.js';
-import type { OrtModuleLike, OrtSessionLike, OrtSessionOptionsLike } from './ort-like.js';
+import type { OrtModuleLike, OrtSessionLike, OrtSessionOptionsLike, OrtTensorLike } from './ort-like.js';
 import { float32Data } from './ort-like.js';
 import { rgbaToChw } from './preprocess.js';
 
@@ -24,21 +24,21 @@ export interface OnnxSamLoadOptions {
  * caches — {@link createOnnxEncoder} / {@link createOnnxDecoder} adapt it to
  * the `@osdlabel/segmentation` contract.
  */
-export class OnnxSamModel {
+export class OnnxSamModel<T extends OrtTensorLike = OrtTensorLike> {
   readonly family: ModelFamily;
   readonly inputSize: number;
   readonly adapter: FamilyAdapter;
   /** Session creation times (download + graph optimisation + compile), ms. */
   readonly loadTimings: Readonly<Record<string, number>>;
-  private readonly ort: OrtModuleLike;
-  private readonly encoder: OrtSessionLike | null;
-  private readonly decoder: OrtSessionLike;
+  private readonly ort: OrtModuleLike<T>;
+  private readonly encoder: OrtSessionLike<T> | null;
+  private readonly decoder: OrtSessionLike<T>;
 
   private constructor(
-    ort: OrtModuleLike,
+    ort: OrtModuleLike<T>,
     spec: OnnxSamModelSpec,
-    encoder: OrtSessionLike | null,
-    decoder: OrtSessionLike,
+    encoder: OrtSessionLike<T> | null,
+    decoder: OrtSessionLike<T>,
     loadTimings: Record<string, number>,
   ) {
     this.ort = ort;
@@ -50,13 +50,15 @@ export class OnnxSamModel {
     this.loadTimings = loadTimings;
   }
 
-  static async load(ort: OrtModuleLike, spec: OnnxSamModelSpec, options?: OnnxSamLoadOptions): Promise<OnnxSamModel> {
+  static async load<T extends OrtTensorLike>(
+    ort: OrtModuleLike<T>,
+    spec: OnnxSamModelSpec,
+    options?: OnnxSamLoadOptions,
+  ): Promise<OnnxSamModel<T>> {
     const t0 = performance.now();
-    const encoder = spec.encoder
-      ? await ort.InferenceSession.create(spec.encoder, options?.encoderSession)
-      : null;
+    const encoder = spec.encoder ? await ort.createSession(spec.encoder, options?.encoderSession) : null;
     const t1 = performance.now();
-    const decoder = await ort.InferenceSession.create(spec.decoder, options?.decoderSession);
+    const decoder = await ort.createSession(spec.decoder, options?.decoderSession);
     const t2 = performance.now();
     return new OnnxSamModel(ort, spec, encoder, decoder, { encoderLoad: t1 - t0, decoderLoad: t2 - t1 });
   }
@@ -86,7 +88,7 @@ export class OnnxSamModel {
   ): Promise<{ candidates: MaskCandidate[]; timings: Record<string, number> }> {
     const t0 = performance.now();
     const feeds = this.adapter.decoderFeeds(this.ort, this.decoder, embedding, prompt);
-    const outputs = await this.decoder.run(feeds, this.adapter.decoderFetches(this.decoder));
+    const outputs = await this.decoder.run(feeds, this.adapter.decoderFetches());
     const t1 = performance.now();
     const candidates = this.adapter.candidates(outputs, embedding, prompt);
     const t2 = performance.now();

@@ -1,52 +1,35 @@
 /**
  * The structural subset of `onnxruntime-web` this package uses. Typing it
  * locally keeps ORT out of the package's dependencies: the host imports the
- * build it wants (`onnxruntime-web/wasm`, `/webgpu`, …) and passes the module
- * in, so the heavy runtime is never pulled in transitively.
+ * build it wants (`onnxruntime-web/wasm`, `/webgpu`, …) and hands over a
+ * small adapter, so the heavy runtime is never pulled in transitively.
+ *
+ * Generic over the runtime's tensor type `T`, so an adapter over the real
+ * `onnxruntime-web` types needs no casts: tensors this package creates are
+ * the ones it feeds back to the same runtime.
  */
-export type OrtTensorType = 'float32' | 'int64';
-
 export interface OrtTensorLike {
   readonly type: string;
   readonly dims: readonly number[];
   readonly data: unknown;
-  dispose?(): void;
 }
 
 export interface OrtSessionOptionsLike {
   readonly executionProviders?: readonly string[];
   readonly graphOptimizationLevel?: 'disabled' | 'basic' | 'extended' | 'all';
-  readonly enableCpuMemArena?: boolean;
 }
 
-export interface OrtSessionLike {
+export interface OrtSessionLike<T extends OrtTensorLike = OrtTensorLike> {
   readonly inputNames: readonly string[];
   readonly outputNames: readonly string[];
-  run(
-    feeds: Record<string, OrtTensorLike>,
-    fetches?: readonly string[],
-  ): Promise<Record<string, OrtTensorLike>>;
+  run(feeds: Record<string, T>, fetches?: readonly string[]): Promise<Record<string, T>>;
   release(): Promise<void>;
 }
 
-export interface OrtEnvLike {
-  readonly wasm: {
-    numThreads?: number;
-    wasmPaths?: string | Record<string, string>;
-    proxy?: boolean;
-  };
-}
-
-export interface OrtModuleLike {
-  readonly env: OrtEnvLike;
-  readonly InferenceSession: {
-    create(model: string | Uint8Array, options?: OrtSessionOptionsLike): Promise<OrtSessionLike>;
-  };
-  readonly Tensor: new (
-    type: OrtTensorType,
-    data: Float32Array | BigInt64Array,
-    dims: readonly number[],
-  ) => OrtTensorLike;
+export interface OrtModuleLike<T extends OrtTensorLike = OrtTensorLike> {
+  createSession(model: string | Uint8Array, options?: OrtSessionOptionsLike): Promise<OrtSessionLike<T>>;
+  float32(data: Float32Array, dims: readonly number[]): T;
+  int64(data: BigInt64Array, dims: readonly number[]): T;
 }
 
 export function float32Data(t: OrtTensorLike | undefined, name: string): Float32Array {
