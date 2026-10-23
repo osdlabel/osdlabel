@@ -1,0 +1,5792 @@
+{
+  "meta": {
+    "startedAt": "2026-10-23T22:35:42.349Z",
+    "quick": false,
+    "groups": [
+      "h1",
+      "h2",
+      "h3",
+      "osd6",
+      "h4",
+      "devapp"
+    ],
+    "host": {
+      "cpus": 4,
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+      "totalMemGB": 15.71402359008789,
+      "loadavg": [
+        8.64,
+        11.01,
+        8.73
+      ]
+    },
+    "browser": {
+      "version": "153.0.8010.12",
+      "launch": {
+        "headless": true,
+        "args": [
+          "--no-sandbox",
+          "--enable-unsafe-webgpu",
+          "--enable-precise-memory-info",
+          "--hide-scrollbars"
+        ],
+        "executablePath": "/opt/pw-browsers/chromium"
+      }
+    },
+    "gitHead": "aa806febfa5ac4079cf4b86954d8083fb2005569",
+    "finishedAt": "2026-10-23T22:49:07.502Z"
+  },
+  "environment": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+    "hardwareConcurrency": 4,
+    "devicePixelRatio": 1,
+    "crossOriginIsolated": true,
+    "webgl2": true,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTextureSize": 8192,
+    "extTextureNorm16": false,
+    "oesTextureFloatLinear": true,
+    "osdVersion": "5.0.1"
+  },
+  "images": {
+    "ct": {
+      "width": 512,
+      "height": 512,
+      "type": "Int16Array",
+      "range": {
+        "min": -1000,
+        "max": 3000
+      },
+      "levels": 10,
+      "generateMs": 112.95999999996275
+    },
+    "mammo": {
+      "width": 4096,
+      "height": 3328,
+      "type": "Uint16Array",
+      "range": {
+        "min": 860,
+        "max": 51920
+      },
+      "levels": 13,
+      "generateMs": 1371.6399999996647
+    },
+    "ramp": {
+      "width": 64,
+      "height": 64,
+      "type": "Int16Array",
+      "range": {
+        "min": -1000,
+        "max": 3000
+      },
+      "levels": 7,
+      "generateMs": 2.284999999217689
+    }
+  },
+  "h1Analytic": {
+    "phantom": {
+      "brain": {
+        "correct": {
+          "inputValues": 81,
+          "distinctLevels": 80,
+          "maxStep": 4,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49367088607594667,
+          "meanAbsError": 0.2437880918893584
+        },
+        "best8bit": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 51,
+          "maxBandWidth": 16,
+          "maxAbsError": 24.79746835443038,
+          "meanAbsError": 11.798093452101895
+        },
+        "osdlabelCss": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 5,
+          "maxBandWidth": 16,
+          "maxAbsError": 129,
+          "meanAbsError": 60.253164556962034
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 50,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 51,
+          "maxBandWidth": 16,
+          "maxAbsError": 26.860759493670884,
+          "meanAbsError": 11.851383028598223
+        },
+        "unboundedCssParams": {
+          "brightness": 1.9230769230769231,
+          "contrast": 26,
+          "requiredSlope": 50,
+          "achievedSlope": 50,
+          "exact": true
+        }
+      },
+      "subdural": {
+        "correct": {
+          "inputValues": 201,
+          "distinctLevels": 200,
+          "maxStep": 2,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49748743718592436,
+          "meanAbsError": 0.2475061876546911
+        },
+        "best8bit": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 21,
+          "maxBandWidth": 16,
+          "maxAbsError": 10.135678391959814,
+          "meanAbsError": 4.888822220555513
+        },
+        "osdlabelCss": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 5,
+          "maxBandWidth": 16,
+          "maxAbsError": 121,
+          "meanAbsError": 53.18660466511663
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 20,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 20,
+          "maxBandWidth": 16,
+          "maxAbsError": 10.587939698492448,
+          "meanAbsError": 4.898372459311482
+        },
+        "unboundedCssParams": {
+          "brightness": 1.8604651162790697,
+          "contrast": 10.75,
+          "requiredSlope": 20,
+          "achievedSlope": 20,
+          "exact": true
+        }
+      },
+      "lung": {
+        "correct": {
+          "inputValues": 1151,
+          "distinctLevels": 196,
+          "maxStep": 1,
+          "maxBandWidth": 6,
+          "maxAbsError": 0.4996664442961958,
+          "meanAbsError": 0.24973092400436092
+        },
+        "best8bit": {
+          "inputValues": 1151,
+          "distinctLevels": 74,
+          "maxStep": 3,
+          "maxBandWidth": 16,
+          "maxAbsError": 1.716477651767832,
+          "meanAbsError": 0.691947542207401
+        },
+        "osdlabelCss": {
+          "inputValues": 1151,
+          "distinctLevels": 74,
+          "maxStep": 2,
+          "maxBandWidth": 16,
+          "maxAbsError": 118,
+          "meanAbsError": 58.71960339618247
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 0.5333333333333333,
+          "requiredSlope": 2.6666666666666665,
+          "achievedSlope": 1.0666666666666667,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 1151,
+          "distinctLevels": 52,
+          "maxStep": 3,
+          "maxBandWidth": 358,
+          "maxAbsError": 60,
+          "meanAbsError": 9.751726172501911
+        },
+        "unboundedCssParams": {
+          "brightness": 5,
+          "contrast": 0.5333333333333333,
+          "requiredSlope": 2.6666666666666665,
+          "achievedSlope": 2.6666666666666665,
+          "exact": false
+        }
+      },
+      "bone": {
+        "correct": {
+          "inputValues": 2001,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 8,
+          "maxAbsError": 0.49974987493747847,
+          "meanAbsError": 0.2497500624375156
+        },
+        "best8bit": {
+          "inputValues": 2001,
+          "distinctLevels": 129,
+          "maxStep": 2,
+          "maxBandWidth": 16,
+          "maxAbsError": 1.2436218109054522,
+          "meanAbsError": 0.5177123794280942
+        },
+        "osdlabelCss": {
+          "inputValues": 2001,
+          "distinctLevels": 129,
+          "maxStep": 2,
+          "maxBandWidth": 16,
+          "maxAbsError": 1.2436218109054522,
+          "meanAbsError": 0.5177123794280942
+        },
+        "osdlabelCssParams": {
+          "brightness": 1.5384615384615383,
+          "contrast": 1.3,
+          "requiredSlope": 2,
+          "achievedSlope": 2,
+          "exact": true
+        },
+        "unboundedCss": {
+          "inputValues": 2001,
+          "distinctLevels": 129,
+          "maxStep": 2,
+          "maxBandWidth": 16,
+          "maxAbsError": 1.2436218109054522,
+          "meanAbsError": 0.5177123794280942
+        },
+        "unboundedCssParams": {
+          "brightness": 1.5384615384615383,
+          "contrast": 1.3,
+          "requiredSlope": 2,
+          "achievedSlope": 2,
+          "exact": true
+        }
+      },
+      "abdomen": {
+        "correct": {
+          "inputValues": 401,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.4962406015037715,
+          "meanAbsError": 0.24873905461909143
+        },
+        "best8bit": {
+          "inputValues": 401,
+          "distinctLevels": 27,
+          "maxStep": 11,
+          "maxBandWidth": 16,
+          "maxAbsError": 5.390977443609017,
+          "meanAbsError": 2.493709335683348
+        },
+        "osdlabelCss": {
+          "inputValues": 401,
+          "distinctLevels": 27,
+          "maxStep": 5,
+          "maxBandWidth": 16,
+          "maxAbsError": 89.80451127819549,
+          "meanAbsError": 39.63210395064969
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 10,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 401,
+          "distinctLevels": 27,
+          "maxStep": 10,
+          "maxBandWidth": 16,
+          "maxAbsError": 5.721804511278208,
+          "meanAbsError": 2.500290626816418
+        },
+        "unboundedCssParams": {
+          "brightness": 1.9047619047619047,
+          "contrast": 5.25,
+          "requiredSlope": 10,
+          "achievedSlope": 10,
+          "exact": true
+        }
+      }
+    },
+    "ct12bit": {
+      "brain": {
+        "correct": {
+          "inputValues": 81,
+          "distinctLevels": 80,
+          "maxStep": 4,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49367088607594667,
+          "meanAbsError": 0.2437880918893584
+        },
+        "best8bit": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 52,
+          "maxBandWidth": 17,
+          "maxAbsError": 26.316455696202524,
+          "meanAbsError": 12.209095171120488
+        },
+        "osdlabelCss": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 5,
+          "maxBandWidth": 17,
+          "maxAbsError": 129,
+          "meanAbsError": 60.376621347085496
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 51.1875,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 52,
+          "maxBandWidth": 17,
+          "maxAbsError": 28.316455696202524,
+          "meanAbsError": 12.230035943116112
+        },
+        "unboundedCssParams": {
+          "brightness": 1.9243421052631577,
+          "contrast": 26.6,
+          "requiredSlope": 51.1875,
+          "achievedSlope": 51.1875,
+          "exact": true
+        }
+      },
+      "subdural": {
+        "correct": {
+          "inputValues": 201,
+          "distinctLevels": 200,
+          "maxStep": 2,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49748743718592436,
+          "meanAbsError": 0.2475061876546911
+        },
+        "best8bit": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 21,
+          "maxBandWidth": 17,
+          "maxAbsError": 10.582914572864325,
+          "meanAbsError": 5.024950623765596
+        },
+        "osdlabelCss": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 5,
+          "maxBandWidth": 17,
+          "maxAbsError": 121,
+          "meanAbsError": 53.49573739343484
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 20.475,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 21,
+          "maxBandWidth": 17,
+          "maxAbsError": 11.437185929648223,
+          "meanAbsError": 5.0636515912897835
+        },
+        "unboundedCssParams": {
+          "brightness": 1.8630573248407645,
+          "contrast": 10.99,
+          "requiredSlope": 20.475,
+          "achievedSlope": 20.475,
+          "exact": true
+        }
+      },
+      "lung": {
+        "correct": {
+          "inputValues": 1175,
+          "distinctLevels": 201,
+          "maxStep": 1,
+          "maxBandWidth": 6,
+          "maxAbsError": 0.4996664442961958,
+          "meanAbsError": 0.24980398279704197
+        },
+        "best8bit": {
+          "inputValues": 1175,
+          "distinctLevels": 74,
+          "maxStep": 3,
+          "maxBandWidth": 17,
+          "maxAbsError": 1.8178785857238253,
+          "meanAbsError": 0.7146636764935477
+        },
+        "osdlabelCss": {
+          "inputValues": 1175,
+          "distinctLevels": 74,
+          "maxStep": 2,
+          "maxBandWidth": 17,
+          "maxAbsError": 117,
+          "meanAbsError": 58.55001376804394
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 0.5653333333333334,
+          "requiredSlope": 2.73,
+          "achievedSlope": 1.1306666666666667,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 1175,
+          "distinctLevels": 54,
+          "maxStep": 3,
+          "maxBandWidth": 331,
+          "maxAbsError": 55,
+          "meanAbsError": 8.157596127915063
+        },
+        "unboundedCssParams": {
+          "brightness": 4.829009433962264,
+          "contrast": 0.5653333333333334,
+          "requiredSlope": 2.73,
+          "achievedSlope": 2.73,
+          "exact": false
+        }
+      },
+      "bone": {
+        "correct": {
+          "inputValues": 2001,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 8,
+          "maxAbsError": 0.49974987493747847,
+          "meanAbsError": 0.2497500624375156
+        },
+        "best8bit": {
+          "inputValues": 2001,
+          "distinctLevels": 126,
+          "maxStep": 3,
+          "maxBandWidth": 17,
+          "maxAbsError": 1.5052526263131654,
+          "meanAbsError": 0.5511846377961599
+        },
+        "osdlabelCss": {
+          "inputValues": 2001,
+          "distinctLevels": 126,
+          "maxStep": 3,
+          "maxBandWidth": 17,
+          "maxAbsError": 1.5872936468234116,
+          "meanAbsError": 0.55537863884466
+        },
+        "osdlabelCssParams": {
+          "brightness": 1.5464501510574016,
+          "contrast": 1.324,
+          "requiredSlope": 2.0475,
+          "achievedSlope": 2.0475,
+          "exact": true
+        },
+        "unboundedCss": {
+          "inputValues": 2001,
+          "distinctLevels": 126,
+          "maxStep": 3,
+          "maxBandWidth": 17,
+          "maxAbsError": 1.5872936468234116,
+          "meanAbsError": 0.55537863884466
+        },
+        "unboundedCssParams": {
+          "brightness": 1.5464501510574016,
+          "contrast": 1.324,
+          "requiredSlope": 2.0475,
+          "achievedSlope": 2.0475,
+          "exact": true
+        }
+      },
+      "abdomen": {
+        "correct": {
+          "inputValues": 401,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.4962406015037715,
+          "meanAbsError": 0.24873905461909143
+        },
+        "best8bit": {
+          "inputValues": 401,
+          "distinctLevels": 26,
+          "maxStep": 11,
+          "maxBandWidth": 17,
+          "maxAbsError": 5.466165413533844,
+          "meanAbsError": 2.5465284158025994
+        },
+        "osdlabelCss": {
+          "inputValues": 401,
+          "distinctLevels": 26,
+          "maxStep": 5,
+          "maxBandWidth": 17,
+          "maxAbsError": 91.7218045112782,
+          "meanAbsError": 40.22312639453997
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 10.2375,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 401,
+          "distinctLevels": 26,
+          "maxStep": 11,
+          "maxBandWidth": 17,
+          "maxAbsError": 5.887218045112775,
+          "meanAbsError": 2.562503515646973
+        },
+        "unboundedCssParams": {
+          "brightness": 1.9064245810055866,
+          "contrast": 5.37,
+          "requiredSlope": 10.2375,
+          "achievedSlope": 10.2375,
+          "exact": true
+        }
+      }
+    }
+  },
+  "h1AnalyticProjection": {
+    "dx12bit": {
+      "narrow": {
+        "correct": {
+          "inputValues": 601,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 3,
+          "maxAbsError": 0.4991652754590916,
+          "meanAbsError": 0.24916735879821908
+        },
+        "best8bit": {
+          "inputValues": 601,
+          "distinctLevels": 38,
+          "maxStep": 7,
+          "maxBandWidth": 17,
+          "maxAbsError": 3.826377295492506,
+          "meanAbsError": 1.7114130872585769
+        },
+        "osdlabelCss": {
+          "inputValues": 601,
+          "distinctLevels": 1,
+          "maxStep": 0,
+          "maxBandWidth": 601,
+          "maxAbsError": 255,
+          "meanAbsError": 127.28785357737105
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 6.825,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 601,
+          "distinctLevels": 38,
+          "maxStep": 7,
+          "maxBandWidth": 17,
+          "maxAbsError": 4.0717863105175525,
+          "meanAbsError": 1.7178381051058487
+        },
+        "unboundedCssParams": {
+          "brightness": 0.999755859375,
+          "contrast": 6.826666666666667,
+          "requiredSlope": 6.825,
+          "achievedSlope": 6.825,
+          "exact": true
+        }
+      },
+      "wide": {
+        "correct": {
+          "inputValues": 3001,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 12,
+          "maxAbsError": 0.4998332777592793,
+          "meanAbsError": 0.24983336109259477
+        },
+        "best8bit": {
+          "inputValues": 3001,
+          "distinctLevels": 188,
+          "maxStep": 2,
+          "maxBandWidth": 17,
+          "maxAbsError": 1.1483827942647622,
+          "meanAbsError": 0.40150337794481955
+        },
+        "osdlabelCss": {
+          "inputValues": 3001,
+          "distinctLevels": 188,
+          "maxStep": 2,
+          "maxBandWidth": 17,
+          "maxAbsError": 1.227075691897312,
+          "meanAbsError": 0.4034877114986345
+        },
+        "osdlabelCssParams": {
+          "brightness": 0.999755859375,
+          "contrast": 1.3653333333333333,
+          "requiredSlope": 1.365,
+          "achievedSlope": 1.365,
+          "exact": true
+        },
+        "unboundedCss": {
+          "inputValues": 3001,
+          "distinctLevels": 188,
+          "maxStep": 2,
+          "maxBandWidth": 17,
+          "maxAbsError": 1.227075691897312,
+          "meanAbsError": 0.4034877114986345
+        },
+        "unboundedCssParams": {
+          "brightness": 0.999755859375,
+          "contrast": 1.3653333333333333,
+          "requiredSlope": 1.365,
+          "achievedSlope": 1.365,
+          "exact": true
+        }
+      }
+    },
+    "mammo16bit": {
+      "narrow": {
+        "correct": {
+          "inputValues": 4001,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 16,
+          "maxAbsError": 0.49962490622658606,
+          "meanAbsError": 0.24987489061718013
+        },
+        "best8bit": {
+          "inputValues": 4001,
+          "distinctLevels": 17,
+          "maxStep": 17,
+          "maxBandWidth": 257,
+          "maxAbsError": 8.645161290322562,
+          "meanAbsError": 4.080724005045247
+        },
+        "osdlabelCss": {
+          "inputValues": 4001,
+          "distinctLevels": 1,
+          "maxStep": 0,
+          "maxBandWidth": 4001,
+          "maxAbsError": 255,
+          "meanAbsError": 127.46813296675829
+        },
+        "osdlabelCssParams": {
+          "brightness": 2,
+          "contrast": 2,
+          "requiredSlope": 16.38375,
+          "achievedSlope": 4,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 4001,
+          "distinctLevels": 17,
+          "maxStep": 17,
+          "maxBandWidth": 257,
+          "maxAbsError": 8.645161290322562,
+          "meanAbsError": 4.080724005045247
+        },
+        "unboundedCssParams": {
+          "brightness": 1.09225,
+          "contrast": 15,
+          "requiredSlope": 16.38375,
+          "achievedSlope": 16.38375,
+          "exact": true
+        }
+      },
+      "wide": {
+        "correct": {
+          "inputValues": 30001,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 118,
+          "maxAbsError": 0.4999833327777594,
+          "meanAbsError": 0.24998333361109237
+        },
+        "best8bit": {
+          "inputValues": 30001,
+          "distinctLevels": 118,
+          "maxStep": 3,
+          "maxBandWidth": 257,
+          "maxAbsError": 1.5866528884296258,
+          "meanAbsError": 0.5823986228693322
+        },
+        "osdlabelCss": {
+          "inputValues": 30001,
+          "distinctLevels": 107,
+          "maxStep": 3,
+          "maxBandWidth": 2922,
+          "maxAbsError": 25.11007033567786,
+          "meanAbsError": 22.43888537048765
+        },
+        "osdlabelCssParams": {
+          "brightness": 1.09225,
+          "contrast": 2,
+          "requiredSlope": 2.1845,
+          "achievedSlope": 2.1845,
+          "exact": false
+        },
+        "unboundedCss": {
+          "inputValues": 30001,
+          "distinctLevels": 118,
+          "maxStep": 3,
+          "maxBandWidth": 257,
+          "maxAbsError": 1.5894196473215771,
+          "meanAbsError": 0.5824094128693443
+        },
+        "unboundedCssParams": {
+          "brightness": 0.9999847412109374,
+          "contrast": 2.1845333333333334,
+          "requiredSlope": 2.1845,
+          "achievedSlope": 2.1845,
+          "exact": true
+        }
+      }
+    }
+  },
+  "h1Browser": {
+    "brain": {
+      "gpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 81,
+          "distinctLevels": 80,
+          "maxStep": 4,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49367088607594667,
+          "meanAbsError": 0.2437880918893584
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "cpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 81,
+          "distinctLevels": 80,
+          "maxStep": 4,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49367088607594667,
+          "meanAbsError": 0.2437880918893584
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "css-osdlabel": {
+        "filter": "brightness(2) contrast(2)",
+        "brightness": 2,
+        "contrast": 2,
+        "stats": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 4,
+          "maxBandWidth": 16,
+          "maxAbsError": 129,
+          "meanAbsError": 60.37662134708548
+        },
+        "modelMismatch": 188,
+        "modelMaxDiff": 1
+      },
+      "css-unbounded": {
+        "filter": "brightness(1.92308) contrast(26)",
+        "brightness": 1.9230769230769231,
+        "contrast": 26,
+        "stats": {
+          "inputValues": 81,
+          "distinctLevels": 6,
+          "maxStep": 51,
+          "maxBandWidth": 16,
+          "maxAbsError": 26.79746835443038,
+          "meanAbsError": 11.838412251914365
+        },
+        "modelMismatch": 63,
+        "modelMaxDiff": 1
+      }
+    },
+    "subdural": {
+      "gpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 201,
+          "distinctLevels": 200,
+          "maxStep": 2,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49748743718592436,
+          "meanAbsError": 0.2475061876546911
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "cpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 201,
+          "distinctLevels": 200,
+          "maxStep": 2,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.49748743718592436,
+          "meanAbsError": 0.2475061876546911
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "css-osdlabel": {
+        "filter": "brightness(2) contrast(2)",
+        "brightness": 2,
+        "contrast": 2,
+        "stats": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 4,
+          "maxBandWidth": 16,
+          "maxAbsError": 121,
+          "meanAbsError": 53.27118177954449
+        },
+        "modelMismatch": 188,
+        "modelMaxDiff": 1
+      },
+      "css-unbounded": {
+        "filter": "brightness(1.86047) contrast(10.75)",
+        "brightness": 1.8604651162790697,
+        "contrast": 10.75,
+        "stats": {
+          "inputValues": 201,
+          "distinctLevels": 14,
+          "maxStep": 20,
+          "maxBandWidth": 16,
+          "maxAbsError": 10.587939698492448,
+          "meanAbsError": 4.898372459311482
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      }
+    },
+    "lung": {
+      "gpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 1151,
+          "distinctLevels": 196,
+          "maxStep": 1,
+          "maxBandWidth": 6,
+          "maxAbsError": 0.4996664442961958,
+          "meanAbsError": 0.24973092400436092
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "cpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 1151,
+          "distinctLevels": 196,
+          "maxStep": 1,
+          "maxBandWidth": 6,
+          "maxAbsError": 0.4996664442961958,
+          "meanAbsError": 0.24973092400436092
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "css-osdlabel": {
+        "filter": "brightness(2) contrast(0.533333)",
+        "brightness": 2,
+        "contrast": 0.5333333333333333,
+        "stats": {
+          "inputValues": 1151,
+          "distinctLevels": 74,
+          "maxStep": 2,
+          "maxBandWidth": 16,
+          "maxAbsError": 118,
+          "meanAbsError": 58.73894209229553
+        },
+        "modelMismatch": 2040,
+        "modelMaxDiff": 1
+      },
+      "css-unbounded": {
+        "filter": "brightness(5) contrast(0.533333)",
+        "brightness": 5,
+        "contrast": 0.5333333333333333,
+        "stats": {
+          "inputValues": 1151,
+          "distinctLevels": 52,
+          "maxStep": 3,
+          "maxBandWidth": 358,
+          "maxAbsError": 59,
+          "meanAbsError": 9.458249316515092
+        },
+        "modelMismatch": 3294,
+        "modelMaxDiff": 1
+      }
+    },
+    "bone": {
+      "gpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 2001,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 8,
+          "maxAbsError": 0.49974987493747847,
+          "meanAbsError": 0.2497500624375156
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "cpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 2001,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 8,
+          "maxAbsError": 0.49974987493747847,
+          "meanAbsError": 0.2497500624375156
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "css-osdlabel": {
+        "filter": "brightness(1.53846) contrast(1.3)",
+        "brightness": 1.5384615384615383,
+        "contrast": 1.3,
+        "stats": {
+          "inputValues": 2001,
+          "distinctLevels": 129,
+          "maxStep": 2,
+          "maxBandWidth": 16,
+          "maxAbsError": 1.2436218109054522,
+          "meanAbsError": 0.5177123794280942
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "css-unbounded": {
+        "filter": "brightness(1.53846) contrast(1.3)",
+        "brightness": 1.5384615384615383,
+        "contrast": 1.3,
+        "stats": {
+          "inputValues": 2001,
+          "distinctLevels": 129,
+          "maxStep": 2,
+          "maxBandWidth": 16,
+          "maxAbsError": 1.2436218109054522,
+          "meanAbsError": 0.5177123794280942
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      }
+    },
+    "abdomen": {
+      "gpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 401,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.4962406015037715,
+          "meanAbsError": 0.24873905461909143
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "cpu": {
+        "filter": "",
+        "brightness": null,
+        "contrast": null,
+        "stats": {
+          "inputValues": 401,
+          "distinctLevels": 256,
+          "maxStep": 1,
+          "maxBandWidth": 2,
+          "maxAbsError": 0.4962406015037715,
+          "meanAbsError": 0.24873905461909143
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      },
+      "css-osdlabel": {
+        "filter": "brightness(2) contrast(2)",
+        "brightness": 2,
+        "contrast": 2,
+        "stats": {
+          "inputValues": 401,
+          "distinctLevels": 27,
+          "maxStep": 4,
+          "maxBandWidth": 16,
+          "maxAbsError": 89.80451127819549,
+          "meanAbsError": 39.59379746123414
+        },
+        "modelMismatch": 188,
+        "modelMaxDiff": 1
+      },
+      "css-unbounded": {
+        "filter": "brightness(1.90476) contrast(5.25)",
+        "brightness": 1.9047619047619047,
+        "contrast": 5.25,
+        "stats": {
+          "inputValues": 401,
+          "distinctLevels": 27,
+          "maxStep": 10,
+          "maxBandWidth": 16,
+          "maxAbsError": 5.721804511278208,
+          "meanAbsError": 2.500290626816418
+        },
+        "modelMismatch": 0,
+        "modelMaxDiff": 0
+      }
+    }
+  },
+  "h2": {
+    "full": [
+      {
+        "image": "ct",
+        "impl": "lut32",
+        "pixels": 262144,
+        "lutEntries": 4001,
+        "lut": {
+          "n": 120,
+          "mean": 0.13724999995902182,
+          "median": 0.05999999959021807,
+          "p95": 0.11000000033527613,
+          "max": 3.619999999180436
+        },
+        "apply": {
+          "n": 120,
+          "mean": 0.5834583334003886,
+          "median": 0.43499999959021807,
+          "p95": 1.025000000372529,
+          "max": 2.9050000002607703
+        },
+        "putImageData": {
+          "n": 120,
+          "mean": 0.12966666663220774,
+          "median": 0.10999999940395355,
+          "p95": 0.1650000000372529,
+          "max": 1.4199999999254942
+        },
+        "displayDrawImage": {
+          "n": 120,
+          "mean": 3.870166666650524,
+          "median": 3.275000000372529,
+          "p95": 6.180000000633299,
+          "max": 9.049999999813735
+        },
+        "total": {
+          "n": 120,
+          "mean": 4.720541666642142,
+          "median": 3.9500000001862645,
+          "p95": 7.745000000111759,
+          "max": 12.929999999701977
+        }
+      },
+      {
+        "image": "ct",
+        "impl": "lutBytes",
+        "pixels": 262144,
+        "lutEntries": 4001,
+        "lut": {
+          "n": 120,
+          "mean": 0.06616666665455948,
+          "median": 0.05999999959021807,
+          "p95": 0.10000000055879354,
+          "max": 0.125
+        },
+        "apply": {
+          "n": 120,
+          "mean": 1.2149583332706242,
+          "median": 0.9450000002980232,
+          "p95": 1.7649999996647239,
+          "max": 5.929999999701977
+        },
+        "putImageData": {
+          "n": 120,
+          "mean": 0.151291666754211,
+          "median": 0.11000000033527613,
+          "p95": 0.22000000067055225,
+          "max": 3.2149999998509884
+        },
+        "displayDrawImage": {
+          "n": 120,
+          "mean": 3.982499999964299,
+          "median": 3.25,
+          "p95": 6.864999999292195,
+          "max": 12.955000000074506
+        },
+        "total": {
+          "n": 120,
+          "mean": 5.414916666643694,
+          "median": 4.339999999850988,
+          "p95": 9.534999999217689,
+          "max": 17.515000000596046
+        }
+      },
+      {
+        "image": "ct",
+        "impl": "direct",
+        "pixels": 262144,
+        "lutEntries": 4001,
+        "lut": {
+          "n": 120,
+          "mean": 0.0004999999888241291,
+          "median": 0,
+          "p95": 0.004999999888241291,
+          "max": 0.004999999888241291
+        },
+        "apply": {
+          "n": 120,
+          "mean": 2.1654166667023675,
+          "median": 2.0750000001862645,
+          "p95": 2.980000000447035,
+          "max": 9.045000000856817
+        },
+        "putImageData": {
+          "n": 120,
+          "mean": 0.12445833332215746,
+          "median": 0.10499999951571226,
+          "p95": 0.17500000074505806,
+          "max": 1.0050000008195639
+        },
+        "displayDrawImage": {
+          "n": 120,
+          "mean": 3.1859999999947224,
+          "median": 3.1150000002235174,
+          "p95": 3.764999999664724,
+          "max": 6.035000000149012
+        },
+        "total": {
+          "n": 120,
+          "mean": 5.476375000008072,
+          "median": 5.320000000298023,
+          "p95": 6.9849999994039536,
+          "max": 14.080000000074506
+        }
+      },
+      {
+        "image": "mammo",
+        "impl": "lut32",
+        "pixels": 13631488,
+        "lutEntries": 51061,
+        "lut": {
+          "n": 20,
+          "mean": 0.5755000000353903,
+          "median": 0.5700000002980232,
+          "p95": 0.7549999998882413,
+          "max": 0.7549999998882413
+        },
+        "apply": {
+          "n": 20,
+          "mean": 38.23599999998696,
+          "median": 34.42999999970198,
+          "p95": 67.59999999962747,
+          "max": 67.59999999962747
+        },
+        "putImageData": {
+          "n": 20,
+          "mean": 14.211500000022351,
+          "median": 11.419999999925494,
+          "p95": 36.205000000074506,
+          "max": 36.205000000074506
+        },
+        "displayDrawImage": {
+          "n": 20,
+          "mean": 5.489749999903142,
+          "median": 4.689999999478459,
+          "p95": 13.770000000484288,
+          "max": 13.770000000484288
+        },
+        "total": {
+          "n": 20,
+          "mean": 58.51274999994784,
+          "median": 52.875,
+          "p95": 118.1800000006333,
+          "max": 118.1800000006333
+        }
+      },
+      {
+        "image": "mammo",
+        "impl": "lutBytes",
+        "pixels": 13631488,
+        "lutEntries": 51061,
+        "lut": {
+          "n": 20,
+          "mean": 0.8982500000391156,
+          "median": 0.5849999999627471,
+          "p95": 5.915000000037253,
+          "max": 5.915000000037253
+        },
+        "apply": {
+          "n": 20,
+          "mean": 61.928750000009316,
+          "median": 51.544999999925494,
+          "p95": 111.59000000078231,
+          "max": 111.59000000078231
+        },
+        "putImageData": {
+          "n": 20,
+          "mean": 13.953999999770895,
+          "median": 11.034999999217689,
+          "p95": 61.69000000040978,
+          "max": 61.69000000040978
+        },
+        "displayDrawImage": {
+          "n": 20,
+          "mean": 5.746750000212342,
+          "median": 4.9750000005587935,
+          "p95": 19.059999999590218,
+          "max": 19.059999999590218
+        },
+        "total": {
+          "n": 20,
+          "mean": 82.52775000003166,
+          "median": 69.2050000000745,
+          "p95": 192.82500000018626,
+          "max": 192.82500000018626
+        }
+      },
+      {
+        "image": "mammo",
+        "impl": "direct",
+        "pixels": 13631488,
+        "lutEntries": 51061,
+        "lut": {
+          "n": 20,
+          "mean": 0.00024999999441206456,
+          "median": 0,
+          "p95": 0.004999999888241291,
+          "max": 0.004999999888241291
+        },
+        "apply": {
+          "n": 20,
+          "mean": 70.81224999981933,
+          "median": 64.56499999947846,
+          "p95": 100.01500000059605,
+          "max": 100.01500000059605
+        },
+        "putImageData": {
+          "n": 20,
+          "mean": 13.03824999993667,
+          "median": 11.540000000037253,
+          "p95": 40.60999999940395,
+          "max": 40.60999999940395
+        },
+        "displayDrawImage": {
+          "n": 20,
+          "mean": 5.285000000242144,
+          "median": 4.915000000037253,
+          "p95": 8.419999999925494,
+          "max": 8.419999999925494
+        },
+        "total": {
+          "n": 20,
+          "mean": 89.13574999999256,
+          "median": 81.52500000037253,
+          "p95": 125.12999999988824,
+          "max": 125.12999999988824
+        }
+      }
+    ],
+    "workers": [
+      {
+        "image": "mammo",
+        "workers": 1,
+        "pixels": 13631488,
+        "wall": {
+          "n": 20,
+          "mean": 78.4569999998901,
+          "median": 60.269999999552965,
+          "p95": 182.5800000000745,
+          "max": 182.5800000000745
+        },
+        "mainThreadBlocked": {
+          "n": 20,
+          "mean": 32.36299999984912,
+          "median": 22.520000000484288,
+          "p95": 101.38999999966472,
+          "max": 101.38999999966472
+        },
+        "slowestWorker": {
+          "n": 20,
+          "mean": 45.53500000005588,
+          "median": 36.239999999292195,
+          "p95": 101.76499999966472,
+          "max": 101.76499999966472
+        },
+        "sabCopy": {
+          "n": 20,
+          "mean": 18.862749999947845,
+          "median": 11.21999999973923,
+          "p95": 90.2050000000745,
+          "max": 90.2050000000745
+        }
+      },
+      {
+        "image": "mammo",
+        "workers": 2,
+        "pixels": 13631488,
+        "wall": {
+          "n": 20,
+          "mean": 66.62874999996275,
+          "median": 63.05499999970198,
+          "p95": 132.02999999932945,
+          "max": 132.02999999932945
+        },
+        "mainThreadBlocked": {
+          "n": 20,
+          "mean": 28.650499999895693,
+          "median": 24.519999998621643,
+          "p95": 84.5949999988079,
+          "max": 84.5949999988079
+        },
+        "slowestWorker": {
+          "n": 20,
+          "mean": 35.647749999910594,
+          "median": 33.98499999940395,
+          "p95": 56.50999999977648,
+          "max": 56.50999999977648
+        },
+        "sabCopy": {
+          "n": 20,
+          "mean": 14.342249999800696,
+          "median": 11.864999999292195,
+          "p95": 36.37000000011176,
+          "max": 36.37000000011176
+        }
+      },
+      {
+        "image": "mammo",
+        "workers": 4,
+        "pixels": 13631488,
+        "wall": {
+          "n": 20,
+          "mean": 65.2535000000149,
+          "median": 61.11500000022352,
+          "p95": 127.5800000000745,
+          "max": 127.5800000000745
+        },
+        "mainThreadBlocked": {
+          "n": 20,
+          "mean": 27.97750000008382,
+          "median": 23.824999999254942,
+          "p95": 79.88499999977648,
+          "max": 79.88499999977648
+        },
+        "slowestWorker": {
+          "n": 20,
+          "mean": 32.82549999994226,
+          "median": 31.984999999403954,
+          "p95": 52.03500000014901,
+          "max": 52.03500000014901
+        },
+        "sabCopy": {
+          "n": 20,
+          "mean": 13.992750000068918,
+          "median": 11.31499999947846,
+          "p95": 37.799999999813735,
+          "max": 37.799999999813735
+        }
+      }
+    ],
+    "osd": [
+      {
+        "image": "ct",
+        "zoom": "fit",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 4,
+          "median": 4,
+          "p95": 4,
+          "max": 4
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 262144,
+          "median": 262144,
+          "p95": 262144,
+          "max": 262144
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 0.6852083331982916,
+          "median": 0.5850000008940697,
+          "p95": 1.2549999989569187,
+          "max": 2.6949999993667006
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 0.11137500000962366,
+          "median": 0.0849999999627471,
+          "p95": 0.1600000001490116,
+          "max": 2.059999999590218
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 1.853833333340784,
+          "median": 1.6200000001117587,
+          "p95": 3.125,
+          "max": 5.919999999925494
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 5.580458333351029,
+          "median": 4.8250000001862645,
+          "p95": 8.794999999925494,
+          "max": 15.014999999664724
+        },
+        "raf": {
+          "n": 180,
+          "mean": 16.758583333333323,
+          "median": 16.665000000000873,
+          "p95": 16.67000000000189,
+          "max": 33.330000000001746,
+          "fps": 59.670914904302805
+        },
+        "memory": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 1,
+          "jsHeapDeltaMB": -111.09315872192383
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "fit",
+        "drawer": "webgl-stock",
+        "drawerType": "webgl",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": false,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 4,
+          "median": 4,
+          "p95": 4,
+          "max": 4
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 262144,
+          "median": 262144,
+          "p95": 262144,
+          "max": 262144
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 0.8782500001291434,
+          "median": 0.705000001937151,
+          "p95": 1.5750000001862645,
+          "max": 2.260000000707805
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 0.22154166656546295,
+          "median": 0.17999999970197678,
+          "p95": 0.27500000037252903,
+          "max": 3.2599999997764826
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 101.83341666671137,
+          "median": 98.63499999977648,
+          "p95": 146.98000000044703,
+          "max": 185.3850000007078
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 103.6310416666946,
+          "median": 100.18499999959022,
+          "p95": 148.33499999996275,
+          "max": 186.93500000052154
+        },
+        "raf": {
+          "n": 15,
+          "mean": 203.325,
+          "median": 199.99499999999534,
+          "p95": 416.65000000000146,
+          "max": 416.65000000000146,
+          "fps": 4.918234353866962
+        },
+        "memory": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 1,
+          "jsHeapDeltaMB": -0.3434915542602539
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "1:1",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 4,
+          "median": 4,
+          "p95": 4,
+          "max": 4
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 262144,
+          "median": 262144,
+          "p95": 262144,
+          "max": 262144
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 1.4925833333361274,
+          "median": 0.6200000001117587,
+          "p95": 2.849999999627471,
+          "max": 37.01500000059605
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 0.30687500001707424,
+          "median": 0.08499999903142452,
+          "p95": 0.7700000004842877,
+          "max": 10.800000000745058
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 2.0076250000391154,
+          "median": 0.8050000006332994,
+          "p95": 11.495000000111759,
+          "max": 37.31000000052154
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 3.6976666666567324,
+          "median": 1.9950000001117587,
+          "p95": 12.870000000111759,
+          "max": 38.76500000059605
+        },
+        "raf": {
+          "n": 178,
+          "mean": 16.946910112359568,
+          "median": 16.665000000000873,
+          "p95": 16.67000000000553,
+          "max": 50,
+          "fps": 59.00780693175973
+        },
+        "memory": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 1,
+          "jsHeapDeltaMB": 1.0260028839111328
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "1:1",
+        "drawer": "webgl-stock",
+        "drawerType": "webgl",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": false,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 4,
+          "median": 4,
+          "p95": 4,
+          "max": 4
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 262144,
+          "median": 262144,
+          "p95": 262144,
+          "max": 262144
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 0.8884999999776483,
+          "median": 0.7050000010058284,
+          "p95": 1.6450000004842877,
+          "max": 2.284999999217689
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 0.20020833334419877,
+          "median": 0.18499999959021807,
+          "p95": 0.27000000048428774,
+          "max": 0.8850000007078052
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 47.18879166674645,
+          "median": 43.03000000026077,
+          "p95": 84.18499999959022,
+          "max": 103.46500000078231
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 48.63445833336252,
+          "median": 44.605000000447035,
+          "p95": 86.13499999977648,
+          "max": 105.8300000000745
+        },
+        "raf": {
+          "n": 70,
+          "mean": 43.09357142857147,
+          "median": 49.99499999999534,
+          "p95": 66.66500000000087,
+          "max": 83.33000000000175,
+          "fps": 23.2053173327145
+        },
+        "memory": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 1,
+          "jsHeapDeltaMB": -0.5836544036865234
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "fit",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 56,
+          "median": 56,
+          "p95": 56,
+          "max": 56
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 3407872,
+          "median": 3407872,
+          "p95": 3407872,
+          "max": 3407872
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 9.296291666803882,
+          "median": 8.59500000718981,
+          "p95": 13.72999999858439,
+          "max": 17.124999998137355
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 1.2670833337586374,
+          "median": 1.13499999884516,
+          "p95": 2.159999999217689,
+          "max": 4.524999997578561
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 11.208166666639348,
+          "median": 10.3050000006333,
+          "p95": 16.33999999985099,
+          "max": 20.684999999590218
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 14.95120833334513,
+          "median": 13.855000000447035,
+          "p95": 21.59999999962747,
+          "max": 26.674999999813735
+        },
+        "raf": {
+          "n": 172,
+          "mean": 17.538081395348854,
+          "median": 16.665000000000873,
+          "p95": 16.67000000000553,
+          "max": 50,
+          "fps": 57.01877973181278
+        },
+        "memory": {
+          "tiles": 72,
+          "rawMB": 9,
+          "canvasMB": 18,
+          "jsHeapDeltaMB": 30.38913345336914
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "fit",
+        "drawer": "webgl-stock",
+        "drawerType": "webgl",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": false,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 56,
+          "median": 56,
+          "p95": 56,
+          "max": 56
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 3407872,
+          "median": 3407872,
+          "p95": 3407872,
+          "max": 3407872
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 11.663708333383935,
+          "median": 9.904999998398125,
+          "p95": 17.90500000026077,
+          "max": 20.619999999180436
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 2.5601250000220412,
+          "median": 2.410000001080334,
+          "p95": 3.2699999967589974,
+          "max": 5.634999993257225
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 131.54249999998913,
+          "median": 125.32000000029802,
+          "p95": 178.71999999973923,
+          "max": 234.54000000003725
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 133.20408333328086,
+          "median": 126.82000000029802,
+          "p95": 180.43499999959022,
+          "max": 235.88499999977648
+        },
+        "raf": {
+          "n": 22,
+          "mean": 140.14590909090938,
+          "median": 133.3299999999872,
+          "p95": 183.33000000000175,
+          "max": 283.320000000007,
+          "fps": 7.135420551957198
+        },
+        "memory": {
+          "tiles": 72,
+          "rawMB": 9,
+          "canvasMB": 18,
+          "jsHeapDeltaMB": -3.6487083435058594
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 25,
+          "median": 25,
+          "p95": 25,
+          "max": 25
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 1638400,
+          "median": 1638400,
+          "p95": 1638400,
+          "max": 1638400
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 4.426625000343969,
+          "median": 4.3349999990314245,
+          "p95": 5.544999996200204,
+          "max": 7.415000002831221
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 0.5513333332181598,
+          "median": 0.5300000021234155,
+          "p95": 0.7500000018626451,
+          "max": 1.2949999999254942
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 5.23395833336593,
+          "median": 5.120000000111759,
+          "p95": 6.7000000001862645,
+          "max": 8.5699999993667
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 9.153458333349166,
+          "median": 8.90500000026077,
+          "p95": 11.269999999552965,
+          "max": 15.294999999925494
+        },
+        "raf": {
+          "n": 181,
+          "mean": 16.66602209944745,
+          "median": 16.66500000000815,
+          "p95": 16.669999999998254,
+          "max": 16.670000000012806,
+          "fps": 60.0023205317335
+        },
+        "memory": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 24.25,
+          "jsHeapDeltaMB": 21.6358003616333
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "drawer": "webgl-stock",
+        "drawerType": "webgl",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": false,
+        "tilesPerStep": {
+          "n": 120,
+          "mean": 25,
+          "median": 25,
+          "p95": 25,
+          "max": 25
+        },
+        "pixelsPerStep": {
+          "n": 120,
+          "mean": 1638400,
+          "median": 1638400,
+          "p95": 1638400,
+          "max": 1638400
+        },
+        "lutApplyMsPerStep": {
+          "n": 120,
+          "mean": 5.188208333402872,
+          "median": 4.449999996460974,
+          "p95": 9.655000002123415,
+          "max": 16.480000000447035
+        },
+        "putImageDataMsPerStep": {
+          "n": 120,
+          "mean": 1.2985000000568108,
+          "median": 1.0949999997392297,
+          "p95": 1.7549999980255961,
+          "max": 7.139999999664724
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 174.476499999982,
+          "median": 170.875,
+          "p95": 258.2649999996647,
+          "max": 334.7949999999255
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 176.62970833338332,
+          "median": 172.26499999966472,
+          "p95": 259.75499999988824,
+          "max": 336.5650000004098
+        },
+        "raf": {
+          "n": 22,
+          "mean": 137.11590909090856,
+          "median": 133.3299999999872,
+          "p95": 166.6600000000035,
+          "max": 183.32000000000698,
+          "fps": 7.293099733138879
+        },
+        "memory": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 24.25,
+          "jsHeapDeltaMB": -7.394567489624023
+        }
+      }
+    ],
+    "scaling": [
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "512x512",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 60,
+          "mean": 9,
+          "median": 9,
+          "p95": 9,
+          "max": 9
+        },
+        "pixelsPerStep": {
+          "n": 60,
+          "mean": 589824,
+          "median": 589824,
+          "p95": 589824,
+          "max": 589824
+        },
+        "lutApplyMsPerStep": {
+          "n": 60,
+          "mean": 1.9714999997833123,
+          "median": 1.8149999994784594,
+          "p95": 2.644999999552965,
+          "max": 6.599999999627471
+        },
+        "putImageDataMsPerStep": {
+          "n": 60,
+          "mean": 0.18816666690011818,
+          "median": 0.1799999987706542,
+          "p95": 0.24999999813735485,
+          "max": 0.765000001527369
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 2.340499999963989,
+          "median": 2.125,
+          "p95": 4.135000000707805,
+          "max": 6.9500000001862645
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 3.321749999963989,
+          "median": 3.110000000335276,
+          "p95": 5.470000000670552,
+          "max": 8.455000000074506
+        },
+        "raf": {
+          "n": 121,
+          "mean": 16.666033057851212,
+          "median": 16.66500000000815,
+          "p95": 16.670000000012806,
+          "max": 16.670000000012806,
+          "fps": 60.002281078454324
+        },
+        "memory": {
+          "tiles": 29,
+          "rawMB": 3.625,
+          "canvasMB": 7.25,
+          "jsHeapDeltaMB": 22.223443031311035
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "1024x1024",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 60,
+          "mean": 25,
+          "median": 25,
+          "p95": 25,
+          "max": 25
+        },
+        "pixelsPerStep": {
+          "n": 60,
+          "mean": 1638400,
+          "median": 1638400,
+          "p95": 1638400,
+          "max": 1638400
+        },
+        "lutApplyMsPerStep": {
+          "n": 60,
+          "mean": 4.244583333252619,
+          "median": 4.070000003091991,
+          "p95": 4.7849999982863665,
+          "max": 7.4349999986588955
+        },
+        "putImageDataMsPerStep": {
+          "n": 60,
+          "mean": 0.5399166667989145,
+          "median": 0.5049999998882413,
+          "p95": 0.7900000009685755,
+          "max": 0.875
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 5.0389999999819945,
+          "median": 4.84499999973923,
+          "p95": 6.160000000149012,
+          "max": 8.634999999776483
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 8.707249999977648,
+          "median": 8.554999999701977,
+          "p95": 9.984999999403954,
+          "max": 12.889999999664724
+        },
+        "raf": {
+          "n": 121,
+          "mean": 16.665950413223033,
+          "median": 16.66500000000815,
+          "p95": 16.670000000012806,
+          "max": 16.670000000012806,
+          "fps": 60.00257862321395
+        },
+        "memory": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 24.25,
+          "jsHeapDeltaMB": 22.829834938049316
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "1536x1536",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 60,
+          "mean": 49,
+          "median": 49,
+          "p95": 49,
+          "max": 49
+        },
+        "pixelsPerStep": {
+          "n": 60,
+          "mean": 3211264,
+          "median": 3211264,
+          "p95": 3211264,
+          "max": 3211264
+        },
+        "lutApplyMsPerStep": {
+          "n": 60,
+          "mean": 9.2772499997324,
+          "median": 8.390000004321337,
+          "p95": 15.899999998509884,
+          "max": 17.295000002719462
+        },
+        "putImageDataMsPerStep": {
+          "n": 60,
+          "mean": 1.4555833334724109,
+          "median": 1.315000002272427,
+          "p95": 2.2800000021234155,
+          "max": 2.479999997653067
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 11.268416666720684,
+          "median": 10.179999999701977,
+          "p95": 19.115000000223517,
+          "max": 20.924999999813735
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 20.522666666687776,
+          "median": 18.78500000014901,
+          "p95": 32.92999999970198,
+          "max": 34.47999999951571
+        },
+        "raf": {
+          "n": 109,
+          "mean": 18.65366972477064,
+          "median": 16.66500000000815,
+          "p95": 33.3300000000163,
+          "max": 33.335000000020955,
+          "fps": 53.608754457149885
+        },
+        "memory": {
+          "tiles": 105,
+          "rawMB": 13.125,
+          "canvasMB": 26.25,
+          "jsHeapDeltaMB": 0.9347591400146484
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "drawer": "canvas",
+        "drawerType": "canvas",
+        "viewport": "2048x2048",
+        "devicePixelRatio": 1,
+        "wlReachesScreenWithoutPrivateApi": true,
+        "tilesPerStep": {
+          "n": 60,
+          "mean": 81,
+          "median": 81,
+          "p95": 81,
+          "max": 81
+        },
+        "pixelsPerStep": {
+          "n": 60,
+          "mean": 5308416,
+          "median": 5308416,
+          "p95": 5308416,
+          "max": 5308416
+        },
+        "lutApplyMsPerStep": {
+          "n": 60,
+          "mean": 15.3456666668877,
+          "median": 13.045000003650784,
+          "p95": 24.15999999642372,
+          "max": 26.96999999228865
+        },
+        "putImageDataMsPerStep": {
+          "n": 60,
+          "mean": 3.124083334160969,
+          "median": 2.844999995082617,
+          "p95": 4.264999997802079,
+          "max": 4.624999998137355
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 19.649749999974542,
+          "median": 16.830000000074506,
+          "p95": 29.679999999701977,
+          "max": 31.975000000558794
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 39.539333333292355,
+          "median": 35.83999999985099,
+          "p95": 58.34999999962747,
+          "max": 58.92999999970198
+        },
+        "raf": {
+          "n": 43,
+          "mean": 46.89732558139516,
+          "median": 49.99499999999534,
+          "p95": 66.66500000000815,
+          "max": 83.3300000000163,
+          "fps": 21.32317755016534
+        },
+        "memory": {
+          "tiles": 264,
+          "rawMB": 33,
+          "canvasMB": 66,
+          "jsHeapDeltaMB": 65.42678260803223
+        }
+      }
+    ]
+  },
+  "h3": {
+    "upload": [
+      {
+        "format": "rgba8",
+        "tileSize": 256,
+        "count": 64,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 262144,
+        "cpuPerTile": {
+          "n": 64,
+          "mean": 0.2307812500221189,
+          "median": 0.15000000037252903,
+          "p95": 0.7550000008195639,
+          "max": 1.5050000008195639
+        },
+        "totalMsInclGpu": 17.355000000447035,
+        "gpuDrainMs": 2.514999999664724,
+        "msPerTileInclGpu": 0.2711718750069849,
+        "mbPerSecond": 460.96225870319415
+      },
+      {
+        "format": "r16i",
+        "tileSize": 256,
+        "count": 64,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 131072,
+        "cpuPerTile": {
+          "n": 64,
+          "mean": 0.10093750001396984,
+          "median": 0.044999999925494194,
+          "p95": 0.4649999998509884,
+          "max": 0.7549999998882413
+        },
+        "totalMsInclGpu": 9.025000000372529,
+        "gpuDrainMs": 2.5300000002607703,
+        "msPerTileInclGpu": 0.14101562500582077,
+        "mbPerSecond": 886.4265927611946
+      },
+      {
+        "format": "rg8",
+        "tileSize": 256,
+        "count": 64,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 131072,
+        "cpuPerTile": {
+          "n": 64,
+          "mean": 0.11031249999359716,
+          "median": 0.049999999813735485,
+          "p95": 0.43999999947845936,
+          "max": 0.8399999998509884
+        },
+        "totalMsInclGpu": 10.519999999552965,
+        "gpuDrainMs": 3.4500000001862645,
+        "msPerTileInclGpu": 0.16437499999301508,
+        "mbPerSecond": 760.4562737965732
+      },
+      {
+        "format": "r32f",
+        "tileSize": 256,
+        "count": 64,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 262144,
+        "cpuPerTile": {
+          "n": 64,
+          "mean": 0.8726562499941792,
+          "median": 0.3049999997019768,
+          "p95": 1.9850000003352761,
+          "max": 24.87999999988824
+        },
+        "totalMsInclGpu": 59.22499999962747,
+        "gpuDrainMs": 3.330000000074506,
+        "msPerTileInclGpu": 0.9253906249941792,
+        "mbPerSecond": 135.07809202279984
+      },
+      {
+        "format": "r16f",
+        "tileSize": 256,
+        "count": 64,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 131072,
+        "cpuPerTile": {
+          "n": 64,
+          "mean": 0.37171874998603016,
+          "median": 0.24499999918043613,
+          "p95": 0.849999999627471,
+          "max": 3.190000000409782
+        },
+        "totalMsInclGpu": 27.53000000026077,
+        "gpuDrainMs": 3.6850000005215406,
+        "msPerTileInclGpu": 0.43015625000407454,
+        "mbPerSecond": 290.5920813630302
+      },
+      {
+        "format": "rgba8",
+        "tileSize": 512,
+        "count": 32,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 1048576,
+        "cpuPerTile": {
+          "n": 32,
+          "mean": 1.2171875000058208,
+          "median": 1.0300000002607703,
+          "p95": 2.2149999998509884,
+          "max": 2.3900000005960464
+        },
+        "totalMsInclGpu": 46.580000000074506,
+        "gpuDrainMs": 7.6000000005587935,
+        "msPerTileInclGpu": 1.4556250000023283,
+        "mbPerSecond": 343.4950622579306
+      },
+      {
+        "format": "r16i",
+        "tileSize": 512,
+        "count": 32,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 524288,
+        "cpuPerTile": {
+          "n": 32,
+          "mean": 0.2446875000023283,
+          "median": 0.15499999932944775,
+          "p95": 0.5800000000745058,
+          "max": 0.7200000006705523
+        },
+        "totalMsInclGpu": 17.580000000074506,
+        "gpuDrainMs": 9.740000000223517,
+        "msPerTileInclGpu": 0.5493750000023283,
+        "mbPerSecond": 910.1251422031963
+      },
+      {
+        "format": "rg8",
+        "tileSize": 512,
+        "count": 32,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 524288,
+        "cpuPerTile": {
+          "n": 32,
+          "mean": 0.26468750002095476,
+          "median": 0.1650000000372529,
+          "p95": 0.7000000001862645,
+          "max": 0.7149999998509884
+        },
+        "totalMsInclGpu": 16.24500000011176,
+        "gpuDrainMs": 7.745000000111759,
+        "msPerTileInclGpu": 0.5076562500034925,
+        "mbPerSecond": 984.9184364352062
+      },
+      {
+        "format": "r32f",
+        "tileSize": 512,
+        "count": 32,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 1048576,
+        "cpuPerTile": {
+          "n": 32,
+          "mean": 1.2178125000500586,
+          "median": 1.084999999962747,
+          "p95": 1.7549999998882413,
+          "max": 3.3700000001117587
+        },
+        "totalMsInclGpu": 45.5,
+        "gpuDrainMs": 6.494999999180436,
+        "msPerTileInclGpu": 1.421875,
+        "mbPerSecond": 351.64835164835165
+      },
+      {
+        "format": "r16f",
+        "tileSize": 512,
+        "count": 32,
+        "floatLinearFiltering": true,
+        "bytesPerTile": 524288,
+        "cpuPerTile": {
+          "n": 32,
+          "mean": 1.0745312499639113,
+          "median": 0.9799999995157123,
+          "p95": 1.784999999217689,
+          "max": 1.8200000002980232
+        },
+        "totalMsInclGpu": 41.27500000037253,
+        "gpuDrainMs": 6.834999999962747,
+        "msPerTileInclGpu": 1.2898437500116415,
+        "mbPerSecond": 387.6438522072827
+      }
+    ],
+    "osd": [
+      {
+        "image": "ct",
+        "zoom": "fit",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 4,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 4,
+          "ms": 1.3049999997019768,
+          "bytes": 524288
+        },
+        "liveTextures": 4,
+        "liveTextureMB": 0.5,
+        "jsHeapDeltaMB": 3.8255653381347656,
+        "cachedTiles": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.28254166666883973,
+          "median": 0.15999999921768904,
+          "p95": 0.47500000055879354,
+          "max": 5.839999999850988
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 55.78062500001397,
+          "median": 53.55499999970198,
+          "p95": 99.74000000022352,
+          "max": 138.33499999996275
+        },
+        "raf": {
+          "n": 48,
+          "mean": 67.0111458333334,
+          "median": 66.66000000000349,
+          "p95": 100,
+          "max": 266.65499999999884,
+          "fps": 14.92289062609297
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "fit",
+        "format": "r32f",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 4,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 4,
+          "ms": 3.735000000335276,
+          "bytes": 1048576
+        },
+        "liveTextures": 4,
+        "liveTextureMB": 1,
+        "jsHeapDeltaMB": -18.045299530029297,
+        "cachedTiles": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.1569583333407839,
+          "median": 0.1299999998882413,
+          "p95": 0.3700000001117587,
+          "max": 0.5600000005215406
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 50.87412499998075,
+          "median": 40.5550000006333,
+          "p95": 106.78000000026077,
+          "max": 278.054999999702
+        },
+        "raf": {
+          "n": 58,
+          "mean": 52.296724137930894,
+          "median": 49.99499999999534,
+          "p95": 133.3300000000163,
+          "max": 183.32500000001164,
+          "fps": 19.121656594828632
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "fit",
+        "format": "rg8",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 4,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 4,
+          "ms": 1.099999999627471,
+          "bytes": 524288
+        },
+        "liveTextures": 4,
+        "liveTextureMB": 0.5,
+        "jsHeapDeltaMB": -1.7823114395141602,
+        "cachedTiles": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.609250000033838,
+          "median": 0.15000000037252903,
+          "p95": 0.5300000002607703,
+          "max": 48.52500000037253
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 106.11875000002328,
+          "median": 84.37999999988824,
+          "p95": 237.84499999973923,
+          "max": 411.22499999962747
+        },
+        "raf": {
+          "n": 28,
+          "mean": 111.30517857142902,
+          "median": 99.99499999999534,
+          "p95": 199.99500000002445,
+          "max": 449.9799999999814,
+          "fps": 8.984307943572093
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "1:1",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 4,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 4,
+          "ms": 1.0899999998509884,
+          "bytes": 524288
+        },
+        "liveTextures": 4,
+        "liveTextureMB": 0.5,
+        "jsHeapDeltaMB": 0.559600830078125,
+        "cachedTiles": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.11216666670516133,
+          "median": 0.07500000018626451,
+          "p95": 0.18500000052154064,
+          "max": 3.260000000707805
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 15.23308333333116,
+          "median": 13.645000000484288,
+          "p95": 33.29000000003725,
+          "max": 99.97999999951571
+        },
+        "raf": {
+          "n": 149,
+          "mean": 20.245268456375925,
+          "median": 16.66500000000815,
+          "p95": 33.335000000020955,
+          "max": 50,
+          "fps": 49.39425733745042
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "1:1",
+        "format": "r32f",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 4,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 4,
+          "ms": 7.474999998696148,
+          "bytes": 1048576
+        },
+        "liveTextures": 4,
+        "liveTextureMB": 1,
+        "jsHeapDeltaMB": -2.363178253173828,
+        "cachedTiles": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.08770833336748182,
+          "median": 0.06500000040978193,
+          "p95": 0.19500000029802322,
+          "max": 0.4649999998509884
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 9.289374999965851,
+          "median": 8.949999999254942,
+          "p95": 16.580000000074506,
+          "max": 21.990000000223517
+        },
+        "raf": {
+          "n": 180,
+          "mean": 16.758583333333405,
+          "median": 16.66500000000815,
+          "p95": 16.670000000012806,
+          "max": 33.33499999999185,
+          "fps": 59.67091490430251
+        }
+      },
+      {
+        "image": "ct",
+        "zoom": "1:1",
+        "format": "rg8",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 4,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 4,
+          "ms": 6.029999999329448,
+          "bytes": 524288
+        },
+        "liveTextures": 4,
+        "liveTextureMB": 0.5,
+        "jsHeapDeltaMB": 0.11625289916992188,
+        "cachedTiles": {
+          "tiles": 4,
+          "rawMB": 0.5,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.10583333332712451,
+          "median": 0.07500000018626451,
+          "p95": 0.2149999998509884,
+          "max": 1.0099999997764826
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 16.783791666679704,
+          "median": 16.915000000037253,
+          "p95": 24.115000000223517,
+          "max": 161.5449999999255
+        },
+        "raf": {
+          "n": 126,
+          "mean": 23.940833333333202,
+          "median": 16.669999999983702,
+          "p95": 33.335000000020955,
+          "max": 50,
+          "fps": 41.76964043301217
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "fit",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 56,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 72,
+          "ms": 5.680000001564622,
+          "bytes": 8519680
+        },
+        "liveTextures": 72,
+        "liveTextureMB": 8.125,
+        "jsHeapDeltaMB": 6.252925872802734,
+        "cachedTiles": {
+          "tiles": 72,
+          "rawMB": 9,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.4818750000325963,
+          "median": 0.39000000059604645,
+          "p95": 1.0249999994412065,
+          "max": 1.2349999994039536
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 55.914208333326194,
+          "median": 52.19500000029802,
+          "p95": 92.23000000044703,
+          "max": 325.75
+        },
+        "raf": {
+          "n": 52,
+          "mean": 58.331057692307624,
+          "median": 50,
+          "p95": 83.33500000002095,
+          "max": 116.66000000000349,
+          "fps": 17.14352592875878
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "fit",
+        "format": "r32f",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 56,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 72,
+          "ms": 26.094999998807907,
+          "bytes": 17039360
+        },
+        "liveTextures": 72,
+        "liveTextureMB": 16.25,
+        "jsHeapDeltaMB": -10.026848793029785,
+        "cachedTiles": {
+          "tiles": 72,
+          "rawMB": 9,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.449041666664804,
+          "median": 0.3650000002235174,
+          "p95": 0.7450000001117587,
+          "max": 4.254999999888241
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 29.398250000046875,
+          "median": 31.12000000011176,
+          "p95": 39.58499999996275,
+          "max": 77.58499999996275
+        },
+        "raf": {
+          "n": 64,
+          "mean": 47.9147656250002,
+          "median": 49.99499999999534,
+          "p95": 116.66000000000349,
+          "max": 116.66500000000815,
+          "fps": 20.87039322755731
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "fit",
+        "format": "rg8",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 56,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 72,
+          "ms": 4.914999998174608,
+          "bytes": 8519680
+        },
+        "liveTextures": 72,
+        "liveTextureMB": 8.125,
+        "jsHeapDeltaMB": -20.476563453674316,
+        "cachedTiles": {
+          "tiles": 72,
+          "rawMB": 9,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 1.0117500000167639,
+          "median": 0.3899999996647239,
+          "p95": 3.75,
+          "max": 32.25
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 62.59216666666325,
+          "median": 61.96499999985099,
+          "p95": 103.90500000026077,
+          "max": 147.27500000037253
+        },
+        "raf": {
+          "n": 35,
+          "mean": 86.18699999999953,
+          "median": 66.66500000003725,
+          "p95": 183.32500000001164,
+          "max": 266.65499999996973,
+          "fps": 11.602677898058936
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 25,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 97,
+          "ms": 7.610000005923212,
+          "bytes": 11796480
+        },
+        "liveTextures": 97,
+        "liveTextureMB": 11.25,
+        "jsHeapDeltaMB": -13.181099891662598,
+        "cachedTiles": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.3874166666607683,
+          "median": 0.22499999962747097,
+          "p95": 0.5550000006332994,
+          "max": 12.955000000074506
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 69.5487083333234,
+          "median": 60.41500000003725,
+          "p95": 138.25,
+          "max": 208.5800000000745
+        },
+        "raf": {
+          "n": 40,
+          "mean": 79.99674999999988,
+          "median": 66.66499999997905,
+          "p95": 149.99499999999534,
+          "max": 266.65500000002794,
+          "fps": 12.50050783313074
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r32f",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 25,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 97,
+          "ms": 49.760000000707805,
+          "bytes": 23592960
+        },
+        "liveTextures": 97,
+        "liveTextureMB": 22.5,
+        "jsHeapDeltaMB": -17.480942726135254,
+        "cachedTiles": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.25974999998385706,
+          "median": 0.2149999998509884,
+          "p95": 0.5449999999254942,
+          "max": 0.875
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 41.29375,
+          "median": 37.77500000037253,
+          "p95": 71.84499999973923,
+          "max": 100.54999999981374
+        },
+        "raf": {
+          "n": 46,
+          "mean": 65.57706521739222,
+          "median": 50,
+          "p95": 166.6600000000326,
+          "max": 266.65500000002794,
+          "fps": 15.249233808877163
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "rg8",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 25,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 97,
+          "ms": 40.41000000014901,
+          "bytes": 11796480
+        },
+        "liveTextures": 97,
+        "liveTextureMB": 11.25,
+        "jsHeapDeltaMB": -26.621296882629395,
+        "cachedTiles": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.30854166656111676,
+          "median": 0.21500000078231096,
+          "p95": 0.5,
+          "max": 5.7349999994039536
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 34.97804166658316,
+          "median": 30.855000000447035,
+          "p95": 55.764999999664724,
+          "max": 72.86500000022352
+        },
+        "raf": {
+          "n": 63,
+          "mean": 48.14619047619081,
+          "median": 49.99499999999534,
+          "p95": 99.99499999999534,
+          "max": 116.66499999997905,
+          "fps": 20.770075266796418
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r16i",
+        "target": "shared",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 25,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 97,
+          "ms": 6.23999999742955,
+          "bytes": 11796480
+        },
+        "liveTextures": 97,
+        "liveTextureMB": 11.25,
+        "jsHeapDeltaMB": -22.233052253723145,
+        "cachedTiles": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 71.81379166663004,
+          "median": 63.52999999932945,
+          "p95": 191.13000000081956,
+          "max": 293.27999999932945
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 74.60962499994784,
+          "median": 63.80999999959022,
+          "p95": 191.41500000003725,
+          "max": 407.95000000018626
+        },
+        "raf": {
+          "n": 28,
+          "mean": 107.73392857142815,
+          "median": 99.99499999999534,
+          "p95": 183.32500000001164,
+          "max": 233.32500000001164,
+          "fps": 9.282126933085847
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r16f",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 25,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 97,
+          "ms": 56.90000000409782,
+          "bytes": 11796480
+        },
+        "liveTextures": 97,
+        "liveTextureMB": 11.25,
+        "jsHeapDeltaMB": -22.613118171691895,
+        "cachedTiles": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 120,
+          "mean": 0.3860416666138917,
+          "median": 0.19500000029802322,
+          "p95": 0.8000000007450581,
+          "max": 7.355000000447035
+        },
+        "drawComplete": {
+          "n": 120,
+          "mean": 52.51808333330167,
+          "median": 43.84999999962747,
+          "p95": 114.50499999988824,
+          "max": 311.95999999996275
+        },
+        "raf": {
+          "n": 59,
+          "mean": 52.25779661016985,
+          "median": 49.99500000005355,
+          "p95": 83.33499999996275,
+          "max": 133.3300000000163,
+          "fps": 19.13590057115785
+        }
+      }
+    ],
+    "equivalence": [
+      {
+        "image": "ct",
+        "rotation": 0,
+        "flip": false,
+        "smoothing": false,
+        "format": "r16i",
+        "reference": "webgl",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 0,
+            "meanDiff": 0
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.00067901611328125,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 2,
+            "meanDiff": 0.000682830810546875
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.000484466552734375,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 1,
+            "meanDiff": 0.000484466552734375
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.000335693359375,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 1,
+            "meanDiff": 0.000335693359375
+          }
+        ]
+      },
+      {
+        "image": "ct",
+        "rotation": 90,
+        "flip": true,
+        "smoothing": false,
+        "format": "r16i",
+        "reference": "webgl",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 0,
+            "meanDiff": 0
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.0012664794921875,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 2,
+            "meanDiff": 0.00128173828125
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.000896453857421875,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 1,
+            "meanDiff": 0.000896453857421875
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.00077056884765625,
+            "over2Fraction": 0,
+            "over2NotExplainedBy1pxShift": 0,
+            "maxDiff": 1,
+            "meanDiff": 0.00077056884765625
+          }
+        ]
+      },
+      {
+        "image": "ct",
+        "rotation": 0,
+        "flip": false,
+        "smoothing": true,
+        "format": "r16i",
+        "reference": "webgl",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0.006023406982421875,
+            "over2Fraction": 0.00585174560546875,
+            "over2NotExplainedBy1pxShift": 0.000164031982421875,
+            "maxDiff": 158,
+            "meanDiff": 0.36174774169921875
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.12087631225585938,
+            "over2Fraction": 0.011688232421875,
+            "over2NotExplainedBy1pxShift": 0.002376556396484375,
+            "maxDiff": 114,
+            "meanDiff": 0.6842803955078125
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.10583114624023438,
+            "over2Fraction": 0.0115814208984375,
+            "over2NotExplainedBy1pxShift": 0.00447845458984375,
+            "maxDiff": 87,
+            "meanDiff": 0.545196533203125
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.084197998046875,
+            "over2Fraction": 0.01139068603515625,
+            "over2NotExplainedBy1pxShift": 0.005519866943359375,
+            "maxDiff": 65,
+            "meanDiff": 0.3957099914550781
+          }
+        ]
+      },
+      {
+        "image": "ct",
+        "rotation": 0,
+        "flip": false,
+        "smoothing": true,
+        "format": "rg8",
+        "reference": "webgl",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0.006023406982421875,
+            "over2Fraction": 0.00585174560546875,
+            "over2NotExplainedBy1pxShift": 0.000164031982421875,
+            "maxDiff": 158,
+            "meanDiff": 0.36174774169921875
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.12087631225585938,
+            "over2Fraction": 0.011688232421875,
+            "over2NotExplainedBy1pxShift": 0.002376556396484375,
+            "maxDiff": 114,
+            "meanDiff": 0.6842803955078125
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.10583114624023438,
+            "over2Fraction": 0.0115814208984375,
+            "over2NotExplainedBy1pxShift": 0.00447845458984375,
+            "maxDiff": 87,
+            "meanDiff": 0.545196533203125
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.084197998046875,
+            "over2Fraction": 0.01139068603515625,
+            "over2NotExplainedBy1pxShift": 0.005519866943359375,
+            "maxDiff": 65,
+            "meanDiff": 0.3957099914550781
+          }
+        ]
+      },
+      {
+        "image": "ct",
+        "rotation": 0,
+        "flip": false,
+        "smoothing": true,
+        "format": "r32f",
+        "reference": "webgl",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0.006023406982421875,
+            "over2Fraction": 0.00585174560546875,
+            "over2NotExplainedBy1pxShift": 0.000164031982421875,
+            "maxDiff": 158,
+            "meanDiff": 0.36174774169921875
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.12087631225585938,
+            "over2Fraction": 0.011688232421875,
+            "over2NotExplainedBy1pxShift": 0.002376556396484375,
+            "maxDiff": 114,
+            "meanDiff": 0.6842803955078125
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.10583114624023438,
+            "over2Fraction": 0.0115814208984375,
+            "over2NotExplainedBy1pxShift": 0.00447845458984375,
+            "maxDiff": 87,
+            "meanDiff": 0.545196533203125
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.084197998046875,
+            "over2Fraction": 0.01139068603515625,
+            "over2NotExplainedBy1pxShift": 0.005519866943359375,
+            "maxDiff": 65,
+            "meanDiff": 0.3957099914550781
+          }
+        ]
+      },
+      {
+        "image": "ct",
+        "rotation": 0,
+        "flip": false,
+        "smoothing": false,
+        "format": "r16i",
+        "reference": "canvas",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0.001338958740234375,
+            "over2Fraction": 0.001338958740234375,
+            "over2NotExplainedBy1pxShift": 0.0000457763671875,
+            "maxDiff": 255,
+            "meanDiff": 0.3414344787597656
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.2588157653808594,
+            "over2Fraction": 0.0260009765625,
+            "over2NotExplainedBy1pxShift": 0.00006866455078125,
+            "maxDiff": 255,
+            "meanDiff": 0.9386940002441406
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.19622802734375,
+            "over2Fraction": 0.007297515869140625,
+            "over2NotExplainedBy1pxShift": 0.0000457763671875,
+            "maxDiff": 255,
+            "meanDiff": 0.8158454895019531
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.14361953735351562,
+            "over2Fraction": 0.006683349609375,
+            "over2NotExplainedBy1pxShift": 0.0000457763671875,
+            "maxDiff": 255,
+            "meanDiff": 0.6707077026367188
+          }
+        ]
+      },
+      {
+        "image": "ct",
+        "rotation": 90,
+        "flip": true,
+        "smoothing": false,
+        "format": "r16i",
+        "reference": "canvas",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0.001338958740234375,
+            "over2Fraction": 0.001338958740234375,
+            "over2NotExplainedBy1pxShift": 0.0000457763671875,
+            "maxDiff": 255,
+            "meanDiff": 0.3414344787597656
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.2592926025390625,
+            "over2Fraction": 0.026073455810546875,
+            "over2NotExplainedBy1pxShift": 0.00006866455078125,
+            "maxDiff": 255,
+            "meanDiff": 0.9394683837890625
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.19659423828125,
+            "over2Fraction": 0.00730133056640625,
+            "over2NotExplainedBy1pxShift": 0.0000457763671875,
+            "maxDiff": 255,
+            "meanDiff": 0.8162689208984375
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.14376449584960938,
+            "over2Fraction": 0.006687164306640625,
+            "over2NotExplainedBy1pxShift": 0.0000457763671875,
+            "maxDiff": 255,
+            "meanDiff": 0.6708717346191406
+          }
+        ]
+      },
+      {
+        "image": "ct",
+        "rotation": 0,
+        "flip": false,
+        "smoothing": true,
+        "format": "r16i",
+        "reference": "canvas",
+        "perWindow": [
+          {
+            "window": {
+              "center": -100,
+              "width": 80
+            },
+            "pixels": 262144,
+            "differingFraction": 0.006687164306640625,
+            "over2Fraction": 0.006603240966796875,
+            "over2NotExplainedBy1pxShift": 0.00096893310546875,
+            "maxDiff": 255,
+            "meanDiff": 0.5879669189453125
+          },
+          {
+            "window": {
+              "center": 101,
+              "width": 562
+            },
+            "pixels": 262144,
+            "differingFraction": 0.4756011962890625,
+            "over2Fraction": 0.026576995849609375,
+            "over2NotExplainedBy1pxShift": 0.005157470703125,
+            "maxDiff": 255,
+            "meanDiff": 1.3211898803710938
+          },
+          {
+            "window": {
+              "center": 298,
+              "width": 1044
+            },
+            "pixels": 262144,
+            "differingFraction": 0.3802375793457031,
+            "over2Fraction": 0.0190582275390625,
+            "over2NotExplainedBy1pxShift": 0.005313873291015625,
+            "maxDiff": 225,
+            "meanDiff": 1.0582809448242188
+          },
+          {
+            "window": {
+              "center": 97,
+              "width": 1526
+            },
+            "pixels": 262144,
+            "differingFraction": 0.30289459228515625,
+            "over2Fraction": 0.016613006591796875,
+            "over2NotExplainedBy1pxShift": 0.006011962890625,
+            "maxDiff": 225,
+            "meanDiff": 0.9263572692871094
+          }
+        ]
+      }
+    ],
+    "alignment": {
+      "cases": [
+        {
+          "rotation": 0,
+          "flippedH": false,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        },
+        {
+          "rotation": 0,
+          "flippedH": true,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        },
+        {
+          "rotation": 90,
+          "flippedH": false,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        },
+        {
+          "rotation": 90,
+          "flippedH": true,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        },
+        {
+          "rotation": 180,
+          "flippedH": false,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        },
+        {
+          "rotation": 180,
+          "flippedH": true,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        },
+        {
+          "rotation": 270,
+          "flippedH": false,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        },
+        {
+          "rotation": 270,
+          "flippedH": true,
+          "matched": 37,
+          "total": 37,
+          "misses": []
+        }
+      ]
+    },
+    "scaling": [
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "512x512",
+        "tilesPerFrame": 9,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 29,
+          "ms": 2.1750000016763806,
+          "bytes": 3309568
+        },
+        "liveTextures": 29,
+        "liveTextureMB": 3.15625,
+        "jsHeapDeltaMB": -11.203323364257812,
+        "cachedTiles": {
+          "tiles": 29,
+          "rawMB": 3.625,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 0.1346666667299966,
+          "median": 0.0800000000745058,
+          "p95": 0.3600000003352761,
+          "max": 2.1000000005587935
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 7.674250000047808,
+          "median": 7.384999999776483,
+          "p95": 13.705000000074506,
+          "max": 16.235000000335276
+        },
+        "raf": {
+          "n": 113,
+          "mean": 17.84592920354005,
+          "median": 16.665000000037253,
+          "p95": 16.67000000004191,
+          "max": 66.66499999997905,
+          "fps": 56.03518811458877
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "1024x1024",
+        "tilesPerFrame": 25,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 97,
+          "ms": 7.400000000372529,
+          "bytes": 11796480
+        },
+        "liveTextures": 97,
+        "liveTextureMB": 11.25,
+        "jsHeapDeltaMB": -17.031343460083008,
+        "cachedTiles": {
+          "tiles": 97,
+          "rawMB": 12.125,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 0.2728333333196739,
+          "median": 0.2149999998509884,
+          "p95": 0.7350000003352761,
+          "max": 0.875
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 41.30066666671385,
+          "median": 37.63499999977648,
+          "p95": 83.55499999970198,
+          "max": 119.35999999940395
+        },
+        "raf": {
+          "n": 37,
+          "mean": 54.502297297297865,
+          "median": 50,
+          "p95": 83.32500000001164,
+          "max": 116.66499999997905,
+          "fps": 18.347850450142005
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "1536x1536",
+        "tilesPerFrame": 49,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 105,
+          "ms": 5.344999996945262,
+          "bytes": 13238272
+        },
+        "liveTextures": 105,
+        "liveTextureMB": 12.625,
+        "jsHeapDeltaMB": -20.880894660949707,
+        "cachedTiles": {
+          "tiles": 105,
+          "rawMB": 13.125,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 0.4192500001595666,
+          "median": 0.35500000044703484,
+          "p95": 0.8100000005215406,
+          "max": 1.4850000003352761
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 77.16250000003105,
+          "median": 67.91500000003725,
+          "p95": 140.07000000029802,
+          "max": 146.23500000033528
+        },
+        "raf": {
+          "n": 20,
+          "mean": 103.32950000000127,
+          "median": 99.99499999999534,
+          "p95": 149.99499999999534,
+          "max": 149.99499999999534,
+          "fps": 9.677778369197448
+        }
+      },
+      {
+        "image": "mammo",
+        "zoom": "1:1",
+        "format": "r16i",
+        "target": "own",
+        "viewport": "2048x2048",
+        "tilesPerFrame": 81,
+        "uploadsDuringDrag": 0,
+        "loadUploads": {
+          "count": 264,
+          "ms": 12.974999997764826,
+          "bytes": 34078720
+        },
+        "liveTextures": 264,
+        "liveTextureMB": 32.5,
+        "jsHeapDeltaMB": -4.5649919509887695,
+        "cachedTiles": {
+          "tiles": 264,
+          "rawMB": 33,
+          "canvasMB": 0
+        },
+        "drawSync": {
+          "n": 60,
+          "mean": 0.6634999999776483,
+          "median": 0.6199999991804361,
+          "p95": 1.2000000001862645,
+          "max": 1.75
+        },
+        "drawComplete": {
+          "n": 60,
+          "mean": 143.48341666674241,
+          "median": 133.92499999981374,
+          "p95": 266.7599999997765,
+          "max": 386.804999999702
+        },
+        "raf": {
+          "n": 12,
+          "mean": 183.32583333333605,
+          "median": 183.32500000001164,
+          "p95": 233.32499999995343,
+          "max": 233.32499999995343,
+          "fps": 5.45476860417009
+        }
+      }
+    ],
+    "toneSeam": {
+      "base": {
+        "center": -100,
+        "width": 80
+      },
+      "before": {
+        "window": {
+          "center": -100,
+          "width": 80
+        },
+        "centre": 255
+      },
+      "after": {
+        "window": {
+          "center": -120,
+          "width": 40
+        },
+        "invert": true,
+        "centre": 0,
+        "cssFilter": ""
+      },
+      "applyMs": 0.21999999973922968
+    }
+  },
+  "osd6": {
+    "osdVersion": "6.1.1",
+    "equivalence": {
+      "reference": "OSD 6 WebGLDrawer + raster->context2d converter",
+      "differingFraction": 0,
+      "over2Fraction": 0,
+      "voiDrawerNonBlankFraction": 1,
+      "stockDrawerType": "webgl"
+    },
+    "gpuWindowLevel": {
+      "medianMs": 6.599999999627471,
+      "uploadsDuringDrag": 0
+    },
+    "cpuWindowLevelViaInvalidate": {
+      "medianMs": 72.80999999959022,
+      "whiteAfterInvalidate": 255
+    }
+  },
+  "h4": {
+    "sweeps": {
+      "stock-default": [
+        {
+          "n": 1,
+          "mode": "stock-default",
+          "buildMs": 2555.0299999993294,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 2,
+            "live": 1,
+            "lost": 1,
+            "byType": {
+              "webgl": 2
+            },
+            "lostEvents": 1,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 13,
+              "mean": 157.68576923076924,
+              "median": 166.65999999999985,
+              "p95": 216.6600000000003,
+              "max": 216.6600000000003
+            },
+            "fps": 6.3417263642638835,
+            "drawPerCell": {
+              "n": 13,
+              "mean": 164.84769230765792,
+              "median": 160.68999999947846,
+              "p95": 215.00499999988824,
+              "max": 215.00499999988824
+            },
+            "drawSumPerFrameMs": 164.84769230765792
+          }
+        },
+        {
+          "n": 2,
+          "mode": "stock-default",
+          "buildMs": 1839.3649999992922,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 4,
+            "live": 2,
+            "lost": 2,
+            "byType": {
+              "webgl": 4
+            },
+            "lostEvents": 2,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 3,
+          "mode": "stock-default",
+          "buildMs": 2393.4050000002608,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 6,
+            "live": 3,
+            "lost": 3,
+            "byType": {
+              "webgl": 6
+            },
+            "lostEvents": 3,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 4,
+          "mode": "stock-default",
+          "buildMs": 2433.8699999991804,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 8,
+            "live": 4,
+            "lost": 4,
+            "byType": {
+              "webgl": 8
+            },
+            "lostEvents": 4,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 10,
+              "mean": 219.9915,
+              "median": 199.9949999999999,
+              "p95": 583.3100000000004,
+              "max": 583.3100000000004
+            },
+            "fps": 4.54563017207483,
+            "drawPerCell": {
+              "n": 40,
+              "mean": 55.90512499990873,
+              "median": 49.55999999959022,
+              "p95": 143.5800000000745,
+              "max": 222.84999999962747
+            },
+            "drawSumPerFrameMs": 223.62049999963492
+          }
+        },
+        {
+          "n": 5,
+          "mode": "stock-default",
+          "buildMs": 4041.4249999998137,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 10,
+            "live": 5,
+            "lost": 5,
+            "byType": {
+              "webgl": 10
+            },
+            "lostEvents": 5,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 6,
+          "mode": "stock-default",
+          "buildMs": 5224.554999999702,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 12,
+            "live": 6,
+            "lost": 6,
+            "byType": {
+              "webgl": 12
+            },
+            "lostEvents": 6,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 7,
+          "mode": "stock-default",
+          "buildMs": 6074.2750000003725,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 14,
+            "live": 7,
+            "lost": 7,
+            "byType": {
+              "webgl": 14
+            },
+            "lostEvents": 7,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 8,
+          "mode": "stock-default",
+          "buildMs": 7091.620000000112,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 16,
+            "live": 8,
+            "lost": 8,
+            "byType": {
+              "webgl": 16
+            },
+            "lostEvents": 8,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 9,
+          "mode": "stock-default",
+          "buildMs": 7555.660000000149,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 18,
+            "live": 9,
+            "lost": 9,
+            "byType": {
+              "webgl": 18
+            },
+            "lostEvents": 9,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 7,
+              "mean": 369.0321428571429,
+              "median": 249.98999999999978,
+              "p95": 1166.6149999999998,
+              "max": 1166.6149999999998
+            },
+            "fps": 2.709791055753951,
+            "drawPerCell": {
+              "n": 63,
+              "mean": 45.50825396824687,
+              "median": 25.519999999552965,
+              "p95": 174.0550000006333,
+              "max": 467.5200000004843
+            },
+            "drawSumPerFrameMs": 409.57428571422184
+          }
+        },
+        {
+          "n": 10,
+          "mode": "stock-default",
+          "buildMs": 3399.6699999999255,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 20,
+            "live": 10,
+            "lost": 10,
+            "byType": {
+              "webgl": 20
+            },
+            "lostEvents": 10,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 11,
+          "mode": "stock-default",
+          "buildMs": 3374.5250000003725,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 22,
+            "live": 11,
+            "lost": 11,
+            "byType": {
+              "webgl": 22
+            },
+            "lostEvents": 11,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 12,
+          "mode": "stock-default",
+          "buildMs": 3038.4799999995157,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 24,
+            "live": 12,
+            "lost": 12,
+            "byType": {
+              "webgl": 24
+            },
+            "lostEvents": 12,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 13,
+          "mode": "stock-default",
+          "buildMs": 3762.899999999441,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 26,
+            "live": 13,
+            "lost": 13,
+            "byType": {
+              "webgl": 26
+            },
+            "lostEvents": 13,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 14,
+          "mode": "stock-default",
+          "buildMs": 3618.2549999998882,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 28,
+            "live": 14,
+            "lost": 14,
+            "byType": {
+              "webgl": 28
+            },
+            "lostEvents": 14,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 15,
+          "mode": "stock-default",
+          "buildMs": 4804.410000000149,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 30,
+            "live": 15,
+            "lost": 15,
+            "byType": {
+              "webgl": 30
+            },
+            "lostEvents": 15,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 16,
+          "mode": "stock-default",
+          "buildMs": 5220.980000000447,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 32,
+            "live": 16,
+            "lost": 16,
+            "byType": {
+              "webgl": 32
+            },
+            "lostEvents": 16,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 8,
+              "mean": 260.405625,
+              "median": 249.9949999999999,
+              "p95": 483.3100000000004,
+              "max": 483.3100000000004
+            },
+            "fps": 3.8401628229036913,
+            "drawPerCell": {
+              "n": 128,
+              "mean": 19.780195312574506,
+              "median": 13.690000000409782,
+              "p95": 40.12000000011176,
+              "max": 274.1450000004843
+            },
+            "drawSumPerFrameMs": 316.4831250011921
+          }
+        },
+        {
+          "n": 17,
+          "mode": "stock-default",
+          "buildMs": 6992.209999999963,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 34,
+            "live": 16,
+            "lost": 18,
+            "byType": {
+              "webgl": 34
+            },
+            "lostEvents": 18,
+            "restoredEvents": 0
+          },
+          "blankCells": 1,
+          "blankIndices": [
+            0
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "pageerror: WegGL error: bad value for gl parameter MAX_TEXTURE_IMAGE_UNITS (null). This could happen\n                        if too many contexts have been created and not released, or there is another problem with the graphics card."
+          ]
+        },
+        {
+          "n": 18,
+          "mode": "stock-default",
+          "buildMs": 4825.924999999814,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 36,
+            "live": 16,
+            "lost": 20,
+            "byType": {
+              "webgl": 36
+            },
+            "lostEvents": 20,
+            "restoredEvents": 0
+          },
+          "blankCells": 2,
+          "blankIndices": [
+            0,
+            1
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "pageerror: WegGL error: bad value for gl parameter MAX_TEXTURE_IMAGE_UNITS (null). This could happen\n                        if too many contexts have been created and not released, or there is another problem with the graphics card."
+          ]
+        },
+        {
+          "n": 19,
+          "mode": "stock-default",
+          "buildMs": 4917.9199999999255,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 38,
+            "live": 16,
+            "lost": 22,
+            "byType": {
+              "webgl": 38
+            },
+            "lostEvents": 22,
+            "restoredEvents": 0
+          },
+          "blankCells": 3,
+          "blankIndices": [
+            0,
+            1,
+            2
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ]
+        },
+        {
+          "n": 20,
+          "mode": "stock-default",
+          "buildMs": 5815.8300000000745,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 40,
+            "live": 16,
+            "lost": 24,
+            "byType": {
+              "webgl": 40
+            },
+            "lostEvents": 24,
+            "restoredEvents": 0
+          },
+          "blankCells": 4,
+          "blankIndices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ]
+        },
+        {
+          "n": 21,
+          "mode": "stock-default",
+          "buildMs": 4810.68499999959,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 42,
+            "live": 16,
+            "lost": 26,
+            "byType": {
+              "webgl": 42
+            },
+            "lostEvents": 26,
+            "restoredEvents": 0
+          },
+          "blankCells": 5,
+          "blankIndices": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ]
+        },
+        {
+          "n": 22,
+          "mode": "stock-default",
+          "buildMs": 5620.5,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 44,
+            "live": 16,
+            "lost": 28,
+            "byType": {
+              "webgl": 44
+            },
+            "lostEvents": 28,
+            "restoredEvents": 0
+          },
+          "blankCells": 6,
+          "blankIndices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ]
+        },
+        {
+          "n": 23,
+          "mode": "stock-default",
+          "buildMs": 5127.1899999994785,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 46,
+            "live": 16,
+            "lost": 30,
+            "byType": {
+              "webgl": 46
+            },
+            "lostEvents": 30,
+            "restoredEvents": 0
+          },
+          "blankCells": 7,
+          "blankIndices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ]
+        },
+        {
+          "n": 24,
+          "mode": "stock-default",
+          "buildMs": 4747.719999999739,
+          "drawerTypes": [
+            "webgl"
+          ],
+          "contexts": {
+            "created": 48,
+            "live": 16,
+            "lost": 32,
+            "byType": {
+              "webgl": 48
+            },
+            "lostEvents": 32,
+            "restoredEvents": 0
+          },
+          "blankCells": 8,
+          "blankIndices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ],
+          "pan": {
+            "frame": {
+              "n": 15,
+              "mean": 139.99433333333334,
+              "median": 149.98999999999978,
+              "p95": 199.9949999999999,
+              "max": 199.9949999999999
+            },
+            "fps": 7.1431462702061745,
+            "drawPerCell": {
+              "n": 240,
+              "mean": 8.94329166667303,
+              "median": 7.945000000298023,
+              "p95": 16.16000000014901,
+              "max": 68.27000000048429
+            },
+            "drawSumPerFrameMs": 143.09266666676848
+          }
+        }
+      ],
+      "stock-canvas": [
+        {
+          "n": 1,
+          "mode": "stock-canvas",
+          "buildMs": 511.67499999981374,
+          "drawerTypes": [
+            "canvas"
+          ],
+          "contexts": {
+            "created": 0,
+            "live": 0,
+            "lost": 0,
+            "byType": {},
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 119,
+              "mean": 17.226134453781516,
+              "median": 16.664999999999964,
+              "p95": 16.670000000000073,
+              "max": 83.32500000000027
+            },
+            "fps": 58.05132908274021,
+            "drawPerCell": {
+              "n": 119,
+              "mean": 1.099537815123859,
+              "median": 0.9900000002235174,
+              "p95": 1.8550000004470348,
+              "max": 4.065000000409782
+            },
+            "drawSumPerFrameMs": 1.099537815123859
+          }
+        },
+        {
+          "n": 4,
+          "mode": "stock-canvas",
+          "buildMs": 637.214999999851,
+          "drawerTypes": [
+            "canvas"
+          ],
+          "contexts": {
+            "created": 0,
+            "live": 0,
+            "lost": 0,
+            "byType": {},
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 100,
+              "mean": 20.1659,
+              "median": 16.664999999999964,
+              "p95": 33.335000000000036,
+              "max": 166.65999999999985
+            },
+            "fps": 49.588662048309274,
+            "drawPerCell": {
+              "n": 400,
+              "mean": 0.14878750002710148,
+              "median": 0.09499999973922968,
+              "p95": 0.1650000000372529,
+              "max": 6.0499999998137355
+            },
+            "drawSumPerFrameMs": 0.5951500001084059
+          }
+        },
+        {
+          "n": 9,
+          "mode": "stock-canvas",
+          "buildMs": 893.2549999998882,
+          "drawerTypes": [
+            "canvas"
+          ],
+          "contexts": {
+            "created": 0,
+            "live": 0,
+            "lost": 0,
+            "byType": {},
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 110,
+              "mean": 18.33259090909091,
+              "median": 16.664999999999964,
+              "p95": 33.32999999999993,
+              "max": 50
+            },
+            "fps": 54.547663500422736,
+            "drawPerCell": {
+              "n": 990,
+              "mean": 0.09469191916945456,
+              "median": 0.06499999947845936,
+              "p95": 0.13499999977648258,
+              "max": 4.135000000707805
+            },
+            "drawSumPerFrameMs": 0.8522272725250911
+          }
+        },
+        {
+          "n": 16,
+          "mode": "stock-canvas",
+          "buildMs": 825.4949999991804,
+          "drawerTypes": [
+            "canvas"
+          ],
+          "contexts": {
+            "created": 0,
+            "live": 0,
+            "lost": 0,
+            "byType": {},
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 111,
+              "mean": 18.16743243243243,
+              "median": 16.664999999999964,
+              "p95": 33.32999999999993,
+              "max": 66.66000000000008
+            },
+            "fps": 55.04355135042659,
+            "drawPerCell": {
+              "n": 1776,
+              "mean": 0.04548141891021399,
+              "median": 0.02500000037252903,
+              "p95": 0.0800000000745058,
+              "max": 4.0499999998137355
+            },
+            "drawSumPerFrameMs": 0.7277027025634238
+          }
+        },
+        {
+          "n": 17,
+          "mode": "stock-canvas",
+          "buildMs": 744.0300000002608,
+          "drawerTypes": [
+            "canvas"
+          ],
+          "contexts": {
+            "created": 0,
+            "live": 0,
+            "lost": 0,
+            "byType": {},
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 20,
+          "mode": "stock-canvas",
+          "buildMs": 1089.3250000001863,
+          "drawerTypes": [
+            "canvas"
+          ],
+          "contexts": {
+            "created": 0,
+            "live": 0,
+            "lost": 0,
+            "byType": {},
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": []
+        },
+        {
+          "n": 24,
+          "mode": "stock-canvas",
+          "buildMs": 976.125,
+          "drawerTypes": [
+            "canvas"
+          ],
+          "contexts": {
+            "created": 0,
+            "live": 0,
+            "lost": 0,
+            "byType": {},
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 113,
+              "mean": 17.84588495575221,
+              "median": 16.664999999999964,
+              "p95": 33.32999999999993,
+              "max": 50
+            },
+            "fps": 56.035327050434276,
+            "drawPerCell": {
+              "n": 2712,
+              "mean": 0.039199852505163085,
+              "median": 0.024999999441206455,
+              "p95": 0.05500000063329935,
+              "max": 16.459999999962747
+            },
+            "drawSumPerFrameMs": 0.940796460123914
+          }
+        }
+      ],
+      "voi-own": [
+        {
+          "n": 1,
+          "mode": "voi-own",
+          "buildMs": 815.3499999996275,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 68,
+              "mean": 32.596691176470586,
+              "median": 33.32999999999993,
+              "p95": 50,
+              "max": 266.65499999999975
+            },
+            "fps": 30.677960366782088,
+            "drawPerCell": {
+              "n": 68,
+              "mean": 0.38014705881805105,
+              "median": 0.2549999998882413,
+              "p95": 1.915000000037253,
+              "max": 2.5300000002607703
+            },
+            "drawSumPerFrameMs": 0.38014705881805105
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 4,
+          "mode": "voi-own",
+          "buildMs": 876.0649999994785,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 4,
+            "live": 4,
+            "lost": 0,
+            "byType": {
+              "webgl2": 4
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 65,
+              "mean": 31.024384615384616,
+              "median": 33.32999999999993,
+              "p95": 50,
+              "max": 83.32999999999993
+            },
+            "fps": 32.2327102502498,
+            "drawPerCell": {
+              "n": 260,
+              "mean": 0.4347115384414792,
+              "median": 0.17999999970197678,
+              "p95": 1.6449999995529652,
+              "max": 4.445000000298023
+            },
+            "drawSumPerFrameMs": 1.7388461537659168
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 9,
+          "mode": "voi-own",
+          "buildMs": 1602,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 9,
+            "live": 9,
+            "lost": 0,
+            "byType": {
+              "webgl2": 9
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 45,
+              "mean": 45.18333333333333,
+              "median": 49.99499999999989,
+              "p95": 66.66499999999996,
+              "max": 66.67000000000007
+            },
+            "fps": 22.132054592401328,
+            "drawPerCell": {
+              "n": 405,
+              "mean": 0.2645925926021588,
+              "median": 0.10499999951571226,
+              "p95": 1.1000000005587935,
+              "max": 2.690000000409782
+            },
+            "drawSumPerFrameMs": 2.381333333419429
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 16,
+          "mode": "voi-own",
+          "buildMs": 1340.714999999851,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 16,
+            "live": 16,
+            "lost": 0,
+            "byType": {
+              "webgl2": 16
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 41,
+              "mean": 49.184999999999995,
+              "median": 49.99499999999989,
+              "p95": 66.67000000000007,
+              "max": 133.32499999999982
+            },
+            "fps": 20.33140185015757,
+            "drawPerCell": {
+              "n": 656,
+              "mean": 0.08657774390090575,
+              "median": 0.03500000014901161,
+              "p95": 0.25,
+              "max": 4.029999999329448
+            },
+            "drawSumPerFrameMs": 1.385243902414492
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 17,
+          "mode": "voi-own",
+          "buildMs": 1425.2649999996647,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 17,
+            "live": 16,
+            "lost": 1,
+            "byType": {
+              "webgl2": 17
+            },
+            "lostEvents": 1,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ],
+          "copyMsTotal": 0
+        },
+        {
+          "n": 20,
+          "mode": "voi-own",
+          "buildMs": 1404.2799999993294,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 20,
+            "live": 16,
+            "lost": 4,
+            "byType": {
+              "webgl2": 20
+            },
+            "lostEvents": 4,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ],
+          "copyMsTotal": 0
+        },
+        {
+          "n": 24,
+          "mode": "voi-own",
+          "buildMs": 1604.660000000149,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 24,
+            "live": 16,
+            "lost": 8,
+            "byType": {
+              "webgl2": 24
+            },
+            "lostEvents": 8,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost.",
+            "warning: WARNING: Too many active WebGL contexts. Oldest context will be lost."
+          ],
+          "pan": {
+            "frame": {
+              "n": 41,
+              "mean": 49.185,
+              "median": 50,
+              "p95": 66.66500000000042,
+              "max": 99.99499999999989
+            },
+            "fps": 20.33140185015757,
+            "drawPerCell": {
+              "n": 984,
+              "mean": 0.06243394309185385,
+              "median": 0.02000000048428774,
+              "p95": 0.15000000037252903,
+              "max": 3.290000000037253
+            },
+            "drawSumPerFrameMs": 1.4984146342044924
+          },
+          "copyMsTotal": 0
+        }
+      ],
+      "voi-shared": [
+        {
+          "n": 1,
+          "mode": "voi-shared",
+          "buildMs": 821.9449999993667,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 47,
+              "mean": 42.906063829787236,
+              "median": 33.335000000000036,
+              "p95": 83.32999999999993,
+              "max": 83.32999999999993
+            },
+            "fps": 23.306728950180627,
+            "drawPerCell": {
+              "n": 47,
+              "mean": 36.38893617011924,
+              "median": 33.09500000067055,
+              "p95": 67.41500000003725,
+              "max": 75.97999999951571
+            },
+            "drawSumPerFrameMs": 36.38893617011924
+          },
+          "copyMsTotal": 2114.6100000003353
+        },
+        {
+          "n": 4,
+          "mode": "voi-shared",
+          "buildMs": 1006.609999999404,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 43,
+              "mean": 46.89720930232558,
+              "median": 49.99499999999989,
+              "p95": 83.32999999999993,
+              "max": 83.33499999999981
+            },
+            "fps": 21.323230419819698,
+            "drawPerCell": {
+              "n": 172,
+              "mean": 9.532267441853968,
+              "median": 8.404999999329448,
+              "p95": 15.009999999776483,
+              "max": 55.67000000085682
+            },
+            "drawSumPerFrameMs": 38.12906976741587
+          },
+          "copyMsTotal": 2141.254999990575
+        },
+        {
+          "n": 9,
+          "mode": "voi-shared",
+          "buildMs": 1469.9750000005588,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 45,
+              "mean": 45.18333333333333,
+              "median": 49.99499999999989,
+              "p95": 50.00500000000011,
+              "max": 83.32499999999982
+            },
+            "fps": 22.132054592401328,
+            "drawPerCell": {
+              "n": 405,
+              "mean": 3.922580246930873,
+              "median": 3.5200000004842877,
+              "p95": 7.370000000111759,
+              "max": 15.429999999701977
+            },
+            "drawSumPerFrameMs": 35.303222222377855
+          },
+          "copyMsTotal": 2387.045000000857
+        },
+        {
+          "n": 16,
+          "mode": "voi-shared",
+          "buildMs": 943.9749999996275,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 37,
+              "mean": 54.95283783783783,
+              "median": 50,
+              "p95": 83.33500000000004,
+              "max": 99.99500000000035
+            },
+            "fps": 18.19742235971386,
+            "drawPerCell": {
+              "n": 592,
+              "mean": 2.691714527030362,
+              "median": 2.2650000005960464,
+              "p95": 5.275000000372529,
+              "max": 34.230000000447035
+            },
+            "drawSumPerFrameMs": 43.067432432485795
+          },
+          "copyMsTotal": 1799.7400000197813
+        },
+        {
+          "n": 17,
+          "mode": "voi-shared",
+          "buildMs": 1012.339999999851,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "copyMsTotal": 289.43999999854714
+        },
+        {
+          "n": 20,
+          "mode": "voi-shared",
+          "buildMs": 1410.9000000003725,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "copyMsTotal": 447.9700000016019
+        },
+        {
+          "n": 24,
+          "mode": "voi-shared",
+          "buildMs": 1308.8499999996275,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 38,
+              "mean": 53.945263157894736,
+              "median": 50,
+              "p95": 83.33000000000038,
+              "max": 99.99499999999989
+            },
+            "fps": 18.537308773025288,
+            "drawPerCell": {
+              "n": 912,
+              "mean": 1.734923245601781,
+              "median": 1.5950000006705523,
+              "p95": 2.669999999925494,
+              "max": 13.390000000596046
+            },
+            "drawSumPerFrameMs": 41.63815789444274
+          },
+          "copyMsTotal": 1961.5549999959767
+        }
+      ],
+      "voi-page": [
+        {
+          "n": 1,
+          "mode": "voi-page",
+          "buildMs": 843.2050000000745,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 58,
+              "mean": 34.76870689655172,
+              "median": 33.33000000000038,
+              "p95": 50,
+              "max": 66.66499999999996
+            },
+            "fps": 28.761495300222904,
+            "drawPerCell": {
+              "n": 58,
+              "mean": 0.5454310344467903,
+              "median": 0.2800000002607703,
+              "p95": 2.830000000074506,
+              "max": 4.599999999627471
+            },
+            "drawSumPerFrameMs": 0.5454310344467903
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 4,
+          "mode": "voi-page",
+          "buildMs": 839.9350000005215,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 47,
+              "mean": 43.26074468085107,
+              "median": 33.335000000000036,
+              "p95": 66.66499999999996,
+              "max": 133.32499999999982
+            },
+            "fps": 23.115644619095978,
+            "drawPerCell": {
+              "n": 188,
+              "mean": 0.32154255321724934,
+              "median": 0.2050000000745058,
+              "p95": 0.840000000782311,
+              "max": 4.834999999962747
+            },
+            "drawSumPerFrameMs": 1.2861702128689974
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 9,
+          "mode": "voi-page",
+          "buildMs": 1400.8650000002235,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 46,
+              "mean": 43.83880434782609,
+              "median": 33.335000000000036,
+              "p95": 83.32999999999993,
+              "max": 149.9949999999999
+            },
+            "fps": 22.81084110017678,
+            "drawPerCell": {
+              "n": 414,
+              "mean": 0.1672946860032957,
+              "median": 0.10499999951571226,
+              "p95": 0.3349999999627471,
+              "max": 4.439999999478459
+            },
+            "drawSumPerFrameMs": 1.5056521740296613
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 16,
+          "mode": "voi-page",
+          "buildMs": 939.4699999997392,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 45,
+              "mean": 45.18333333333333,
+              "median": 49.99499999999989,
+              "p95": 83.32999999999993,
+              "max": 100
+            },
+            "fps": 22.132054592401328,
+            "drawPerCell": {
+              "n": 720,
+              "mean": 0.07922222221709994,
+              "median": 0.03000000026077032,
+              "p95": 0.21999999973922968,
+              "max": 5.419999999925494
+            },
+            "drawSumPerFrameMs": 1.267555555473599
+          },
+          "copyMsTotal": 0
+        },
+        {
+          "n": 17,
+          "mode": "voi-page",
+          "buildMs": 943.0649999994785,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "copyMsTotal": 0
+        },
+        {
+          "n": 20,
+          "mode": "voi-page",
+          "buildMs": 1028.7200000006706,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "copyMsTotal": 0
+        },
+        {
+          "n": 24,
+          "mode": "voi-page",
+          "buildMs": 1188.054999999702,
+          "drawerTypes": [
+            "osdlabel-voi-webgl"
+          ],
+          "contexts": {
+            "created": 1,
+            "live": 1,
+            "lost": 0,
+            "byType": {
+              "webgl2": 1
+            },
+            "lostEvents": 0,
+            "restoredEvents": 0
+          },
+          "blankCells": 0,
+          "blankIndices": [],
+          "annotationHidden": 0,
+          "webglWarnings": [],
+          "pan": {
+            "frame": {
+              "n": 48,
+              "mean": 42.01229166666666,
+              "median": 33.335000000000036,
+              "p95": 66.66499999999996,
+              "max": 66.66499999999996
+            },
+            "fps": 23.802557783188455,
+            "drawPerCell": {
+              "n": 1152,
+              "mean": 0.07740451387346386,
+              "median": 0.02500000037252903,
+              "p95": 0.18499999959021807,
+              "max": 7.205000000074506
+            },
+            "drawSumPerFrameMs": 1.8577083329631325
+          },
+          "copyMsTotal": 0
+        }
+      ]
+    },
+    "recovery": {
+      "stock-default": {
+        "cell0VisibleWith17": false,
+        "cell0UpdateViewportEventsDuringPan": 0,
+        "healthyCellUpdateViewportEventsDuringPan": 20,
+        "cell0ImageChangeOnPan": 0,
+        "healthyCellImageChangeOnPan": 0.6611710576765076,
+        "contextsAfterFreeing16": {
+          "created": 34,
+          "live": 0,
+          "lost": 34,
+          "byType": {
+            "webgl": 34
+          },
+          "lostEvents": 34,
+          "restoredEvents": 0
+        },
+        "cell0VisibleAfterFreeing": false,
+        "contextsFinal": {
+          "created": 34,
+          "live": 0,
+          "lost": 34,
+          "byType": {
+            "webgl": 34
+          },
+          "lostEvents": 34,
+          "restoredEvents": 0
+        }
+      },
+      "voi-own": {
+        "cell0VisibleWith17": true,
+        "cell0UpdateViewportEventsDuringPan": 20,
+        "healthyCellUpdateViewportEventsDuringPan": 20,
+        "cell0ImageChangeOnPan": 0.005666393367951171,
+        "healthyCellImageChangeOnPan": 0.6573186540322433,
+        "contextsAfterFreeing16": {
+          "created": 17,
+          "live": 0,
+          "lost": 17,
+          "byType": {
+            "webgl2": 17
+          },
+          "lostEvents": 17,
+          "restoredEvents": 0
+        },
+        "cell0VisibleAfterFreeing": false,
+        "contextsFinal": {
+          "created": 17,
+          "live": 0,
+          "lost": 17,
+          "byType": {
+            "webgl2": 17
+          },
+          "lostEvents": 17,
+          "restoredEvents": 0
+        }
+      }
+    },
+    "foreign": {
+      "stock-default": {
+        "blankBefore": 0,
+        "blankAfter": 1,
+        "blankIndicesAfter": [
+          0
+        ],
+        "contexts": {
+          "created": 33,
+          "live": 16,
+          "lost": 17,
+          "byType": {
+            "webgl": 32,
+            "webgl2": 1
+          },
+          "lostEvents": 17,
+          "restoredEvents": 0
+        }
+      },
+      "voi-shared": {
+        "blankBefore": 0,
+        "blankAfter": 0,
+        "blankIndicesAfter": [],
+        "contexts": {
+          "created": 2,
+          "live": 2,
+          "lost": 0,
+          "byType": {
+            "webgl2": 2
+          },
+          "lostEvents": 0,
+          "restoredEvents": 0
+        }
+      },
+      "stock-canvas": {
+        "blankBefore": 0,
+        "blankAfter": 0,
+        "blankIndicesAfter": [],
+        "contexts": {
+          "created": 1,
+          "live": 1,
+          "lost": 0,
+          "byType": {
+            "webgl2": 1
+          },
+          "lostEvents": 0,
+          "restoredEvents": 0
+        }
+      }
+    },
+    "swap": {
+      "raw": {
+        "to": "canvas",
+        "via": "raw",
+        "swapped": 15,
+        "swapMs": {
+          "n": 15,
+          "mean": 6.320666666701436,
+          "median": 5.495000000111759,
+          "p95": 11.25,
+          "max": 11.25
+        },
+        "drawerCanvasAboveOverlay": 15,
+        "drawerCanvasDisplaced": 15,
+        "filterKept": 0,
+        "sample": {
+          "drawerAboveFabric": true,
+          "drawerTop": 238,
+          "filterKept": false
+        },
+        "contexts": {
+          "created": 32,
+          "live": 1,
+          "lost": 31,
+          "byType": {
+            "webgl": 32
+          },
+          "lostEvents": 31,
+          "restoredEvents": 0
+        },
+        "annotationHiddenAfterSwap": [],
+        "blankAfterSwap": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "panAfterSwap": {
+          "frame": {
+            "n": 52,
+            "mean": 38.78048076923077,
+            "median": 33.32999999999993,
+            "p95": 116.66499999999996,
+            "max": 149.98999999999978
+          },
+          "fps": 25.786168200199842,
+          "drawPerCell": {
+            "n": 832,
+            "mean": 1.2907632211449358,
+            "median": 0.03000000026077032,
+            "p95": 12.919999999925494,
+            "max": 122.83499999996275
+          },
+          "drawSumPerFrameMs": 20.652211538318973
+        },
+        "backToWebgl": {
+          "swapMs": {
+            "n": 15,
+            "mean": 15.671999999880791,
+            "median": 12.9300000006333,
+            "p95": 40.03499999921769,
+            "max": 40.03499999921769
+          },
+          "contexts": {
+            "created": 62,
+            "live": 16,
+            "lost": 46,
+            "byType": {
+              "webgl": 62
+            },
+            "lostEvents": 46,
+            "restoredEvents": 0
+          }
+        }
+      },
+      "overlay": {
+        "to": "canvas",
+        "via": "overlay",
+        "swapped": 15,
+        "swapMs": {
+          "n": 15,
+          "mean": 6.882333333169421,
+          "median": 5.9500000001862645,
+          "p95": 17.22499999962747,
+          "max": 17.22499999962747
+        },
+        "drawerCanvasAboveOverlay": 0,
+        "drawerCanvasDisplaced": 0,
+        "filterKept": 15,
+        "sample": {
+          "drawerAboveFabric": false,
+          "drawerTop": 0,
+          "filterKept": true
+        },
+        "contexts": {
+          "created": 32,
+          "live": 1,
+          "lost": 31,
+          "byType": {
+            "webgl": 32
+          },
+          "lostEvents": 31,
+          "restoredEvents": 0
+        },
+        "annotationHiddenAfterSwap": [],
+        "blankAfterSwap": [],
+        "panAfterSwap": {
+          "frame": {
+            "n": 41,
+            "mean": 49.997926829268295,
+            "median": 49.99499999999989,
+            "p95": 116.65999999999985,
+            "max": 133.32999999999993
+          },
+          "fps": 20.000829302678405,
+          "drawPerCell": {
+            "n": 656,
+            "mean": 1.4541387195420656,
+            "median": 0.03500000014901161,
+            "p95": 13.924999999813735,
+            "max": 74.16500000003725
+          },
+          "drawSumPerFrameMs": 23.26621951267305
+        },
+        "backToWebgl": {
+          "swapMs": {
+            "n": 15,
+            "mean": 17.595666666763524,
+            "median": 14.765000000596046,
+            "p95": 42.18500000052154,
+            "max": 42.18500000052154
+          },
+          "contexts": {
+            "created": 62,
+            "live": 16,
+            "lost": 46,
+            "byType": {
+              "webgl": 62
+            },
+            "lostEvents": 46,
+            "restoredEvents": 0
+          }
+        }
+      }
+    },
+    "records": {
+      "oneStockCell": [
+        {
+          "id": 0,
+          "type": "webgl",
+          "surface": "canvas",
+          "lost": true,
+          "lostEvents": 1,
+          "restoredEvents": 0,
+          "connected": false,
+          "stack": "at WebGLDrawer.isSupported (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:14788:80) | at $.Viewer.requestDrawer (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:6394:27) | at new $.Viewer (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:6074:61) | at OpenSeadragon (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:750:10)"
+        },
+        {
+          "id": 1,
+          "type": "webgl",
+          "surface": "canvas",
+          "lost": false,
+          "lostEvents": 0,
+          "restoredEvents": 0,
+          "connected": false,
+          "stack": "at WebGLDrawer._setupCanvases (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:15221:38) | at new WebGLDrawer (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:14733:10) | at $.Viewer.requestDrawer (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:6396:25) | at new $.Viewer (http://127.0.0.1:5400/node_modules/.vite/deps/openseadragon.js?v=ce149355:6074:61)"
+        }
+      ]
+    }
+  },
+  "devApp": {
+    "cellsAssigned": 16,
+    "osdContainers": 16,
+    "contextsWithOneCell": {
+      "created": 2,
+      "live": 1,
+      "lost": 1,
+      "byType": {
+        "webgl": 2
+      },
+      "lostEvents": 1,
+      "restoredEvents": 0
+    },
+    "contextsWith16Cells": {
+      "created": 32,
+      "live": 16,
+      "lost": 16,
+      "byType": {
+        "webgl": 32
+      },
+      "lostEvents": 16,
+      "restoredEvents": 0
+    },
+    "contextsAfterForeign": {
+      "created": 33,
+      "live": 16,
+      "lost": 17,
+      "byType": {
+        "webgl": 32,
+        "webgl2": 1
+      },
+      "lostEvents": 17,
+      "restoredEvents": 0
+    },
+    "visibleCellsBefore": 16,
+    "visibleCellsAfterForeign": 15,
+    "blankIndicesAfterForeign": [
+      0
+    ]
+  }
+}

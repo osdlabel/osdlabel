@@ -1,13 +1,37 @@
-/** Console summary of a results object (see run.mjs). */
+/**
+ * Summary tables of a results object (see run.mjs). Also a CLI that renders a
+ * saved run, as plain text or as Markdown tables:
+ *
+ *   node scripts/summary.mjs results/representative.json [--md]
+ */
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 const f = (n, d = 1) => (typeof n === 'number' ? n.toFixed(d) : String(n));
+let markdown = false;
 
 function table(title, header, rows) {
+  if (markdown) {
+    console.log(`\n**${title}**\n`);
+    const esc = (c) => String(c).replace(/\|/g, '\\|');
+    console.log(`| ${header.map(esc).join(' | ')} |`);
+    console.log(`| ${header.map(() => '---').join(' | ')} |`);
+    for (const r of rows) console.log(`| ${r.map(esc).join(' | ')} |`);
+    return;
+  }
   console.log(`\n${title}`);
   const widths = header.map((h, i) => Math.max(h.length, ...rows.map((r) => String(r[i]).length)));
   const line = (r) => r.map((c, i) => String(c).padEnd(widths[i])).join('  ');
   console.log(line(header));
   console.log(widths.map((w) => '-'.repeat(w)).join('  '));
   for (const r of rows) console.log(line(r));
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  markdown = process.argv.includes('--md');
+  const file = process.argv.slice(2).find((a) => !a.startsWith('--'));
+  if (!file) throw new Error('usage: summary.mjs <results.json> [--md]');
+  printSummary(JSON.parse(fs.readFileSync(file, 'utf8')));
 }
 
 export function printSummary(r) {
@@ -214,6 +238,23 @@ export function printSummary(r) {
         r.h3.alignment.cases.map((c) => [c.rotation, c.flippedH, `${c.matched}/${c.total}`]),
       );
     }
+    if (r.h3.toneSeam) {
+      const t = r.h3.toneSeam;
+      table(
+        'H3 tone seam: FabricOverlay.applyImageFilters({ exposure: 0.25, contrast: 0.5, inverted: true }) on the VOI drawer',
+        ['', 'window', 'invert', 'centre pixel', 'CSS filter'],
+        [
+          ['before', JSON.stringify(t.before.window), false, t.before.centre, '-'],
+          [
+            'after',
+            JSON.stringify(t.after.window),
+            t.after.invert,
+            t.after.centre,
+            `'${t.after.cssFilter}'`,
+          ],
+        ],
+      );
+    }
   }
   if (r.osd6) {
     const o = r.osd6;
@@ -275,6 +316,8 @@ export function printSummary(r) {
           'cell 0 visible @17',
           'cell 0 updates while panned',
           'healthy cell updates',
+          'cell 0 image px changed by a pan',
+          'healthy cell px changed',
           'cell 0 visible after freeing',
           'restored events',
         ],
@@ -283,6 +326,12 @@ export function printSummary(r) {
           x.cell0VisibleWith17,
           x.cell0UpdateViewportEventsDuringPan,
           x.healthyCellUpdateViewportEventsDuringPan,
+          typeof x.cell0ImageChangeOnPan === 'number'
+            ? `${f(x.cell0ImageChangeOnPan * 100, 1)}%`
+            : '-',
+          typeof x.healthyCellImageChangeOnPan === 'number'
+            ? `${f(x.healthyCellImageChangeOnPan * 100, 1)}%`
+            : '-',
           x.cell0VisibleAfterFreeing,
           x.contextsFinal?.restoredEvents,
         ]),
