@@ -116,6 +116,10 @@ export function printTable(result) {
     console.log('\nH3 interpolation cost, Node (per frame, all tracks)');
     table(result.h3.node.rows, Object.keys(result.h3.node.rows[0] ?? {}));
   }
+  if (result.h3?.axis) {
+    console.log('\nH3 frame axis: frames re-attached to another index when looked up by time');
+    table(result.h3.axis.rows, Object.keys(result.h3.axis.rows[0] ?? {}));
+  }
   if (result.h3?.harness) {
     console.log('\nH3 scrub harness');
     table(result.h3.harness.rows, Object.keys(result.h3.harness.rows[0] ?? {}));

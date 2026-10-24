@@ -75,6 +75,10 @@ for (const r of runs) {
         '\n```',
     );
   }
+  if (r.h3?.axis?.rows) {
+    console.log('\n## H3 frame axis: time -> index lookups\n');
+    console.log(md(r.h3.axis.rows, Object.keys(r.h3.axis.rows[0])));
+  }
   if (r.h3?.harness?.rows) {
     console.log('\n## H3 harness\n');
     console.log(md(r.h3.harness.rows, ['check', 'value', 'pass']));

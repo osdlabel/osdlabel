@@ -120,6 +120,23 @@ export function frameAt(axis: FrameAxis, position: number): FrameIndex {
   return lo;
 }
 
+/**
+ * The frame whose position is nearest `position` (ties go to the earlier
+ * frame). Use this, not {@link frameAt}, to turn a *stored* frame time back
+ * into an index: a time written by another writer (index / fps, milliseconds,
+ * a float round trip) lands a hair before the frame's timestamp often enough
+ * that "last frame at or before" re-attaches it to the previous frame
+ * (`apps/poc-video` axis study: 6-9 of 300 frames for a float seconds round
+ * trip, 102-154 for nominal-rate or millisecond times; 0 with this lookup).
+ * {@link frameAt} stays the right answer for "what is on screen at t".
+ */
+export function nearestFrame(axis: FrameAxis, position: number): FrameIndex {
+  const p = axis.positions;
+  const i = frameAt(axis, position);
+  const next = p[i + 1];
+  return next !== undefined && next - position < position - p[i]! ? i + 1 : i;
+}
+
 /** Start position of frame `i`. */
 export function positionOf(axis: FrameAxis, i: FrameIndex): number {
   const v = axis.positions[i];

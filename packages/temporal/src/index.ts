@@ -6,6 +6,7 @@ export {
   extentOf,
   frameAt,
   midpointOf,
+  nearestFrame,
   positionOf,
 } from './frame-axis.js';
 export type {

@@ -10,6 +10,7 @@ import {
   frameAt,
   interpolateGeometry,
   midpointOf,
+  nearestFrame,
   polygonCorrespondence,
   polylineCorrespondence,
   removeKeyframe,
@@ -53,6 +54,17 @@ describe('frame axis', () => {
     expect(frameAt(axis, 1e9)).toBe(3);
     expect(midpointOf(axis, 2)).toBeCloseTo(50000 + 66733 / 2);
     expect(midpointOf(axis, 3)).toBeCloseTo(116733 + 33366 / 2);
+  });
+  it('maps a stored time back to the nearest frame, where frameAt would slip back', () => {
+    // A WebM demuxer's 1 ms timebase vs a nominal 30 fps writer: frame 2 is
+    // at 67 ms, the writer stored 66.67 ms.
+    const axis = createTimestampAxis([0, 33000, 67000, 100000], 33000);
+    expect(frameAt(axis, (2 * 1e6) / 30)).toBe(1);
+    expect(nearestFrame(axis, (2 * 1e6) / 30)).toBe(2);
+    expect(nearestFrame(axis, 50000)).toBe(1);
+    expect(nearestFrame(axis, 50001)).toBe(2);
+    expect(nearestFrame(axis, -1)).toBe(0);
+    expect(nearestFrame(axis, 1e9)).toBe(3);
   });
   it('builds a slice axis and rejects non-increasing positions', () => {
     expect(createSliceAxis([-10, -7.5, -5], 2.5).kind).toBe('space');

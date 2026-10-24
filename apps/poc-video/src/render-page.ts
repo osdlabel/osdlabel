@@ -397,22 +397,32 @@ async function main(): Promise<void> {
         ((now - playT0) * 1000) % (v.ptsUs[v.frameCount - 1]! + (1e6 * v.fpsDen) / v.fpsNum);
       const want = frameAt(axis, tUs);
       if (want !== lastShown) {
-        const f = ready.get(want);
-        if (f !== undefined) {
-          showFrame(want, () => drawSource(f));
-        } else {
-          stats.lateFrames++;
-          // Fell behind: drop what is stale and decode from here.
-          const behind = [...ready.keys()].every(
-            (k) => (k - want + v.frameCount) % v.frameCount > AHEAD * 2,
-          );
-          if (behind && !inflight) next = want;
+        // What a player does: show the newest decoded frame that is not in
+        // the future (the wanted one when decode keeps up), never a stale one.
+        const N = v.frameCount;
+        const lag = (k: number): number => (want - k + N) % N;
+        let best = -1;
+        for (const k of ready.keys()) {
+          if (lag(k) < N / 2 && (best < 0 || lag(k) < lag(best))) best = k;
         }
+        if (best >= 0 && best !== want) stats.lateFrames++;
+        // Decoding (or the main thread) cannot keep up: skip ahead rather
+        // than drift ever further behind the clock.
+        if (best >= 0 && lag(best) > AHEAD * 2 && !inflight) next = (want + 2) % N;
+        if (best >= 0 && (lastShown < 0 || lag(best) < lag(lastShown))) {
+          const f = ready.get(best)!;
+          showFrame(best, () => drawSource(f));
+        } else if (best < 0) {
+          stats.lateFrames++;
+          // Nothing usable decoded: when nothing near is coming either,
+          // restart decoding a little ahead of the clock instead of at it,
+          // so the frame is still current when it arrives.
+          const ahead = [...ready.keys()].some((k) => (k - want + N) % N <= AHEAD * 2);
+          if (!ahead && !inflight) next = (want + 2) % N;
+        }
+        // Drop everything at or behind the clock; frames ahead stay queued.
         for (const [k, fr] of ready) {
-          if ((want - k + v.frameCount) % v.frameCount <= v.frameCount / 2 && k !== want) {
-            fr.close();
-            ready.delete(k);
-          } else if (k === want && f !== undefined) {
+          if (lag(k) < N / 2) {
             fr.close();
             ready.delete(k);
           }

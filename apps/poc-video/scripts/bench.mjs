@@ -11,7 +11,8 @@
  *      H1  seek accuracy + latency: HTMLVideoElement policies vs WebCodecs
  *      H2  1080p playback through OSD (canvas + WebGL drawer) vs a
  *          CSS-transformed <video> under the same Fabric overlay
- *      H3  temporal tracks: interpolation cost (Node) + the scrub harness
+ *      H3  temporal tracks: interpolation cost (Node), frame-axis time
+ *          lookup study (Node), and the scrub harness
  * 5. Writes results/run-<stamp>.json and prints summary tables.
  *
  * Flags:
@@ -38,6 +39,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { runTemporalBench } from './temporal-bench.mjs';
+import { runAxisStudy } from './axis-study.mjs';
 import { runH2 } from './render-bench.mjs';
 import { runH3Harness } from './tracks-bench.mjs';
 import { summarizeH1, printTable } from './summarize.mjs';
@@ -220,7 +222,7 @@ async function main() {
 
   if (only.has('h3')) {
     process.stderr.write('H3 temporal interpolation cost (Node)...\n');
-    result.h3 = { node: await runTemporalBench() };
+    result.h3 = { node: await runTemporalBench(), axis: runAxisStudy(manifest) };
   }
 
   const server = await createServer({
