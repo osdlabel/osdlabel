@@ -311,4 +311,15 @@ describe('VectorObjectCache', () => {
     expect(cache.get({})).toBeUndefined();
     expect(cache.size).toBe(2);
   });
+
+  it('answers has() without touching the eviction order (a look-ahead check)', () => {
+    const cache = new VectorObjectCache(2);
+    const [p1, p2, p3] = [{}, {}, {}];
+    cache.set(p1, {} as never);
+    cache.set(p2, {} as never);
+    expect(cache.has(p1)).toBe(true); // p1 stays the oldest
+    cache.set(p3, {} as never);
+    expect(cache.has(p1)).toBe(false);
+    expect(cache.has(p2)).toBe(true);
+  });
 });

@@ -31,6 +31,11 @@ export class VectorObjectCache {
     return obj;
   }
 
+  /** Whether `payload` has an object, without touching the eviction order. */
+  has(payload: object): boolean {
+    return this.entries.has(payload);
+  }
+
   set(payload: object, obj: FabricObject): void {
     this.entries.delete(payload);
     this.entries.set(payload, obj);

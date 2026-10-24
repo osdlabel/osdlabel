@@ -59,6 +59,9 @@ export interface ViewerCellProps {
 /** Wheel travel (CSS px) that steps one frame on a multi-frame source. */
 const WHEEL_NOTCH_PX = 50;
 
+/** Frames ahead of a stepped-to frame whose annotation objects are revived in advance. */
+const PREFETCH_FRAMES = 4;
+
 const ViewerCell: Component<ViewerCellProps> = (props) => {
   const {
     uiState,
@@ -125,6 +128,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       // render them in this paint. A frame still being revived renders when
       // it lands, a paint or more behind its pixels.
       overlay()?.canvas.renderAll();
+      prefetchAhead(index);
     });
   };
   // The throttle releases the next step after the same draw, so a step is
@@ -297,7 +301,47 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
 
   /** Vector annotation objects reused across rebuilds; see `VectorObjectCache`. */
   const vectorObjects = new VectorObjectCache();
-  onCleanup(() => vectorObjects.clear());
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+    vectorObjects.clear();
+  });
+
+  /**
+   * Revive the vector objects of the next frames in the scroll direction
+   * before they are shown, so a step finds them cached and swaps them in the
+   * same paint as its pixels. Without it every frame past the cache's bound
+   * (or never visited) was revived asynchronously and drawn a paint or more
+   * behind its pixels: 106-168 incoherent paints per 3 s at 50 per slice.
+   */
+  const inFlight = new Set<object>();
+  let lastPrefetchFrom: number | undefined;
+  const prefetchAhead = (index: number): void => {
+    const buckets = untrack(frameBuckets);
+    const count = untrack(framed)?.frameAxis.count ?? 0;
+    if (!buckets) return;
+    const dir = lastPrefetchFrom !== undefined && index < lastPrefetchFrom ? -1 : 1;
+    lastPrefetchFrom = index;
+    for (let k = 1; k <= PREFETCH_FRAMES; k++) {
+      const f = index + k * dir;
+      if (f < 0 || f >= count) break;
+      for (const a of annotationsOnFrame(buckets, f)) {
+        const ann = unwrap(a);
+        const payload = ann.rawAnnotationData;
+        if (ann.geometry.type === 'mask' || inFlight.has(payload) || vectorObjects.has(payload)) {
+          continue;
+        }
+        inFlight.add(payload);
+        void createFabricObjectFromRawData(ann).then(
+          (obj) => {
+            inFlight.delete(payload);
+            if (obj && !disposed && !vectorObjects.has(payload)) vectorObjects.set(payload, obj);
+          },
+          () => inFlight.delete(payload),
+        );
+      }
+    }
+  };
 
   /** Rasterized masks reused across rebuilds; see `MaskObjectCache`. */
   const maskObjects = new MaskObjectCache();
