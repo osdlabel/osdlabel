@@ -1,0 +1,100 @@
+<!doctype html><meta charset="utf-8" /><title>cb</title>
+<script src="codecs/openjphjs.js"></script>
+<script>
+  window.OJPH = Module;
+</script>
+<script src="codecs/charlswasm.js"></script>
+<script src="codecs/libjpegturbowasm.js"></script>
+<script src="codecs/openjpegwasm.js"></script>
+<script type="module">
+  const median = (a) => {
+    const s = [...a].sort((x, y) => x - y);
+    return s[Math.floor(s.length / 2)];
+  };
+  const timeit = async (fn, n) => {
+    const t = [];
+    for (let i = 0; i < n; i++) {
+      const t0 = performance.now();
+      await fn();
+      t.push(performance.now() - t0);
+    }
+    return +median(t).toFixed(2);
+  };
+  const [ojph, charls, jt, ojpeg] = await Promise.all([
+    OJPH({ locateFile: (f) => 'codecs/' + f }),
+    CharLSWASM({ locateFile: (f) => 'codecs/' + f }),
+    libjpegturbowasm({ locateFile: (f) => 'codecs/' + f }),
+    OpenJPEGWASM({ locateFile: (f) => 'codecs/' + f, print() {}, printErr() {} }),
+  ]);
+  const R = { ua: navigator.userAgent };
+  for (const [name, w, h, bits, url] of [
+    ['ct512', 512, 512, 16, 'ct512_u16.raw'],
+    ['dx3072', 3072, 3072, 16, 'dx3072_u16.raw'],
+    ['us800', 800, 600, 8, 'us800x600_u8.raw'],
+  ]) {
+    const raw = new Uint8Array(await (await fetch(url)).arrayBuffer());
+    const fi = {
+      width: w,
+      height: h,
+      bitsPerSample: bits,
+      componentCount: 1,
+      isSigned: false,
+      isUsingColorTransform: false,
+    };
+    const enc = (E, cfg) => {
+      const e = new E();
+      e.getDecodedBuffer(fi).set(raw);
+      cfg && cfg(e);
+      e.encode();
+      const o = Uint8Array.from(e.getEncodedBuffer());
+      e.delete();
+      return o;
+    };
+    const dec = (D, buf, n) => {
+      const d = new D();
+      const r = timeit(() => {
+        d.getEncodedBuffer(buf.length).set(buf);
+        d.decode();
+        d.getDecodedBuffer();
+      }, n);
+      return r;
+    };
+    const n = w > 2000 ? 7 : 31;
+    R[name] = {
+      htj2kMs: await dec(
+        ojph.HTJ2KDecoder,
+        enc(ojph.HTJ2KEncoder, (e) => {
+          e.setQuality(true, 0);
+          e.setDecompositions(5);
+        }),
+        n,
+      ),
+      jpeglsMs: await dec(charls.JpegLSDecoder, enc(charls.JpegLSEncoder), n),
+      j2kMs: await dec(
+        ojpeg.J2KDecoder,
+        enc(ojpeg.J2KEncoder, (e) => {
+          e.setQuality(true, 0);
+          e.setDecompositions(5);
+        }),
+        Math.min(n, 5),
+      ),
+    };
+    if (bits === 8) {
+      const jpg = new Uint8Array(await (await fetch('us800.jpg')).arrayBuffer());
+      R[name].wasmLibjpegTurboMs = await dec(jt.JPEGDecoder, jpg, n);
+      const blob = new Blob([jpg], { type: 'image/jpeg' });
+      R[name].nativeCreateImageBitmapMs = await timeit(async () => {
+        const b = await createImageBitmap(blob);
+        b.close();
+      }, n);
+      R[name].nativeImageDecoderMs = await timeit(async () => {
+        const d = new ImageDecoder({ data: jpg, type: 'image/jpeg' });
+        const { image } = await d.decode();
+        image.close();
+        d.close();
+      }, n);
+      R[name].jpegKB = +(jpg.length / 1024).toFixed(1);
+    }
+  }
+  window.__results = R;
+</script>

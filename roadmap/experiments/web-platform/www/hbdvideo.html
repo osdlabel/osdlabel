@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8" /><title>hbdv</title>
+<script type="module">
+  import * as MB from './mediabunny.min.mjs';
+  const R = {};
+  for (const src of ['v10_vp9.webm', 'v10_av1.mp4', 'v12_av1.mp4', 'v30_h264.mp4']) {
+    try {
+      const input = new MB.Input({ source: new MB.UrlSource(src), formats: MB.ALL_FORMATS });
+      const track = await input.getPrimaryVideoTrack();
+      const codec = await track.getCodecParameterString();
+      const sink = new MB.EncodedPacketSink(track);
+      const cfg = await track.getDecoderConfig();
+      const frames = [];
+      const dec = new VideoDecoder({
+        output: (f) => {
+          frames.push({ format: f.format, alloc: f.allocationSize(), w: f.codedWidth });
+          f.close();
+        },
+        error: (e) => frames.push({ err: String(e) }),
+      });
+      dec.configure(cfg);
+      let n = 0;
+      for await (const p of sink.packets()) {
+        dec.decode(p.toEncodedVideoChunk());
+        if (++n >= 3) break;
+      }
+      await dec.flush();
+      // also hardwareAcceleration prefer-software explicitly
+      R[src] = {
+        codec,
+        supported: (await VideoDecoder.isConfigSupported(cfg)).supported,
+        first: frames[0],
+        bytesPerPixel: frames[0] && frames[0].alloc / (640 * 360),
+      };
+    } catch (e) {
+      R[src] = String(e);
+    }
+  }
+  window.__results = R;
+</script>

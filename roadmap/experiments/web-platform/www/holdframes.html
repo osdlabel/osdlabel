@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8" /><title>hold</title>
+<script type="module">
+  import * as MB from './mediabunny.min.mjs';
+  const input = new MB.Input({ source: new MB.UrlSource('v30_h264.mp4'), formats: MB.ALL_FORMATS });
+  const track = await input.getPrimaryVideoTrack();
+  const cfg = await track.getDecoderConfig();
+  const held = [];
+  let errors = [];
+  const dec = new VideoDecoder({
+    output: (f) => held.push(f),
+    error: (e) => errors.push(String(e)),
+  });
+  dec.configure(cfg);
+  const sink = new MB.EncodedPacketSink(track);
+  const t0 = performance.now();
+  for await (const p of sink.packets()) dec.decode(p.toEncodedVideoChunk());
+  const flushRes = await Promise.race([
+    dec.flush().then(() => 'flushed'),
+    new Promise((r) => setTimeout(() => r('stalled-5s'), 5000)),
+  ]);
+  window.__results = {
+    decodedHeldOpen: held.length,
+    flush: flushRes,
+    ms: +(performance.now() - t0).toFixed(0),
+    errors,
+    decodeQueueSize: dec.decodeQueueSize,
+    bytesHeldMB: +(held.reduce((a, f) => a + f.allocationSize(), 0) / 2 ** 20).toFixed(1),
+  };
+</script>

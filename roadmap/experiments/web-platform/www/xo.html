@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8" /><title>xo</title>
+<script>
+  const load = (src, co) =>
+    new Promise((r) => {
+      const i = new Image();
+      if (co) i.crossOrigin = co;
+      i.onload = () => r('loaded');
+      i.onerror = () => r('blocked');
+      i.src = src;
+    });
+  (async () => {
+    const base = 'http://127.0.0.1:8766/t.png';
+    window.__results = {
+      coi: self.crossOriginIsolated,
+      img_noCORS_noCORP: await load(base + '?a=1'),
+      img_crossOriginAnon_withCORS: await load(base + '?cors=1&b=1', 'anonymous'),
+      fetch_noCORS: await fetch(base + '?c=1').then(
+        (r) => 'ok ' + r.status,
+        (e) => 'blocked',
+      ),
+      fetch_withCORS: await fetch(base + '?cors=1&d=1').then(
+        (r) => 'ok ' + r.status,
+        (e) => 'blocked',
+      ),
+    };
+  })();
+</script>

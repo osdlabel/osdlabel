@@ -1,0 +1,119 @@
+<!doctype html><meta charset="utf-8" /><title>seek</title>
+<body>
+  <script type="module">
+    import * as MB from './mediabunny.min.mjs';
+    const q = new URLSearchParams(location.search);
+    const src = q.get('src');
+    const fps = eval(q.get('fps'));
+    const N = 300;
+    const cv = document.createElement('canvas');
+    cv.width = 640;
+    cv.height = 360;
+    const cx = cv.getContext('2d', { willReadFrequently: true });
+    const readIdx = (source) => {
+      cx.drawImage(source, 0, 0, 640, 360);
+      const d = cx.getImageData(0, 100, 640, 1).data;
+      let v = 0;
+      for (let b = 0; b < 10; b++) if (d[(b * 64 + 32) * 4] > 128) v |= 1 << b;
+      return v;
+    };
+    const targets = [];
+    for (let i = 0; i < N; i += 7) targets.push(i);
+    targets.push(299, 59, 60, 61, 119, 120);
+    const median = (a) => {
+      const s = [...a].sort((x, y) => x - y);
+      return s[Math.floor(s.length / 2)];
+    };
+    const R = { src, fps };
+    // --- HTMLVideoElement seeking ---
+    const v = document.createElement('video');
+    v.muted = true;
+    v.preload = 'auto';
+    v.src = src;
+    document.body.appendChild(v);
+    await new Promise((r) => v.addEventListener('loadeddata', r, { once: true }));
+    R.duration = v.duration;
+    R.rVFC = 'requestVideoFrameCallback' in v;
+    async function seekTo(t) {
+      const t0 = performance.now();
+      const frameP = new Promise((r) => v.requestVideoFrameCallback((now, md) => r(md)));
+      v.currentTime = t;
+      await new Promise((r) => v.addEventListener('seeked', r, { once: true }));
+      const seekedMs = performance.now() - t0;
+      const md = await Promise.race([frameP, new Promise((r) => setTimeout(() => r(null), 1000))]);
+      return { seekedMs, md, totalMs: performance.now() - t0 };
+    }
+    for (const [mode, off] of [
+      ['boundary', 0],
+      ['mid', 0.5],
+      ['boundaryMinusEps', -1e-6],
+    ]) {
+      const wrong = [];
+      const lat = [];
+      let noRvfc = 0;
+      const mtWrong = [];
+      for (const i of targets) {
+        const t = Math.max(0, (i + off) / fps);
+        const { md, totalMs } = await seekTo(t);
+        if (!md) noRvfc++;
+        lat.push(totalMs);
+        const got = readIdx(v);
+        if (got !== i) wrong.push([i, got]);
+        if (md) {
+          const mtIdx = Math.round(md.mediaTime * fps);
+          if (mtIdx !== got) mtWrong.push([i, got, md.mediaTime]);
+        }
+      }
+      R['video_' + mode] = {
+        tested: targets.length,
+        wrongFrame: wrong.length,
+        examples: wrong.slice(0, 6),
+        medianSeekMs: +median(lat).toFixed(1),
+        maxSeekMs: +Math.max(...lat).toFixed(1),
+        rvfcMissing: noRvfc,
+        mediaTimeDisagrees: mtWrong.length,
+      };
+    }
+    // --- WebCodecs via mediabunny: exact frame by timestamp ---
+    try {
+      const input = new MB.Input({ source: new MB.UrlSource(src), formats: MB.ALL_FORMATS });
+      const track = await input.getPrimaryVideoTrack();
+      R.mb_codec = await track.getCodecParameterString();
+      R.mb_canDecode = await track.canDecode();
+      const sink = new MB.VideoSampleSink(track);
+      const wrong = [];
+      const lat = [];
+      for (const i of targets) {
+        const t0 = performance.now();
+        const s = await sink.getSample((i + 0.5) / fps); // any timestamp within the frame's interval
+        lat.push(performance.now() - t0);
+        const vf = s.toVideoFrame();
+        const got = readIdx(vf);
+        vf.close();
+        s.close();
+        if (got !== i) wrong.push([i, got]);
+      }
+      R.webcodecs_random = {
+        tested: targets.length,
+        wrongFrame: wrong.length,
+        examples: wrong.slice(0, 6),
+        medianMs: +median(lat).toFixed(1),
+        maxMs: +Math.max(...lat).toFixed(1),
+      };
+      // sequential decode throughput
+      const t0 = performance.now();
+      let n = 0;
+      for await (const s of sink.samples()) {
+        n++;
+        s.close();
+      }
+      R.webcodecs_sequential = {
+        frames: n,
+        fps: +(n / ((performance.now() - t0) / 1000)).toFixed(1),
+      };
+    } catch (e) {
+      R.webcodecs_error = String(e);
+    }
+    window.__results = R;
+  </script>
+</body>

@@ -1,0 +1,81 @@
+<!doctype html><meta charset="utf-8" /><title>osd grid</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .cell {
+    width: 200px;
+    height: 150px;
+    border: 1px solid #888;
+  }
+</style>
+<body>
+  <script src="openseadragon6.min.js"></script>
+  <script>
+    (async () => {
+      const q = new URLSearchParams(location.search);
+      const N = Number(q.get('n') || 20);
+      const drawer = q.get('drawer') || undefined;
+      const lost = [];
+      const viewers = [];
+      const origGet = HTMLCanvasElement.prototype.getContext;
+      let glCreated = 0;
+      HTMLCanvasElement.prototype.getContext = function (t, ...a) {
+        const c = origGet.call(this, t, ...a);
+        if (t.startsWith('webgl') && c) {
+          glCreated++;
+          const idx = viewers.length;
+          this.addEventListener('webglcontextlost', () => lost.push(idx));
+        }
+        return c;
+      };
+      for (let i = 0; i < N; i++) {
+        const el = document.createElement('div');
+        el.className = 'cell';
+        document.body.appendChild(el);
+        const opts = {
+          element: el,
+          tileSources: { type: 'image', url: 'landscape.png' },
+          animationTime: 0,
+          showNavigationControl: false,
+        };
+        if (drawer) opts.drawer = drawer;
+        const v = OpenSeadragon(opts);
+        viewers.push(v);
+        await new Promise((r) => v.addOnceHandler('open', r));
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      await new Promise((r) => setTimeout(r, 500));
+      // pan every viewer slightly to force a redraw, then sample the center pixel of each output canvas
+      for (const v of viewers) {
+        v.viewport.panBy(new OpenSeadragon.Point(0.01, 0), true);
+        v.forceRedraw();
+      }
+      await new Promise((r) => setTimeout(r, 800));
+      const blank = [];
+      viewers.forEach((v, i) => {
+        const c = v.drawer.canvas;
+        const ctx = c.getContext('2d');
+        if (!ctx) {
+          blank.push(i + ':no2d');
+          return;
+        }
+        const d = ctx.getImageData(c.width / 2, c.height / 2, 1, 1).data;
+        if (d[3] === 0) blank.push(i);
+      });
+      const glLost = viewers
+        .map((v, i) => (v.drawer._gl && v.drawer._gl.isContextLost() ? i : -1))
+        .filter((i) => i >= 0);
+      window.__results = {
+        N,
+        glLostViewers: glLost,
+        drawerType: viewers[0].drawer.getType(),
+        glContextsCreated: glCreated,
+        lostContextOfViewer: lost,
+        blankViewersAfterRedraw: blank,
+      };
+    })();
+  </script>
+</body>

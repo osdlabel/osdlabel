@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8" /><title>commit</title>
+<script>
+  const bufs = [];
+  const R = { steps: [] };
+  try {
+    for (let i = 0; i < 8; i++) {
+      const b = new Uint8Array(2 ** 30);
+      for (let j = 0; j < b.length; j += 4096) b[j] = 1;
+      bufs.push(b);
+      R.steps.push(i + 1);
+    }
+    R.result = 'committed ' + bufs.length + ' GiB';
+  } catch (e) {
+    R.result = 'failed after ' + bufs.length + ' GiB: ' + e;
+  }
+  window.__results = R;
+</script>

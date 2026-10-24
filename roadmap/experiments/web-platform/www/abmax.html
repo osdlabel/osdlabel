@@ -1,0 +1,46 @@
+<!doctype html><meta charset="utf-8" /><title>ab</title>
+<script>
+  let lo = 1.5 * 2 ** 30,
+    hi = 2 ** 31; // lo ok, hi fails
+  const tryAlloc = (n) => {
+    try {
+      let b = new ArrayBuffer(n);
+      b = null;
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const r = { lo_ok: tryAlloc(lo), hi_ok: tryAlloc(hi) };
+  while (hi - lo > 4096) {
+    const mid = Math.floor((lo + hi) / 2 / 4096) * 4096;
+    if (tryAlloc(mid)) lo = mid;
+    else hi = mid;
+  }
+  r.maxOkBytes = lo;
+  r.maxOkMiB = lo / 2 ** 20;
+  r.firstFailMiB = hi / 2 ** 20;
+  // typed array view over max buffer and two such buffers concurrently
+  try {
+    const a = new ArrayBuffer(lo);
+    const b = new ArrayBuffer(lo);
+    const c = new ArrayBuffer(lo);
+    r.threeConcurrentMaxBuffers = 'ok';
+  } catch (e) {
+    r.threeConcurrentMaxBuffers = String(e);
+  }
+  // Float32Array of 512x512x2000
+  try {
+    new Float32Array(512 * 512 * 2000);
+    r.f32_512x512x2000_2GiB = 'ok';
+  } catch (e) {
+    r.f32_512x512x2000_2GiB = String(e);
+  }
+  try {
+    new Int16Array(512 * 512 * 2000);
+    r.i16_512x512x2000_1GiB = 'ok';
+  } catch (e) {
+    r.i16_512x512x2000_1GiB = String(e);
+  }
+  window.__results = r;
+</script>

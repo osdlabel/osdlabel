@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8" /><title>wgl</title>
+<script>
+  const src = `onmessage=async(e)=>{const ctx=[];let lost=0;for(let i=0;i<e.data;i++){const c=new OffscreenCanvas(64,64);c.addEventListener('webglcontextlost',()=>lost++);const g=c.getContext('webgl2');if(!g)break;g.clear(g.COLOR_BUFFER_BIT);ctx.push(g);}await new Promise(r=>setTimeout(r,800));postMessage({created:ctx.length,alive:ctx.filter(g=>!g.isContextLost()).length});setTimeout(()=>{},1e9)}`;
+  (async () => {
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    const ws = [0, 1, 2, 3, 4, 5].map(() => new Worker(url));
+    const res = await Promise.all(
+      ws.map(
+        (w) =>
+          new Promise((r) => {
+            w.onmessage = (e) => r(e.data);
+            w.postMessage(4);
+          }),
+      ),
+    );
+    // plus 16 on main thread at the same time
+    const main = [];
+    for (let i = 0; i < 16; i++) {
+      const c = document.createElement('canvas');
+      const g = c.getContext('webgl2');
+      g.clear(g.COLOR_BUFFER_BIT);
+      main.push(g);
+    }
+    await new Promise((r) => setTimeout(r, 800));
+    window.__results = {
+      perWorker: res,
+      totalWorkerAlive: res.reduce((a, b) => a + b.alive, 0),
+      mainAlive: main.filter((g) => !g.isContextLost()).length,
+    };
+  })();
+</script>

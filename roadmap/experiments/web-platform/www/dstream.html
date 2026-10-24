@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8" /><title>ds</title>
+<script type="module">
+  const gz = new Uint8Array(await (await fetch('dx3072_u16.raw.gz')).arrayBuffer());
+  const median = (a) => {
+    const s = [...a].sort((x, y) => x - y);
+    return s[Math.floor(s.length / 2)];
+  };
+  const t = [];
+  let outLen = 0;
+  for (let i = 0; i < 7; i++) {
+    const t0 = performance.now();
+    const ab = await new Response(
+      new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip')),
+    ).arrayBuffer();
+    t.push(performance.now() - t0);
+    outLen = ab.byteLength;
+  }
+  const ms = median(t);
+  window.__results = {
+    inMB: gz.length / 1e6,
+    outMB: outLen / 1e6,
+    medianMs: +ms.toFixed(1),
+    outMBps: +(outLen / 1e6 / (ms / 1000)).toFixed(0),
+  };
+</script>

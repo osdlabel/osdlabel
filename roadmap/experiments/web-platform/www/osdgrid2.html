@@ -1,0 +1,131 @@
+<!doctype html><meta charset="utf-8" /><title>osd grid2</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .cell {
+    width: 200px;
+    height: 150px;
+    border: 1px solid #888;
+  }
+</style>
+<body>
+  <script>
+    const q = new URLSearchParams(location.search);
+    document.write('<script src="' + (q.get('osd') || 'openseadragon.min.js') + '"><\/script>');
+  </script>
+  <script>
+    (async () => {
+      const N = Number(q.get('n') || 20);
+      const drawer = q.get('drawer') || undefined;
+      let cur = -1;
+      const ctxInfo = [];
+      const origGet = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (t, ...a) {
+        const c = origGet.call(this, t, ...a);
+        if (t.startsWith('webgl') && c && !this.__tracked) {
+          this.__tracked = true;
+          const rec = { viewer: cur, kind: t, voluntary: false, lost: false };
+          ctxInfo.push(rec);
+          const ext = c.getExtension('WEBGL_lose_context');
+          if (ext) {
+            const orig = ext.loseContext.bind(ext);
+            ext.loseContext = () => {
+              rec.voluntary = true;
+              orig();
+            };
+          }
+          this.addEventListener('webglcontextlost', () => {
+            rec.lost = true;
+          });
+        }
+        return c;
+      };
+      const viewers = [];
+      for (let i = 0; i < N; i++) {
+        cur = i;
+        const el = document.createElement('div');
+        el.className = 'cell';
+        document.body.appendChild(el);
+        const opts = {
+          element: el,
+          tileSources: { type: 'image', url: 'landscape.png' },
+          animationTime: 0,
+          showNavigationControl: false,
+        };
+        if (drawer) opts.drawer = drawer;
+        const v = OpenSeadragon(opts);
+        viewers.push(v);
+        await new Promise((r) => v.addOnceHandler('open', r));
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      cur = -2;
+      await new Promise((r) => setTimeout(r, 500));
+      const sample = (v) => {
+        const c = v.drawer.canvas;
+        const ctx = c.getContext('2d');
+        const out = [];
+        for (let y = 1; y < 10; y++)
+          for (let x = 1; x < 10; x++) {
+            const d = ctx.getImageData(
+              Math.floor((c.width * x) / 10),
+              Math.floor((c.height * y) / 10),
+              1,
+              1,
+            ).data;
+            out.push(d[0], d[1], d[2], d[3]);
+          }
+        return out.join(',');
+      };
+      const before = viewers.map(sample);
+      for (const v of viewers) {
+        v.viewport.panBy(new OpenSeadragon.Point(0.25, 0.1), true);
+        v.viewport.zoomBy(1.7, undefined, true);
+        v.forceRedraw();
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+      const after = viewers.map(sample);
+      const stale = viewers.map((v, i) => (before[i] === after[i] ? i : -1)).filter((i) => i >= 0);
+      const opaqueFrac = (s) => {
+        const a = s.split(',').map(Number);
+        let o = 0;
+        for (let k = 3; k < a.length; k += 4) if (a[k] > 0) o++;
+        return +(o / (a.length / 4)).toFixed(2);
+      };
+      const opaqueAfter = after.map(opaqueFrac);
+      const opaqueBefore = before.map(opaqueFrac);
+      const involuntaryLost = ctxInfo.filter((r) => r.lost && !r.voluntary).map((r) => r.viewer);
+      const ctxBeforeLoop = ctxInfo.length;
+      const tl = performance.now();
+      const frameMs = [];
+      for (let k = 0; k < 20; k++) {
+        const t1 = performance.now();
+        for (const v of viewers) {
+          v.viewport.panBy(new OpenSeadragon.Point(0.01, 0), true);
+          v.forceRedraw();
+        }
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        frameMs.push(performance.now() - t1);
+      }
+      frameMs.sort((a, b) => a - b);
+      const loop = {
+        contextsCreatedDuring20Redraws: ctxInfo.length - ctxBeforeLoop,
+        medianFrameMs: +frameMs[10].toFixed(1),
+        p90FrameMs: +frameMs[18].toFixed(1),
+      };
+      window.__results = {
+        loop,
+        N,
+        osd: OpenSeadragon.version.versionStr,
+        drawerType: viewers[0].drawer.getType(),
+        glContexts: ctxInfo.length,
+        involuntaryLostByViewer: involuntaryLost,
+        staleAfterPanZoom: stale,
+        opaqueBefore,
+        opaqueAfter,
+      };
+    })();
+  </script>
+</body>

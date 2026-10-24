@@ -1,0 +1,113 @@
+<!doctype html><meta charset="utf-8" /><title>hbd</title>
+<script type="module">
+  const truth = new Uint16Array(await (await fetch('ct512_u16x16.raw')).arrayBuffer());
+  const W = 512,
+    H = 512;
+  function stats(vals16) {
+    // vals16: Float64Array of reconstructed 16-bit values
+    let maxErr = 0,
+      sumErr = 0;
+    const distinct = new Set();
+    for (let i = 0; i < truth.length; i++) {
+      const e = Math.abs(vals16[i] - truth[i]);
+      maxErr = Math.max(maxErr, e);
+      sumErr += e;
+      distinct.add(Math.round(vals16[i]));
+    }
+    return {
+      maxErr16: +maxErr.toFixed(2),
+      meanErr16: +(sumErr / truth.length).toFixed(2),
+      distinctValues: distinct.size,
+      distinctTruth: new Set(truth).size,
+    };
+  }
+  async function viaWebGL(url, mime) {
+    const img = new Image();
+    img.src = url;
+    try {
+      await img.decode();
+    } catch (e) {
+      return 'img decode failed: ' + e;
+    }
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2');
+    gl.getExtension('EXT_color_buffer_float');
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.RGBA, gl.FLOAT, img);
+    const err = gl.getError();
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    const px = new Float32Array(W * H * 4);
+    gl.readPixels(0, 0, W, H, gl.RGBA, gl.FLOAT, px);
+    const v = new Float64Array(W * H);
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) v[y * W + x] = px[(y * W + x) * 4] * 65535; // readPixels origin = first uploaded row
+    return { glErr: err, ...stats(v) };
+  }
+  async function viaImageDecoder(url, mime) {
+    if (!('ImageDecoder' in self)) return 'no ImageDecoder';
+    if (!(await ImageDecoder.isTypeSupported(mime))) return 'type unsupported';
+    const dec = new ImageDecoder({
+      data: (await fetch(url)).body,
+      type: mime,
+      colorSpaceConversion: 'none',
+    });
+    const { image } = await dec.decode();
+    const out = {
+      format: image.format,
+      codedWidth: image.codedWidth,
+      allocationSize: image.allocationSize(),
+    };
+    try {
+      const buf = new Uint8Array(image.allocationSize());
+      await image.copyTo(buf);
+      out.bytesPerPixel = buf.length / (W * H);
+    } catch (e) {
+      out.copyErr = String(e);
+    }
+    image.close();
+    return out;
+  }
+  async function viaCanvasF16(url) {
+    const img = new Image();
+    img.src = url;
+    try {
+      await img.decode();
+    } catch (e) {
+      return 'img decode failed';
+    }
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d', { colorType: 'float16' });
+    if (!ctx) return 'no ctx';
+    ctx.drawImage(img, 0, 0);
+    let d;
+    try {
+      d = ctx.getImageData(0, 0, W, H, { pixelFormat: 'rgba-float16' });
+    } catch (e) {
+      return 'getImageData f16 failed ' + e;
+    }
+    if (!(d.data instanceof (self.Float16Array || Object)))
+      return { pixelFormat: d.pixelFormat, dataType: d.data.constructor.name };
+    const v = new Float64Array(W * H);
+    for (let i = 0; i < W * H; i++) v[i] = d.data[i * 4] * 65535;
+    return { pixelFormat: d.pixelFormat, ...stats(v) };
+  }
+  const R = {};
+  for (const [name, url, mime] of [
+    ['png16', 'ct512_16.png', 'image/png'],
+    ['jxl16-lossless', 'ct512_16.jxl', 'image/jxl'],
+    ['avif12', 'ct512_12.avif', 'image/avif'],
+  ]) {
+    R[name] = {
+      webgl2_RGBA32F: await viaWebGL(url, mime).catch((e) => String(e)),
+      imageDecoder: await viaImageDecoder(url, mime).catch((e) => String(e)),
+      canvas2d_float16: await viaCanvasF16(url).catch((e) => String(e)),
+    };
+  }
+  window.__results = R;
+</script>
