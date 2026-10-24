@@ -240,7 +240,12 @@ function printStep(rec) {
 }
 
 async function main() {
-  const server = await createServer({ configFile: path.join(APP, 'vite.config.mjs'), server: { port: PORT, strictPort: true } });
+  // No HMR and no file watching: an edit in the checkout must not reload a
+  // page mid-measurement (it did once, and the destroyed context ended the run).
+  const server = await createServer({
+    configFile: path.join(APP, 'vite.config.mjs'),
+    server: { port: PORT, strictPort: true, hmr: false, watch: null },
+  });
   await server.listen();
   const base = `http://localhost:${PORT}`;
   const executablePath = chromiumPath();
@@ -322,16 +327,16 @@ async function main() {
       for (const cfg of configs) {
         const loadBefore = os.loadavg()[0];
         const { page, context, marks } = await openPage('/bench-models.html', { cpuMarks: true });
-        await page.waitForFunction(() => typeof window.__runModelBench === 'function', null, { timeout: 60_000 });
+        await page.waitForFunction(() => typeof window.__runModelBench === 'function', null, { timeout: 60_000 }).catch(() => {});
         const t0 = Date.now();
         const timeoutMs = TIMEOUT_S * 1000;
         let r = await Promise.race([
-          page.evaluate((c) => window.__runModelBench(c), cfg),
+          page.evaluate((c) => window.__runModelBench(c), cfg).catch((e) => ({ config: cfg, error: `runner: ${e?.message ?? e}` })),
           new Promise((resolve) => setTimeout(() => resolve({ config: cfg, error: `timeout after ${TIMEOUT_S} s` }), timeoutMs)),
         ]);
         if (r.error?.startsWith('timeout')) {
           const partial = await Promise.race([
-            page.evaluate(() => window.__benchProgress ?? null),
+            page.evaluate(() => window.__benchProgress ?? null).catch(() => null),
             new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
           ]);
           r = { ...r, partial };

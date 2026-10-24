@@ -15,7 +15,9 @@
     <p>
       Driven by <code>scripts/bench.mjs</code>. To run one configuration by hand in a desktop
       Chrome, open the console and call
-      <code>await __runModelBench({ model: 'mobile_sam', ep: 'wasm', threads: 4, encoderReps: 5, decoderReps: 20 })</code>.
+      <code>await __runModelBench({ model: 'mobile_sam', encoderEp: 'wasm', decoderEp: 'wasm', threads: 4, encoderReps: 5, decoderReps: 20 })</code>
+      (WebGPU: set <code>encoderEp</code> or <code>decoderEp</code> to <code>'webgpu'</code>, one at a time).
+      Model ids are those of <code>src/model-table.json</code>.
     </p>
     <pre id="out"></pre>
     <script type="module" src="/src/bench-models.ts"></script>

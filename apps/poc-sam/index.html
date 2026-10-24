@@ -14,6 +14,17 @@
       <li><a href="/bench-models.html">bench-models.html</a>: encoder/decoder latency per model (H1)</li>
       <li><a href="/e2e.html">e2e.html</a>: SAM tool on a synthetic gigapixel DZI (H2, H3)</li>
     </ul>
-    <p>See <code>apps/poc-sam/REPORT.md</code>.</p>
+    <h2>Reproducing on real hardware</h2>
+    <ol>
+      <li><code>pnpm install</code>, then <code>pnpm --filter @osdlabel/poc-sam fetch-models</code> (real weights from npm and
+        raw.githubusercontent.com; the random-weight architectures need the Python step it prints).</li>
+      <li>Whole matrix, driving your desktop Chrome (real GPU for WebGPU):
+        <code>pnpm --filter @osdlabel/poc-sam bench -- --chromium "/path/to/Google Chrome" --headed</code>
+        (macOS: <code>/Applications/Google Chrome.app/Contents/MacOS/Google Chrome</code>;
+        add <code>--webgpu-models mobile_sam,sam2_tiny_real,efficient_sam_ti</code> to measure WebGPU on more models).</li>
+      <li>By hand: <code>pnpm --filter @osdlabel/poc-sam dev</code>, open the pages above on <code>http://localhost</code>
+        (COOP/COEP are set, so <code>crossOriginIsolated</code> is true and WASM runs threaded), and use the console hooks.</li>
+    </ol>
+    <p>Results go to <code>apps/poc-sam/results/</code>; <code>pnpm --filter @osdlabel/poc-sam bench:summary &lt;file&gt;</code> reprints the tables.</p>
   </body>
 </html>
