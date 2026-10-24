@@ -20,6 +20,7 @@ export const PAGES = [
   'solid',
   'lab',
   'theme',
+  'parts',
 ] as const;
 
 // COOP/COEP so the pages are cross-origin isolated like the other PoCs'
