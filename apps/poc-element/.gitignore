@@ -1,3 +1,5 @@
 results/*
 !results/representative.json
+!results/review-fix.json
+!results/css-inline-baseline.json
 .bench-build/

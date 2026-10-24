@@ -1,0 +1,2900 @@
+{
+  "meta": {
+    "startedAt": "2026-10-24T15:04:33.350Z",
+    "gitSha": "2f30388f97fd1ca4b72e312751087956dd28973c",
+    "node": "v22.22.0",
+    "cpus": 4,
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "totalMemGiB": 15.7,
+    "loadAvg1mAtStart": 9.05,
+    "reps": 7,
+    "chromium": "/opt/pw-browsers/chromium",
+    "browserVersion": "153.0.8010.12",
+    "finishedAt": "2026-10-24T15:07:42.720Z",
+    "loadAvg1mAtEnd": 7.78
+  },
+  "sizes": [
+    {
+      "name": "solid-binding",
+      "what": "@osdlabel/solid <Annotator> mounted with solid-js/web render (everything bundled)",
+      "files": 1,
+      "raw": 702719,
+      "gzip": 194518,
+      "brotli": 162562,
+      "perFile": [
+        {
+          "file": "solid-binding.js",
+          "raw": 702719,
+          "gzip": 194518,
+          "brotli": 162562
+        }
+      ]
+    },
+    {
+      "name": "element",
+      "what": "<osdlabel-annotator>, hand-rolled customElements.define wrapper (everything bundled)",
+      "files": 1,
+      "raw": 708731,
+      "gzip": 196541,
+      "brotli": 164080,
+      "perFile": [
+        {
+          "file": "element.js",
+          "raw": 708731,
+          "gzip": 196541,
+          "brotli": 164080
+        }
+      ]
+    },
+    {
+      "name": "element-solid-element",
+      "what": "the same element built with solid-element / component-register (everything bundled)",
+      "files": 1,
+      "raw": 707828,
+      "gzip": 196270,
+      "brotli": 163799,
+      "perFile": [
+        {
+          "file": "element-solid-element.js",
+          "raw": 707828,
+          "gzip": 196270,
+          "brotli": 163799
+        }
+      ]
+    },
+    {
+      "name": "react-binding",
+      "what": "@osdlabel/react <Annotator> mounted with react-dom/client (everything bundled)",
+      "files": 1,
+      "raw": 875337,
+      "gzip": 247056,
+      "brotli": 206811,
+      "perFile": [
+        {
+          "file": "react-binding.js",
+          "raw": 875337,
+          "gzip": 247056,
+          "brotli": 206811
+        }
+      ]
+    },
+    {
+      "name": "element-wrapper-only",
+      "what": "hand-rolled wrapper alone: @osdlabel/*, osdlabel, solid-js, fabric, OSD external",
+      "files": 1,
+      "raw": 6376,
+      "gzip": 2526,
+      "brotli": 2251,
+      "perFile": [
+        {
+          "file": "element-wrapper-only.js",
+          "raw": 6376,
+          "gzip": 2526,
+          "brotli": 2251
+        }
+      ]
+    },
+    {
+      "name": "solid-element-wrapper-only",
+      "what": "solid-element wrapper alone (component-register bundled; the rest external)",
+      "files": 1,
+      "raw": 5427,
+      "gzip": 2157,
+      "brotli": 1896,
+      "perFile": [
+        {
+          "file": "solid-element-wrapper-only.js",
+          "raw": 5427,
+          "gzip": 2157,
+          "brotli": 1896
+        }
+      ]
+    },
+    {
+      "name": "solid-binding-own-code",
+      "what": "solid-binding with fabric, openseadragon and solid-js external: osdlabel code only",
+      "files": 1,
+      "raw": 125528,
+      "gzip": 34975,
+      "brotli": 30976,
+      "perFile": [
+        {
+          "file": "solid-binding-own-code.js",
+          "raw": 125528,
+          "gzip": 34975,
+          "brotli": 30976
+        }
+      ]
+    },
+    {
+      "name": "react-binding-own-code",
+      "what": "react-binding with fabric, openseadragon, react and react-dom external (immer bundled)",
+      "files": 1,
+      "raw": 126365,
+      "gzip": 36088,
+      "brotli": 32097,
+      "perFile": [
+        {
+          "file": "react-binding-own-code.js",
+          "raw": 126365,
+          "gzip": 36088,
+          "brotli": 32097
+        }
+      ]
+    },
+    {
+      "name": "host-vanilla",
+      "what": "vanilla host page (element + fixtures + probe)",
+      "files": 1,
+      "raw": 715588,
+      "gzip": 198752,
+      "brotli": 165928,
+      "perFile": [
+        {
+          "file": "main.js",
+          "raw": 715588,
+          "gzip": 198752,
+          "brotli": 165928
+        }
+      ]
+    },
+    {
+      "name": "host-vue",
+      "what": "Vue 3.5 host page (vue runtime + element)",
+      "files": 1,
+      "raw": 778881,
+      "gzip": 222658,
+      "brotli": 186965,
+      "perFile": [
+        {
+          "file": "main.js",
+          "raw": 778881,
+          "gzip": 222658,
+          "brotli": 186965
+        }
+      ]
+    },
+    {
+      "name": "host-svelte",
+      "what": "Svelte 5 host page (svelte runtime + element)",
+      "files": 1,
+      "raw": 748659,
+      "gzip": 210957,
+      "brotli": 176640,
+      "perFile": [
+        {
+          "file": "main.js",
+          "raw": 748659,
+          "gzip": 210957,
+          "brotli": 176640
+        }
+      ]
+    },
+    {
+      "name": "host-angular-jit",
+      "what": "Angular 22 host page, JIT (includes @angular/compiler; AOT would be far smaller)",
+      "files": 1,
+      "raw": 1779345,
+      "gzip": 507839,
+      "brotli": 416650,
+      "perFile": [
+        {
+          "file": "main.js",
+          "raw": 1779345,
+          "gzip": 507839,
+          "brotli": 416650
+        }
+      ]
+    },
+    {
+      "name": "host-react19",
+      "what": "React 19 host page using the element (not @osdlabel/react)",
+      "files": 1,
+      "raw": 905925,
+      "gzip": 257203,
+      "brotli": 215237,
+      "perFile": [
+        {
+          "file": "main.js",
+          "raw": 905925,
+          "gzip": 257203,
+          "brotli": 215237
+        }
+      ]
+    }
+  ],
+  "echo": [
+    {
+      "n": 100,
+      "input": "plain",
+      "reps": 40,
+      "copyThenCompareMs": {
+        "n": 40,
+        "median": 0.5677169999980833,
+        "p25": 0.5168912499993894,
+        "p75": 0.7838420000007318,
+        "min": 0.48015899999882095,
+        "max": 2.756467999999586,
+        "mean": 0.7060709999992468
+      },
+      "compareOnlyMs": {
+        "n": 40,
+        "median": 0.05603300000075251,
+        "p25": 0.05362599999898521,
+        "p75": 0.0604669999993348,
+        "min": 0.05103400000371039,
+        "max": 0.16039699999964796,
+        "mean": 0.06620542500077135
+      }
+    },
+    {
+      "n": 100,
+      "input": "proxied",
+      "reps": 40,
+      "copyThenCompareMs": {
+        "n": 40,
+        "median": 2.695667499996489,
+        "p25": 2.4281784999948286,
+        "p75": 2.9740887499992823,
+        "min": 2.3696579999959795,
+        "max": 3.624024000004283,
+        "mean": 2.7425086499999454
+      },
+      "compareOnlyMs": {
+        "n": 40,
+        "median": 0.09479550000105519,
+        "p25": 0.09265074999893841,
+        "p75": 0.09987175000242132,
+        "min": 0.09139899999718182,
+        "max": 0.20092200000362936,
+        "mean": 0.10186862500067946
+      }
+    },
+    {
+      "n": 1000,
+      "input": "plain",
+      "reps": 40,
+      "copyThenCompareMs": {
+        "n": 40,
+        "median": 7.82313250000152,
+        "p25": 6.492989749996923,
+        "p75": 9.813376000000062,
+        "min": 5.50035399999615,
+        "max": 15.604678000003332,
+        "mean": 8.479249049999998
+      },
+      "compareOnlyMs": {
+        "n": 40,
+        "median": 0.5418279999976221,
+        "p25": 0.4968864999973448,
+        "p75": 0.6161002499993629,
+        "min": 0.421875,
+        "max": 0.772292000001471,
+        "mean": 0.5610639500004254
+      }
+    },
+    {
+      "n": 1000,
+      "input": "proxied",
+      "reps": 40,
+      "copyThenCompareMs": {
+        "n": 40,
+        "median": 28.154638500000146,
+        "p25": 26.58600299999671,
+        "p75": 32.58171675000449,
+        "min": 24.7977069999979,
+        "max": 51.66762399999425,
+        "mean": 31.854131100000085
+      },
+      "compareOnlyMs": {
+        "n": 40,
+        "median": 1.8923794999973325,
+        "p25": 1.8441087499977584,
+        "p75": 1.9443679999985761,
+        "min": 0.8616520000068704,
+        "max": 2.9151270000002114,
+        "mean": 1.7931150749998779
+      }
+    },
+    {
+      "n": 10000,
+      "input": "plain",
+      "reps": 15,
+      "copyThenCompareMs": {
+        "n": 15,
+        "median": 105.286420000004,
+        "p25": 100.8359034999994,
+        "p75": 110.58286699999735,
+        "min": 86.00731400000222,
+        "max": 120.47211100000277,
+        "mean": 105.85621893333398
+      },
+      "compareOnlyMs": {
+        "n": 15,
+        "median": 9.670253000003868,
+        "p25": 7.345975500003988,
+        "p75": 14.678788999997778,
+        "min": 6.964898999998695,
+        "max": 41.54033799999888,
+        "mean": 13.08211539999999
+      }
+    },
+    {
+      "n": 10000,
+      "input": "proxied",
+      "reps": 15,
+      "copyThenCompareMs": {
+        "n": 15,
+        "median": 336.8197220000002,
+        "p25": 311.5252610000025,
+        "p75": 356.1464745000012,
+        "min": 289.1577899999975,
+        "max": 479.72547199999826,
+        "mean": 345.68117339999975
+      },
+      "compareOnlyMs": {
+        "n": 15,
+        "median": 16.882223000000522,
+        "p25": 14.936614500002179,
+        "p75": 20.156823500001337,
+        "min": 13.868600000001607,
+        "max": 26.170919000003778,
+        "mean": 18.124533933333684
+      }
+    }
+  ],
+  "tti": {
+    "solid (binding, no element)": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 834.5250000003725,
+        "p25": 794.2825000006706,
+        "p75": 874.6674999995157,
+        "min": 782.3799999989569,
+        "max": 924.785000000149,
+        "mean": 839.9414285714073
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 211.67500000074506,
+        "p25": 192.56750000081956,
+        "p75": 232.52249999996275,
+        "min": 179.69500000029802,
+        "max": 279.35500000044703,
+        "mean": 217.27214285757924
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 291.1100000012666,
+        "p25": 264.86249999981374,
+        "p75": 313.15750000067055,
+        "min": 249.54000000096858,
+        "max": 358.85500000044703,
+        "mean": 293.64928571480726
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 557.442,
+        "p25": 542.6605,
+        "p75": 587.8230000000001,
+        "min": 512.096,
+        "max": 598.5780000000001,
+        "mean": 561.2975714285715
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 22.467000000000002,
+        "p25": 21.009500000000003,
+        "p75": 35.684,
+        "min": 12.747,
+        "max": 39.388,
+        "mean": 26.855571428571434
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.3019999999999996,
+        "p25": 2.871,
+        "p75": 3.5185,
+        "min": 2.48,
+        "max": 4.095,
+        "mean": 3.236571428571428
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 718.6550000000001,
+        "p25": 685.344,
+        "p75": 744.94,
+        "min": 632.4159999999999,
+        "max": 768.957,
+        "mean": 711.5137142857142
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 3.7670249938964844,
+        "p25": 3.7543678283691406,
+        "p75": 3.771251678466797,
+        "min": 3.728862762451172,
+        "max": 3.7754592895507812,
+        "mean": 3.760369437081473
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 694.892578125,
+        "p25": 694.892578125,
+        "p75": 694.892578125,
+        "min": 694.892578125,
+        "max": 694.892578125,
+        "mean": 694.892578125
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 834.5250000003725,
+          "frames": 6,
+          "marks": {
+            "host-script": 185.34500000067055,
+            "element-ready": 211.67500000074506
+          },
+          "domContentLoaded": 291.1100000012666,
+          "jsDecodedBytes": 711570,
+          "crossOriginIsolated": true,
+          "scriptMs": 582.139,
+          "layoutMs": 32.608,
+          "recalcStyleMs": 4.095,
+          "taskMs": 745.323,
+          "jsHeapMiB": 3.7516632080078125
+        },
+        {
+          "interactiveAt": 782.3799999989569,
+          "frames": 6,
+          "marks": {
+            "host-script": 213.19999999925494,
+            "element-ready": 230.67999999970198
+          },
+          "domContentLoaded": 279.65499999932945,
+          "jsDecodedBytes": 711570,
+          "crossOriginIsolated": true,
+          "scriptMs": 512.096,
+          "layoutMs": 12.747,
+          "recalcStyleMs": 2.48,
+          "taskMs": 632.4159999999999,
+          "jsHeapMiB": 3.7570724487304688
+        },
+        {
+          "interactiveAt": 843.4399999994785,
+          "frames": 6,
+          "marks": {
+            "host-script": 179.67999999970198,
+            "element-ready": 203.31000000052154
+          },
+          "domContentLoaded": 293.40000000037253,
+          "jsDecodedBytes": 711570,
+          "crossOriginIsolated": true,
+          "scriptMs": 557.442,
+          "layoutMs": 22.467000000000002,
+          "recalcStyleMs": 3.042,
+          "taskMs": 707.736,
+          "jsHeapMiB": 3.7695846557617188
+        },
+        {
+          "interactiveAt": 795.5,
+          "frames": 7,
+          "marks": {
+            "host-script": 165.964999999851,
+            "element-ready": 181.8250000011176
+          },
+          "domContentLoaded": 250.07000000029802,
+          "jsDecodedBytes": 711570,
+          "crossOriginIsolated": true,
+          "scriptMs": 544.416,
+          "layoutMs": 39.388,
+          "recalcStyleMs": 3.379,
+          "taskMs": 718.6550000000001,
+          "jsHeapMiB": 3.7754592895507812
+        },
+        {
+          "interactiveAt": 905.894999999553,
+          "frames": 6,
+          "marks": {
+            "host-script": 260.535000000149,
+            "element-ready": 279.35500000044703
+          },
+          "domContentLoaded": 358.85500000044703,
+          "jsDecodedBytes": 711570,
+          "crossOriginIsolated": true,
+          "scriptMs": 593.5070000000001,
+          "layoutMs": 20.961000000000002,
+          "recalcStyleMs": 2.7,
+          "taskMs": 768.957,
+          "jsHeapMiB": 3.728862762451172
+        },
+        {
+          "interactiveAt": 793.0650000013411,
+          "frames": 5,
+          "marks": {
+            "host-script": 164.214999999851,
+            "element-ready": 179.69500000029802
+          },
+          "domContentLoaded": 249.54000000096858,
+          "jsDecodedBytes": 711570,
+          "crossOriginIsolated": true,
+          "scriptMs": 540.905,
+          "layoutMs": 21.058,
+          "recalcStyleMs": 3.658,
+          "taskMs": 662.952,
+          "jsHeapMiB": 3.7670249938964844
+        },
+        {
+          "interactiveAt": 924.785000000149,
+          "frames": 6,
+          "marks": {
+            "host-script": 221.13499999977648,
+            "element-ready": 234.36500000022352
+          },
+          "domContentLoaded": 332.9150000009686,
+          "jsDecodedBytes": 711570,
+          "crossOriginIsolated": true,
+          "scriptMs": 598.5780000000001,
+          "layoutMs": 38.760000000000005,
+          "recalcStyleMs": 3.3019999999999996,
+          "taskMs": 744.557,
+          "jsHeapMiB": 3.772918701171875
+        }
+      ]
+    },
+    "vanilla (element, shadow)": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 907.214999999851,
+        "p25": 885.3824999993667,
+        "p75": 960.0325000006706,
+        "min": 875.8150000013411,
+        "max": 1066.289999999106,
+        "mean": 934.307142857196
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 241.35500000044703,
+        "p25": 237.68250000011176,
+        "p75": 256.3775000004098,
+        "min": 217.3899999987334,
+        "max": 270.09999999962747,
+        "mean": 245.280714285693
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 313.964999999851,
+        "p25": 306.1350000007078,
+        "p75": 342.3549999995157,
+        "min": 274.35999999940395,
+        "max": 364.09500000067055,
+        "mean": 321.34285714291036
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 600.014,
+        "p25": 582.3155,
+        "p75": 666.3965000000001,
+        "min": 560.6999999999999,
+        "max": 768.28,
+        "mean": 632.3454285714286
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 19.058,
+        "p25": 16.597,
+        "p75": 26.110500000000002,
+        "min": 13.854999999999999,
+        "max": 59.898,
+        "mean": 25.460857142857144
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.2369999999999997,
+        "p25": 2.952,
+        "p75": 4.859999999999999,
+        "min": 2.488,
+        "max": 27.144000000000002,
+        "mean": 6.9275714285714285
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 800.466,
+        "p25": 761.8765000000001,
+        "p75": 840.855,
+        "min": 713.31,
+        "max": 969.9839999999999,
+        "mean": 812.7461428571427
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 3.8626022338867188,
+        "p25": 3.8379058837890625,
+        "p75": 3.8666210174560547,
+        "min": 3.8239822387695312,
+        "max": 3.8911209106445312,
+        "mean": 3.8552513122558594
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 701.11328125,
+        "p25": 701.11328125,
+        "p75": 701.11328125,
+        "min": 701.11328125,
+        "max": 701.11328125,
+        "mean": 701.11328125
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 876.8149999994785,
+          "frames": 6,
+          "marks": {
+            "host-script": 197.8899999987334,
+            "element-ready": 217.3899999987334
+          },
+          "domContentLoaded": 274.35999999940395,
+          "jsDecodedBytes": 717940,
+          "crossOriginIsolated": true,
+          "scriptMs": 600.014,
+          "layoutMs": 29.39,
+          "recalcStyleMs": 27.144000000000002,
+          "taskMs": 800.466,
+          "jsHeapMiB": 3.8630142211914062
+        },
+        {
+          "interactiveAt": 1066.289999999106,
+          "frames": 7,
+          "marks": {
+            "host-script": 233.4550000000745,
+            "element-ready": 250.089999999851
+          },
+          "domContentLoaded": 364.09500000067055,
+          "jsDecodedBytes": 717940,
+          "crossOriginIsolated": true,
+          "scriptMs": 768.28,
+          "layoutMs": 19.058,
+          "recalcStyleMs": 3.2369999999999997,
+          "taskMs": 969.9839999999999,
+          "jsHeapMiB": 3.8422012329101562
+        },
+        {
+          "interactiveAt": 907.214999999851,
+          "frames": 6,
+          "marks": {
+            "host-script": 254.44999999925494,
+            "element-ready": 270.09999999962747
+          },
+          "domContentLoaded": 354.6349999997765,
+          "jsDecodedBytes": 717940,
+          "crossOriginIsolated": true,
+          "scriptMs": 581.956,
+          "layoutMs": 59.898,
+          "recalcStyleMs": 2.488,
+          "taskMs": 804.744,
+          "jsHeapMiB": 3.870227813720703
+        },
+        {
+          "interactiveAt": 999.5400000009686,
+          "frames": 7,
+          "marks": {
+            "host-script": 221.58500000089407,
+            "element-ready": 237.41500000096858
+          },
+          "domContentLoaded": 301.1550000011921,
+          "jsDecodedBytes": 717940,
+          "crossOriginIsolated": true,
+          "scriptMs": 685.8340000000001,
+          "layoutMs": 18.034000000000002,
+          "recalcStyleMs": 2.917,
+          "taskMs": 876.966,
+          "jsHeapMiB": 3.8626022338867188
+        },
+        {
+          "interactiveAt": 893.9499999992549,
+          "frames": 7,
+          "marks": {
+            "host-script": 247.19999999925494,
+            "element-ready": 262.6650000009686
+          },
+          "domContentLoaded": 330.07499999925494,
+          "jsDecodedBytes": 717940,
+          "crossOriginIsolated": true,
+          "scriptMs": 582.6750000000001,
+          "layoutMs": 22.831,
+          "recalcStyleMs": 2.987,
+          "taskMs": 713.31,
+          "jsHeapMiB": 3.8336105346679688
+        },
+        {
+          "interactiveAt": 875.8150000013411,
+          "frames": 9,
+          "marks": {
+            "host-script": 218.57000000029802,
+            "element-ready": 241.35500000044703
+          },
+          "domContentLoaded": 311.1150000002235,
+          "jsDecodedBytes": 717940,
+          "crossOriginIsolated": true,
+          "scriptMs": 560.6999999999999,
+          "layoutMs": 13.854999999999999,
+          "recalcStyleMs": 6.122,
+          "taskMs": 760.923,
+          "jsHeapMiB": 3.8239822387695312
+        },
+        {
+          "interactiveAt": 920.5250000003725,
+          "frames": 7,
+          "marks": {
+            "host-script": 214.48499999940395,
+            "element-ready": 237.94999999925494
+          },
+          "domContentLoaded": 313.964999999851,
+          "jsDecodedBytes": 717940,
+          "crossOriginIsolated": true,
+          "scriptMs": 646.959,
+          "layoutMs": 15.16,
+          "recalcStyleMs": 3.598,
+          "taskMs": 762.83,
+          "jsHeapMiB": 3.8911209106445312
+        }
+      ]
+    },
+    "lab (element, shadow DOM)": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 978.9500000011176,
+        "p25": 855.3449999997392,
+        "p75": 990.402499999851,
+        "min": 757.5149999987334,
+        "max": 1044.059999998659,
+        "mean": 924.5742857139558
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 241.9550000000745,
+        "p25": 228.42999999970198,
+        "p75": 302.5099999997765,
+        "min": 223.4199999999255,
+        "max": 361.46000000089407,
+        "mean": 269.8164285714073
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 327.6200000010431,
+        "p25": 302.63750000018626,
+        "p75": 385.8099999995902,
+        "min": 289.089999999851,
+        "max": 451.5099999997765,
+        "mean": 349.3021428571748
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 589.037,
+        "p25": 526.7855,
+        "p75": 686.2985,
+        "min": 482.58099999999996,
+        "max": 696.65,
+        "mean": 599.2051428571428
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 20.812,
+        "p25": 13.5395,
+        "p75": 33.119,
+        "min": 8.695,
+        "max": 65.705,
+        "mean": 26.93271428571428
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.07,
+        "p25": 2.8715,
+        "p75": 3.3209999999999997,
+        "min": 2.346,
+        "max": 11.919,
+        "mean": 4.2457142857142856
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 792.0559999999999,
+        "p25": 698.7445,
+        "p75": 849.5525,
+        "min": 573.403,
+        "max": 876.852,
+        "mean": 762.7007142857143
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 4.749935150146484,
+        "p25": 4.725711822509766,
+        "p75": 4.765974044799805,
+        "min": 4.693748474121094,
+        "max": 4.818286895751953,
+        "mean": 4.749334607805524
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 927.1025390625,
+        "p25": 927.1025390625,
+        "p75": 927.1025390625,
+        "min": 927.1025390625,
+        "max": 927.1025390625,
+        "mean": 927.1025390625
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 757.5149999987334,
+          "frames": 6,
+          "marks": {
+            "host-script": 224.95999999903142,
+            "element-ready": 241.9550000000745
+          },
+          "domContentLoaded": 289.089999999851,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 482.58099999999996,
+          "layoutMs": 9.93,
+          "recalcStyleMs": 2.346,
+          "taskMs": 573.403,
+          "jsHeapMiB": 4.749935150146484
+        },
+        {
+          "interactiveAt": 978.9500000011176,
+          "frames": 7,
+          "marks": {
+            "host-script": 199.2949999999255,
+            "element-ready": 223.4199999999255
+          },
+          "domContentLoaded": 327.6200000010431,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 677.529,
+          "layoutMs": 17.149,
+          "recalcStyleMs": 3.07,
+          "taskMs": 839.0419999999999,
+          "jsHeapMiB": 4.7787322998046875
+        },
+        {
+          "interactiveAt": 980.410000000149,
+          "frames": 6,
+          "marks": {
+            "host-script": 204.089999999851,
+            "element-ready": 226.49499999918044
+          },
+          "domContentLoaded": 311.42500000074506,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 696.65,
+          "layoutMs": 65.705,
+          "recalcStyleMs": 11.919,
+          "taskMs": 876.852,
+          "jsHeapMiB": 4.693748474121094
+        },
+        {
+          "interactiveAt": 1044.059999998659,
+          "frames": 8,
+          "marks": {
+            "host-script": 259.535000000149,
+            "element-ready": 288.8999999985099
+          },
+          "domContentLoaded": 366.679999999702,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 695.068,
+          "layoutMs": 20.812,
+          "recalcStyleMs": 3.063,
+          "taskMs": 860.063,
+          "jsHeapMiB": 4.753215789794922
+        },
+        {
+          "interactiveAt": 895.820000000298,
+          "frames": 6,
+          "marks": {
+            "host-script": 295.80000000074506,
+            "element-ready": 316.1200000010431
+          },
+          "domContentLoaded": 404.93999999947846,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 517.645,
+          "layoutMs": 36.107,
+          "recalcStyleMs": 2.68,
+          "taskMs": 690.783,
+          "jsHeapMiB": 4.744895935058594
+        },
+        {
+          "interactiveAt": 814.8699999991804,
+          "frames": 6,
+          "marks": {
+            "host-script": 212.67999999970198,
+            "element-ready": 230.36500000022352
+          },
+          "domContentLoaded": 293.84999999962747,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 535.926,
+          "layoutMs": 8.695,
+          "recalcStyleMs": 3.376,
+          "taskMs": 706.7059999999999,
+          "jsHeapMiB": 4.7065277099609375
+        },
+        {
+          "interactiveAt": 1000.394999999553,
+          "frames": 6,
+          "marks": {
+            "host-script": 336.47499999962747,
+            "element-ready": 361.46000000089407
+          },
+          "domContentLoaded": 451.5099999997765,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 589.037,
+          "layoutMs": 30.131,
+          "recalcStyleMs": 3.266,
+          "taskMs": 792.0559999999999,
+          "jsHeapMiB": 4.818286895751953
+        }
+      ]
+    },
+    "lab (element, light DOM)": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 784.140000000596,
+        "p25": 747.707499999553,
+        "p75": 854.0449999999255,
+        "min": 728.980000000447,
+        "max": 898.1100000012666,
+        "mean": 802.1050000001809
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 259.3250000011176,
+        "p25": 241.29000000003725,
+        "p75": 277.15749999973923,
+        "min": 191.01500000059605,
+        "max": 295.5400000009686,
+        "mean": 254.68214285746217
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 341.5800000000745,
+        "p25": 295.070000000298,
+        "p75": 356.09999999962747,
+        "min": 270.0800000000745,
+        "max": 402.75,
+        "mean": 330.9642857142857
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 502.37399999999997,
+        "p25": 468.6335,
+        "p75": 515.486,
+        "min": 447.857,
+        "max": 603.5559999999999,
+        "mean": 503.14657142857135
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 17.858999999999998,
+        "p25": 15.9525,
+        "p75": 36.517,
+        "min": 11.270999999999999,
+        "max": 46.041,
+        "mean": 25.729999999999997
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.134,
+        "p25": 2.8855,
+        "p75": 3.858,
+        "min": 2.483,
+        "max": 16.522,
+        "mean": 5.089428571428571
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 669.453,
+        "p25": 613.765,
+        "p75": 684.7955,
+        "min": 594.835,
+        "max": 761.541,
+        "mean": 660.4214285714287
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 4.691612243652344,
+        "p25": 4.690763473510742,
+        "p75": 4.711896896362305,
+        "min": 4.645271301269531,
+        "max": 4.722820281982422,
+        "mean": 4.695003509521484
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 927.1025390625,
+        "p25": 927.1025390625,
+        "p75": 927.1025390625,
+        "min": 927.1025390625,
+        "max": 927.1025390625,
+        "mean": 927.1025390625
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 898.1100000012666,
+          "frames": 5,
+          "marks": {
+            "host-script": 238.875,
+            "element-ready": 259.3250000011176
+          },
+          "domContentLoaded": 341.5800000000745,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 603.5559999999999,
+          "layoutMs": 31.616,
+          "recalcStyleMs": 2.799,
+          "taskMs": 761.541,
+          "jsHeapMiB": 4.691394805908203
+        },
+        {
+          "interactiveAt": 861.4000000003725,
+          "frames": 8,
+          "marks": {
+            "host-script": 265.7350000012666,
+            "element-ready": 295.5400000009686
+          },
+          "domContentLoaded": 402.75,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 507.028,
+          "layoutMs": 41.418000000000006,
+          "recalcStyleMs": 3.383,
+          "taskMs": 692.163,
+          "jsHeapMiB": 4.690132141113281
+        },
+        {
+          "interactiveAt": 735.4499999992549,
+          "frames": 5,
+          "marks": {
+            "host-script": 207.1749999988824,
+            "element-ready": 223.9199999999255
+          },
+          "domContentLoaded": 288.214999999851,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 462.435,
+          "layoutMs": 14.894,
+          "recalcStyleMs": 2.972,
+          "taskMs": 594.835,
+          "jsHeapMiB": 4.645271301269531
+        },
+        {
+          "interactiveAt": 728.980000000447,
+          "frames": 6,
+          "marks": {
+            "host-script": 174.8600000012666,
+            "element-ready": 191.01500000059605
+          },
+          "domContentLoaded": 270.0800000000745,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 502.37399999999997,
+          "layoutMs": 17.858999999999998,
+          "recalcStyleMs": 4.333,
+          "taskMs": 630.27,
+          "jsHeapMiB": 4.717502593994141
+        },
+        {
+          "interactiveAt": 759.964999999851,
+          "frames": 8,
+          "marks": {
+            "host-script": 238.99499999918044,
+            "element-ready": 258.660000000149
+          },
+          "domContentLoaded": 301.92500000074506,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 447.857,
+          "layoutMs": 11.270999999999999,
+          "recalcStyleMs": 16.522,
+          "taskMs": 597.26,
+          "jsHeapMiB": 4.722820281982422
+        },
+        {
+          "interactiveAt": 846.6899999994785,
+          "frames": 7,
+          "marks": {
+            "host-script": 251.0149999987334,
+            "element-ready": 271.8349999990314
+          },
+          "domContentLoaded": 363.26999999955297,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 523.944,
+          "layoutMs": 46.041,
+          "recalcStyleMs": 2.483,
+          "taskMs": 677.428,
+          "jsHeapMiB": 4.706291198730469
+        },
+        {
+          "interactiveAt": 784.140000000596,
+          "frames": 6,
+          "marks": {
+            "host-script": 253.81000000052154,
+            "element-ready": 282.48000000044703
+          },
+          "domContentLoaded": 348.929999999702,
+          "jsDecodedBytes": 949353,
+          "crossOriginIsolated": true,
+          "scriptMs": 474.832,
+          "layoutMs": 17.011,
+          "recalcStyleMs": 3.134,
+          "taskMs": 669.453,
+          "jsHeapMiB": 4.691612243652344
+        }
+      ]
+    },
+    "vanilla (solid-element)": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 938.304999999702,
+        "p25": 865.5674999998882,
+        "p75": 974.8349999990314,
+        "min": 796.339999999851,
+        "max": 991.3800000008196,
+        "mean": 915.2614285711732
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 236.19999999925494,
+        "p25": 213.83499999996275,
+        "p75": 254.23749999981374,
+        "min": 200.4550000000745,
+        "max": 258.6049999985844,
+        "mean": 233.05785714249527
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 328.17500000074506,
+        "p25": 288.277499999851,
+        "p75": 338.5349999992177,
+        "min": 276.09500000067055,
+        "max": 340.43500000052154,
+        "mean": 314.0471428571535
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 653.516,
+        "p25": 593.0219999999999,
+        "p75": 684.5225,
+        "min": 542.3050000000001,
+        "max": 698.736,
+        "mean": 635.6637142857143
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 18.237,
+        "p25": 14.6205,
+        "p75": 31.528499999999998,
+        "min": 8.306,
+        "max": 106.63300000000001,
+        "mean": 32.210571428571434
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.578,
+        "p25": 2.6465,
+        "p75": 5.59,
+        "min": 2.4,
+        "max": 8.059999999999999,
+        "mean": 4.358714285714285
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 821.287,
+        "p25": 739.8430000000001,
+        "p75": 843.9265,
+        "min": 651.377,
+        "max": 861.5930000000001,
+        "mean": 785.9708571428572
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 3.8133010864257812,
+        "p25": 3.7965221405029297,
+        "p75": 3.8232975006103516,
+        "min": 3.7950096130371094,
+        "max": 3.840435028076172,
+        "mean": 3.812626429966518
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 700.0654296875,
+        "p25": 700.0654296875,
+        "p75": 700.0654296875,
+        "min": 700.0654296875,
+        "max": 700.0654296875,
+        "mean": 700.0654296875
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 991.3800000008196,
+          "frames": 7,
+          "marks": {
+            "host-script": 215.25,
+            "element-ready": 255.34500000067055
+          },
+          "domContentLoaded": 337.64499999955297,
+          "jsDecodedBytes": 716867,
+          "crossOriginIsolated": true,
+          "scriptMs": 697.576,
+          "layoutMs": 16.955000000000002,
+          "recalcStyleMs": 3.578,
+          "taskMs": 849.858,
+          "jsHeapMiB": 3.798004150390625
+        },
+        {
+          "interactiveAt": 990.9599999990314,
+          "frames": 7,
+          "marks": {
+            "host-script": 215.339999999851,
+            "element-ready": 253.12999999895692
+          },
+          "domContentLoaded": 340.43500000052154,
+          "jsDecodedBytes": 716867,
+          "crossOriginIsolated": true,
+          "scriptMs": 698.736,
+          "layoutMs": 38.983999999999995,
+          "recalcStyleMs": 4.486000000000001,
+          "taskMs": 861.5930000000001,
+          "jsHeapMiB": 3.8133010864257812
+        },
+        {
+          "interactiveAt": 917.7449999991804,
+          "frames": 6,
+          "marks": {
+            "host-script": 206.625,
+            "element-ready": 236.19999999925494
+          },
+          "domContentLoaded": 328.17500000074506,
+          "jsDecodedBytes": 716867,
+          "crossOriginIsolated": true,
+          "scriptMs": 632.931,
+          "layoutMs": 106.63300000000001,
+          "recalcStyleMs": 8.059999999999999,
+          "taskMs": 837.995,
+          "jsHeapMiB": 3.7950096130371094
+        },
+        {
+          "interactiveAt": 813.390000000596,
+          "frames": 6,
+          "marks": {
+            "host-script": 182.5,
+            "element-ready": 200.4550000000745
+          },
+          "domContentLoaded": 280.9900000002235,
+          "jsDecodedBytes": 716867,
+          "crossOriginIsolated": true,
+          "scriptMs": 542.3050000000001,
+          "layoutMs": 24.073,
+          "recalcStyleMs": 2.48,
+          "taskMs": 686.831,
+          "jsHeapMiB": 3.81695556640625
+        },
+        {
+          "interactiveAt": 938.304999999702,
+          "frames": 6,
+          "marks": {
+            "host-script": 187.34999999962747,
+            "element-ready": 207.73499999940395
+          },
+          "domContentLoaded": 295.56499999947846,
+          "jsDecodedBytes": 716867,
+          "crossOriginIsolated": true,
+          "scriptMs": 671.4689999999999,
+          "layoutMs": 8.306,
+          "recalcStyleMs": 2.813,
+          "taskMs": 821.287,
+          "jsHeapMiB": 3.840435028076172
+        },
+        {
+          "interactiveAt": 958.7099999990314,
+          "frames": 6,
+          "marks": {
+            "host-script": 230.15499999932945,
+            "element-ready": 258.6049999985844
+          },
+          "domContentLoaded": 339.4249999988824,
+          "jsDecodedBytes": 716867,
+          "crossOriginIsolated": true,
+          "scriptMs": 653.516,
+          "layoutMs": 12.286,
+          "recalcStyleMs": 6.694,
+          "taskMs": 792.855,
+          "jsHeapMiB": 3.7950401306152344
+        },
+        {
+          "interactiveAt": 796.339999999851,
+          "frames": 6,
+          "marks": {
+            "host-script": 195.4199999999255,
+            "element-ready": 219.93500000052154
+          },
+          "domContentLoaded": 276.09500000067055,
+          "jsDecodedBytes": 716867,
+          "crossOriginIsolated": true,
+          "scriptMs": 553.1129999999999,
+          "layoutMs": 18.237,
+          "recalcStyleMs": 2.4,
+          "taskMs": 651.377,
+          "jsHeapMiB": 3.829639434814453
+        }
+      ]
+    },
+    "vue": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 910.7400000002235,
+        "p25": 850.5524999992922,
+        "p75": 942.9524999996647,
+        "min": 788.804999999702,
+        "max": 1038.1450000014156,
+        "mean": 903.5285714284649
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 264.3099999986589,
+        "p25": 244.24000000022352,
+        "p75": 279.1975000007078,
+        "min": 200.44999999925494,
+        "max": 305.964999999851,
+        "mean": 259.65714285708964
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 330.695000000298,
+        "p25": 312.1974999997765,
+        "p75": 365.33249999955297,
+        "min": 264.01999999955297,
+        "max": 377.1100000012666,
+        "mean": 332.41214285711095
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 598.596,
+        "p25": 537.294,
+        "p75": 635.9080000000001,
+        "min": 520.577,
+        "max": 711.293,
+        "mean": 596.6957142857144
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 15.02,
+        "p25": 11.781500000000001,
+        "p75": 17,
+        "min": 8.539,
+        "max": 20.71,
+        "mean": 14.54742857142857
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.333,
+        "p25": 2.8185000000000002,
+        "p75": 4.81,
+        "min": 2.6380000000000003,
+        "max": 13.296000000000001,
+        "mean": 4.932
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 720.665,
+        "p25": 713.9395,
+        "p75": 791.6089999999999,
+        "min": 670.045,
+        "max": 869.73,
+        "mean": 753.0767142857143
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 4.135662078857422,
+        "p25": 4.132926940917969,
+        "p75": 4.140424728393555,
+        "min": 4.130413055419922,
+        "max": 4.164878845214844,
+        "mean": 4.1396653311593195
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 762.4072265625,
+        "p25": 762.4072265625,
+        "p75": 762.4072265625,
+        "min": 762.4072265625,
+        "max": 762.4072265625,
+        "mean": 762.4072265625
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 884.2249999996275,
+          "frames": 6,
+          "marks": {
+            "host-script": 209.69999999925494,
+            "element-ready": 247.60500000044703
+          },
+          "domContentLoaded": 321.26999999955297,
+          "jsDecodedBytes": 780705,
+          "crossOriginIsolated": true,
+          "scriptMs": 614.839,
+          "layoutMs": 10.156,
+          "recalcStyleMs": 5.832999999999999,
+          "taskMs": 715.581,
+          "jsHeapMiB": 4.135662078857422
+        },
+        {
+          "interactiveAt": 913.8499999996275,
+          "frames": 6,
+          "marks": {
+            "host-script": 278.679999999702,
+            "element-ready": 305.964999999851
+          },
+          "domContentLoaded": 367.19999999925494,
+          "jsDecodedBytes": 780705,
+          "crossOriginIsolated": true,
+          "scriptMs": 552.491,
+          "layoutMs": 16.236,
+          "recalcStyleMs": 3.787,
+          "taskMs": 720.665,
+          "jsHeapMiB": 4.130413055419922
+        },
+        {
+          "interactiveAt": 1038.1450000014156,
+          "frames": 6,
+          "marks": {
+            "host-script": 258.29500000178814,
+            "element-ready": 293.8150000013411
+          },
+          "domContentLoaded": 377.1100000012666,
+          "jsDecodedBytes": 780705,
+          "crossOriginIsolated": true,
+          "scriptMs": 711.293,
+          "layoutMs": 20.71,
+          "recalcStyleMs": 2.9659999999999997,
+          "taskMs": 841.611,
+          "jsHeapMiB": 4.133335113525391
+        },
+        {
+          "interactiveAt": 816.8799999989569,
+          "frames": 7,
+          "marks": {
+            "host-script": 221.42999999970198,
+            "element-ready": 240.875
+          },
+          "domContentLoaded": 303.125,
+          "jsDecodedBytes": 780705,
+          "crossOriginIsolated": true,
+          "scriptMs": 522.097,
+          "layoutMs": 15.02,
+          "recalcStyleMs": 3.333,
+          "taskMs": 712.298,
+          "jsHeapMiB": 4.137443542480469
+        },
+        {
+          "interactiveAt": 910.7400000002235,
+          "frames": 6,
+          "marks": {
+            "host-script": 233.34999999962747,
+            "element-ready": 264.3099999986589
+          },
+          "domContentLoaded": 330.695000000298,
+          "jsDecodedBytes": 780705,
+          "crossOriginIsolated": true,
+          "scriptMs": 598.596,
+          "layoutMs": 17.764,
+          "recalcStyleMs": 2.6380000000000003,
+          "taskMs": 741.607,
+          "jsHeapMiB": 4.132518768310547
+        },
+        {
+          "interactiveAt": 972.054999999702,
+          "frames": 6,
+          "marks": {
+            "host-script": 237.4850000012666,
+            "element-ready": 264.5800000000745
+          },
+          "domContentLoaded": 363.464999999851,
+          "jsDecodedBytes": 780705,
+          "crossOriginIsolated": true,
+          "scriptMs": 656.9770000000001,
+          "layoutMs": 13.407,
+          "recalcStyleMs": 13.296000000000001,
+          "taskMs": 869.73,
+          "jsHeapMiB": 4.143405914306641
+        },
+        {
+          "interactiveAt": 788.804999999702,
+          "frames": 6,
+          "marks": {
+            "host-script": 178.90499999932945,
+            "element-ready": 200.44999999925494
+          },
+          "domContentLoaded": 264.01999999955297,
+          "jsDecodedBytes": 780705,
+          "crossOriginIsolated": true,
+          "scriptMs": 520.577,
+          "layoutMs": 8.539,
+          "recalcStyleMs": 2.6710000000000003,
+          "taskMs": 670.045,
+          "jsHeapMiB": 4.164878845214844
+        }
+      ]
+    },
+    "svelte": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 941.0500000007451,
+        "p25": 907.6574999997392,
+        "p75": 951.7824999997392,
+        "min": 756.8150000013411,
+        "max": 1104.219999998808,
+        "mean": 931.5664285714073
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 284.0599999986589,
+        "p25": 240.88250000029802,
+        "p75": 318.804999999702,
+        "min": 210.44500000029802,
+        "max": 331.5800000000745,
+        "mean": 277.9228571427188
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 378.6499999985099,
+        "p25": 318.73000000044703,
+        "p75": 393.8799999989569,
+        "min": 274.0400000009686,
+        "max": 400.98499999940395,
+        "mean": 354.1278571425272
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 593.081,
+        "p25": 570.972,
+        "p75": 634.2760000000001,
+        "min": 513.5889999999999,
+        "max": 768.632,
+        "mean": 612.2568571428571
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 20.432,
+        "p25": 17.1455,
+        "p75": 26.778000000000002,
+        "min": 9.871,
+        "max": 105.542,
+        "mean": 31.956
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.3400000000000003,
+        "p25": 2.5315000000000003,
+        "p75": 3.8845,
+        "min": 2.4810000000000003,
+        "max": 4.132000000000001,
+        "mean": 3.2550000000000003
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 741.352,
+        "p25": 699.1395,
+        "p75": 812.0705,
+        "min": 608.672,
+        "max": 919.6419999999999,
+        "mean": 756.0122857142858
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 4.073535919189453,
+        "p25": 4.047557830810547,
+        "p75": 4.074943542480469,
+        "min": 4.0407867431640625,
+        "max": 4.241447448730469,
+        "mean": 4.085824693952288
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 732.8583984375,
+        "p25": 732.8583984375,
+        "p75": 732.8583984375,
+        "min": 732.8583984375,
+        "max": 732.8583984375,
+        "mean": 732.8583984375
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 941.0500000007451,
+          "frames": 6,
+          "marks": {
+            "host-script": 177.2949999999255,
+            "element-ready": 210.44500000029802
+          },
+          "domContentLoaded": 300.0750000011176,
+          "jsDecodedBytes": 750447,
+          "crossOriginIsolated": true,
+          "scriptMs": 658.416,
+          "layoutMs": 29.673000000000002,
+          "recalcStyleMs": 2.49,
+          "taskMs": 817.861,
+          "jsHeapMiB": 4.0407867431640625
+        },
+        {
+          "interactiveAt": 1104.219999998808,
+          "frames": 5,
+          "marks": {
+            "host-script": 263.86999999918044,
+            "element-ready": 284.0599999986589
+          },
+          "domContentLoaded": 378.6499999985099,
+          "jsDecodedBytes": 750447,
+          "crossOriginIsolated": true,
+          "scriptMs": 768.632,
+          "layoutMs": 19.932,
+          "recalcStyleMs": 2.4810000000000003,
+          "taskMs": 919.6419999999999,
+          "jsHeapMiB": 4.073535919189453
+        },
+        {
+          "interactiveAt": 943.0050000008196,
+          "frames": 7,
+          "marks": {
+            "host-script": 302.96000000089407,
+            "element-ready": 331.5800000000745
+          },
+          "domContentLoaded": 390.84999999962747,
+          "jsDecodedBytes": 750447,
+          "crossOriginIsolated": true,
+          "scriptMs": 610.136,
+          "layoutMs": 14.359,
+          "recalcStyleMs": 3.9960000000000004,
+          "taskMs": 719.751,
+          "jsHeapMiB": 4.076145172119141
+        },
+        {
+          "interactiveAt": 960.5599999986589,
+          "frames": 7,
+          "marks": {
+            "host-script": 288.8349999990314,
+            "element-ready": 312.4599999990314
+          },
+          "domContentLoaded": 396.90999999828637,
+          "jsDecodedBytes": 750447,
+          "crossOriginIsolated": true,
+          "scriptMs": 592.086,
+          "layoutMs": 105.542,
+          "recalcStyleMs": 3.7729999999999997,
+          "taskMs": 806.28,
+          "jsHeapMiB": 4.047023773193359
+        },
+        {
+          "interactiveAt": 756.8150000013411,
+          "frames": 6,
+          "marks": {
+            "host-script": 194.72000000067055,
+            "element-ready": 222.15000000037253
+          },
+          "domContentLoaded": 274.0400000009686,
+          "jsDecodedBytes": 750447,
+          "crossOriginIsolated": true,
+          "scriptMs": 513.5889999999999,
+          "layoutMs": 9.871,
+          "recalcStyleMs": 2.5730000000000004,
+          "taskMs": 608.672,
+          "jsHeapMiB": 4.048091888427734
+        },
+        {
+          "interactiveAt": 896.714999999851,
+          "frames": 6,
+          "marks": {
+            "host-script": 221.57000000029802,
+            "element-ready": 259.6150000002235
+          },
+          "domContentLoaded": 337.3849999997765,
+          "jsDecodedBytes": 750447,
+          "crossOriginIsolated": true,
+          "scriptMs": 593.081,
+          "layoutMs": 20.432,
+          "recalcStyleMs": 3.3400000000000003,
+          "taskMs": 741.352,
+          "jsHeapMiB": 4.073741912841797
+        },
+        {
+          "interactiveAt": 918.5999999996275,
+          "frames": 7,
+          "marks": {
+            "host-script": 295.90499999932945,
+            "element-ready": 325.15000000037253
+          },
+          "domContentLoaded": 400.98499999940395,
+          "jsDecodedBytes": 750447,
+          "crossOriginIsolated": true,
+          "scriptMs": 549.858,
+          "layoutMs": 23.883000000000003,
+          "recalcStyleMs": 4.132000000000001,
+          "taskMs": 678.528,
+          "jsHeapMiB": 4.241447448730469
+        }
+      ]
+    },
+    "angular (JIT)": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 1219.890000000596,
+        "p25": 1100.820000000298,
+        "p75": 1303.8425000002608,
+        "min": 1094.089999999851,
+        "max": 1426.875,
+        "mean": 1221.4542857145093
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 648.644999999553,
+        "p25": 538.3400000007823,
+        "p75": 659.8650000011548,
+        "min": 519.7200000006706,
+        "max": 676.25,
+        "mean": 605.8607142862996
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 722.355000000447,
+        "p25": 596.6224999995902,
+        "p75": 740.015000000596,
+        "min": 580.589999999851,
+        "max": 755.7749999985099,
+        "mean": 675.9992857141686
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 735.6129999999999,
+        "p25": 704.9669999999999,
+        "p75": 801.061,
+        "min": 672.059,
+        "max": 935.784,
+        "mean": 765.0731428571428
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 20.556,
+        "p25": 13.934000000000001,
+        "p75": 66.6065,
+        "min": 10.671,
+        "max": 145.71,
+        "mean": 48.28828571428572
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.458,
+        "p25": 3.114,
+        "p75": 5.1845,
+        "min": 2.297,
+        "max": 13.186,
+        "mean": 5.0768571428571425
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 993.724,
+        "p25": 908.22,
+        "p75": 1078.225,
+        "min": 872.63,
+        "max": 1295.536,
+        "mean": 1019.2542857142859
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 10.943553924560547,
+        "p25": 10.938692092895508,
+        "p75": 10.965888977050781,
+        "min": 10.93343734741211,
+        "max": 11.021034240722656,
+        "mean": 10.958169664655413
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 1736.51953125,
+        "p25": 1736.51953125,
+        "p75": 1736.51953125,
+        "min": 1736.51953125,
+        "max": 1736.51953125,
+        "mean": 1736.51953125
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 1097.280000001192,
+          "frames": 5,
+          "marks": {
+            "host-script": 445.5750000011176,
+            "element-ready": 529.7450000010431
+          },
+          "domContentLoaded": 580.589999999851,
+          "jsDecodedBytes": 1778196,
+          "crossOriginIsolated": true,
+          "scriptMs": 715.2349999999999,
+          "layoutMs": 10.671,
+          "recalcStyleMs": 4.523,
+          "taskMs": 891.521,
+          "jsHeapMiB": 10.973503112792969
+        },
+        {
+          "interactiveAt": 1279.2949999999255,
+          "frames": 6,
+          "marks": {
+            "host-script": 541.429999999702,
+            "element-ready": 659.4050000011921
+          },
+          "domContentLoaded": 753.679999999702,
+          "jsDecodedBytes": 1778196,
+          "crossOriginIsolated": true,
+          "scriptMs": 840.7470000000001,
+          "layoutMs": 14.357,
+          "recalcStyleMs": 3.27,
+          "taskMs": 1053.626,
+          "jsHeapMiB": 10.958274841308594
+        },
+        {
+          "interactiveAt": 1104.359999999404,
+          "frames": 6,
+          "marks": {
+            "host-script": 449.804999999702,
+            "element-ready": 546.9350000005215
+          },
+          "domContentLoaded": 608.9149999991059,
+          "jsDecodedBytes": 1778196,
+          "crossOriginIsolated": true,
+          "scriptMs": 672.059,
+          "layoutMs": 20.556,
+          "recalcStyleMs": 5.845999999999999,
+          "taskMs": 872.63,
+          "jsHeapMiB": 10.936882019042969
+        },
+        {
+          "interactiveAt": 1219.890000000596,
+          "frames": 6,
+          "marks": {
+            "host-script": 549.1800000015646,
+            "element-ready": 660.3250000011176
+          },
+          "domContentLoaded": 726.3500000014901,
+          "jsDecodedBytes": 1778196,
+          "crossOriginIsolated": true,
+          "scriptMs": 735.6129999999999,
+          "layoutMs": 145.71,
+          "recalcStyleMs": 13.186,
+          "taskMs": 1102.824,
+          "jsHeapMiB": 10.943553924560547
+        },
+        {
+          "interactiveAt": 1094.089999999851,
+          "frames": 5,
+          "marks": {
+            "host-script": 436.4500000011176,
+            "element-ready": 519.7200000006706
+          },
+          "domContentLoaded": 584.3300000000745,
+          "jsDecodedBytes": 1778196,
+          "crossOriginIsolated": true,
+          "scriptMs": 694.699,
+          "layoutMs": 40.77,
+          "recalcStyleMs": 2.297,
+          "taskMs": 924.9190000000001,
+          "jsHeapMiB": 10.93343734741211
+        },
+        {
+          "interactiveAt": 1328.390000000596,
+          "frames": 7,
+          "marks": {
+            "host-script": 554.6150000002235,
+            "element-ready": 648.644999999553
+          },
+          "domContentLoaded": 722.355000000447,
+          "jsDecodedBytes": 1778196,
+          "crossOriginIsolated": true,
+          "scriptMs": 761.375,
+          "layoutMs": 13.511000000000001,
+          "recalcStyleMs": 2.958,
+          "taskMs": 993.724,
+          "jsHeapMiB": 11.021034240722656
+        },
+        {
+          "interactiveAt": 1426.875,
+          "frames": 6,
+          "marks": {
+            "host-script": 562.1149999983609,
+            "element-ready": 676.25
+          },
+          "domContentLoaded": 755.7749999985099,
+          "jsDecodedBytes": 1778196,
+          "crossOriginIsolated": true,
+          "scriptMs": 935.784,
+          "layoutMs": 92.443,
+          "recalcStyleMs": 3.458,
+          "taskMs": 1295.536,
+          "jsHeapMiB": 10.940502166748047
+        }
+      ]
+    },
+    "react 19 (element)": {
+      "interactiveMs": {
+        "n": 7,
+        "median": 939.8149999994785,
+        "p25": 913.0124999992549,
+        "p75": 1009.1450000004843,
+        "min": 864.535000000149,
+        "max": 1132.894999999553,
+        "mean": 968.7942857140941
+      },
+      "elementReadyMs": {
+        "n": 7,
+        "median": 335.53999999910593,
+        "p25": 288.11249999981374,
+        "p75": 370.9474999997765,
+        "min": 265.99499999918044,
+        "max": 412.08500000089407,
+        "mean": 333.10571428548013
+      },
+      "domContentLoadedMs": {
+        "n": 7,
+        "median": 311.97000000067055,
+        "p25": 254.05499999970198,
+        "p75": 327.554999999702,
+        "min": 236.02500000037253,
+        "max": 379.85500000044703,
+        "mean": 298.7242857143283
+      },
+      "scriptMs": {
+        "n": 7,
+        "median": 587.4209999999999,
+        "p25": 575.3715,
+        "p75": 649.8154999999999,
+        "min": 546.661,
+        "max": 753.784,
+        "mean": 619.7485714285714
+      },
+      "layoutMs": {
+        "n": 7,
+        "median": 23.921000000000003,
+        "p25": 19.5895,
+        "p75": 26.34,
+        "min": 15.6,
+        "max": 124.28599999999999,
+        "mean": 36.523714285714284
+      },
+      "recalcStyleMs": {
+        "n": 7,
+        "median": 3.1580000000000004,
+        "p25": 2.9875,
+        "p75": 3.869,
+        "min": 2.871,
+        "max": 7.162,
+        "mean": 3.8434285714285714
+      },
+      "taskMs": {
+        "n": 7,
+        "median": 816.8530000000001,
+        "p25": 727.42,
+        "p75": 842.0844999999999,
+        "min": 712.981,
+        "max": 901.212,
+        "mean": 795.7221428571429
+      },
+      "jsHeapMiB": {
+        "n": 7,
+        "median": 4.477504730224609,
+        "p25": 4.472068786621094,
+        "p75": 4.482196807861328,
+        "min": 4.4639129638671875,
+        "max": 4.484508514404297,
+        "mean": 4.476351056780134
+      },
+      "jsDecodedKiB": {
+        "n": 7,
+        "median": 886.607421875,
+        "p25": 886.607421875,
+        "p75": 886.607421875,
+        "min": 886.607421875,
+        "max": 886.607421875,
+        "mean": 886.607421875
+      },
+      "crossOriginIsolated": true,
+      "raw": [
+        {
+          "interactiveAt": 1050.585000000894,
+          "frames": 8,
+          "marks": {
+            "host-script": 233.56000000052154,
+            "element-ready": 265.99499999918044
+          },
+          "domContentLoaded": 236.02500000037253,
+          "jsDecodedBytes": 907886,
+          "crossOriginIsolated": true,
+          "scriptMs": 753.784,
+          "layoutMs": 17.21,
+          "recalcStyleMs": 3.646,
+          "taskMs": 901.212,
+          "jsHeapMiB": 4.484508514404297
+        },
+        {
+          "interactiveAt": 864.535000000149,
+          "frames": 6,
+          "marks": {
+            "host-script": 246.60500000044703,
+            "element-ready": 277.8849999997765
+          },
+          "domContentLoaded": 251.035000000149,
+          "jsDecodedBytes": 907886,
+          "crossOriginIsolated": true,
+          "scriptMs": 568.48,
+          "layoutMs": 21.968999999999998,
+          "recalcStyleMs": 3.1580000000000004,
+          "taskMs": 712.981,
+          "jsHeapMiB": 4.469799041748047
+        },
+        {
+          "interactiveAt": 927.484999999404,
+          "frames": 8,
+          "marks": {
+            "host-script": 308.214999999851,
+            "element-ready": 362.25500000081956
+          },
+          "domContentLoaded": 311.97000000067055,
+          "jsDecodedBytes": 907886,
+          "crossOriginIsolated": true,
+          "scriptMs": 546.661,
+          "layoutMs": 15.6,
+          "recalcStyleMs": 2.972,
+          "taskMs": 727.8299999999999,
+          "jsHeapMiB": 4.481204986572266
+        },
+        {
+          "interactiveAt": 1132.894999999553,
+          "frames": 7,
+          "marks": {
+            "host-script": 377.1150000002235,
+            "element-ready": 412.08500000089407
+          },
+          "domContentLoaded": 379.85500000044703,
+          "jsDecodedBytes": 907886,
+          "crossOriginIsolated": true,
+          "scriptMs": 691.5029999999999,
+          "layoutMs": 24.125,
+          "recalcStyleMs": 4.0920000000000005,
+          "taskMs": 850.489,
+          "jsHeapMiB": 4.483188629150391
+        },
+        {
+          "interactiveAt": 939.8149999994785,
+          "frames": 7,
+          "marks": {
+            "host-script": 337.8199999984354,
+            "element-ready": 379.6399999987334
+          },
+          "domContentLoaded": 341.0949999988079,
+          "jsDecodedBytes": 907886,
+          "crossOriginIsolated": true,
+          "scriptMs": 587.4209999999999,
+          "layoutMs": 124.28599999999999,
+          "recalcStyleMs": 7.162,
+          "taskMs": 833.68,
+          "jsHeapMiB": 4.474338531494141
+        },
+        {
+          "interactiveAt": 967.7050000000745,
+          "frames": 8,
+          "marks": {
+            "host-script": 311.4900000002235,
+            "element-ready": 335.53999999910593
+          },
+          "domContentLoaded": 314.01500000059605,
+          "jsDecodedBytes": 907886,
+          "crossOriginIsolated": true,
+          "scriptMs": 582.2629999999999,
+          "layoutMs": 28.555,
+          "recalcStyleMs": 3.003,
+          "taskMs": 727.01,
+          "jsHeapMiB": 4.4639129638671875
+        },
+        {
+          "interactiveAt": 898.5399999991059,
+          "frames": 7,
+          "marks": {
+            "host-script": 254.035000000149,
+            "element-ready": 298.339999999851
+          },
+          "domContentLoaded": 257.07499999925494,
+          "jsDecodedBytes": 907886,
+          "crossOriginIsolated": true,
+          "scriptMs": 608.128,
+          "layoutMs": 23.921000000000003,
+          "recalcStyleMs": 2.871,
+          "taskMs": 816.8530000000001,
+          "jsHeapMiB": 4.477504730224609
+        }
+      ]
+    }
+  },
+  "css": [
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "none",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 2,
+      "shadowStyleNodes": 0,
+      "elements": 128,
+      "elementsDiffering": 0,
+      "missingElements": 0,
+      "propertyCounts": {},
+      "onlyInheritedPropertiesDiffer": true,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000006103521627665032,
+      "geometryMaxAbsDeltaImagePx": 0
+    },
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "bootstrap",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "color": 1
+      },
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 2,
+      "shadowStyleNodes": 0,
+      "elements": 128,
+      "elementsDiffering": 42,
+      "missingElements": 0,
+      "propertyCounts": {
+        "font-family": 33,
+        "line-height": 42,
+        "color": 33,
+        "height": 19
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000012207028191824065,
+      "geometryMaxAbsDeltaImagePx": 1.8574279715014654
+    },
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "tailwind",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 2,
+      "shadowStyleNodes": 0,
+      "elements": 128,
+      "elementsDiffering": 42,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 42,
+        "height": 19
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000012207028191824065,
+      "geometryMaxAbsDeltaImagePx": 1.8574279715014654
+    },
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "tailwind-layered",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 2,
+      "shadowStyleNodes": 0,
+      "elements": 128,
+      "elementsDiffering": 42,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 42,
+        "height": 19
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000012207028191824065,
+      "geometryMaxAbsDeltaImagePx": 1.8574279715014654
+    },
+    {
+      "mode": "light",
+      "stock": "layer",
+      "css": "none",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 1,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 0,
+      "missingElements": 0,
+      "propertyCounts": {},
+      "onlyInheritedPropertiesDiffer": true,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000006103515261202119,
+      "geometryMaxAbsDeltaImagePx": 0
+    },
+    {
+      "mode": "light",
+      "stock": "layer",
+      "css": "bootstrap",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 15,
+      "toolbarStockPropertyCounts": {
+        "color": 1,
+        "border-top-left-radius": 7,
+        "font-size": 7
+      },
+      "rectButtonBox": {
+        "w": 68.359375,
+        "h": 32
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 1,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "font-family": 114,
+        "line-height": 126,
+        "color": 32,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "font-size": 78,
+        "border-top-left-radius": 7,
+        "vertical-align": 12
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "box-sizing",
+        "border-top-left-radius",
+        "vertical-align"
+      ],
+      "toolbarBarHeight": 92,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    },
+    {
+      "mode": "light",
+      "stock": "layer",
+      "css": "tailwind",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 51,
+      "toolbarStockPropertyCounts": {
+        "border-top-style": 8,
+        "padding-top": 7,
+        "padding-left": 7,
+        "border-top-left-radius": 7,
+        "background-color": 7,
+        "color": 7,
+        "font-weight": 1,
+        "font-size": 7
+      },
+      "rectButtonBox": {
+        "w": 41.328125,
+        "h": 24
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 1,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 126,
+        "border-top-style": 99,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "font-family": 82,
+        "font-size": 78,
+        "font-weight": 1,
+        "color": 7,
+        "background-color": 7,
+        "padding-top": 18,
+        "padding-left": 18,
+        "border-top-left-radius": 7,
+        "vertical-align": 15
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "border-top-style",
+        "box-sizing",
+        "background-color",
+        "padding-top",
+        "padding-left",
+        "border-top-left-radius",
+        "vertical-align"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    },
+    {
+      "mode": "light",
+      "stock": "layer",
+      "css": "tailwind-layered",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "border-top-style": 1
+      },
+      "rectButtonBox": {
+        "w": 53.578125,
+        "h": 27.5
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 1,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 126,
+        "border-top-style": 92,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "font-family": 82,
+        "vertical-align": 15,
+        "font-size": 71,
+        "padding-top": 11,
+        "padding-left": 11
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "border-top-style",
+        "box-sizing",
+        "vertical-align",
+        "padding-top",
+        "padding-left"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    },
+    {
+      "mode": "light",
+      "stock": "unlayered",
+      "css": "none",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 2,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 0,
+      "missingElements": 0,
+      "propertyCounts": {},
+      "onlyInheritedPropertiesDiffer": true,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000006103515261202119,
+      "geometryMaxAbsDeltaImagePx": 0
+    },
+    {
+      "mode": "light",
+      "stock": "unlayered",
+      "css": "bootstrap",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "color": 1
+      },
+      "rectButtonBox": {
+        "w": 59.296875,
+        "h": 27.5
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 2,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "font-family": 114,
+        "line-height": 126,
+        "color": 32,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "vertical-align": 12,
+        "font-size": 71
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "box-sizing",
+        "vertical-align"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    },
+    {
+      "mode": "light",
+      "stock": "unlayered",
+      "css": "tailwind",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "border-top-style": 1
+      },
+      "rectButtonBox": {
+        "w": 53.578125,
+        "h": 27.5
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 2,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 126,
+        "border-top-style": 92,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "font-family": 82,
+        "vertical-align": 15,
+        "font-size": 71,
+        "padding-top": 11,
+        "padding-left": 11
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "border-top-style",
+        "box-sizing",
+        "vertical-align",
+        "padding-top",
+        "padding-left"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    },
+    {
+      "mode": "light",
+      "stock": "unlayered",
+      "css": "tailwind-layered",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "border-top-style": 1
+      },
+      "rectButtonBox": {
+        "w": 53.578125,
+        "h": 27.5
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 2,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 126,
+        "border-top-style": 92,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "font-family": 82,
+        "vertical-align": 15,
+        "font-size": 71,
+        "padding-top": 11,
+        "padding-left": 11
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "border-top-style",
+        "box-sizing",
+        "vertical-align",
+        "padding-top",
+        "padding-left"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    }
+  ],
+  "mount": {
+    "solid": {
+      "firstMountMs": {
+        "n": 5,
+        "median": 17.304999999701977,
+        "p25": 17.27500000037253,
+        "p75": 25.030000001192093,
+        "min": 13.66499999910593,
+        "max": 25.77500000037253,
+        "mean": 19.81000000014901
+      },
+      "mountMs": {
+        "n": 200,
+        "median": 1.4950000001117587,
+        "p25": 1.155000001192093,
+        "p75": 2.2662500012665987,
+        "min": 0.849999999627471,
+        "max": 9.880000000819564,
+        "mean": 2.025475000040606
+      },
+      "mountStyleLayoutMs": {
+        "n": 200,
+        "median": 2.497499999590218,
+        "p25": 2.050000000745058,
+        "p75": 3.528749999124557,
+        "min": 1.6349999997764826,
+        "max": 11.040000000968575,
+        "mean": 3.0860500000137834
+      },
+      "sheetConstructUs": {
+        "n": 100,
+        "median": 24.400000013411045,
+        "p25": 23.200000002980232,
+        "p75": 28.900000005960464,
+        "min": 20.30000001192093,
+        "max": 101.29999998956919,
+        "mean": 28.481999999657273
+      },
+      "adoptStockUs": {
+        "n": 300,
+        "median": 354.9999985843897,
+        "p25": 259.9999997764826,
+        "p75": 416.25000070780516,
+        "min": 150.00000037252903,
+        "max": 4429.999999701977,
+        "mean": 387.96666665002704
+      },
+      "adoptEmptyUs": {
+        "n": 300,
+        "median": 105.00000044703484,
+        "p25": 90.00000171363354,
+        "p75": 115.00000022351742,
+        "min": 74.99999925494194,
+        "max": 394.99999955296516,
+        "mean": 110.48333336909612
+      },
+      "toolbarButtons": 7,
+      "crossOriginIsolated": true,
+      "pages": 5,
+      "repsPerPage": 40
+    },
+    "react": {
+      "firstMountMs": {
+        "n": 5,
+        "median": 27.97499999962747,
+        "p25": 27.59999999962747,
+        "p75": 44.74000000022352,
+        "min": 26.734999999403954,
+        "max": 48.040000000968575,
+        "mean": 35.0179999999702
+      },
+      "mountMs": {
+        "n": 200,
+        "median": 2.197500000707805,
+        "p25": 1.9050000007264316,
+        "p75": 2.8025000002235174,
+        "min": 1.4400000013411045,
+        "max": 17.080000000074506,
+        "mean": 2.780200000042096
+      },
+      "mountStyleLayoutMs": {
+        "n": 200,
+        "median": 3.290000000037253,
+        "p25": 2.8450000006705523,
+        "p75": 3.9062499995343387,
+        "min": 2.269999999552965,
+        "max": 18.199999999254942,
+        "mean": 3.8919750000722706
+      },
+      "sheetConstructUs": {
+        "n": 100,
+        "median": 23.80000000819564,
+        "p25": 22.60000000707805,
+        "p75": 25.19999999552965,
+        "min": 21.400000005960464,
+        "max": 41.20000001043081,
+        "mean": 24.727000000327827
+      },
+      "adoptStockUs": {
+        "n": 300,
+        "median": 337.50000037252903,
+        "p25": 234.99999940395355,
+        "p75": 406.2499995343387,
+        "min": 150.00000037252903,
+        "max": 4414.99999910593,
+        "mean": 358.75000003104407
+      },
+      "adoptEmptyUs": {
+        "n": 300,
+        "median": 105.00000044703484,
+        "p25": 90.00000171363354,
+        "p75": 126.25000020489097,
+        "min": 74.99999925494194,
+        "max": 3015.0000005960464,
+        "mean": 140.51666670789322
+      },
+      "toolbarButtons": 7,
+      "crossOriginIsolated": true,
+      "pages": 5,
+      "repsPerPage": 40
+    },
+    "element-shadow": {
+      "firstMountMs": {
+        "n": 5,
+        "median": 19.325000001117587,
+        "p25": 18.605000000447035,
+        "p75": 21.929999999701977,
+        "min": 15.785000000149012,
+        "max": 33.41000000014901,
+        "mean": 21.811000000312923
+      },
+      "mountMs": {
+        "n": 200,
+        "median": 1.6675000004470348,
+        "p25": 1.2900000005029142,
+        "p75": 2.6724999994039536,
+        "min": 1.0050000008195639,
+        "max": 8.964999999850988,
+        "mean": 2.3197499999869615
+      },
+      "mountStyleLayoutMs": {
+        "n": 200,
+        "median": 3.014999999664724,
+        "p25": 2.5424999999813735,
+        "p75": 4.3325000000186265,
+        "min": 2.099999999627471,
+        "max": 11.959999999031425,
+        "mean": 3.9340249999985097
+      },
+      "sheetConstructUs": {
+        "n": 100,
+        "median": 24.450000002980232,
+        "p25": 23.00000000745058,
+        "p75": 27.800000021234155,
+        "min": 21.600000001490116,
+        "max": 68.50000001490116,
+        "mean": 27.325000000745057
+      },
+      "adoptStockUs": {
+        "n": 300,
+        "median": 379.9999989569187,
+        "p25": 303.7499999627471,
+        "p75": 456.2499998137355,
+        "min": 164.99999910593033,
+        "max": 1685.0000005215406,
+        "mean": 398.76666670665145
+      },
+      "adoptEmptyUs": {
+        "n": 300,
+        "median": 109.99999940395355,
+        "p25": 95.00000067055225,
+        "p75": 134.99999977648258,
+        "min": 80.0000000745058,
+        "max": 299.9999988824129,
+        "mean": 120.34999993940194
+      },
+      "toolbarButtons": 7,
+      "crossOriginIsolated": true,
+      "pages": 5,
+      "repsPerPage": 40
+    },
+    "element-light": {
+      "firstMountMs": {
+        "n": 5,
+        "median": 18.234999999403954,
+        "p25": 18.230000000447035,
+        "p75": 21.669999999925494,
+        "min": 14.56000000052154,
+        "max": 37.81000000052154,
+        "mean": 22.101000000163914
+      },
+      "mountMs": {
+        "n": 200,
+        "median": 1.8250000001862645,
+        "p25": 1.3700000010430813,
+        "p75": 2.6537500005215406,
+        "min": 0.9499999992549419,
+        "max": 10.43500000052154,
+        "mean": 2.43832499996759
+      },
+      "mountStyleLayoutMs": {
+        "n": 200,
+        "median": 2.8449999997392297,
+        "p25": 2.3049999997019768,
+        "p75": 4.031249999534339,
+        "min": 1.6600000001490116,
+        "max": 14.18999999947846,
+        "mean": 3.6998499999660996
+      },
+      "sheetConstructUs": {
+        "n": 100,
+        "median": 27.99999998882413,
+        "p25": 23.474999982863665,
+        "p75": 39.874999998137355,
+        "min": 21.600000001490116,
+        "max": 51.99999999254942,
+        "mean": 31.718000002205372
+      },
+      "adoptStockUs": {
+        "n": 300,
+        "median": 394.99999955296516,
+        "p25": 289.9999991059303,
+        "p75": 580.0000000745058,
+        "min": 149.99999850988388,
+        "max": 1615.0000002235174,
+        "mean": 447.5999999543031
+      },
+      "adoptEmptyUs": {
+        "n": 300,
+        "median": 125,
+        "p25": 99.99999962747097,
+        "p75": 224.99999962747097,
+        "min": 74.99999925494194,
+        "max": 705.0000000745058,
+        "mean": 165.68333332737288
+      },
+      "toolbarButtons": 7,
+      "crossOriginIsolated": true,
+      "pages": 5,
+      "repsPerPage": 40
+    }
+  }
+}

@@ -1,0 +1,331 @@
+{
+  "meta": {
+    "startedAt": "2026-10-24T14:20:49.037Z",
+    "gitSha": "ff3015526d2575eea4b091d26262ba282c406172",
+    "node": "v22.22.0",
+    "cpus": 4,
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "totalMemGiB": 15.7,
+    "loadAvg1mAtStart": 4.03,
+    "reps": 7,
+    "chromium": "/opt/pw-browsers/chromium",
+    "browserVersion": "153.0.8010.12",
+    "finishedAt": "2026-10-24T14:21:06.217Z",
+    "loadAvg1mAtEnd": 5.55
+  },
+  "css": [
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "none",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 0,
+      "shadowStyleNodes": 1,
+      "elements": 128,
+      "elementsDiffering": 0,
+      "missingElements": 0,
+      "propertyCounts": {},
+      "onlyInheritedPropertiesDiffer": true,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000006103521627665032,
+      "geometryMaxAbsDeltaImagePx": 0
+    },
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "bootstrap",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "color": 1
+      },
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 0,
+      "shadowStyleNodes": 1,
+      "elements": 128,
+      "elementsDiffering": 42,
+      "missingElements": 0,
+      "propertyCounts": {
+        "font-family": 33,
+        "line-height": 42,
+        "color": 33,
+        "height": 19
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000012207028191824065,
+      "geometryMaxAbsDeltaImagePx": 1.8574279715014654
+    },
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "tailwind",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 0,
+      "shadowStyleNodes": 1,
+      "elements": 128,
+      "elementsDiffering": 42,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 42,
+        "height": 19
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000012207028191824065,
+      "geometryMaxAbsDeltaImagePx": 1.8574279715014654
+    },
+    {
+      "mode": "shadow",
+      "stock": "default",
+      "css": "tailwind-layered",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": 0,
+      "shadowStyleNodes": 1,
+      "elements": 128,
+      "elementsDiffering": 42,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 42,
+        "height": 19
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000012207028191824065,
+      "geometryMaxAbsDeltaImagePx": 1.8574279715014654
+    },
+    {
+      "mode": "light",
+      "stock": "default",
+      "css": "none",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 0,
+      "toolbarStockPropertyCounts": {},
+      "rectButtonBox": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 0,
+      "missingElements": 0,
+      "propertyCounts": {},
+      "onlyInheritedPropertiesDiffer": true,
+      "selectorMatchedProperties": [],
+      "toolbarBarHeight": 86,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.000006103515261202119,
+      "geometryMaxAbsDeltaImagePx": 0
+    },
+    {
+      "mode": "light",
+      "stock": "default",
+      "css": "bootstrap",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "color": 1
+      },
+      "rectButtonBox": {
+        "w": 59.296875,
+        "h": 27.5
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "font-family": 114,
+        "line-height": 126,
+        "color": 32,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "vertical-align": 12,
+        "font-size": 71
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "box-sizing",
+        "vertical-align"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    },
+    {
+      "mode": "light",
+      "stock": "default",
+      "css": "tailwind",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "border-top-style": 1
+      },
+      "rectButtonBox": {
+        "w": 53.578125,
+        "h": 27.5
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 126,
+        "border-top-style": 92,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "font-family": 82,
+        "vertical-align": 15,
+        "font-size": 71,
+        "padding-top": 11,
+        "padding-left": 11
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "border-top-style",
+        "box-sizing",
+        "vertical-align",
+        "padding-top",
+        "padding-left"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    },
+    {
+      "mode": "light",
+      "stock": "default",
+      "css": "tailwind-layered",
+      "toolbarElements": 8,
+      "toolbarStockPropsChanged": 1,
+      "toolbarStockPropertyCounts": {
+        "border-top-style": 1
+      },
+      "rectButtonBox": {
+        "w": 53.578125,
+        "h": 27.5
+      },
+      "rectButtonBoxBaseline": {
+        "w": 57.578125,
+        "h": 23
+      },
+      "headStyleNodesAdded": 0,
+      "documentAdoptedSheets": 0,
+      "shadowAdoptedSheets": null,
+      "shadowStyleNodes": null,
+      "elements": 127,
+      "elementsDiffering": 127,
+      "missingElements": 0,
+      "propertyCounts": {
+        "line-height": 126,
+        "border-top-style": 92,
+        "box-sizing": 97,
+        "height": 22,
+        "width": 36,
+        "font-family": 82,
+        "vertical-align": 15,
+        "font-size": 71,
+        "padding-top": 11,
+        "padding-left": 11
+      },
+      "onlyInheritedPropertiesDiffer": false,
+      "selectorMatchedProperties": [
+        "border-top-style",
+        "box-sizing",
+        "vertical-align",
+        "padding-top",
+        "padding-left"
+      ],
+      "toolbarBarHeight": 88,
+      "toolbarBarHeightBaseline": 86,
+      "rectangleCreated": true,
+      "pointerToShapeErrorScreenPx": 0.00001220704496063263,
+      "geometryMaxAbsDeltaImagePx": 5.079384455618424
+    }
+  ]
+}
