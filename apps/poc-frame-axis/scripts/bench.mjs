@@ -20,6 +20,7 @@
  *   --out <dir>             results directory (default results/<timestamp>)
  *   --only <regex>          run only the configurations whose name matches
  *   --reps <n>              repetitions per Solid configuration (default 5; --quick 1)
+ *   --cine-reps <n>         repetitions of the canvas-drawer cine pixel paths (default 3)
  *
  * Memory is the PSS of every process in the browser's tree (Linux /proc only;
  * reported as null elsewhere), sampled before setup, after setup and after the
@@ -261,7 +262,17 @@ async function groupLayers(browser, pid) {
   const drawers = (opt('--layer-drawers', 'canvas,webgl') ?? '').split(',');
   // `cache-nocache` = the per-frame object cache with Fabric's per-object
   // render caching switched off (simple shapes redraw faster than they blit).
-  const allLayers = ['cache', 'cache-nocache', 'rebuild-sync', 'rebuild-async', 'visibility'];
+  // `rebuild-*-nocache` = today's rebuild paths with caching off, i.e. no
+  // object reuse at all (the review's simpler alternative to the cache).
+  const allLayers = [
+    'cache',
+    'cache-nocache',
+    'rebuild-sync',
+    'rebuild-async',
+    'rebuild-sync-nocache',
+    'rebuild-async-nocache',
+    'visibility',
+  ];
   const counts = QUICK ? [0, 50] : [0, 10, 50, 200];
   for (const drawer of drawers) {
     // The full matrix on the canvas drawer; on WebGL (CPU-emulated here) only
@@ -271,8 +282,8 @@ async function groupLayers(browser, pid) {
       for (const n of counts) {
         if (n === 0 && layerName !== 'cache') continue;
         if (drawer !== 'canvas' && n === 200) continue;
-        const layer = layerName === 'cache-nocache' ? 'cache' : layerName;
-        const objectCaching = layerName !== 'cache-nocache';
+        const layer = layerName.replace(/-nocache$/, '');
+        const objectCaching = !layerName.endsWith('-nocache');
         const name = `${layerName}/${n}/${drawer}`;
         if (ONLY && !ONLY.test(name)) continue;
         process.stdout.write(`  layers ${name} ... `);
@@ -304,6 +315,8 @@ async function groupLayers(browser, pid) {
   return out;
 }
 
+const CINE_REPS = Number(opt('--cine-reps', '3'));
+
 async function groupCine(browser, pid) {
   const out = [];
   const variants = QUICK
@@ -322,14 +335,20 @@ async function groupCine(browser, pid) {
         { source: 'video', drawer: 'canvas', fps: 60, videoTimes: 'nominal' },
         { source: 'video', drawer: 'canvas', fps: 60, videoTimes: 'calibrated' },
       ];
-  for (const v of variants) {
+  // The canvas-drawer pixel paths ran with a few percent of run-to-run spread
+  // before stepping was locked to the rAF timestamp: repeat them.
+  const cineReps = (v) => (QUICK || v.drawer !== 'canvas' || v.source === 'video' ? 1 : CINE_REPS);
+  const runs = variants.flatMap((v) =>
+    Array.from({ length: cineReps(v) }, (_, rep) => ({ v, rep })),
+  );
+  for (const { v, rep } of runs) {
     const name = `cine/${v.source}${v.videoTimes ? `-${v.videoTimes}` : ''}/${v.drawer}/${v.fps}`;
     if (ONLY && !ONLY.test(name)) continue;
-    process.stdout.write(`  ${name} ... `);
+    process.stdout.write(`  ${name} #${rep + 1} ... `);
     const t = Date.now();
     const { context, page } = await openPage(browser);
     const mem0 = pssMB(pid);
-    const r = { name, opts: v, loadAvgBefore: load() };
+    const r = { name, rep, opts: v, loadAvgBefore: load() };
     try {
       r.result = await call(page, 'cine', {
         ...v,
@@ -577,6 +596,7 @@ function summary(results) {
       ['step naive us', (r) => r.result?.stepUs?.frameAxisNaiveFilter ?? '-'],
       ['step slice us', (r) => r.result?.stepUs?.perSlice ?? '-'],
       ['cstr frame', (r) => r.result?.constraints?.perSliceLimit?.frameAxisPerFrameMs ?? '-'],
+      ['cstr frame idx', (r) => r.result?.constraints?.perSliceLimit?.frameAxisFromIndexMs ?? '-'],
       ['cstr slice', (r) => r.result?.constraints?.perSliceLimit?.perSlicePerImageMs ?? '-'],
       ['cstr series(fa)', (r) => r.result?.constraints?.perSeriesLimit?.frameAxisPerImageMs ?? '-'],
       [

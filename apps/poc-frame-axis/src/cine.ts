@@ -376,6 +376,22 @@ async function calibrateTimes(
   return { times, seen: seen.size };
 }
 
+/** Median rAF interval over a few frames: the display's vsync period. */
+async function measureVsyncMs(samples = 12): Promise<number> {
+  const stamps: number[] = [];
+  await new Promise<void>((resolve) => {
+    const tick = (ts: number): void => {
+      stamps.push(ts);
+      if (stamps.length > samples) resolve();
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const d = stamps.slice(1).map((t, i) => t - stamps[i]!);
+  d.sort((a, b) => a - b);
+  return d[d.length >> 1] ?? 1000 / 60;
+}
+
 export async function runCine(
   cell: HTMLElement,
   opts: CineOptions,
@@ -522,15 +538,25 @@ export async function runCine(
 
   decoding?.start();
   if (decoding) await sleep(100); // let the decoder fill its look-ahead once
+  const vsync = await measureVsyncMs();
   recorder.recording = true;
   probe.start();
   const start = performance.now();
 
   if (opts.source !== 'video') {
+    // Content frame g is due on the display frame whose vsync-aligned rAF
+    // timestamp reaches g * period. Computing g from performance.now() inside
+    // the callback (as this harness first did) let callback jitter near a slot
+    // boundary repeat one frame and skip the next: at 60 fps on a 60 Hz
+    // display that is clock aliasing, not pipeline cost. The timestamp is
+    // quantised to the display's vsync, and the half-vsync phase keeps every
+    // slot boundary between two vsyncs.
     await new Promise<void>((resolve) => {
       let last = -1;
+      let ts0: number | undefined;
       const tick = (ts: number): void => {
-        const g = Math.floor((performance.now() - start) / period);
+        ts0 ??= ts;
+        const g = Math.floor((ts - ts0 + vsync / 2) / period);
         if (g >= total) {
           resolve();
           return;
@@ -554,7 +580,6 @@ export async function runCine(
           }
           applyMs.push(performance.now() - t0);
         }
-        void ts;
         requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
@@ -641,6 +666,8 @@ export async function runCine(
     markerGaps: video ? markerGaps.length : null,
     videoTimes: video ? (opts.videoTimes ?? 'nominal') : null,
     calibratedFrames,
+    vsyncMs: vsync,
+    stepping: opts.source === 'video' ? 'requestVideoFrameCallback' : 'rAF timestamp',
   });
   decoding?.stop();
   layer.dispose();

@@ -7,7 +7,8 @@
  * the same state, so it is the operation's own CPU cost, not a frame time:
  *
  * - `index`: what a cell does once per annotation change (frame-axis builds
- *   the per-frame bucket index; per-slice has nothing to build).
+ *   the per-frame bucket index; per-slice has nothing to build: `byImage`
+ *   keyed by slice id already is the index).
  * - `step`: what a cell does per frame step to find the annotations to show
  *   (frame-axis: indexed lookup, or the naive filter without the index;
  *   per-slice: the slice's own bucket).
@@ -141,6 +142,15 @@ export function modelBench(opts: ModelBenchOptions): Record<string, unknown> {
     perSliceLimit: {
       frameAxisPerFrameMs: time(reps, () =>
         computeConstraintStatus(limit('per-frame'), framed, series, null, mid),
+      ),
+      // What 'per-frame' would cost counted from the bucket index the cell
+      // already keeps (a production change the PoC does not make).
+      frameAxisFromIndexMs: time(
+        reps,
+        () =>
+          annotationsOnFrame(buckets, mid).filter(
+            (a) => a.contextId === contextId && a.toolType === 'rectangle',
+          ).length,
       ),
       perSlicePerImageMs: time(reps, () =>
         computeConstraintStatus(limit('per-image'), perSlice, sliceIds[mid]!, null),
