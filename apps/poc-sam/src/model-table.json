@@ -1,0 +1,105 @@
+[
+  {
+    "id": "mobile_sam",
+    "label": "MobileSAM (TinyViT-5M)",
+    "family": "sam1",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "mobile_sam.encoder.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.onnx",
+    "decoderFallback": "sam_vit_h_4b8939.decoder.onnx",
+    "encoderParams": "5.7M",
+    "source": "npm @geti-ui/smart-tools 1.7.0 (Apache-2.0); low-res decoder derived by scripts/lowres_decoder.py"
+  },
+  {
+    "id": "mobile_sam_int8",
+    "label": "MobileSAM int8 (dynamic quant.) + full SAM decoder int8",
+    "family": "sam1",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "mobile_sam.encoder.int8.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.int8.onnx",
+    "encoderParams": "5.7M",
+    "source": "mobile_sam quantised by scripts/export_models.py (onnxruntime dynamic int8)"
+  },
+  {
+    "id": "mobile_sam_fulldec",
+    "label": "MobileSAM + full SAM decoder (with orig_im_size upsample)",
+    "family": "sam1",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "mobile_sam.encoder.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.onnx",
+    "encoderParams": "5.7M",
+    "source": "npm @geti-ui/smart-tools 1.7.0 (Apache-2.0)"
+  },
+  {
+    "id": "efficient_sam_ti",
+    "label": "EfficientSAM-Ti (ViT-Ti)",
+    "family": "efficientsam",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "efficient_sam_vitt_encoder.onnx",
+    "decoder": "efficient_sam_vitt_decoder.onnx",
+    "encoderParams": "5.7M",
+    "source": "raw.githubusercontent.com yformer/EfficientSAM weights/ (Apache-2.0)"
+  },
+  {
+    "id": "edge_sam",
+    "label": "EdgeSAM (RepViT-m1)",
+    "family": "sam1",
+    "weights": "random",
+    "inputSize": 1024,
+    "encoder": "edge_sam.encoder.rand.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.onnx",
+    "decoderFallback": "sam_vit_h_4b8939.decoder.onnx",
+    "encoderParams": "5.5M",
+    "source": "EdgeSAM architecture, random weights (scripts/export_models.py)"
+  },
+  {
+    "id": "litemedsam",
+    "label": "LiteMedSAM (TinyViT @256)",
+    "family": "sam1",
+    "weights": "random",
+    "inputSize": 256,
+    "encoder": "litemedsam.encoder.rand.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.onnx",
+    "decoderFallback": "sam_vit_h_4b8939.decoder.onnx",
+    "encoderParams": "5.7M",
+    "source": "LiteMedSAM architecture (MedSAM repo), random weights (scripts/export_models.py)"
+  },
+  {
+    "id": "sam2_tiny",
+    "label": "SAM 2.1 Hiera-T (own export)",
+    "family": "sam2",
+    "weights": "random",
+    "inputSize": 1024,
+    "encoder": "sam2.1_hiera_tiny.encoder.rand.onnx",
+    "decoder": "sam2.1_hiera_tiny.decoder.rand.onnx",
+    "encoderParams": "27M",
+    "source": "sam2 package, SAM 2.1 Hiera-T config, random weights (scripts/export_models.py)"
+  },
+  {
+    "id": "sam2_tiny_real",
+    "label": "SAM 2 Hiera-T (real weights, annotorious .ort)",
+    "family": "sam2",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "sam2_hiera_tiny.encoder.real.ort",
+    "decoder": "sam2_hiera_tiny.decoder.real.onnx",
+    "encoderParams": "27M",
+    "source": "npm @annotorious/plugin-segment-anything 0.5.0 (BSD-3-Clause); ORT-format encoder, multimask-only decoder"
+  },
+  {
+    "id": "sam_vit_b",
+    "label": "SAM ViT-B",
+    "family": "sam1",
+    "weights": "random",
+    "inputSize": 1024,
+    "encoder": "sam_vit_b.encoder.rand.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.onnx",
+    "decoderFallback": "sam_vit_h_4b8939.decoder.onnx",
+    "encoderParams": "89M",
+    "source": "segment-anything vit_b architecture, random weights (scripts/export_models.py)"
+  }
+]

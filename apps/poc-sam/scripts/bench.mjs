@@ -1,3 +1,4 @@
+/* global window -- page.evaluate callbacks run in the browser, not in Node. */
 /**
  * The PoC's one-command benchmark.
  *
@@ -6,7 +7,8 @@
  * Starts the harness's Vite server (COOP/COEP, models, synthetic gigapixel
  * DZI, remote-encode endpoints), drives headless Chromium through:
  *
- *   models  H1  encoder/decoder latency per model x EP x threads
+ *   native  H1  the same models on onnxruntime-node (server baseline, WASM cost)
+ *   models  H1  encoder/decoder latency per model x EP x threads (browser)
  *   e2e     H2  click-to-mask on a 100k x 80k DZI: crop read, encode, decode,
  *               cache hits on pan/zoom, mask/polygon conversion (H3)
  *   remote  H3  server-encode -> browser-decode and all-server topologies
@@ -14,7 +16,9 @@
  * and writes results/<stamp>.json plus a summary table on stdout.
  *
  * Options:
- *   --suites models,e2e,remote   (default: all)
+ *   --suites native,models,e2e,remote   (default: all)
+ *   --steps S1,S2                (e2e/remote scenario steps; default: all)
+ *   --native-threads 1,4
  *   --models mobile_sam,...      (default: every model whose files exist)
  *   --eps wasm,webgpu            (default: wasm,webgpu)
  *   --threads 1,4                (default: 1,4)
@@ -33,6 +37,9 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { pickTargets } from './scene-targets.mjs';
 import { MAX_LEVEL, SYNTH, levelDims, tileBytes } from './synth-tiles.mjs';
+import { MODEL_TABLE, modelById, modelPaths } from './model-table.mjs';
+import { runNativeCase } from './native-suite.mjs';
+import { printSummary } from './summary.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP = path.resolve(HERE, '..');
@@ -52,7 +59,7 @@ const list = (f, fallback) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-const SUITES = list('--suites', 'models,e2e,remote');
+const SUITES = list('--suites', 'native,models,e2e,remote');
 const EPS = list('--eps', 'wasm,webgpu');
 const THREADS = list('--threads', '1,4').map(Number);
 const ENC_REPS = Number(arg('--enc-reps', '3'));
@@ -61,21 +68,9 @@ const PORT = Number(arg('--port', '5480'));
 const HEADED = flag('--headed');
 const TIMEOUT_S = Number(arg('--timeout-s', '240'));
 
-// Must mirror src/model-specs.ts (kept in JS so the runner needs no build).
-const MODEL_FILES = {
-  mobile_sam: ['mobile_sam.encoder.onnx', 'sam_vit_h_4b8939.decoder.lowres.onnx'],
-  mobile_sam_int8: ['mobile_sam.encoder.int8.onnx', 'sam_vit_h_4b8939.decoder.int8.onnx'],
-  efficient_sam_ti: ['efficient_sam_vitt_encoder.onnx', 'efficient_sam_vitt_decoder.onnx'],
-  edge_sam: ['edge_sam.encoder.rand.onnx', 'sam_vit_h_4b8939.decoder.lowres.onnx'],
-  litemedsam: ['litemedsam.encoder.rand.onnx', 'sam_vit_h_4b8939.decoder.lowres.onnx'],
-  sam2_tiny: ['sam2.1_hiera_tiny.encoder.rand.onnx', 'sam2.1_hiera_tiny.decoder.rand.onnx'],
-  sam_vit_b: ['sam_vit_b.encoder.rand.onnx', 'sam_vit_h_4b8939.decoder.lowres.onnx'],
-};
-const LOWRES = 'sam_vit_h_4b8939.decoder.lowres.onnx';
-const exists = (f) =>
-  fs.existsSync(path.join(MODELS_DIR, f)) ||
-  (f === LOWRES && fs.existsSync(path.join(MODELS_DIR, 'sam_vit_h_4b8939.decoder.onnx')));
-const available = Object.keys(MODEL_FILES).filter((m) => MODEL_FILES[m].every(exists));
+// One model list for the pages, the server and the runner: src/model-table.json.
+const available = MODEL_TABLE.filter((m) => modelPaths(m, MODELS_DIR)).map((m) => m.id);
+const NATIVE_THREADS = list('--native-threads', '1,4').map(Number);
 const MODELS = list('--models', available.join(',')).filter((m) => {
   if (!available.includes(m)) {
     console.warn(`skip ${m}: model files missing (run fetch-models / export_models.py)`);
@@ -101,10 +96,12 @@ function chromiumPath() {
 
 
 const E2E_MODELS = list('--e2e-models', 'mobile_sam');
+const WEBGPU_MODELS = list('--webgpu-models', 'edge_sam,mobile_sam');
 const E2E_THREADS = list('--e2e-threads', '4').map(Number);
 const VIEW_W = 1280;
 
 /** The H2/H3 scenario: zoom levels and pans a pathologist actually does. */
+const STEP_FILTER = process.argv.includes("--steps") ? list("--steps", "") : null;
 function scenarioSteps() {
   const T = pickTargets();
   const overview = VIEW_W / 40_000; // the whole island on screen
@@ -122,7 +119,7 @@ function scenarioSteps() {
     { id: 'S6', name: 'zoom 1.5x more (within maxZoomIn: reuse)', view: { cx: T.gland.x, cy: T.gland.y, zoom: glandZoom * 1.5 }, click: { x: T.gland.x + T.gland.rx * 0.86, y: T.gland.y }, gt: glandGt, altGt: lumenGt },
     { id: 'S7', name: 'zoom to 1:1 on a nucleus (crop capped at native resolution)', view: { cx: T.nucleus.x, cy: T.nucleus.y, zoom: 1 }, click: { x: T.nucleus.x, y: T.nucleus.y }, gt: nucleusGt },
     { id: 'S8', name: 'new view, prepare() on settle, then click (decode only)', view: { cx: g2.x, cy: g2.y, zoom: glandZoom }, prepare: true, click: { x: g2.x, y: g2.y }, gt: { kind: 'ellipse', x: g2.x, y: g2.y, rx: g2.rx, ry: g2.ry } },
-  ];
+  ].filter((s) => !STEP_FILTER || STEP_FILTER.includes(s.id));
 }
 
 /**
@@ -153,12 +150,30 @@ function prewarmTiles(steps) {
   console.log(`prewarmed ${n} synthetic tiles in ${Date.now() - t0} ms`);
 }
 
+/** Set in main() once the browser is up: total browser CPU seconds. */
+let cpuTotal = async () => 0;
+
+/**
+ * Per-call CPU from the page's phase marks: ms of browser CPU per encode, and
+ * per decode (the mean of the click and box+2pt prompts, which alternate).
+ */
+function cpuPerCall(marks, cfg) {
+  const at = (l) => marks.find((m) => m.label === l)?.cpu;
+  const span = (a, b) => (at(a) !== undefined && at(b) !== undefined ? (at(b) - at(a)) * 1000 : undefined);
+  const enc = span('encode-start', 'encode-end');
+  const dec = span('decode-start', 'decode-end');
+  return {
+    encodeMs: enc !== undefined && cfg.encoderReps > 0 ? enc / cfg.encoderReps : undefined,
+    decodeMs: dec !== undefined && cfg.decoderReps > 0 ? dec / (2 * cfg.decoderReps) : undefined,
+  };
+}
+
 async function runScenario(openPage, cfg, steps) {
   const { page, context } = await openPage('/e2e.html');
   await page.waitForFunction(() => typeof window.__e2e === 'object', null, { timeout: 60_000 });
   const t0 = Date.now();
   const init = await page.evaluate((c) => window.__e2e.init({ image: 'synth', ...c }), cfg);
-  const out = { config: cfg, init, initMs: Date.now() - t0, steps: [] };
+  const out = { config: cfg, init, initMs: Date.now() - t0, steps: [], loadavg: [os.loadavg()[0]] };
   console.log(`\n[e2e ${cfg.mode} ${cfg.model} t=${cfg.threads}] init ${out.initMs} ms`);
   for (const step of steps) {
     const rec = { id: step.id, name: step.name };
@@ -167,10 +182,14 @@ async function runScenario(openPage, cfg, steps) {
       if (step.prepare) rec.prepareMs = await page.evaluate(() => window.__e2e.prepare());
       const from = await page.evaluate(() => window.__e2e.mark());
       const s = await page.evaluate((p) => window.__e2e.toScreen(p), step.click);
+      const cpu0 = await cpuTotal();
       const clickAt = Date.now();
       await page.mouse.click(s.x, s.y);
       rec.events = await page.evaluate(([f, ms]) => window.__e2e.waitPainted(f, ms), [from, TIMEOUT_S * 1000]);
       rec.wallMs = Date.now() - clickAt;
+      // Browser CPU (all processes) from click to painted; the remote modes'
+      // server work runs in this Node process and is not included.
+      rec.browserCpuMs = Math.round((await cpuTotal()) * 1000 - cpu0 * 1000);
       rec.analysis = await page.evaluate((gt) => window.__e2e.analyze(gt), step.gt);
       if (step.altGt) {
         const alt = await page.evaluate((gt) => window.__e2e.analyze(gt), step.altGt);
@@ -187,6 +206,7 @@ async function runScenario(openPage, cfg, steps) {
     printStep(rec);
   }
   await context.close();
+  out.loadavg.push(os.loadavg()[0]);
   return out;
 }
 
@@ -236,39 +256,72 @@ async function main() {
       browser: { executablePath: executablePath ?? 'playwright-bundled', version: browser.version() },
       args: process.argv.slice(2),
     },
+    native: [],
     models: [],
     e2e: null,
     remote: null,
   };
 
-  const openPage = async (url) => {
+  // CPU seconds summed over every browser process (renderer, its workers'
+  // threads, and the GPU process where SwiftShader runs), 10 ms resolution.
+  const cdp = await browser.newBrowserCDPSession();
+  cpuTotal = async () => {
+    const { processInfo } = await cdp.send('SystemInfo.getProcessInfo');
+    return processInfo.reduce((s, p) => s + p.cpuTime, 0);
+  };
+
+  const openPage = async (url, { cpuMarks } = {}) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
+    const marks = [];
+    if (cpuMarks) await page.exposeFunction('__cpuMark', async (label) => void marks.push({ label, cpu: await cpuTotal() }));
     page.on('console', (m) => {
       if (m.type() === 'error') console.log(`  [page] ${m.text()}`);
     });
     page.on('pageerror', (e) => console.log(`  [pageerror] ${e.message}`));
     await page.goto(`${base}${url}`);
-    return { page, context };
+    return { page, context, marks };
   };
 
   try {
-    if (SUITES.includes('models')) {
-      const configs = [];
-      for (const model of MODELS) {
-        for (const threads of THREADS) {
-          configs.push({ model, encoderEp: 'wasm', decoderEp: 'wasm', threads, encoderReps: ENC_REPS, decoderReps: DEC_REPS });
-        }
-        if (EPS.includes('webgpu')) {
-          const t = THREADS[THREADS.length - 1];
-          // SwiftShader WebGPU is CPU-emulated: decoder-only first (cheap), then
-          // one encoder run under a timeout. Reported as bounds, not results.
-          configs.push({ model, encoderEp: 'wasm', decoderEp: 'webgpu', threads: t, encoderReps: 0, decoderReps: Math.min(DEC_REPS, 5) });
-          configs.push({ model, encoderEp: 'webgpu', decoderEp: 'wasm', threads: t, encoderReps: 1, decoderReps: 1 });
+    // Per model: native cases, then the browser cases, back to back, so the
+    // WASM/native ratio is taken under the same machine load.
+    for (const model of SUITES.includes('native') || SUITES.includes('models') ? MODELS : []) {
+      if (SUITES.includes('native')) {
+        const spec = modelById(model);
+        for (const threads of NATIVE_THREADS) {
+          const tag = `${model.padEnd(18)} native         t=${threads}`;
+          try {
+            const r = await runNativeCase(spec, modelPaths(spec, MODELS_DIR), threads, ENC_REPS, DEC_REPS);
+            results.native.push(r);
+            save(results);
+            console.log(
+              `${tag}  encode ${r.encode.median.toFixed(0).padStart(6)} ms (min ${r.encode.min.toFixed(0)})  ` +
+                `decode(click) ${r.decodeClick.median.toFixed(1).padStart(7)} ms (min ${r.decodeClick.min.toFixed(1)})  ` +
+                `decode(box+2pt) ${r.decodeBoxPoints.median.toFixed(1).padStart(7)} ms  load1 ${r.loadavg[0].toFixed(1)}`,
+            );
+          } catch (e) {
+            results.native.push({ config: { model, threads }, error: String(e?.message ?? e) });
+            console.log(`${tag}  ERROR ${e?.message ?? e}`);
+          }
         }
       }
+      if (!SUITES.includes('models')) continue;
+      const configs = [];
+      for (const threads of THREADS) {
+        configs.push({ model, encoderEp: 'wasm', decoderEp: 'wasm', threads, encoderReps: ENC_REPS, decoderReps: DEC_REPS });
+      }
+      if (EPS.includes('webgpu') && WEBGPU_MODELS.includes(model)) {
+        const t = THREADS[THREADS.length - 1];
+        // SwiftShader WebGPU is CPU-emulated and 30-50x slower than WASM here
+        // (an EdgeSAM encode took 144 s): one first call each, including
+        // pipeline compilation, reported as an upper bound, not a GPU number.
+        configs.push({ model, encoderEp: 'wasm', decoderEp: 'webgpu', threads: t, encoderReps: 0, decoderReps: 1, decoderWarmups: 1 });
+        configs.push({ model, encoderEp: 'webgpu', decoderEp: 'wasm', threads: t, encoderReps: 0, decoderReps: 0, decoderWarmups: 0 });
+      }
       for (const cfg of configs) {
-        const { page, context } = await openPage('/bench-models.html');
+        const loadBefore = os.loadavg()[0];
+        const { page, context, marks } = await openPage('/bench-models.html', { cpuMarks: true });
         await page.waitForFunction(() => typeof window.__runModelBench === 'function', null, { timeout: 60_000 });
         const t0 = Date.now();
         const timeoutMs = TIMEOUT_S * 1000;
@@ -284,15 +337,17 @@ async function main() {
           r = { ...r, partial };
         }
         await context.close();
+        r = { ...r, cpu: cpuPerCall(marks, cfg), loadavg: [loadBefore, os.loadavg()[0]], wallS: (Date.now() - t0) / 1000 };
         results.models.push(r);
-        const tag = `${cfg.model.padEnd(17)} enc=${cfg.encoderEp.padEnd(6)} dec=${cfg.decoderEp.padEnd(6)} t=${cfg.threads}`;
+        save(results);
+        const tag = `${cfg.model.padEnd(18)} enc=${cfg.encoderEp.padEnd(6)} dec=${cfg.decoderEp.padEnd(6)} t=${cfg.threads}`;
         if (r.error) {
           console.log(`${tag}  ERROR ${r.error}${r.partial ? ` partial=${JSON.stringify(r.partial)}` : ''}`);
         } else {
-          const enc = r.encode.n ? `${r.encode.median.toFixed(0).padStart(6)} ms` : '     -   ';
+          const enc = r.encode.n ? `${r.encode.median.toFixed(0).padStart(6)} ms` : `first ${r.firstEncode.toFixed(0)} ms`;
           console.log(
-            `${tag}  encode ${enc}  decode(click) ${r.decodeClick.median.toFixed(1).padStart(7)} ms  ` +
-              `decode(box+2pt) ${r.decodeBoxPoints.median.toFixed(1).padStart(7)} ms  preprocess ${(r.preprocess.median || 0).toFixed(1)} ms  ` +
+            `${tag}  encode ${enc}  decode(click) ${fmt(r.decodeClick.median, 1).padStart(7)} ms  ` +
+              `decode(box+2pt) ${fmt(r.decodeBoxPoints.median, 1).padStart(7)} ms  preprocess ${(r.preprocess.median || 0).toFixed(1)} ms  ` +
               `load ${(r.load.encoderLoad + r.load.decoderLoad).toFixed(0)} ms  [${((Date.now() - t0) / 1000).toFixed(0)} s]`,
           );
         }
@@ -305,17 +360,20 @@ async function main() {
       for (const model of E2E_MODELS) {
         for (const threads of E2E_THREADS) {
           results.e2e.push(await runScenario(openPage, { mode: 'local', model, threads }, scenarioSteps()));
+          save(results);
         }
       }
       // The same inference on the main thread, to show what the worker buys.
       const mainSteps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5'].includes(s.id));
       results.e2e.push(await runScenario(openPage, { mode: 'local-main', model: E2E_MODELS[0], threads: 4 }, mainSteps));
+      save(results);
     }
     if (SUITES.includes('remote')) {
       results.remote = [];
       const steps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5', 'S7'].includes(s.id));
       for (const mode of ['remote-encoder', 'remote-all']) {
         results.remote.push(await runScenario(openPage, { mode, model: E2E_MODELS[0], threads: 4 }, steps));
+        save(results);
       }
       // float16 embeddings on the wire: does the mask change?
       results.f16check = [];
@@ -337,10 +395,18 @@ async function main() {
     await browser.close();
     await server.close();
   }
-  const out = arg('--out', path.join(APP, 'results', `run-${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, JSON.stringify(results, null, 2));
-  console.log(`\nwrote ${path.relative(process.cwd(), out)}`);
+  results.meta.finishedAt = new Date().toISOString();
+  results.meta.loadavgEnd = os.loadavg();
+  save(results);
+  printSummary(results, MODEL_TABLE);
+  console.log(`\nwrote ${path.relative(process.cwd(), OUT)}`);
+}
+
+const OUT = arg('--out', path.join(APP, 'results', `run-${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
+/** Written after every case too, so an interrupted run keeps what it measured. */
+function save(results) {
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  fs.writeFileSync(OUT, JSON.stringify(results, null, 2));
 }
 
 main().catch((e) => {

@@ -19,6 +19,8 @@ export interface ModelBenchConfig {
   /** 0 measures the decoder only (one untimed encode produces its embedding). */
   readonly encoderReps: number;
   readonly decoderReps: number;
+  /** Untimed decodes before the timed ones (default 3; the first includes kernel compilation). */
+  readonly decoderWarmups?: number;
 }
 
 export interface ModelBenchResult {
@@ -26,6 +28,8 @@ export interface ModelBenchResult {
   readonly env: Record<string, unknown>;
   readonly load: Readonly<Record<string, number>>;
   readonly firstEncode: number;
+  /** Wall time of all warm-up decodes (the first includes kernel compilation). */
+  readonly firstDecode: number;
   readonly preprocess: Stats;
   readonly encode: Stats;
   readonly decodeClick: Stats;
@@ -85,12 +89,14 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
   window.__benchProgress = { firstEncode, load: model.loadTimings };
   const pre: number[] = [];
   const enc: number[] = [];
+  await cpuMark('encode-start');
   for (let i = 0; i < cfg.encoderReps; i++) {
     const r = await model.encode(pixels, frame);
     embedding = r.embedding;
     pre.push(r.timings['preprocess']!);
     enc.push(r.timings['encode']!);
   }
+  await cpuMark('encode-end');
 
   const click: SegmentationPrompt = { points: [{ x: S * 0.4, y: S * 0.55, label: 1 }] };
   const boxPoints: SegmentationPrompt = {
@@ -103,7 +109,13 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
   const dClick: number[] = [];
   const dBox: number[] = [];
   const dOut: number[] = [];
-  for (let i = 0; i < 3; i++) await model.decode(embedding, click); // warm-up
+  const firstDecodeAt = performance.now();
+  for (let i = 0; i < (cfg.decoderWarmups ?? 3); i++) {
+    await model.decode(embedding, click);
+    if (i === 0) window.__benchProgress = { ...window.__benchProgress, firstDecode: performance.now() - firstDecodeAt };
+  }
+  const firstDecode = performance.now() - firstDecodeAt;
+  await cpuMark('decode-start');
   for (let i = 0; i < cfg.decoderReps; i++) {
     const a = await model.decode(embedding, click);
     dClick.push(a.timings['decode']!);
@@ -111,12 +123,14 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
     const b = await model.decode(embedding, boxPoints);
     dBox.push(b.timings['decode']!);
   }
+  await cpuMark('decode-end');
   await model.release();
   return {
     config: cfg,
     env,
     load: model.loadTimings,
     firstEncode,
+    firstDecode,
     preprocess: stats(pre),
     encode: stats(enc),
     decodeClick: stats(dClick),
@@ -131,7 +145,17 @@ declare global {
     __runModelBench?: (cfg: ModelBenchConfig) => Promise<ModelBenchResult | { config: ModelBenchConfig; error: string }>;
     /** Partial results, readable by the runner when a configuration times out. */
     __benchProgress?: Record<string, unknown>;
+    /**
+     * Exposed by the runner: samples the browser's per-process CPU time (CDP
+     * SystemInfo.getProcessInfo) at phase boundaries, outside timed regions.
+     * CPU time is far less sensitive to other load on the machine than wall time.
+     */
+    __cpuMark?: (label: string) => Promise<void>;
   }
+}
+
+async function cpuMark(label: string): Promise<void> {
+  await window.__cpuMark?.(label);
 }
 
 window.__runModelBench = async (cfg) => {

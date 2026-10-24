@@ -112,6 +112,16 @@ function orderSam4(iou: Float32Array, prompt: SegmentationPrompt): number[] {
   return nPrompts <= 1 ? [...multi, 0] : [0, ...multi];
 }
 
+/**
+ * Candidate order for a decoder with `count` outputs: SAM's 4-output layout
+ * (single-mask output first) gets {@link orderSam4}; any other count (a
+ * multimask-only export returns 3, a single-mask one 1) is ranked by IoU.
+ */
+export function orderCandidates(iou: Float32Array, count: number, prompt: SegmentationPrompt): number[] {
+  if (count === 4) return orderSam4(iou, prompt);
+  return Array.from({ length: count }, (_, i) => i).sort((a, b) => (iou[b] ?? 0) - (iou[a] ?? 0));
+}
+
 function maskInputFeeds<T extends OrtTensorLike>(
   ort: OrtModuleLike<T>,
   prompt: SegmentationPrompt,
@@ -182,7 +192,7 @@ export const SAM1: FamilyAdapter = {
     const planes = float32Data(masks, 'low_res_masks');
     const iou = float32Data(outputs['iou_predictions'], 'iou_predictions');
     const count = masks!.dims[1] ?? 1;
-    return lowResCandidates(planes, count, iou, count === 4 ? orderSam4(iou, prompt) : [0], embedding);
+    return lowResCandidates(planes, count, iou, orderCandidates(iou, count, prompt), embedding);
   },
 };
 
@@ -215,7 +225,7 @@ export const SAM2: FamilyAdapter = {
     const planes = float32Data(masks, 'masks');
     const iou = float32Data(outputs['iou_predictions'], 'iou_predictions');
     const count = masks!.dims[1] ?? 1;
-    return lowResCandidates(planes, count, iou, count === 4 ? orderSam4(iou, prompt) : [0], embedding);
+    return lowResCandidates(planes, count, iou, orderCandidates(iou, count, prompt), embedding);
   },
 };
 

@@ -228,7 +228,7 @@ async function init(cfg: E2eInit): Promise<unknown> {
     onEvent: emit,
     onCommitMask: (c) => {
       const t0 = performance.now();
-      const ann = createMaskAnnotation(c.snapshot, { imageId: c.imageId, contextId: c.contextId });
+      const ann = createMaskAnnotation(c.snapshot, { imageId: c.imageId, contextId: c.contextId, toolType: 'segmentation' });
       const t1 = performance.now();
       const raw = ann.rawAnnotationData;
       if (raw.format !== 'osdlabel-mask') return;

@@ -3,6 +3,8 @@ import { modelFrame, type EncodeView, type SegmentationProvider } from '@osdlabe
 import {
   EFFICIENT_SAM,
   SAM1,
+  SAM2,
+  orderCandidates,
   WorkerSegmentationProvider,
   createRemoteEncoder,
   decodeWire,
@@ -46,7 +48,7 @@ const view: EncodeView = {
   scale: 1024 / 16_384,
 };
 
-function embedding(family: 'sam1' | 'efficientsam'): SamEmbedding {
+function embedding(family: 'sam1' | 'efficientsam' | 'sam2'): SamEmbedding {
   return {
     family,
     frame: modelFrame(view, 1024, family === 'sam1' ? 'letterbox' : 'stretch'),
@@ -101,6 +103,19 @@ describe('SAM1 decoder feeds', () => {
     expect(one[0]!.mask.frame.width).toBe(256);
     expect(one[0]!.mask.frame.height).toBe(144);
     expect(one[0]!.mask.data.length).toBe(256 * 144);
+  });
+
+  it('keeps and ranks every candidate of a multimask-only export (3 outputs)', () => {
+    // The SAM 2 decoder shipped with @annotorious/plugin-segment-anything has
+    // no single-mask output: 3 planes. Before the fix only the first was kept.
+    const planes = new Float32Array(3 * 256 * 256);
+    const outputs = {
+      masks: new FakeTensor('float32', planes, [1, 3, 256, 256]),
+      iou_predictions: new FakeTensor('float32', Float32Array.from([0.4, 0.9, 0.6]), [1, 3]),
+    };
+    const out = SAM2.candidates(outputs, embedding('sam2'), { points: [{ x: 1, y: 1, label: 1 }] });
+    expect(out.map((c) => c.predictedIou)).toEqual([0.9, 0.6, 0.4].map((v) => Math.fround(v)));
+    expect(orderCandidates(Float32Array.from([0.2]), 1, {})).toEqual([0]);
   });
 });
 

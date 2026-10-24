@@ -1,8 +1,12 @@
 /**
- * The model matrix the PoC measures. `weights: 'random'` models are the real
- * architecture exported with random weights (scripts/export_models.py):
- * latency is valid, mask quality is not.
+ * The model matrix the PoC measures, read from `model-table.json` (also read
+ * by scripts/bench.mjs and scripts/remote-sam-server.mjs, so there is one
+ * list). `weights: 'random'` models are the real architecture exported with
+ * random weights (scripts/export_models.py): latency is valid, mask quality
+ * is not.
  */
+import table from './model-table.json';
+
 export type ModelFamily = 'sam1' | 'efficientsam' | 'sam2';
 
 export interface ModelSpec {
@@ -18,84 +22,33 @@ export interface ModelSpec {
   readonly decoderFallback?: string;
   /** Parameter count of the image encoder, for the report. */
   readonly encoderParams: string;
+  readonly source: string;
 }
 
-export const MODEL_SPECS: readonly ModelSpec[] = [
-  {
-    id: 'mobile_sam',
-    label: 'MobileSAM (TinyViT-5M)',
-    family: 'sam1',
-    weights: 'real',
-    inputSize: 1024,
-    encoder: 'mobile_sam.encoder.onnx',
-    decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
-    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
-    encoderParams: '5.7M',
-  },
-  {
-    id: 'mobile_sam_int8',
-    label: 'MobileSAM int8 (dynamic quant.)',
-    family: 'sam1',
-    weights: 'real',
-    inputSize: 1024,
-    encoder: 'mobile_sam.encoder.int8.onnx',
-    decoder: 'sam_vit_h_4b8939.decoder.int8.onnx',
-    encoderParams: '5.7M',
-  },
-  {
-    id: 'efficient_sam_ti',
-    label: 'EfficientSAM-Ti (ViT-Ti)',
-    family: 'efficientsam',
-    weights: 'real',
-    inputSize: 1024,
-    encoder: 'efficient_sam_vitt_encoder.onnx',
-    decoder: 'efficient_sam_vitt_decoder.onnx',
-    encoderParams: '5.7M',
-  },
-  {
-    id: 'edge_sam',
-    label: 'EdgeSAM (RepViT-m1)',
-    family: 'sam1',
-    weights: 'random',
-    inputSize: 1024,
-    encoder: 'edge_sam.encoder.rand.onnx',
-    decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
-    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
-    encoderParams: '5.5M',
-  },
-  {
-    id: 'litemedsam',
-    label: 'LiteMedSAM (TinyViT @256)',
-    family: 'sam1',
-    weights: 'random',
-    inputSize: 256,
-    encoder: 'litemedsam.encoder.rand.onnx',
-    decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
-    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
-    encoderParams: '5.7M',
-  },
-  {
-    id: 'sam2_tiny',
-    label: 'SAM 2.1 Hiera-T',
-    family: 'sam2',
-    weights: 'random',
-    inputSize: 1024,
-    encoder: 'sam2.1_hiera_tiny.encoder.rand.onnx',
-    decoder: 'sam2.1_hiera_tiny.decoder.rand.onnx',
-    encoderParams: '27M',
-  },
-  {
-    id: 'sam_vit_b',
-    label: 'SAM ViT-B',
-    family: 'sam1',
-    weights: 'random',
-    inputSize: 1024,
-    encoder: 'sam_vit_b.encoder.rand.onnx',
-    decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
-    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
-    encoderParams: '89M',
-  },
-];
+const FAMILIES: readonly ModelFamily[] = ['sam1', 'efficientsam', 'sam2'];
+
+function parse(row: (typeof table)[number]): ModelSpec {
+  const family = FAMILIES.find((f) => f === row.family);
+  if (!family) throw new Error(`model-table.json: unknown family ${row.family}`);
+  if (row.weights !== 'real' && row.weights !== 'random') {
+    throw new Error(`model-table.json: bad weights ${row.weights}`);
+  }
+  const fallback = 'decoderFallback' in row ? row.decoderFallback : undefined;
+  return {
+    id: row.id,
+    label: row.label,
+    family,
+    weights: row.weights,
+    inputSize: row.inputSize,
+    encoder: row.encoder,
+    decoder: row.decoder,
+    ...(fallback !== undefined ? { decoderFallback: fallback } : {}),
+    encoderParams: row.encoderParams,
+    source: row.source,
+  };
+}
+
+export const MODEL_SPECS: readonly ModelSpec[] = table.map(parse);
 
 export function findSpec(id: string): ModelSpec {
   const spec = MODEL_SPECS.find((s) => s.id === id);

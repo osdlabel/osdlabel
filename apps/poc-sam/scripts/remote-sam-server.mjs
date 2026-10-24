@@ -1,3 +1,4 @@
+/* global performance -- Node >= 16 global. */
 // The "server" half of the remote topologies, as Vite middleware (one process
 // for the harness). Real deployments would be a Python service (MONAI Label,
 // nnInteractive, a SAM server); what matters here is the contract and the
@@ -13,8 +14,6 @@
 // Inference uses onnxruntime-node (native CPU), with the same model adapters
 // the browser uses (@osdlabel/segmentation-onnx), so the numbers isolate
 // topology rather than code differences.
-import fs from 'node:fs';
-import path from 'node:path';
 import ort from 'onnxruntime-node';
 import { planRegionRead } from '@osdlabel/region-reader';
 import { composeSegmentationProvider, modelFrame } from '@osdlabel/segmentation';
@@ -28,26 +27,7 @@ import {
 } from '@osdlabel/segmentation-onnx';
 import { SYNTH, decodePng, tileBytes } from './synth-tiles.mjs';
 
-const MODELS = {
-  mobile_sam: {
-    family: 'sam1',
-    inputSize: 1024,
-    encoder: 'mobile_sam.encoder.onnx',
-    decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
-  },
-  efficient_sam_ti: {
-    family: 'efficientsam',
-    inputSize: 1024,
-    encoder: 'efficient_sam_vitt_encoder.onnx',
-    decoder: 'efficient_sam_vitt_decoder.onnx',
-  },
-  sam_vit_b: {
-    family: 'sam1',
-    inputSize: 1024,
-    encoder: 'sam_vit_b.encoder.rand.onnx',
-    decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
-  },
-};
+import { modelById, modelPaths } from './model-table.mjs';
 
 const SYNTH_PYRAMID = {
   kind: 'dzi',
@@ -135,20 +115,11 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
   const runtime = nodeOrt(threads);
 
   const getModel = (id) => {
-    const spec = MODELS[id];
-    if (!spec) throw new Error(`unknown model ${id}`);
+    const spec = modelById(id);
     if (!models.has(id)) {
-      models.set(
-        id,
-        OnnxSamModel.load(runtime, {
-          family: spec.family,
-          inputSize: spec.inputSize,
-          encoder: path.join(modelsDir, spec.encoder),
-          decoder: fs.existsSync(path.join(modelsDir, spec.decoder))
-            ? path.join(modelsDir, spec.decoder)
-            : path.join(modelsDir, 'sam_vit_h_4b8939.decoder.onnx'),
-        }),
-      );
+      const files = modelPaths(spec, modelsDir);
+      if (!files) throw new Error(`model files for ${id} missing (run fetch-models)`);
+      models.set(id, OnnxSamModel.load(runtime, { family: spec.family, inputSize: spec.inputSize, ...files }));
     }
     return models.get(id);
   };

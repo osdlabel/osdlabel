@@ -4,6 +4,8 @@
 // - MobileSAM image encoder + the official SAM (ViT-H) ONNX mask decoder,
 //   bundled in the npm package @geti-ui/smart-tools (Apache-2.0; Intel Geti's
 //   in-browser smart tools), from registry.npmjs.org.
+// - SAM 2 Hiera-T (real weights), bundled in @annotorious/plugin-segment-anything
+//   0.5.0 (BSD-3-Clause), from registry.npmjs.org.
 // - EfficientSAM-Ti encoder + decoder ONNX exports committed to the
 //   yformer/EfficientSAM repository (Apache-2.0), via raw.githubusercontent.com.
 //
@@ -28,6 +30,15 @@ const GETI = 'https://registry.npmjs.org/@geti-ui/smart-tools/-/smart-tools-1.7.
 const GETI_FILES = {
   'package/dist/esm/mobile_sam.encoder.onnx': 'mobile_sam.encoder.onnx',
   'package/dist/esm/sam_vit_h_4b8939.decoder.onnx': 'sam_vit_h_4b8939.decoder.onnx',
+};
+// Real SAM 2 Hiera-T weights: an ORT-format encoder (runtime-optimised) and a
+// multimask-only decoder, shipped by Annotorious' OpenSeadragon SAM plugin
+// (BSD-3-Clause; ~200 MB unpacked, 151 MB of it these two files).
+const ANNOTORIOUS =
+  'https://registry.npmjs.org/@annotorious/plugin-segment-anything/-/plugin-segment-anything-0.5.0.tgz';
+const ANNOTORIOUS_FILES = {
+  'package/dist/sam2_hiera_tiny_encoder.with_runtime_opt.ort': 'sam2_hiera_tiny.encoder.real.ort',
+  'package/dist/sam2_hiera_tiny_decoder_pr1.onnx': 'sam2_hiera_tiny.decoder.real.onnx',
 };
 const RAW = 'https://raw.githubusercontent.com/yformer/EfficientSAM/main/weights';
 const DIRECT = {
@@ -60,16 +71,20 @@ function* untar(buf) {
 
 const have = (f) => fs.existsSync(path.join(MODELS, f));
 
-if (!Object.values(GETI_FILES).every(have)) {
-  console.log(`downloading ${GETI} …`);
-  const tar = zlib.gunzipSync(await download(GETI));
+async function fromTarball(url, files) {
+  if (Object.values(files).every(have)) return;
+  console.log(`downloading ${url} …`);
+  const tar = zlib.gunzipSync(await download(url));
   for (const [name, data] of untar(tar)) {
-    const out = GETI_FILES[name];
+    const out = files[name];
     if (!out) continue;
     fs.writeFileSync(path.join(MODELS, out), data);
     console.log(`  ${out} (${(data.length / 1e6).toFixed(1)} MB)`);
   }
 }
+
+await fromTarball(GETI, GETI_FILES);
+await fromTarball(ANNOTORIOUS, ANNOTORIOUS_FILES);
 for (const [file, url] of Object.entries(DIRECT)) {
   if (have(file)) continue;
   console.log(`downloading ${url} …`);
@@ -101,4 +116,4 @@ if (probe.status !== 0) {
     console.log('\nNo torch/segment-anything/timm/iopath: skipping random-weight exports (EdgeSAM, LiteMedSAM, SAM 2.1-T, SAM ViT-B).');
   }
 }
-console.log('\nmodels:', fs.readdirSync(MODELS).filter((f) => f.endsWith('.onnx')).join(', '));
+console.log('\nmodels:', fs.readdirSync(MODELS).filter((f) => /\.(onnx|ort)$/.test(f)).join(', '));
