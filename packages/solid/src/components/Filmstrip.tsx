@@ -6,6 +6,7 @@ import {
   getCellAssignmentState,
   getCellAssignmentLabel,
   preventButtonFocusSteal,
+  isFocusedInItsRoot,
   CELL_ASSIGNMENT_BORDER_COLOR,
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
@@ -37,7 +38,9 @@ const Filmstrip: Component<FilmstripProps> = (props) => {
    * focuses the button (`preventButtonFocusSteal`), so it never moves focus.
    */
   const clearActiveCell = (event: MouseEvent, thumbnail: HTMLButtonElement | undefined) => {
-    if (document.activeElement === event.currentTarget) thumbnail?.focus();
+    // Root-aware: inside a shadow root `document.activeElement` is the host.
+    const button = event.currentTarget;
+    if (button instanceof Element && isFocusedInItsRoot(button)) thumbnail?.focus();
     actions.unassignImageFromCell(uiState.activeCellIndex);
   };
 

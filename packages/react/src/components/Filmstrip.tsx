@@ -5,6 +5,7 @@ import {
   getCellAssignmentState,
   getCellAssignmentLabel,
   preventButtonFocusSteal,
+  isFocusedInItsRoot,
   CELL_ASSIGNMENT_BORDER_COLOR,
   CELL_ASSIGNMENT_PLACEHOLDER_BACKGROUND,
   CELL_ASSIGNMENT_TITLE,
@@ -85,7 +86,8 @@ function FilmstripItem({ image, state, isVertical, onAssign, onClear }: Filmstri
    * (`preventButtonFocusSteal`), so it never moves focus.
    */
   const clear = (event: MouseEvent<HTMLButtonElement>) => {
-    if (document.activeElement === event.currentTarget) thumbnailRef.current?.focus();
+    // Root-aware: inside a shadow root `document.activeElement` is the host.
+    if (isFocusedInItsRoot(event.currentTarget)) thumbnailRef.current?.focus();
     onClear();
   };
 

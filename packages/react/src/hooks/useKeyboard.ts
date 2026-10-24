@@ -4,6 +4,7 @@ import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-contex
 import {
   mapKeyEventToActions,
   shouldSkipKeyboardShortcut,
+  getEventOrigin,
   shouldSuppressEscapeKey,
   DEFAULT_KEYBOARD_SHORTCUTS,
   MAX_GRID_SIZE,
@@ -37,7 +38,10 @@ export function useKeyboard(
       // Leave the key to the focused element when it owns it: text entry owns
       // every key; a focused button, <summary> or <select> owns Enter and
       // Space; a link owns Enter (#189, #205). Then the host's own predicate.
-      const target = e.target as HTMLElement;
+      // The origin, not `e.target`: inside a shadow root the window listener
+      // sees the target retargeted to the host, so a text field there was
+      // never recognised and typing into it fired shortcuts.
+      const target = getEventOrigin(e) as HTMLElement;
       if (shouldSkipKeyboardShortcut(target, e.key) || shouldSkipTargetPredicate?.(target)) {
         return;
       }

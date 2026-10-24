@@ -316,6 +316,7 @@ export type { ViewerControlSpec, ViewerControlAxisSpec, ToneField } from './view
 export { DEFAULT_KEYBOARD_SHORTCUTS, MAX_GRID_SIZE, mapKeyEventToActions } from './keyboard.js';
 export type { KeyboardMappingState } from './keyboard.js';
 export { shouldSkipKeyboardShortcut } from './keyboard-target.js';
+export { getEventOrigin, isFocusedInItsRoot } from './shadow-dom.js';
 export type { KeyboardShortcutTarget } from './keyboard-target.js';
 
 // Annotation context cycling

@@ -757,6 +757,11 @@ export class FabricOverlay {
         button: type === POINTER_UP ? 0 : originalEvent.button,
         buttons: type === POINTER_UP ? 0 : originalEvent.buttons,
         bubbles,
+        // Composed, so the move and the release cross a shadow root: Fabric
+        // binds `pointermove` / `pointerup` on the document during a press, and
+        // a non-composed event stops at the shadow root (a drag inside
+        // `<osdlabel-annotator>` never ended, and no shape was created).
+        composed: true,
         cancelable: true,
         pointerId: asPointer?.pointerId ?? originalEvent.pointerId,
         pointerType: originalEvent.pointerType,

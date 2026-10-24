@@ -132,6 +132,19 @@ describe('useKeyboard', () => {
     expect(mockActions.setActiveTool).not.toHaveBeenCalled();
   });
 
+  it('ignores a key typed into a text field inside a shadow root', () => {
+    // A window listener sees the event retargeted to the shadow host, which
+    // is not a text field, so the shortcut used to fire (<osdlabel-annotator>).
+    const host = document.createElement('div');
+    document.body.append(host);
+    const input = document.createElement('input');
+    host.attachShadow({ mode: 'open' }).append(input);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true, composed: true }));
+    host.remove();
+
+    expect(mockActions.setActiveTool).not.toHaveBeenCalled();
+  });
+
   describe('a focused button (#189)', () => {
     // A real element: the shared rule reads tagName and role from it.
     const button = (): HTMLButtonElement => document.createElement('button');
