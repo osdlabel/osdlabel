@@ -421,6 +421,16 @@ export class FabricOverlay {
   }
 
   /**
+   * The OpenSeadragon viewer this overlay tracks. A host whose image content
+   * changes in place (a volume reslice written into a canvas tile source)
+   * needs it to ask OSD to redraw; the framework cells otherwise keep the
+   * viewer to themselves.
+   */
+  get viewer(): OpenSeadragon.Viewer {
+    return this._viewer;
+  }
+
+  /**
    * The OSD container element. Companion layers (e.g. decoration text in
    * DOM) can append themselves here to be clipped/positioned together with
    * the Fabric canvas.

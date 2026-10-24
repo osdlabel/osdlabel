@@ -1,5 +1,5 @@
 import type { Annotation, AnnotationId } from '@osdlabel/annotation';
-import type { PixelSpacing } from '@osdlabel/viewer-api';
+import type { ImageId, PixelSpacing } from '@osdlabel/viewer-api';
 import type { Decoration } from './decoration.js';
 
 /**
@@ -14,6 +14,13 @@ export interface DecorationContext<E extends object = Record<never, never>> {
   readonly pixelSpacing?: PixelSpacing | undefined;
   /** The currently selected annotation ID, if any. Used for selection emphasis. */
   readonly selectedAnnotationId: AnnotationId | null;
+  /**
+   * The image the cell shows. Providers are shared by every cell, so this is
+   * how one tells cells apart — e.g. to look up which plane of a volume a cell
+   * is showing and project the other cells' annotations into it. `undefined`
+   * where no image is known (direct `DecorationLayer` use, tests).
+   */
+  readonly imageId?: ImageId | undefined;
 }
 
 /**

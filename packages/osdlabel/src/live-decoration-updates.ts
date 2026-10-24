@@ -3,7 +3,7 @@ import { toolTypeToGeometryType } from '@osdlabel/annotation';
 import type { Decoration, DecorationProvider } from '@osdlabel/decoration';
 import { getGeometryFromFabricObject } from '@osdlabel/fabric-annotations';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
-import type { PixelSpacing } from '@osdlabel/viewer-api';
+import type { ImageId, PixelSpacing } from '@osdlabel/viewer-api';
 import type { FabricObject } from 'fabric';
 
 /**
@@ -25,6 +25,8 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<never, ne
   readonly onDecorations: (decorations: readonly Decoration[]) => void;
   /** Returns the currently selected annotation ID, if any. */
   readonly getSelectedAnnotationId?: (() => AnnotationId | null | undefined) | undefined;
+  /** The cell's image id, forwarded as `DecorationContext.imageId`. */
+  readonly getImageId?: (() => ImageId | undefined) | undefined;
 }
 
 /**
@@ -54,6 +56,7 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
     getProviders,
     onDecorations,
     getSelectedAnnotationId,
+    getImageId,
   } = options;
   const canvas = overlay.canvas;
 
@@ -78,7 +81,7 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
     const annotations = applyLiveOverride(getVisibleAnnotations(), target);
     const pixelSpacing = getPixelSpacing();
     const selectedAnnotationId = getSelectedAnnotationId?.() ?? null;
-    const ctx = { annotations, pixelSpacing, selectedAnnotationId };
+    const ctx = { annotations, pixelSpacing, selectedAnnotationId, imageId: getImageId?.() };
     const decorations = providers.flatMap((p) => p(ctx));
     onDecorations(decorations);
   };

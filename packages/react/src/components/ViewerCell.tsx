@@ -339,7 +339,12 @@ export default function ViewerCell({
     }
     const pixelSpacing = imageSource?.pixelSpacing ?? defaultPixelSpacing;
     const selectedAnnotationId = uiState.selectedAnnotationId;
-    const ctx = { annotations: visibleAnnotations, pixelSpacing, selectedAnnotationId };
+    const ctx = {
+      annotations: visibleAnnotations,
+      pixelSpacing,
+      selectedAnnotationId,
+      imageId: imageSource?.id,
+    };
     const decorations = decorationProviders.flatMap((p) => p(ctx));
     layer.setDecorations(decorations);
   }, [
@@ -349,6 +354,7 @@ export default function ViewerCell({
     imageSource?.pixelSpacing,
     uiState.selectedAnnotationId,
     decorationProviders,
+    imageSource?.id,
   ]);
 
   // Live-update decorations during Fabric drag. Accessors close over refs
@@ -361,6 +367,8 @@ export default function ViewerCell({
   pixelSpacingRef.current = imageSource?.pixelSpacing ?? defaultPixelSpacing;
   const selectedIdRef = useRef(uiState.selectedAnnotationId);
   selectedIdRef.current = uiState.selectedAnnotationId;
+  const imageIdRef = useRef(imageSource?.id);
+  imageIdRef.current = imageSource?.id;
   useEffect(() => {
     const layer = decorationLayerRef.current;
     if (!overlay || !layer) return;
@@ -369,6 +377,7 @@ export default function ViewerCell({
       getVisibleAnnotations: () => visibleAnnotationsRef.current,
       getPixelSpacing: () => pixelSpacingRef.current,
       getSelectedAnnotationId: () => selectedIdRef.current,
+      getImageId: () => imageIdRef.current,
       getProviders: () => decorationProvidersRef.current ?? [],
       onDecorations: (decorations) => layer.setDecorations(decorations),
     });

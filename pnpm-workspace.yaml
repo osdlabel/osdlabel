@@ -48,3 +48,5 @@ allowBuilds:
   canvas: true
   esbuild: true
   sharp: true
+minimumReleaseAgeExclude:
+  - '@niivue/niivue@1.0.0-rc.37'
