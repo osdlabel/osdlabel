@@ -32,13 +32,21 @@ function source(count: number, resident: (i: number) => boolean = () => true) {
 
 function viewer(drawerType: 'webgl' | 'canvas') {
   const raised: { name: string; args: object }[] = [];
+  const items: { source: unknown; redraw: () => void }[] = [];
   const v = {
     drawer: { getType: () => drawerType },
     forceRedraw: vi.fn(),
-    open: vi.fn(),
+    // The world holds what was opened, as OSD's does after `open`.
+    open: vi.fn((tileSource: unknown) => {
+      items.push({ source: tileSource, redraw: vi.fn() });
+    }),
+    world: {
+      getItemCount: () => items.length,
+      getItemAt: (i: number) => items[i],
+    },
     raiseEvent: (name: string, args: object) => raised.push({ name, args }),
   };
-  return { v: v as unknown as OpenSeadragon.Viewer, raised, forceRedraw: v.forceRedraw };
+  return { v: v as unknown as OpenSeadragon.Viewer, raised, forceRedraw: v.forceRedraw, items };
 }
 
 describe('createCanvasTileSource', () => {
@@ -82,6 +90,25 @@ describe('FramePresenter', () => {
     expect(p.frame).toBe(11);
     expect(painted).toEqual([10, 11]);
     expect(forceRedraw).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks its own TiledImage for redraw, which OSD's forceRedraw reset cannot undo", () => {
+    const { s } = source(5);
+    const { v, items } = viewer('canvas');
+    v.open(
+      createCanvasTileSource({
+        width: 1,
+        height: 1,
+        cacheKey: 'other',
+        provide: () => ({}) as CanvasRenderingContext2D,
+      }),
+    );
+    const p = new FramePresenter(v, s);
+    p.open();
+    expect(items).toHaveLength(2);
+    p.show(1);
+    expect(items[0]!.redraw).not.toHaveBeenCalled();
+    expect(items[1]!.redraw).toHaveBeenCalledTimes(1);
   });
 
   it('clamps and skips a no-op show', () => {

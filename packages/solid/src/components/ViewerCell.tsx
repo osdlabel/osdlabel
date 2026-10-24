@@ -86,33 +86,50 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
    * display frame. Solid runs effects synchronously inside the wheel handler,
    * so without this a 120 Hz trackpad would swap pixels, annotations and
    * decorations twice per paint, and a slow swap would queue a backlog.
+   *
+   * Two signals, because the layers must change in the same paint and are
+   * painted by different callbacks. `pixelFrame` drives the presenter: its
+   * tile is repainted at once and OSD draws it at its next update.
+   * `shownFrame` drives everything drawn over the pixels (annotation objects,
+   * decorations, the frame new annotations are stamped with) and follows
+   * inside the `update-viewport` handler of that draw, where Fabric then
+   * renders synchronously, the rule `FabricOverlay.sync()` follows for pan
+   * and zoom. Swapped any earlier, whichever of OSD's and Fabric's
+   * animation-frame callbacks happened to run first decided which layer was a
+   * paint ahead (3-23 incoherent paints per 2 s scroll before this split).
    */
+  const [pixelFrame, setPixelFrame] = createSignal<number | undefined>(untrack(frameIndex));
   const [shownFrame, setShownFrame] = createSignal<number | undefined>(untrack(frameIndex));
-  /**
-   * The throttle releases the next frame step right after OSD has drawn the
-   * previous one, inside OSD's own animation-frame callback. A step taken
-   * there has its pixels drawn by OSD's next callback and its annotations by
-   * Fabric's, which is queued behind it — the same paint. Released from a
-   * plain rAF instead, a step could run after OSD's callback for the frame and
-   * before Fabric's, putting the annotations one paint ahead of the image.
-   * A step that draws nothing still releases, two frames later.
-   */
-  const afterNextDraw = (release: () => void): void => {
+  /** Run `cb` right after OSD's next draw, or two frames from now if nothing draws. */
+  const onNextDraw = (cb: () => void): void => {
     const v = viewer;
     let done = false;
     const run = (): void => {
       if (done) return;
       done = true;
       v?.removeHandler('update-viewport', run);
-      release();
+      cb();
     };
     v?.addHandler('update-viewport', run);
     requestAnimationFrame(() => requestAnimationFrame(run));
   };
-  const frameThrottle = createFrameThrottle<number | undefined>(
-    (index) => setShownFrame(index),
-    afterNextDraw,
-  );
+  const presentFrame = (index: number | undefined): void => {
+    setPixelFrame(index);
+    if (!presenter || index === undefined) {
+      setShownFrame(index);
+      return;
+    }
+    onNextDraw(() => {
+      setShownFrame(index);
+      // Objects reused from the cache were added synchronously just now:
+      // render them in this paint. A frame still being revived renders when
+      // it lands, a paint or more behind its pixels.
+      overlay()?.canvas.renderAll();
+    });
+  };
+  // The throttle releases the next step after the same draw, so a step is
+  // never presented before the previous one reached the screen.
+  const frameThrottle = createFrameThrottle<number | undefined>(presentFrame, onNextDraw);
   onCleanup(() => frameThrottle.cancel());
   createEffect(() => frameThrottle.request(frameIndex()));
   const frameRef = (): FrameRef | undefined => {
@@ -228,7 +245,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
   // Present the cell's frame. One tile repainted in place: the viewport, the
   // world's single item and the overlay's transform are untouched.
   createEffect(() => {
-    const index = shownFrame();
+    const index = pixelFrame();
     if (index !== undefined) presenter?.show(index);
   });
 

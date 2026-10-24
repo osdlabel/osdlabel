@@ -108,6 +108,25 @@ export class FramePresenter {
         context2D: this._ctx,
       });
     }
+    // `forceRedraw()` alone is lost when this runs inside an `update-viewport`
+    // handler (where a binding releases its next frame step, right after OSD's
+    // draw): OSD 5.0.1 raises that event from `drawWorld` and only then clears
+    // its forceRedraw flag, so the step's pixels were never drawn and the
+    // annotations, which were, ran a frame ahead. The TiledImage's own
+    // needs-draw flag is reset inside `world.draw()`, before the event, so
+    // setting it here survives to the next update.
+    this._tiledImage()?.redraw();
     this._viewer.forceRedraw();
+  }
+
+  /** The TiledImage opened from this presenter's tile source, once open. */
+  private _tiledImage(): OpenSeadragon.TiledImage | undefined {
+    const world = this._viewer.world as OpenSeadragon.World | undefined;
+    if (!world) return undefined;
+    for (let i = 0; i < world.getItemCount(); i++) {
+      const item = world.getItemAt(i);
+      if (item.source === this._tileSource) return item;
+    }
+    return undefined;
   }
 }

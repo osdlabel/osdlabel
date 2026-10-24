@@ -349,6 +349,8 @@ window.__poc = {
   scroll,
   prepareView,
   viewState,
+  /** The last recording's display log, for diagnostics (scripts/coherence.mjs). */
+  displayLog: () => ({ raw: recorder.raw, events: recorder.events }),
   /** Objects on the Fabric canvas: annotations (with an id) and the rest (decoration lines). */
   objectCount: () => {
     const objs = overlay?.canvas.getObjects() ?? [];
