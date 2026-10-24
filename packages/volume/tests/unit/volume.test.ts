@@ -398,13 +398,15 @@ describe('sparse bricked label volume', () => {
       }
     const [nx, ny, nz] = g.dimensions;
     let set = 0;
-    for (let k = 0; k < nz; k++)
+    for (let k = 0; k < nz; k++) {
+      // One comparison per slice: per-voxel expect() calls are slow enough to
+      // time out under a parallel turbo run.
+      const fromBricks = new Uint8Array(nx * ny);
       for (let j = 0; j < ny; j++)
-        for (let i = 0; i < nx; i++) {
-          const v = dense.slices[k]![j * nx + i]!;
-          if (v) set++;
-          expect(bricked.get(i, j, k)).toBe(v);
-        }
+        for (let i = 0; i < nx; i++) fromBricks[j * nx + i] = bricked.get(i, j, k);
+      expect(fromBricks).toEqual(dense.slices[k]);
+      set += dense.slices[k]!.reduce((n, v) => n + (v ? 1 : 0), 0);
+    }
     expect(set).toBeGreaterThan(500);
     for (const f of frames) {
       const m = planeIndexMapping(g, f);

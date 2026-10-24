@@ -55,13 +55,7 @@ describe('label maps: dense volume vs per-slice masks', () => {
       stack.paintDisc(frame, centre, 6);
       expect(changed).toBeGreaterThan(50);
       expect(stack.voxelCount()).toBe(changed);
-      for (let k = 0; k < 30; k++) {
-        const m = stack.masks.get(k);
-        for (let j = 0; j < 40; j++)
-          for (let i = 0; i < 40; i++) {
-            expect(m ? m.get(i, j) : 0).toBe(dense.slices[k]![j * 40 + i]);
-          }
-      }
+      for (let k = 0; k < 30; k++) expect(maskSlice(stack, k)).toEqual(dense.slices[k]);
       // Both reslice the painted disc back into the view it was drawn on.
       const mapping = planeIndexMapping(g, frame);
       const a = new Uint8Array(frame.width * frame.height);
@@ -89,14 +83,8 @@ describe('label maps: dense volume vs per-slice masks', () => {
       expect(s2.voxelCount()).toBe(changed);
       for (let k = 0; k < 30; k++) {
         expect(spans.slices[k]).toEqual(voxels.slices[k]);
-        const m1 = s1.masks.get(k);
-        const m2 = s2.masks.get(k);
-        for (let j = 0; j < 40; j++)
-          for (let i = 0; i < 40; i++) {
-            const v = voxels.slices[k]![j * 40 + i];
-            expect(m1 ? m1.get(i, j) : 0).toBe(v);
-            expect(m2 ? m2.get(i, j) : 0).toBe(v);
-          }
+        expect(maskSlice(s1, k)).toEqual(voxels.slices[k]);
+        expect(maskSlice(s2, k)).toEqual(voxels.slices[k]);
       }
     });
 
@@ -131,6 +119,18 @@ describe('label maps: dense volume vs per-slice masks', () => {
     });
   }
 });
+
+/**
+ * Slice k of a mask stack as a dense 40 x 40 array: one comparison per slice,
+ * since per-voxel expect() calls time out under a parallel turbo run.
+ */
+function maskSlice(stack: SliceMaskStack, k: number): Uint8Array {
+  const out = new Uint8Array(40 * 40);
+  const m = stack.masks.get(k);
+  if (!m) return out;
+  for (let j = 0; j < 40; j++) for (let i = 0; i < 40; i++) out[j * 40 + i] = m.get(i, j);
+  return out;
+}
 
 /** Fraction of view pixels within `r` px of `centre` whose label is set. */
 function discCoverage(
