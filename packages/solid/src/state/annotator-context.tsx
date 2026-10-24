@@ -141,7 +141,14 @@ export interface AnnotatorProviderProps {
    * when a stroke exceeds it. See {@link BrushOptions}.
    */
   readonly brushOptions?: BrushOptions | undefined;
-  /** Optional callback to suppress keyboard shortcuts for specific targets */
+  /**
+   * Optional callback to suppress keyboard shortcuts for specific targets.
+   *
+   * `target` is where the key event originated, looking through open shadow
+   * roots (`getEventOrigin`), not the retargeted `event.target`: inside a web
+   * component it is the inner element, so a `closest()` from it stops at that
+   * component's shadow root.
+   */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
    * Element to display fullscreen when the view controls' fullscreen button is

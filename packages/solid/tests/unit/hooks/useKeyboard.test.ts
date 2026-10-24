@@ -207,6 +207,32 @@ describe('useKeyboard', () => {
     expect(mockActions.setActiveTool).toHaveBeenCalledWith('select');
   });
 
+  it('hands the predicate the origin inside a shadow root, not the host', () => {
+    // Contract change from getEventOrigin: a host using third-party web
+    // components (Shoelace, Material Web) gets the inner element, so a
+    // `closest()` from it stops at that component's shadow root.
+    const host = document.createElement('div');
+    host.className = 'host-wrapper';
+    document.body.append(host);
+    const inner = document.createElement('span');
+    host.attachShadow({ mode: 'open' }).append(inner);
+    const seen: { target: HTMLElement; closestWrapper: Element | null }[] = [];
+    const predicate = (target: HTMLElement): boolean => {
+      seen.push({ target, closestWrapper: target.closest('.host-wrapper') });
+      return false;
+    };
+    disposeRoot();
+    createRoot((dispose) => {
+      disposeRoot = dispose;
+      useKeyboard(DEFAULT_KEYBOARD_SHORTCUTS, activeToolKeyHandlerRef, predicate);
+    });
+    inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true, composed: true }));
+    host.remove();
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.target).toBe(inner);
+    expect(seen[0]!.closestWrapper).toBeNull();
+  });
+
   it('should pass event to activeToolKeyHandlerRef and stop if consumed', () => {
     const handler = vi.fn().mockReturnValue(true); // consumed
     activeToolKeyHandlerRef.handler = handler;
