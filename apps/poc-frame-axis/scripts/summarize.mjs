@@ -102,6 +102,13 @@ const compact = {
     encodedBytes: x.result?.encodedBytes,
   })),
   solid: r.solid ? aggregateSolid(r.solid) : [],
+  // Set when the Solid rows come from a separate run merged into this file.
+  solidRun: r.solidRun && {
+    startedAt: r.solidRun.startedAt,
+    finishedAt: r.solidRun.finishedAt,
+    loadAvg: r.solidRun.env?.loadAvg,
+    note: r.solidRun.note,
+  },
 };
 
 if (out) fs.writeFileSync(out, JSON.stringify(compact, null, 1) + '\n');

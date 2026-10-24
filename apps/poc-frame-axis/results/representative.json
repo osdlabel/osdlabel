@@ -1,16 +1,16 @@
 {
-  "source": "results/2026-10-24T05-01-39-141Z/results.json",
-  "startedAt": "2026-10-24T05:01:39.735Z",
-  "finishedAt": "2026-10-24T05:13:21.151Z",
+  "source": "/tmp/claude-0/-home-user-osdlabel/d2340e79-db4e-595c-a199-55b42694fb93/scratchpad/fa/merged.json",
+  "startedAt": "2026-10-24T11:46:18.038Z",
+  "finishedAt": "2026-10-24T13:03:15.599Z",
   "chromium": "/opt/pw-browsers/chromium",
   "env": {
     "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
     "webgl2Renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
     "hardwareConcurrency": 4,
     "crossOriginIsolated": true,
-    "baselineFps": 59.667,
-    "idleMemoryMB": 265,
-    "loadAvg": [5.58, 7.94, 9.76]
+    "baselineFps": 59.333,
+    "idleMemoryMB": 266,
+    "loadAvg": [5.19, 5.36, 3.58]
   },
   "model": [
     {
@@ -19,40 +19,41 @@
       "perFrame": 10,
       "annotations": 3000,
       "reps": 15,
-      "buildMs": 130.115,
-      "indexMs": 0.48,
+      "buildMs": 229.82,
+      "indexMs": 0.76,
       "stepUs": {
-        "frameAxisIndexed": 0.05,
-        "frameAxisNaiveFilter": 491.117,
-        "perSlice": 0.1
+        "frameAxisIndexed": 0.15,
+        "frameAxisNaiveFilter": 861.983,
+        "perSlice": 0.467
       },
       "constraints": {
         "perSliceLimit": {
-          "frameAxisPerFrameMs": 0.53,
-          "perSlicePerImageMs": 0.005
+          "frameAxisPerFrameMs": 1.045,
+          "frameAxisFromIndexMs": 0.005,
+          "perSlicePerImageMs": 0.01
         },
         "perSeriesLimit": {
-          "frameAxisPerImageMs": 0.51,
-          "perSliceGlobalOverSeriesMs": 0.08
+          "frameAxisPerImageMs": 1.025,
+          "perSliceGlobalOverSeriesMs": 0.22
         }
       },
       "serialization": {
         "frameAxis": {
           "bytes": 3604289,
-          "serializeMs": 13.315,
-          "deserializeMs": 33.275
+          "serializeMs": 21.135,
+          "deserializeMs": 91.155
         },
         "perSlice": {
           "bytes": 3431389,
-          "serializeMs": 12.18,
-          "deserializeMs": 36.96
+          "serializeMs": 34.275,
+          "deserializeMs": 82.84
         }
       },
       "serializationKeepsFrames": true,
       "reconcile": {
-        "reversedMs": 0.22,
+        "reversedMs": 0.445,
         "reversedMoved": 3000,
-        "sameOrderMs": 0.1,
+        "sameOrderMs": 0.13,
         "sameOrderMoved": 0,
         "sameOrderIdentityKept": true
       }
@@ -63,40 +64,41 @@
       "perFrame": 50,
       "annotations": 15000,
       "reps": 15,
-      "buildMs": 358.725,
-      "indexMs": 3.68,
+      "buildMs": 718.67,
+      "indexMs": 6.98,
       "stepUs": {
-        "frameAxisIndexed": 0.1,
-        "frameAxisNaiveFilter": 3232.3,
-        "perSlice": 5.533
+        "frameAxisIndexed": 0.15,
+        "frameAxisNaiveFilter": 6422.8,
+        "perSlice": 8.15
       },
       "constraints": {
         "perSliceLimit": {
-          "frameAxisPerFrameMs": 3.29,
-          "perSlicePerImageMs": 0.005
+          "frameAxisPerFrameMs": 5.705,
+          "frameAxisFromIndexMs": 0.005,
+          "perSlicePerImageMs": 0.025
         },
         "perSeriesLimit": {
-          "frameAxisPerImageMs": 3.13,
-          "perSliceGlobalOverSeriesMs": 1.84
+          "frameAxisPerImageMs": 5.31,
+          "perSliceGlobalOverSeriesMs": 3.135
         }
       },
       "serialization": {
         "frameAxis": {
           "bytes": 18271221,
-          "serializeMs": 78.165,
-          "deserializeMs": 214.545
+          "serializeMs": 144.625,
+          "deserializeMs": 396.345
         },
         "perSlice": {
           "bytes": 17406721,
-          "serializeMs": 76.245,
-          "deserializeMs": 183.48
+          "serializeMs": 150.785,
+          "deserializeMs": 321.005
         }
       },
       "serializationKeepsFrames": true,
       "reconcile": {
-        "reversedMs": 0.865,
+        "reversedMs": 3.77,
         "reversedMoved": 15000,
-        "sameOrderMs": 0.385,
+        "sameOrderMs": 0.78,
         "sameOrderMoved": 0,
         "sameOrderIdentityKept": true
       }
@@ -105,45 +107,45 @@
   "strategies": [
     {
       "config": "mutable/webgl",
-      "loadAvg": [5.37, 7.78, 9.67],
-      "setupMs": 956,
-      "memDeltaMB": 163,
+      "loadAvg": [5.6, 5.46, 3.67],
+      "setupMs": 1519,
+      "memDeltaMB": 204,
       "latencyMs": {
-        "p50": 69.72,
-        "p95": 101.14,
-        "max": 106.17,
+        "p50": 121.92,
+        "p95": 157.07,
+        "max": 168.45,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 0,
+        "p50": 1,
         "p95": 1,
         "max": 1,
         "n": 40
       },
       "blankPerStep": 0,
       "scrollLatest": {
-        "fps": 28.7,
-        "shownPerSec": 17,
+        "fps": 14,
+        "shownPerSec": 8.4,
         "blank": 0
       },
       "scrollAwaitDrawn": {
-        "fps": 26.3,
-        "shownPerSec": 15.1,
+        "fps": 16.3,
+        "shownPerSec": 8.3,
         "blank": 0
       },
       "osdDrawMsDuringScroll": {
-        "p50": 45.52,
-        "p95": 64.45,
-        "max": 76.42,
-        "n": 53
+        "p50": 104.88,
+        "p95": 125.68,
+        "max": 145.64,
+        "n": 28
       },
       "osdDrawMsStatic": {
-        "p50": 60.17,
-        "p95": 125.36,
-        "max": 171.09,
+        "p50": 93.5,
+        "p95": 108.99,
+        "max": 123.08,
         "n": 30
       },
-      "paintMsPerFrame": 0.64,
+      "paintMsPerFrame": 1.17,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -156,13 +158,13 @@
     },
     {
       "config": "reset/webgl",
-      "loadAvg": [5.5, 7.69, 9.61],
-      "setupMs": 990,
+      "loadAvg": [5.43, 5.44, 3.7],
+      "setupMs": 1403,
       "memDeltaMB": 160,
       "latencyMs": {
-        "p50": 94.92,
-        "p95": 167.35,
-        "max": 215.13,
+        "p50": 139.79,
+        "p95": 177.91,
+        "max": 206.78,
         "n": 40
       },
       "latencyFrames": {
@@ -173,28 +175,28 @@
       },
       "blankPerStep": 1,
       "scrollLatest": {
-        "fps": 60.9,
-        "shownPerSec": 0,
-        "blank": 180
+        "fps": 54.3,
+        "shownPerSec": 1.3,
+        "blank": 156
       },
       "scrollAwaitDrawn": {
-        "fps": 27.4,
-        "shownPerSec": 13.2,
-        "blank": 41
+        "fps": 17.3,
+        "shownPerSec": 8.2,
+        "blank": 26
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.05,
-        "p95": 0.1,
-        "max": 61.89,
-        "n": 181
+        "p50": 0.09,
+        "p95": 0.24,
+        "max": 126.39,
+        "n": 161
       },
       "osdDrawMsStatic": {
-        "p50": 51.5,
-        "p95": 69.01,
-        "max": 75.56,
+        "p50": 87.17,
+        "p95": 106.73,
+        "max": 111.19,
         "n": 30
       },
-      "paintMsPerFrame": 0.9,
+      "paintMsPerFrame": 2.21,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -207,45 +209,45 @@
     },
     {
       "config": "open/webgl",
-      "loadAvg": [5.64, 7.58, 9.54],
-      "setupMs": 951,
-      "memDeltaMB": 163,
+      "loadAvg": [5.62, 5.48, 3.76],
+      "setupMs": 1397,
+      "memDeltaMB": 164,
       "latencyMs": {
-        "p50": 90.52,
-        "p95": 138.63,
-        "max": 188.73,
+        "p50": 122.1,
+        "p95": 145.43,
+        "max": 160.59,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 1.5,
+        "p50": 2,
         "p95": 2,
         "max": 2,
         "n": 40
       },
       "blankPerStep": 1,
       "scrollLatest": {
-        "fps": 20.5,
-        "shownPerSec": 8.3,
-        "blank": 34
+        "fps": 53.9,
+        "shownPerSec": 1.3,
+        "blank": 155
       },
       "scrollAwaitDrawn": {
-        "fps": 25.5,
-        "shownPerSec": 12.1,
-        "blank": 38
+        "fps": 18.6,
+        "shownPerSec": 9,
+        "blank": 28
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.09,
-        "p95": 137,
-        "max": 273.77,
-        "n": 60
+        "p50": 0.1,
+        "p95": 0.29,
+        "max": 116.43,
+        "n": 160
       },
       "osdDrawMsStatic": {
-        "p50": 57.66,
-        "p95": 71.14,
-        "max": 78.54,
+        "p50": 88.47,
+        "p95": 108.46,
+        "max": 124.73,
         "n": 30
       },
-      "paintMsPerFrame": 1.3,
+      "paintMsPerFrame": 2.41,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -258,42 +260,42 @@
     },
     {
       "config": "open-png/webgl",
-      "loadAvg": [5.95, 7.55, 9.5],
-      "setupMs": 3844,
-      "memDeltaMB": 249,
+      "loadAvg": [5.34, 5.41, 3.77],
+      "setupMs": 6647,
+      "memDeltaMB": 278,
       "latencyMs": {
-        "p50": 102.45,
-        "p95": 151.74,
-        "max": 198.11,
+        "p50": 129.76,
+        "p95": 157.88,
+        "max": 160.38,
         "n": 39
       },
       "latencyFrames": {
         "p50": 2,
-        "p95": 2.1,
+        "p95": 3,
         "max": 3,
         "n": 39
       },
-      "blankPerStep": 1.05,
+      "blankPerStep": 1.02,
       "scrollLatest": {
-        "fps": 60,
+        "fps": 59.7,
         "shownPerSec": 0,
         "blank": 178
       },
       "scrollAwaitDrawn": {
-        "fps": 31.4,
-        "shownPerSec": 10.3,
-        "blank": 29
+        "fps": 27.2,
+        "shownPerSec": 8.1,
+        "blank": 25
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.04,
-        "p95": 0.07,
-        "max": 0.72,
-        "n": 157
+        "p50": 0.07,
+        "p95": 0.17,
+        "max": 114.91,
+        "n": 97
       },
       "osdDrawMsStatic": {
-        "p50": 59.45,
-        "p95": 123.57,
-        "max": 183.25,
+        "p50": 94.18,
+        "p95": 130.13,
+        "max": 131.29,
         "n": 30
       },
       "paintMsPerFrame": 0,
@@ -309,13 +311,13 @@
     },
     {
       "config": "opacity/webgl",
-      "loadAvg": [6.76, 7.62, 9.47],
-      "setupMs": 48044,
-      "memDeltaMB": 791,
+      "loadAvg": [5.08, 5.33, 3.79],
+      "setupMs": 52605,
+      "memDeltaMB": 828,
       "latencyMs": {
-        "p50": 105.88,
-        "p95": 188.21,
-        "max": 266.61,
+        "p50": 106.69,
+        "p95": 137.37,
+        "max": 149.35,
         "n": 40
       },
       "latencyFrames": {
@@ -326,25 +328,25 @@
       },
       "blankPerStep": 0,
       "scrollLatest": {
-        "fps": 19.6,
+        "fps": 16,
         "shownPerSec": 9.3,
         "blank": 0
       },
       "scrollAwaitDrawn": {
-        "fps": 15.2,
-        "shownPerSec": 7.6,
+        "fps": 13.7,
+        "shownPerSec": 7.5,
         "blank": 0
       },
       "osdDrawMsDuringScroll": {
-        "p50": 94.71,
-        "p95": 142.64,
-        "max": 170.44,
-        "n": 30
+        "p50": 92.73,
+        "p95": 145.27,
+        "max": 257.03,
+        "n": 29
       },
       "osdDrawMsStatic": {
-        "p50": 101.92,
-        "p95": 135.96,
-        "max": 158.22,
+        "p50": 94.3,
+        "p95": 133.69,
+        "max": 137.66,
         "n": 30
       },
       "paintMsPerFrame": 0,
@@ -360,45 +362,45 @@
     },
     {
       "config": "mutable-noinval/webgl",
-      "loadAvg": [9.42, 8.21, 9.55],
-      "setupMs": 939,
-      "memDeltaMB": 157,
+      "loadAvg": [5.67, 5.42, 3.94],
+      "setupMs": 1428,
+      "memDeltaMB": 160,
       "latencyMs": {
-        "p50": 77.7,
-        "p95": 107.46,
-        "max": 267.78,
+        "p50": 116.45,
+        "p95": 138.52,
+        "max": 168.06,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 0,
+        "p50": 1,
         "p95": 1,
         "max": 1,
         "n": 40
       },
       "blankPerStep": 0,
       "scrollLatest": {
-        "fps": 21.7,
-        "shownPerSec": 12.1,
+        "fps": 18,
+        "shownPerSec": 9.3,
         "blank": 0
       },
       "scrollAwaitDrawn": {
-        "fps": 23.6,
-        "shownPerSec": 12.6,
+        "fps": 17.2,
+        "shownPerSec": 8.8,
         "blank": 0
       },
       "osdDrawMsDuringScroll": {
-        "p50": 66.98,
-        "p95": 141.9,
-        "max": 167.44,
-        "n": 38
+        "p50": 94.2,
+        "p95": 112.06,
+        "max": 114.42,
+        "n": 29
       },
       "osdDrawMsStatic": {
-        "p50": 96.31,
-        "p95": 169.96,
-        "max": 208.69,
+        "p50": 88.82,
+        "p95": 119.08,
+        "max": 135.97,
         "n": 30
       },
-      "paintMsPerFrame": 0.57,
+      "paintMsPerFrame": 1.02,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 15
@@ -411,45 +413,45 @@
     },
     {
       "config": "mutable/canvas",
-      "loadAvg": [8.75, 8.14, 9.49],
-      "setupMs": 665,
-      "memDeltaMB": 122,
+      "loadAvg": [5.44, 5.38, 3.96],
+      "setupMs": 1178,
+      "memDeltaMB": 121,
       "latencyMs": {
-        "p50": 16.9,
-        "p95": 17.52,
-        "max": 17.94,
+        "p50": 16.8,
+        "p95": 18.98,
+        "max": 21.37,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 0,
+        "p50": 1,
         "p95": 1,
         "max": 1,
         "n": 40
       },
       "blankPerStep": 0,
       "scrollLatest": {
-        "fps": 59.6,
-        "shownPerSec": 57.6,
+        "fps": 60.9,
+        "shownPerSec": 50.9,
         "blank": 0
       },
       "scrollAwaitDrawn": {
-        "fps": 61,
-        "shownPerSec": 59.7,
+        "fps": 60.9,
+        "shownPerSec": 58.3,
         "blank": 0
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.1,
-        "p95": 0.18,
-        "max": 1.18,
-        "n": 174
+        "p50": 0.22,
+        "p95": 0.37,
+        "max": 2.35,
+        "n": 154
       },
       "osdDrawMsStatic": {
-        "p50": 0.12,
-        "p95": 0.17,
-        "max": 0.2,
+        "p50": 0.21,
+        "p95": 1.28,
+        "max": 2.2,
         "n": 30
       },
-      "paintMsPerFrame": 0.94,
+      "paintMsPerFrame": 1.76,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -462,17 +464,17 @@
     },
     {
       "config": "reset/canvas",
-      "loadAvg": [7.7, 7.93, 9.4],
-      "setupMs": 698,
-      "memDeltaMB": 122,
+      "loadAvg": [5.12, 5.31, 3.96],
+      "setupMs": 1139,
+      "memDeltaMB": 172,
       "latencyMs": {
-        "p50": 33.53,
-        "p95": 34.97,
-        "max": 36.3,
+        "p50": 33.49,
+        "p95": 34.57,
+        "max": 35.66,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 1,
+        "p50": 2,
         "p95": 2,
         "max": 2,
         "n": 40
@@ -480,27 +482,27 @@
       "blankPerStep": 1,
       "scrollLatest": {
         "fps": 60.9,
-        "shownPerSec": 0,
-        "blank": 180
+        "shownPerSec": 0.3,
+        "blank": 179
       },
       "scrollAwaitDrawn": {
-        "fps": 59.3,
-        "shownPerSec": 29,
-        "blank": 88
+        "fps": 61.1,
+        "shownPerSec": 29.9,
+        "blank": 91
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.04,
-        "p95": 0.08,
-        "max": 0.13,
+        "p50": 0.07,
+        "p95": 0.14,
+        "max": 3.33,
         "n": 181
       },
       "osdDrawMsStatic": {
-        "p50": 0.1,
-        "p95": 0.13,
-        "max": 0.14,
+        "p50": 0.2,
+        "p95": 0.36,
+        "max": 0.65,
         "n": 30
       },
-      "paintMsPerFrame": 1.02,
+      "paintMsPerFrame": 2.25,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -513,45 +515,45 @@
     },
     {
       "config": "open/canvas",
-      "loadAvg": [8.54, 8.1, 9.43],
-      "setupMs": 643,
-      "memDeltaMB": 122,
+      "loadAvg": [4.85, 5.25, 3.96],
+      "setupMs": 1078,
+      "memDeltaMB": 126,
       "latencyMs": {
-        "p50": 33.48,
-        "p95": 35.93,
-        "max": 38.69,
+        "p50": 33.58,
+        "p95": 37.98,
+        "max": 38.87,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 1,
+        "p50": 2,
         "p95": 2,
         "max": 2,
         "n": 40
       },
       "blankPerStep": 1,
       "scrollLatest": {
-        "fps": 60.3,
+        "fps": 60.9,
         "shownPerSec": 0.3,
-        "blank": 177
+        "blank": 179
       },
       "scrollAwaitDrawn": {
-        "fps": 60.9,
-        "shownPerSec": 30,
-        "blank": 91
+        "fps": 60.5,
+        "shownPerSec": 29.6,
+        "blank": 90
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.04,
-        "p95": 0.1,
-        "max": 1.71,
-        "n": 179
+        "p50": 0.09,
+        "p95": 0.17,
+        "max": 0.6,
+        "n": 181
       },
       "osdDrawMsStatic": {
-        "p50": 0.13,
-        "p95": 0.21,
-        "max": 0.39,
+        "p50": 0.21,
+        "p95": 0.29,
+        "max": 0.32,
         "n": 30
       },
-      "paintMsPerFrame": 1.4,
+      "paintMsPerFrame": 2.22,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -564,42 +566,42 @@
     },
     {
       "config": "open-png/canvas",
-      "loadAvg": [8.24, 8.05, 9.4],
-      "setupMs": 4079,
-      "memDeltaMB": 211,
+      "loadAvg": [5.18, 5.3, 4],
+      "setupMs": 5728,
+      "memDeltaMB": 256,
       "latencyMs": {
-        "p50": 38.12,
-        "p95": 40.85,
-        "max": 43.83,
-        "n": 40
+        "p50": 43.48,
+        "p95": 47.6,
+        "max": 48.48,
+        "n": 39
       },
       "latencyFrames": {
         "p50": 2,
         "p95": 2,
         "max": 2,
-        "n": 40
+        "n": 39
       },
-      "blankPerStep": 1,
+      "blankPerStep": 1.02,
       "scrollLatest": {
-        "fps": 58.9,
-        "shownPerSec": 0,
-        "blank": 174
+        "fps": 60.3,
+        "shownPerSec": 0.7,
+        "blank": 172
       },
       "scrollAwaitDrawn": {
-        "fps": 59.6,
-        "shownPerSec": 28.3,
-        "blank": 76
+        "fps": 60.2,
+        "shownPerSec": 19.9,
+        "blank": 58
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.03,
-        "p95": 0.07,
-        "max": 8.29,
-        "n": 173
+        "p50": 0.07,
+        "p95": 0.19,
+        "max": 10.46,
+        "n": 149
       },
       "osdDrawMsStatic": {
-        "p50": 0.12,
-        "p95": 0.2,
-        "max": 0.22,
+        "p50": 0.21,
+        "p95": 0.29,
+        "max": 0.33,
         "n": 30
       },
       "paintMsPerFrame": 0,
@@ -615,42 +617,42 @@
     },
     {
       "config": "opacity/canvas",
-      "loadAvg": [8.47, 8.11, 9.39],
-      "setupMs": 2663,
+      "loadAvg": [5.5, 5.35, 4.04],
+      "setupMs": 4271,
       "memDeltaMB": 429,
       "latencyMs": {
-        "p50": 16.77,
-        "p95": 17.09,
-        "max": 17.59,
+        "p50": 17,
+        "p95": 18.38,
+        "max": 22.53,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 0,
+        "p50": 1,
         "p95": 1,
         "max": 1,
         "n": 40
       },
       "blankPerStep": 0,
       "scrollLatest": {
-        "fps": 59.6,
-        "shownPerSec": 58.3,
+        "fps": 60.9,
+        "shownPerSec": 44.9,
         "blank": 0
       },
       "scrollAwaitDrawn": {
-        "fps": 59.9,
-        "shownPerSec": 58.3,
+        "fps": 60.9,
+        "shownPerSec": 58.9,
         "blank": 0
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.14,
-        "p95": 0.25,
-        "max": 2.2,
-        "n": 176
+        "p50": 0.34,
+        "p95": 0.49,
+        "max": 2.42,
+        "n": 136
       },
       "osdDrawMsStatic": {
-        "p50": 0.16,
-        "p95": 0.21,
-        "max": 0.22,
+        "p50": 0.28,
+        "p95": 0.36,
+        "max": 0.41,
         "n": 30
       },
       "paintMsPerFrame": 0,
@@ -666,45 +668,45 @@
     },
     {
       "config": "mutable-bitmap/webgl",
-      "loadAvg": [7.83, 7.99, 9.33],
-      "setupMs": 1610,
-      "memDeltaMB": 445,
+      "loadAvg": [4.94, 5.23, 4.02],
+      "setupMs": 2282,
+      "memDeltaMB": 447,
       "latencyMs": {
-        "p50": 105.54,
-        "p95": 168,
-        "max": 182.25,
+        "p50": 118.37,
+        "p95": 143.33,
+        "max": 146.59,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 0,
+        "p50": 1,
         "p95": 1,
         "max": 1,
         "n": 40
       },
       "blankPerStep": 0,
       "scrollLatest": {
-        "fps": 18.8,
-        "shownPerSec": 9.9,
+        "fps": 17.1,
+        "shownPerSec": 7.9,
         "blank": 0
       },
       "scrollAwaitDrawn": {
-        "fps": 13.3,
-        "shownPerSec": 7.3,
+        "fps": 17.8,
+        "shownPerSec": 8.6,
         "blank": 0
       },
       "osdDrawMsDuringScroll": {
-        "p50": 80.35,
-        "p95": 133.85,
-        "max": 168.81,
-        "n": 32
+        "p50": 102.91,
+        "p95": 133.05,
+        "max": 140.55,
+        "n": 26
       },
       "osdDrawMsStatic": {
-        "p50": 74.87,
-        "p95": 113.99,
-        "max": 135.32,
+        "p50": 100.34,
+        "p95": 127.23,
+        "max": 147.49,
         "n": 30
       },
-      "paintMsPerFrame": 0.03,
+      "paintMsPerFrame": 0.04,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -717,45 +719,45 @@
     },
     {
       "config": "mutable-bitmap/canvas",
-      "loadAvg": [9.44, 8.36, 9.43],
-      "setupMs": 1318,
-      "memDeltaMB": 410,
+      "loadAvg": [5.53, 5.33, 4.09],
+      "setupMs": 1747,
+      "memDeltaMB": 411,
       "latencyMs": {
-        "p50": 16.81,
-        "p95": 17.49,
-        "max": 39.14,
+        "p50": 16.94,
+        "p95": 18.29,
+        "max": 19.56,
         "n": 40
       },
       "latencyFrames": {
-        "p50": 0,
+        "p50": 1,
         "p95": 1,
         "max": 1,
         "n": 40
       },
       "blankPerStep": 0,
       "scrollLatest": {
-        "fps": 58.7,
-        "shownPerSec": 47,
+        "fps": 61,
+        "shownPerSec": 58.6,
         "blank": 0
       },
       "scrollAwaitDrawn": {
         "fps": 60.7,
-        "shownPerSec": 58.3,
+        "shownPerSec": 56.7,
         "blank": 0
       },
       "osdDrawMsDuringScroll": {
-        "p50": 0.11,
-        "p95": 0.2,
-        "max": 0.71,
-        "n": 142
+        "p50": 0.2,
+        "p95": 0.36,
+        "max": 14.49,
+        "n": 177
       },
       "osdDrawMsStatic": {
-        "p50": 0.13,
-        "p95": 0.72,
-        "max": 2.29,
+        "p50": 0.21,
+        "p95": 0.29,
+        "max": 1.67,
         "n": 30
       },
-      "paintMsPerFrame": 0.01,
+      "paintMsPerFrame": 0.02,
       "pixelVerify": {
         "checked": 15,
         "mismatches": 0
@@ -770,9 +772,9 @@
   "layers": [
     {
       "config": "cache/0/canvas",
-      "loadAvg": [9.17, 8.34, 9.4],
+      "loadAvg": [5.01, 5.22, 4.07],
       "layerInitMs": 0,
-      "memDeltaMB": 118,
+      "memDeltaMB": 123,
       "annSwapMs": {
         "p50": 0,
         "p95": 0.01,
@@ -780,174 +782,174 @@
         "n": 30
       },
       "decoMs": {
-        "p50": 0.03,
-        "p95": 0.09,
-        "max": 0.12,
+        "p50": 0.05,
+        "p95": 0.1,
+        "max": 0.19,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 0.04,
-        "p95": 0.12,
-        "max": 0.14,
+        "p50": 0.06,
+        "p95": 0.11,
+        "max": 0.13,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.91,
-        "p95": 19.23,
-        "max": 20.53,
+        "p50": 16.99,
+        "p95": 17.53,
+        "max": 18.65,
         "n": 30
       },
       "scroll": {
-        "fps": 60.6,
-        "shownPerSec": 58.3,
+        "fps": 60.9,
+        "shownPerSec": 57.3,
         "incoherent": 0,
-        "longFrames": 1,
-        "frames": 180
+        "longFrames": 0,
+        "frames": 181
       }
     },
     {
       "config": "cache/10/canvas",
-      "loadAvg": [9.31, 8.39, 9.41],
-      "layerInitMs": 75,
-      "memDeltaMB": 134,
+      "loadAvg": [4.93, 5.2, 4.07],
+      "layerInitMs": 104,
+      "memDeltaMB": 136,
       "annSwapMs": {
-        "p50": 0.27,
-        "p95": 0.97,
+        "p50": 0.47,
+        "p95": 1.26,
         "max": 1.53,
         "n": 30
       },
       "decoMs": {
-        "p50": 0.58,
-        "p95": 1.07,
-        "max": 1.09,
+        "p50": 0.99,
+        "p95": 2.23,
+        "max": 2.77,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 4.25,
-        "p95": 6.75,
-        "max": 19.36,
+        "p50": 7.12,
+        "p95": 10,
+        "max": 11.63,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.82,
-        "p95": 18.71,
-        "max": 19.3,
+        "p50": 16.77,
+        "p95": 18.44,
+        "max": 35.72,
         "n": 30
       },
       "scroll": {
-        "fps": 58.4,
-        "shownPerSec": 50.2,
+        "fps": 55.8,
+        "shownPerSec": 35.2,
         "incoherent": 0,
-        "longFrames": 7,
-        "frames": 174
+        "longFrames": 13,
+        "frames": 167
       }
     },
     {
       "config": "cache/50/canvas",
-      "loadAvg": [9.43, 8.44, 9.42],
-      "layerInitMs": 389,
-      "memDeltaMB": 235,
+      "loadAvg": [4.71, 5.14, 4.06],
+      "layerInitMs": 785,
+      "memDeltaMB": 233,
       "annSwapMs": {
-        "p50": 0.92,
-        "p95": 2.07,
-        "max": 2.48,
+        "p50": 1.46,
+        "p95": 4.36,
+        "max": 7.8,
         "n": 30
       },
       "decoMs": {
-        "p50": 1.4,
-        "p95": 3.24,
-        "max": 3.46,
+        "p50": 2.72,
+        "p95": 6.54,
+        "max": 11.9,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 20.82,
-        "p95": 33.12,
-        "max": 38.66,
+        "p50": 31.75,
+        "p95": 41.59,
+        "max": 43.48,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.81,
-        "p95": 22.01,
-        "max": 25.42,
+        "p50": 18.64,
+        "p95": 30.99,
+        "max": 36.55,
         "n": 30
       },
       "scroll": {
-        "fps": 33.8,
-        "shownPerSec": 19.6,
+        "fps": 24.9,
+        "shownPerSec": 13.6,
         "incoherent": 0,
-        "longFrames": 64,
-        "frames": 101
+        "longFrames": 46,
+        "frames": 74
       }
     },
     {
       "config": "cache/200/canvas",
-      "loadAvg": [10.17, 8.63, 9.47],
-      "layerInitMs": 1513,
-      "memDeltaMB": 450,
+      "loadAvg": [4.99, 5.19, 4.09],
+      "layerInitMs": 2616,
+      "memDeltaMB": 445,
       "annSwapMs": {
-        "p50": 2.21,
-        "p95": 8.66,
-        "max": 160.86,
+        "p50": 6.38,
+        "p95": 19.37,
+        "max": 226.54,
         "n": 30
       },
       "decoMs": {
-        "p50": 3.73,
-        "p95": 14.17,
-        "max": 22.39,
+        "p50": 9.39,
+        "p95": 23.69,
+        "max": 59.09,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 119,
-        "p95": 173.94,
-        "max": 416.35,
+        "p50": 298.87,
+        "p95": 797.31,
+        "max": 1020.41,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 22.03,
-        "p95": 44.95,
-        "max": 176.8,
+        "p50": 36.42,
+        "p95": 87.32,
+        "max": 308.1,
         "n": 30
       },
       "scroll": {
-        "fps": 11.3,
-        "shownPerSec": 5.8,
+        "fps": 2.7,
+        "shownPerSec": 1.2,
         "incoherent": 0,
-        "longFrames": 24,
-        "frames": 34
+        "longFrames": 8,
+        "frames": 8
       }
     },
     {
       "config": "cache-nocache/10/canvas",
-      "loadAvg": [9.53, 8.54, 9.43],
-      "layerInitMs": 58,
-      "memDeltaMB": 136,
+      "loadAvg": [4.41, 5.03, 4.07],
+      "layerInitMs": 167,
+      "memDeltaMB": 134,
       "annSwapMs": {
-        "p50": 0.28,
-        "p95": 0.96,
-        "max": 2.58,
+        "p50": 0.43,
+        "p95": 2.07,
+        "max": 3.33,
         "n": 30
       },
       "decoMs": {
-        "p50": 0.59,
-        "p95": 1.31,
-        "max": 1.64,
+        "p50": 1.05,
+        "p95": 2.79,
+        "max": 3.79,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 0.25,
-        "p95": 0.42,
-        "max": 0.73,
+        "p50": 0.43,
+        "p95": 0.86,
+        "max": 4.64,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.86,
-        "p95": 18.59,
-        "max": 19.43,
+        "p50": 16.67,
+        "p95": 19.27,
+        "max": 24.26,
         "n": 30
       },
       "scroll": {
         "fps": 61,
-        "shownPerSec": 59,
+        "shownPerSec": 47.4,
         "incoherent": 0,
         "longFrames": 0,
         "frames": 181
@@ -955,508 +957,729 @@
     },
     {
       "config": "cache-nocache/50/canvas",
-      "loadAvg": [8.59, 8.37, 9.37],
-      "layerInitMs": 381,
-      "memDeltaMB": 194,
+      "loadAvg": [4.54, 5.04, 4.08],
+      "layerInitMs": 647,
+      "memDeltaMB": 222,
       "annSwapMs": {
-        "p50": 0.72,
-        "p95": 2.02,
-        "max": 3.27,
+        "p50": 1.23,
+        "p95": 3.84,
+        "max": 6.56,
         "n": 30
       },
       "decoMs": {
-        "p50": 1.63,
-        "p95": 4.17,
-        "max": 5.87,
+        "p50": 3.15,
+        "p95": 6.94,
+        "max": 7.38,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 0.59,
-        "p95": 1.29,
-        "max": 2.62,
+        "p50": 1.06,
+        "p95": 4.69,
+        "max": 8.97,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.91,
-        "p95": 23.36,
-        "max": 46.27,
+        "p50": 18.73,
+        "p95": 21.49,
+        "max": 32.2,
         "n": 30
       },
       "scroll": {
-        "fps": 60.6,
-        "shownPerSec": 58.6,
+        "fps": 51.4,
+        "shownPerSec": 35.1,
         "incoherent": 0,
-        "longFrames": 1,
-        "frames": 180
+        "longFrames": 25,
+        "frames": 154
       }
     },
     {
       "config": "cache-nocache/200/canvas",
-      "loadAvg": [8.14, 8.28, 9.33],
-      "layerInitMs": 929,
-      "memDeltaMB": 395,
+      "loadAvg": [4.3, 4.97, 4.07],
+      "layerInitMs": 2766,
+      "memDeltaMB": 402,
       "annSwapMs": {
-        "p50": 2.06,
-        "p95": 3.32,
-        "max": 3.79,
+        "p50": 7.23,
+        "p95": 18.53,
+        "max": 67.31,
         "n": 30
       },
       "decoMs": {
-        "p50": 3.91,
-        "p95": 6.37,
-        "max": 7.11,
+        "p50": 8.58,
+        "p95": 17.46,
+        "max": 45.19,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 1.53,
-        "p95": 2.77,
-        "max": 3.49,
+        "p50": 9.56,
+        "p95": 20.45,
+        "max": 22.67,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 17.72,
-        "p95": 27.37,
-        "max": 31.14,
+        "p50": 35.55,
+        "p95": 97.38,
+        "max": 173.38,
         "n": 30
       },
       "scroll": {
-        "fps": 44.4,
-        "shownPerSec": 39.4,
+        "fps": 25.4,
+        "shownPerSec": 15.8,
         "incoherent": 0,
-        "longFrames": 44,
-        "frames": 132
+        "longFrames": 65,
+        "frames": 76
       }
     },
     {
       "config": "rebuild-sync/10/canvas",
-      "loadAvg": [7.28, 8.09, 9.26],
+      "loadAvg": [4.49, 4.98, 4.09],
       "layerInitMs": 0,
-      "memDeltaMB": 137,
+      "memDeltaMB": 136,
       "annSwapMs": {
-        "p50": 0.65,
-        "p95": 1.1,
-        "max": 1.32,
+        "p50": 1,
+        "p95": 2.75,
+        "max": 6.54,
         "n": 30
       },
       "decoMs": {
-        "p50": 0.56,
-        "p95": 0.84,
-        "max": 0.94,
+        "p50": 0.94,
+        "p95": 2.23,
+        "max": 5.42,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 3.67,
-        "p95": 5.65,
-        "max": 5.86,
+        "p50": 5.84,
+        "p95": 8.88,
+        "max": 14.39,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.84,
-        "p95": 17.18,
-        "max": 17.23,
+        "p50": 16.55,
+        "p95": 17.63,
+        "max": 18.32,
         "n": 30
       },
       "scroll": {
-        "fps": 60.9,
-        "shownPerSec": 54.3,
+        "fps": 54.6,
+        "shownPerSec": 32.6,
         "incoherent": 0,
-        "longFrames": 0,
-        "frames": 181
+        "longFrames": 17,
+        "frames": 163
       }
     },
     {
       "config": "rebuild-sync/50/canvas",
-      "loadAvg": [6.77, 7.97, 9.21],
+      "loadAvg": [4.56, 4.98, 4.1],
       "layerInitMs": 0,
-      "memDeltaMB": 156,
+      "memDeltaMB": 159,
       "annSwapMs": {
-        "p50": 1.55,
-        "p95": 4.54,
-        "max": 4.97,
+        "p50": 3.43,
+        "p95": 8.63,
+        "max": 9.5,
         "n": 30
       },
       "decoMs": {
-        "p50": 1.23,
-        "p95": 1.77,
-        "max": 3.37,
+        "p50": 2.59,
+        "p95": 4.74,
+        "max": 6,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 16.86,
-        "p95": 20.16,
-        "max": 23.8,
+        "p50": 29.32,
+        "p95": 47.83,
+        "max": 71.92,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.87,
-        "p95": 18.88,
-        "max": 21.16,
+        "p50": 18.91,
+        "p95": 25.37,
+        "max": 60.06,
         "n": 30
       },
       "scroll": {
-        "fps": 31.2,
-        "shownPerSec": 17.9,
+        "fps": 22.9,
+        "shownPerSec": 13.2,
         "incoherent": 0,
-        "longFrames": 54,
-        "frames": 93
+        "longFrames": 46,
+        "frames": 70
       }
     },
     {
       "config": "rebuild-sync/200/canvas",
-      "loadAvg": [6.73, 7.93, 9.18],
+      "loadAvg": [4.88, 5.03, 4.12],
       "layerInitMs": 0,
-      "memDeltaMB": 291,
+      "memDeltaMB": 289,
       "annSwapMs": {
-        "p50": 6.28,
-        "p95": 31.58,
-        "max": 137,
+        "p50": 10.99,
+        "p95": 28.61,
+        "max": 32.66,
         "n": 30
       },
       "decoMs": {
-        "p50": 3.84,
-        "p95": 15.83,
-        "max": 130.13,
+        "p50": 8.39,
+        "p95": 22.17,
+        "max": 26.2,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 112.25,
-        "p95": 189.86,
-        "max": 240.72,
+        "p50": 167.03,
+        "p95": 264.93,
+        "max": 486.98,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 22.58,
-        "p95": 129.34,
-        "max": 195.37,
+        "p50": 38.99,
+        "p95": 93.21,
+        "max": 239.74,
         "n": 30
       },
       "scroll": {
-        "fps": 11.9,
-        "shownPerSec": 5.7,
+        "fps": 8.9,
+        "shownPerSec": 4.4,
         "incoherent": 0,
-        "longFrames": 25,
-        "frames": 37
+        "longFrames": 26,
+        "frames": 27
       }
     },
     {
       "config": "rebuild-async/10/canvas",
-      "loadAvg": [7.46, 8.04, 9.21],
+      "loadAvg": [4.83, 5.01, 4.13],
       "layerInitMs": 0,
-      "memDeltaMB": 176,
+      "memDeltaMB": 136,
       "annSwapMs": {
-        "p50": 0.18,
-        "p95": 0.44,
-        "max": 0.61,
+        "p50": 0.35,
+        "p95": 0.78,
+        "max": 1.66,
         "n": 30
       },
       "decoMs": {
-        "p50": 0.52,
-        "p95": 0.86,
-        "max": 0.95,
+        "p50": 1.01,
+        "p95": 2.44,
+        "max": 4.97,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 3.23,
-        "p95": 4.66,
-        "max": 4.9,
+        "p50": 6.78,
+        "p95": 10.75,
+        "max": 13.95,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.81,
-        "p95": 17.41,
-        "max": 17.5,
+        "p50": 16.7,
+        "p95": 18.84,
+        "max": 25,
         "n": 30
       },
       "scroll": {
-        "fps": 60.9,
-        "shownPerSec": 53.9,
+        "fps": 51.9,
+        "shownPerSec": 29.6,
         "incoherent": 0,
-        "longFrames": 0,
-        "frames": 181
+        "longFrames": 23,
+        "frames": 154
       }
     },
     {
       "config": "rebuild-async/50/canvas",
-      "loadAvg": [7.37, 8.01, 9.19],
+      "loadAvg": [4.94, 5.03, 4.15],
       "layerInitMs": 0,
       "memDeltaMB": 158,
       "annSwapMs": {
-        "p50": 0.48,
-        "p95": 0.89,
-        "max": 1.03,
+        "p50": 0.92,
+        "p95": 2.51,
+        "max": 3.86,
         "n": 30
       },
       "decoMs": {
-        "p50": 1.25,
-        "p95": 2.46,
-        "max": 3.32,
+        "p50": 2.25,
+        "p95": 4.77,
+        "max": 7.77,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 15.48,
-        "p95": 25.59,
-        "max": 29.48,
+        "p50": 26.39,
+        "p95": 55.97,
+        "max": 74,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 16.75,
-        "p95": 18.26,
-        "max": 19.55,
+        "p50": 19.52,
+        "p95": 26.98,
+        "max": 30.71,
         "n": 30
       },
       "scroll": {
-        "fps": 35.9,
-        "shownPerSec": 21.2,
+        "fps": 23.8,
+        "shownPerSec": 12.6,
         "incoherent": 0,
-        "longFrames": 58,
-        "frames": 107
+        "longFrames": 45,
+        "frames": 71
       }
     },
     {
       "config": "rebuild-async/200/canvas",
-      "loadAvg": [7.18, 7.96, 9.16],
+      "loadAvg": [5.19, 5.08, 4.17],
       "layerInitMs": 0,
-      "memDeltaMB": 290,
+      "memDeltaMB": 297,
       "annSwapMs": {
-        "p50": 1.72,
-        "p95": 11.6,
-        "max": 19.63,
+        "p50": 3.56,
+        "p95": 12.44,
+        "max": 17.42,
         "n": 30
       },
       "decoMs": {
-        "p50": 3.81,
-        "p95": 13.72,
-        "max": 25.43,
+        "p50": 8.69,
+        "p95": 21.15,
+        "max": 22.57,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 103.8,
-        "p95": 156.52,
-        "max": 200.91,
+        "p50": 171.22,
+        "p95": 270.7,
+        "max": 324.23,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 25.13,
-        "p95": 207.25,
-        "max": 416.61,
+        "p50": 47.39,
+        "p95": 114.41,
+        "max": 209.44,
         "n": 30
       },
       "scroll": {
-        "fps": 10.7,
-        "shownPerSec": 4.9,
+        "fps": 8.3,
+        "shownPerSec": 3.9,
         "incoherent": 0,
         "longFrames": 26,
-        "frames": 32
+        "frames": 25
       }
     },
     {
-      "config": "visibility/10/canvas",
-      "loadAvg": [6.95, 7.86, 9.11],
-      "layerInitMs": 322,
-      "memDeltaMB": 157,
+      "config": "rebuild-sync-nocache/10/canvas",
+      "loadAvg": [5.19, 5.09, 4.19],
+      "layerInitMs": 0,
+      "memDeltaMB": 134,
       "annSwapMs": {
-        "p50": 0.03,
-        "p95": 0.07,
-        "max": 0.1,
+        "p50": 0.95,
+        "p95": 2.64,
+        "max": 5.74,
         "n": 30
       },
       "decoMs": {
-        "p50": 0.64,
-        "p95": 1.68,
-        "max": 2.15,
+        "p50": 0.92,
+        "p95": 1.73,
+        "max": 2.85,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 5.13,
-        "p95": 8.11,
-        "max": 10.03,
-        "n": 30
-      },
-      "imageLatencyMs": {
-        "p50": 16.82,
-        "p95": 17.47,
-        "max": 17.65,
-        "n": 30
-      },
-      "scroll": {
-        "fps": 56.6,
-        "shownPerSec": 50.3,
-        "incoherent": 0,
-        "longFrames": 4,
-        "frames": 168
-      }
-    },
-    {
-      "config": "visibility/50/canvas",
-      "loadAvg": [7.19, 7.9, 9.12],
-      "layerInitMs": 817,
-      "memDeltaMB": 306,
-      "annSwapMs": {
-        "p50": 0.05,
-        "p95": 0.09,
-        "max": 0.12,
-        "n": 30
-      },
-      "decoMs": {
-        "p50": 1.67,
-        "p95": 2.98,
-        "max": 12.36,
-        "n": 30
-      },
-      "fabricRenderMs": {
-        "p50": 24.43,
-        "p95": 35.59,
-        "max": 83.44,
+        "p50": 0.42,
+        "p95": 0.61,
+        "max": 0.78,
         "n": 30
       },
       "imageLatencyMs": {
         "p50": 16.79,
-        "p95": 21.45,
-        "max": 34.88,
+        "p95": 17.52,
+        "max": 24.19,
         "n": 30
       },
       "scroll": {
-        "fps": 32.8,
-        "shownPerSec": 17.7,
+        "fps": 60.3,
+        "shownPerSec": 48,
         "incoherent": 0,
-        "longFrames": 56,
-        "frames": 99
+        "longFrames": 1,
+        "frames": 179
+      }
+    },
+    {
+      "config": "rebuild-sync-nocache/50/canvas",
+      "loadAvg": [5, 5.05, 4.19],
+      "layerInitMs": 0,
+      "memDeltaMB": 145,
+      "annSwapMs": {
+        "p50": 3.7,
+        "p95": 9.87,
+        "max": 10.95,
+        "n": 30
+      },
+      "decoMs": {
+        "p50": 2.6,
+        "p95": 5.69,
+        "max": 10.55,
+        "n": 30
+      },
+      "fabricRenderMs": {
+        "p50": 1.11,
+        "p95": 3.26,
+        "max": 3.74,
+        "n": 30
+      },
+      "imageLatencyMs": {
+        "p50": 18.34,
+        "p95": 31.74,
+        "max": 53.97,
+        "n": 30
+      },
+      "scroll": {
+        "fps": 50.2,
+        "shownPerSec": 35.2,
+        "incoherent": 0,
+        "longFrames": 29,
+        "frames": 150
+      }
+    },
+    {
+      "config": "rebuild-sync-nocache/200/canvas",
+      "loadAvg": [4.84, 5.02, 4.18],
+      "layerInitMs": 0,
+      "memDeltaMB": 232,
+      "annSwapMs": {
+        "p50": 13.85,
+        "p95": 19.72,
+        "max": 23.24,
+        "n": 30
+      },
+      "decoMs": {
+        "p50": 9.24,
+        "p95": 13.64,
+        "max": 17.19,
+        "n": 30
+      },
+      "fabricRenderMs": {
+        "p50": 3.69,
+        "p95": 9.33,
+        "max": 29.01,
+        "n": 30
+      },
+      "imageLatencyMs": {
+        "p50": 45.53,
+        "p95": 54.75,
+        "max": 69.13,
+        "n": 30
+      },
+      "scroll": {
+        "fps": 21.6,
+        "shownPerSec": 15.3,
+        "incoherent": 0,
+        "longFrames": 54,
+        "frames": 64
+      }
+    },
+    {
+      "config": "rebuild-async-nocache/10/canvas",
+      "loadAvg": [4.98, 5.03, 4.2],
+      "layerInitMs": 0,
+      "memDeltaMB": 134,
+      "annSwapMs": {
+        "p50": 0.32,
+        "p95": 0.62,
+        "max": 0.66,
+        "n": 30
+      },
+      "decoMs": {
+        "p50": 1,
+        "p95": 1.43,
+        "max": 1.48,
+        "n": 30
+      },
+      "fabricRenderMs": {
+        "p50": 0.46,
+        "p95": 1.23,
+        "max": 1.56,
+        "n": 30
+      },
+      "imageLatencyMs": {
+        "p50": 17,
+        "p95": 18.45,
+        "max": 18.64,
+        "n": 30
+      },
+      "scroll": {
+        "fps": 59.6,
+        "shownPerSec": 44.9,
+        "incoherent": 0,
+        "longFrames": 3,
+        "frames": 177
+      }
+    },
+    {
+      "config": "rebuild-async-nocache/50/canvas",
+      "loadAvg": [5.14, 5.07, 4.22],
+      "layerInitMs": 0,
+      "memDeltaMB": 146,
+      "annSwapMs": {
+        "p50": 0.8,
+        "p95": 1.77,
+        "max": 1.95,
+        "n": 30
+      },
+      "decoMs": {
+        "p50": 2.57,
+        "p95": 4.6,
+        "max": 6.96,
+        "n": 30
+      },
+      "fabricRenderMs": {
+        "p50": 1.05,
+        "p95": 2.84,
+        "max": 5.02,
+        "n": 30
+      },
+      "imageLatencyMs": {
+        "p50": 18.57,
+        "p95": 24.6,
+        "max": 34.45,
+        "n": 30
+      },
+      "scroll": {
+        "fps": 49.3,
+        "shownPerSec": 34.6,
+        "incoherent": 0,
+        "longFrames": 33,
+        "frames": 147
+      }
+    },
+    {
+      "config": "rebuild-async-nocache/200/canvas",
+      "loadAvg": [4.89, 5.01, 4.21],
+      "layerInitMs": 0,
+      "memDeltaMB": 233,
+      "annSwapMs": {
+        "p50": 3.2,
+        "p95": 6.39,
+        "max": 8.73,
+        "n": 30
+      },
+      "decoMs": {
+        "p50": 9.57,
+        "p95": 12.57,
+        "max": 15.97,
+        "n": 30
+      },
+      "fabricRenderMs": {
+        "p50": 3.75,
+        "p95": 14.12,
+        "max": 15.92,
+        "n": 30
+      },
+      "imageLatencyMs": {
+        "p50": 49.77,
+        "p95": 67.39,
+        "max": 109.22,
+        "n": 30
+      },
+      "scroll": {
+        "fps": 20.6,
+        "shownPerSec": 12.8,
+        "incoherent": 0,
+        "longFrames": 54,
+        "frames": 62
+      }
+    },
+    {
+      "config": "visibility/10/canvas",
+      "loadAvg": [4.77, 4.98, 4.2],
+      "layerInitMs": 279,
+      "memDeltaMB": 171,
+      "annSwapMs": {
+        "p50": 0.05,
+        "p95": 0.1,
+        "max": 0.11,
+        "n": 30
+      },
+      "decoMs": {
+        "p50": 1.08,
+        "p95": 1.47,
+        "max": 5.18,
+        "n": 30
+      },
+      "fabricRenderMs": {
+        "p50": 9.32,
+        "p95": 12.3,
+        "max": 15.05,
+        "n": 30
+      },
+      "imageLatencyMs": {
+        "p50": 17.02,
+        "p95": 20.34,
+        "max": 20.7,
+        "n": 30
+      },
+      "scroll": {
+        "fps": 48.6,
+        "shownPerSec": 29,
+        "incoherent": 0,
+        "longFrames": 36,
+        "frames": 144
+      }
+    },
+    {
+      "config": "visibility/50/canvas",
+      "loadAvg": [4.81, 4.98, 4.21],
+      "layerInitMs": 1296,
+      "memDeltaMB": 311,
+      "annSwapMs": {
+        "p50": 0.08,
+        "p95": 0.13,
+        "max": 0.22,
+        "n": 30
+      },
+      "decoMs": {
+        "p50": 2.72,
+        "p95": 6.45,
+        "max": 7.64,
+        "n": 30
+      },
+      "fabricRenderMs": {
+        "p50": 44.01,
+        "p95": 61.55,
+        "max": 61.8,
+        "n": 30
+      },
+      "imageLatencyMs": {
+        "p50": 18.39,
+        "p95": 23.18,
+        "max": 32.66,
+        "n": 30
+      },
+      "scroll": {
+        "fps": 20.7,
+        "shownPerSec": 11.3,
+        "incoherent": 0,
+        "longFrames": 37,
+        "frames": 63
       }
     },
     {
       "config": "visibility/200/canvas",
-      "error": "page.evaluate: RangeError: Maximum call stack size exceeded\n    at ho.remove (http://127.0.0.1:5531/node_modules/.vite/deps/fabric.js?v=e9044e2c:772:17)\n    at VisibilityLayer.clearAnnotations (http://127.0.0.1:5531/src/annotations/layers.ts:70:35)\n    at VisibilityLayer.dispose (http://127.0.0.1:5531/src/annotations/layers.ts:79:8)\n    at Object.teardown (http://127.0.0.1:5531/src/main.ts:505:21)\n    at eval (eval at evaluate (:302:30), <anonymous>:1:28)\n    at UtilityScript.evaluate (<anonymous>:304:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
-      "loadAvg": [7.46, 7.94, 9.12],
-      "layerInitMs": 2721,
-      "memDeltaMB": 725,
+      "loadAvg": [5.32, 5.08, 4.25],
+      "layerInitMs": 5114,
+      "memDeltaMB": 717,
       "annSwapMs": {
-        "p50": 0.1,
-        "p95": 0.2,
-        "max": 0.26,
+        "p50": 0.18,
+        "p95": 0.33,
+        "max": 4.23,
         "n": 30
       },
       "decoMs": {
-        "p50": 3.65,
-        "p95": 6,
-        "max": 215.81,
+        "p50": 7.79,
+        "p95": 19.9,
+        "max": 84.4,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 141.78,
-        "p95": 239.51,
-        "max": 382.75,
+        "p50": 213.28,
+        "p95": 805.88,
+        "max": 904.38,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 17.9,
-        "p95": 46.83,
-        "max": 301.7,
+        "p50": 26.45,
+        "p95": 57.51,
+        "max": 189.65,
         "n": 30
       },
       "scroll": {
-        "fps": 10.2,
-        "shownPerSec": 5.3,
+        "fps": 3.4,
+        "shownPerSec": 1.6,
         "incoherent": 0,
-        "longFrames": 18,
-        "frames": 30
+        "longFrames": 9,
+        "frames": 10
       }
     },
     {
       "config": "cache-nocache/10/webgl",
-      "loadAvg": [6.74, 7.76, 9.04],
-      "layerInitMs": 65,
-      "memDeltaMB": 165,
+      "loadAvg": [4.98, 5.04, 4.27],
+      "layerInitMs": 120,
+      "memDeltaMB": 164,
       "annSwapMs": {
-        "p50": 0.29,
-        "p95": 1.11,
-        "max": 1.98,
+        "p50": 0.47,
+        "p95": 2.51,
+        "max": 3.38,
         "n": 30
       },
       "decoMs": {
-        "p50": 0.63,
-        "p95": 1.19,
-        "max": 1.88,
+        "p50": 1.1,
+        "p95": 2.53,
+        "max": 3.81,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 0.31,
-        "p95": 0.59,
-        "max": 1.01,
+        "p50": 0.45,
+        "p95": 0.61,
+        "max": 0.88,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 100.67,
-        "p95": 197.96,
-        "max": 220.37,
+        "p50": 124.52,
+        "p95": 148.13,
+        "max": 154.79,
         "n": 30
       },
       "scroll": {
-        "fps": 19.3,
-        "shownPerSec": 10.1,
+        "fps": 13.3,
+        "shownPerSec": 8.1,
         "incoherent": 0,
-        "longFrames": 32,
-        "frames": 58
+        "longFrames": 29,
+        "frames": 39
       }
     },
     {
       "config": "cache-nocache/50/webgl",
-      "loadAvg": [7.69, 7.9, 9.06],
-      "layerInitMs": 359,
-      "memDeltaMB": 249,
+      "loadAvg": [4.6, 4.95, 4.25],
+      "layerInitMs": 597,
+      "memDeltaMB": 256,
       "annSwapMs": {
-        "p50": 0.8,
-        "p95": 3.07,
-        "max": 6.42,
+        "p50": 1.45,
+        "p95": 3.77,
+        "max": 4.24,
         "n": 30
       },
       "decoMs": {
-        "p50": 1.53,
-        "p95": 3.44,
-        "max": 4.54,
+        "p50": 2.89,
+        "p95": 6.18,
+        "max": 8.69,
         "n": 30
       },
       "fabricRenderMs": {
-        "p50": 0.79,
-        "p95": 1.77,
-        "max": 3.48,
+        "p50": 1.05,
+        "p95": 2.48,
+        "max": 2.69,
         "n": 30
       },
       "imageLatencyMs": {
-        "p50": 120.58,
-        "p95": 165.29,
-        "max": 176.13,
+        "p50": 131.69,
+        "p95": 156.23,
+        "max": 205.97,
         "n": 30
       },
       "scroll": {
-        "fps": 13.7,
-        "shownPerSec": 7.2,
+        "fps": 12.1,
+        "shownPerSec": 6.9,
         "incoherent": 0,
-        "longFrames": 26,
-        "frames": 41
+        "longFrames": 22,
+        "frames": 36
       }
     }
   ],
   "cine": [
     {
-      "config": "cine/rgba/canvas/30",
-      "loadAvg": [8.35, 8.04, 9.1],
-      "prepMs": 471,
-      "memDeltaMB": 228,
-      "achievedFps": 30,
-      "droppedPct": 0,
+      "config": "cine/rgba/canvas/30 #1",
+      "loadAvg": [4.71, 4.96, 4.26],
+      "prepMs": 1088,
+      "memDeltaMB": 317,
+      "achievedFps": 29.9,
+      "droppedPct": 0.3,
       "incoherent": 0,
       "applyMs": {
-        "p50": 0.73,
-        "p95": 1.15,
-        "max": 5.32,
+        "p50": 1.34,
+        "p95": 3.48,
+        "max": 12.78,
         "n": 300
       },
-      "paintMsPerFrame": 0.33,
+      "paintMsPerFrame": 0.68,
       "osdDrawMs": {
-        "p50": 0.11,
-        "p95": 0.19,
-        "max": 4.25,
-        "n": 301
+        "p50": 0.25,
+        "p95": 0.69,
+        "max": 2.81,
+        "n": 299
       },
       "timeVsPixelMismatches": null,
       "elementDropped": null,
@@ -1464,51 +1687,77 @@
       "encodedBytes": 0
     },
     {
-      "config": "cine/rgba/canvas/60",
-      "loadAvg": [8.44, 8.07, 9.09],
-      "prepMs": 521,
-      "memDeltaMB": 326,
-      "achievedFps": 58.4,
+      "config": "cine/rgba/canvas/30 #2",
+      "loadAvg": [4.51, 4.91, 4.26],
+      "prepMs": 1038,
+      "memDeltaMB": 323,
+      "achievedFps": 29.9,
+      "droppedPct": 0.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 1.35,
+        "p95": 3.88,
+        "max": 8.6,
+        "n": 300
+      },
+      "paintMsPerFrame": 0.68,
+      "osdDrawMs": {
+        "p50": 0.26,
+        "p95": 0.81,
+        "max": 1.75,
+        "n": 299
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/rgba/canvas/30 #3",
+      "loadAvg": [4.4, 4.86, 4.25],
+      "prepMs": 1124,
+      "memDeltaMB": 318,
+      "achievedFps": 29.9,
+      "droppedPct": 0.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 1.31,
+        "p95": 2.76,
+        "max": 8.95,
+        "n": 300
+      },
+      "paintMsPerFrame": 0.68,
+      "osdDrawMs": {
+        "p50": 0.24,
+        "p95": 0.6,
+        "max": 3.21,
+        "n": 299
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/rgba/canvas/60 #1",
+      "loadAvg": [4.26, 4.82, 4.24],
+      "prepMs": 1065,
+      "memDeltaMB": 327,
+      "achievedFps": 58.2,
       "droppedPct": 2.7,
       "incoherent": 0,
       "applyMs": {
-        "p50": 1.48,
-        "p95": 2.48,
-        "max": 6.56,
-        "n": 292
-      },
-      "paintMsPerFrame": 1.13,
-      "osdDrawMs": {
-        "p50": 0.1,
-        "p95": 0.27,
-        "max": 2.61,
+        "p50": 2.86,
+        "p95": 4.74,
+        "max": 13.28,
         "n": 293
       },
-      "timeVsPixelMismatches": null,
-      "elementDropped": null,
-      "calibratedFrames": null,
-      "encodedBytes": 0
-    },
-    {
-      "config": "cine/rgba/webgl/30",
-      "loadAvg": [8.41, 8.07, 9.09],
-      "prepMs": 605,
-      "memDeltaMB": 303,
-      "achievedFps": 14.3,
-      "droppedPct": 51,
-      "incoherent": 0,
-      "applyMs": {
-        "p50": 0.93,
-        "p95": 2.55,
-        "max": 12.16,
-        "n": 147
-      },
-      "paintMsPerFrame": 0.44,
+      "paintMsPerFrame": 2.15,
       "osdDrawMs": {
-        "p50": 53.77,
-        "p95": 93.54,
-        "max": 378.92,
-        "n": 148
+        "p50": 0.25,
+        "p95": 0.66,
+        "max": 5.22,
+        "n": 292
       },
       "timeVsPixelMismatches": null,
       "elementDropped": null,
@@ -1516,25 +1765,25 @@
       "encodedBytes": 0
     },
     {
-      "config": "cine/rgba/webgl/60",
-      "loadAvg": [8.42, 8.08, 9.08],
-      "prepMs": 501,
-      "memDeltaMB": 289,
-      "achievedFps": 21.8,
-      "droppedPct": 63.7,
+      "config": "cine/rgba/canvas/60 #2",
+      "loadAvg": [4.65, 4.89, 4.27],
+      "prepMs": 969,
+      "memDeltaMB": 323,
+      "achievedFps": 58.6,
+      "droppedPct": 2,
       "incoherent": 0,
       "applyMs": {
-        "p50": 0.85,
-        "p95": 1.65,
-        "max": 4.78,
-        "n": 109
+        "p50": 2.81,
+        "p95": 5.69,
+        "max": 10.78,
+        "n": 295
       },
-      "paintMsPerFrame": 0.39,
+      "paintMsPerFrame": 2.17,
       "osdDrawMs": {
-        "p50": 37.43,
-        "p95": 44.01,
-        "max": 203.11,
-        "n": 110
+        "p50": 0.23,
+        "p95": 0.58,
+        "max": 3.65,
+        "n": 294
       },
       "timeVsPixelMismatches": null,
       "elementDropped": null,
@@ -1542,25 +1791,103 @@
       "encodedBytes": 0
     },
     {
-      "config": "cine/bitmap/canvas/30",
-      "loadAvg": [8.15, 8.03, 9.05],
-      "prepMs": 752,
-      "memDeltaMB": 132,
-      "achievedFps": 30,
-      "droppedPct": 0,
+      "config": "cine/rgba/canvas/60 #3",
+      "loadAvg": [5.27, 5.01, 4.32],
+      "prepMs": 1098,
+      "memDeltaMB": 324,
+      "achievedFps": 57.8,
+      "droppedPct": 3.3,
       "incoherent": 0,
       "applyMs": {
-        "p50": 0.44,
-        "p95": 0.77,
-        "max": 3.21,
+        "p50": 2.78,
+        "p95": 4.83,
+        "max": 8.99,
+        "n": 291
+      },
+      "paintMsPerFrame": 2.09,
+      "osdDrawMs": {
+        "p50": 0.23,
+        "p95": 0.65,
+        "max": 3.2,
+        "n": 290
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/rgba/webgl/30 #1",
+      "loadAvg": [5.33, 5.03, 4.33],
+      "prepMs": 877,
+      "memDeltaMB": 281,
+      "achievedFps": 8.8,
+      "droppedPct": 70.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 1.33,
+        "p95": 3.88,
+        "max": 8.77,
+        "n": 90
+      },
+      "paintMsPerFrame": 0.61,
+      "osdDrawMs": {
+        "p50": 98.23,
+        "p95": 137.36,
+        "max": 194.53,
+        "n": 89
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/rgba/webgl/60 #1",
+      "loadAvg": [5.73, 5.12, 4.37],
+      "prepMs": 910,
+      "memDeltaMB": 259,
+      "achievedFps": 9.8,
+      "droppedPct": 83.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 1.28,
+        "p95": 2.99,
+        "max": 17.77,
+        "n": 51
+      },
+      "paintMsPerFrame": 0.59,
+      "osdDrawMs": {
+        "p50": 87.59,
+        "p95": 119.31,
+        "max": 130.86,
+        "n": 50
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/bitmap/canvas/30 #1",
+      "loadAvg": [5.59, 5.1, 4.37],
+      "prepMs": 1396,
+      "memDeltaMB": 136,
+      "achievedFps": 29.9,
+      "droppedPct": 0.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 0.7,
+        "p95": 1.41,
+        "max": 5.68,
         "n": 300
       },
-      "paintMsPerFrame": 0.03,
+      "paintMsPerFrame": 0.07,
       "osdDrawMs": {
-        "p50": 0.13,
-        "p95": 0.23,
-        "max": 2.17,
-        "n": 301
+        "p50": 0.23,
+        "p95": 0.57,
+        "max": 2.92,
+        "n": 299
       },
       "timeVsPixelMismatches": null,
       "elementDropped": null,
@@ -1568,25 +1895,77 @@
       "encodedBytes": 0
     },
     {
-      "config": "cine/bitmap/canvas/60",
-      "loadAvg": [7.91, 7.98, 9.03],
-      "prepMs": 757,
-      "memDeltaMB": 139,
-      "achievedFps": 57.4,
-      "droppedPct": 4,
+      "config": "cine/bitmap/canvas/30 #2",
+      "loadAvg": [5.01, 5, 4.35],
+      "prepMs": 1462,
+      "memDeltaMB": 131,
+      "achievedFps": 29.8,
+      "droppedPct": 0.7,
       "incoherent": 0,
       "applyMs": {
-        "p50": 0.3,
-        "p95": 1.29,
-        "max": 3.92,
+        "p50": 0.74,
+        "p95": 2.13,
+        "max": 7.66,
+        "n": 299
+      },
+      "paintMsPerFrame": 0.06,
+      "osdDrawMs": {
+        "p50": 0.24,
+        "p95": 0.55,
+        "max": 4.04,
+        "n": 298
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/bitmap/canvas/30 #3",
+      "loadAvg": [4.7, 4.93, 4.33],
+      "prepMs": 1285,
+      "memDeltaMB": 136,
+      "achievedFps": 29.9,
+      "droppedPct": 0.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 0.69,
+        "p95": 3.25,
+        "max": 7.02,
+        "n": 300
+      },
+      "paintMsPerFrame": 0.07,
+      "osdDrawMs": {
+        "p50": 0.23,
+        "p95": 0.62,
+        "max": 2.21,
+        "n": 299
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/bitmap/canvas/60 #1",
+      "loadAvg": [4.71, 4.92, 4.34],
+      "prepMs": 1348,
+      "memDeltaMB": 143,
+      "achievedFps": 57.2,
+      "droppedPct": 4.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 0.63,
+        "p95": 1.31,
+        "max": 70.3,
         "n": 288
       },
       "paintMsPerFrame": 0.02,
       "osdDrawMs": {
-        "p50": 0.11,
-        "p95": 0.61,
-        "max": 3.12,
-        "n": 289
+        "p50": 0.23,
+        "p95": 0.63,
+        "max": 5.61,
+        "n": 287
       },
       "timeVsPixelMismatches": null,
       "elementDropped": null,
@@ -1594,873 +1973,2975 @@
       "encodedBytes": 0
     },
     {
-      "config": "cine/webcodecs/canvas/30",
-      "loadAvg": [8.15, 8.03, 9.03],
-      "prepMs": 1256,
-      "memDeltaMB": 652,
-      "achievedFps": 28.3,
+      "config": "cine/bitmap/canvas/60 #2",
+      "loadAvg": [5.24, 5.02, 4.38],
+      "prepMs": 1310,
+      "memDeltaMB": 138,
+      "achievedFps": 59,
+      "droppedPct": 1.3,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 0.6,
+        "p95": 1.38,
+        "max": 6.42,
+        "n": 297
+      },
+      "paintMsPerFrame": 0.02,
+      "osdDrawMs": {
+        "p50": 0.23,
+        "p95": 0.89,
+        "max": 3.73,
+        "n": 296
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/bitmap/canvas/60 #3",
+      "loadAvg": [5.14, 5.01, 4.37],
+      "prepMs": 1193,
+      "memDeltaMB": 139,
+      "achievedFps": 59.4,
+      "droppedPct": 0.7,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 0.57,
+        "p95": 1.26,
+        "max": 3.89,
+        "n": 299
+      },
+      "paintMsPerFrame": 0.02,
+      "osdDrawMs": {
+        "p50": 0.23,
+        "p95": 0.6,
+        "max": 4.49,
+        "n": 298
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 0
+    },
+    {
+      "config": "cine/webcodecs/canvas/30 #1",
+      "loadAvg": [5.36, 5.06, 4.4],
+      "prepMs": 1864,
+      "memDeltaMB": 632,
+      "achievedFps": 29.9,
+      "droppedPct": 0,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 4.13,
+        "p95": 8.46,
+        "max": 43.94,
+        "n": 300
+      },
+      "paintMsPerFrame": 3.29,
+      "osdDrawMs": {
+        "p50": 0.23,
+        "p95": 0.76,
+        "max": 8.47,
+        "n": 300
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 1822183
+    },
+    {
+      "config": "cine/webcodecs/canvas/30 #2",
+      "loadAvg": [5.07, 5, 4.39],
+      "prepMs": 1946,
+      "memDeltaMB": 635,
+      "achievedFps": 30,
+      "droppedPct": 0,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 3.4,
+        "p95": 7.11,
+        "max": 14.37,
+        "n": 300
+      },
+      "paintMsPerFrame": 2.72,
+      "osdDrawMs": {
+        "p50": 0.21,
+        "p95": 0.51,
+        "max": 2.21,
+        "n": 300
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 1824223
+    },
+    {
+      "config": "cine/webcodecs/canvas/30 #3",
+      "loadAvg": [4.99, 4.99, 4.39],
+      "prepMs": 2155,
+      "memDeltaMB": 630,
+      "achievedFps": 30,
+      "droppedPct": 0,
+      "incoherent": 0,
+      "applyMs": {
+        "p50": 4,
+        "p95": 7.89,
+        "max": 12.36,
+        "n": 300
+      },
+      "paintMsPerFrame": 3.13,
+      "osdDrawMs": {
+        "p50": 0.23,
+        "p95": 0.83,
+        "max": 3.76,
+        "n": 300
+      },
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 1824554
+    },
+    {
+      "config": "cine/webcodecs/canvas/60 #1",
+      "loadAvg": [4.91, 4.97, 4.39],
+      "prepMs": 1876,
+      "memDeltaMB": 640,
+      "achievedFps": 56.3,
       "droppedPct": 5.7,
       "incoherent": 0,
       "applyMs": {
-        "p50": 3.65,
-        "p95": 8.63,
-        "max": 575.37,
-        "n": 285
+        "p50": 5.23,
+        "p95": 9.89,
+        "max": 21.86,
+        "n": 283
       },
-      "paintMsPerFrame": 5.08,
+      "paintMsPerFrame": 4.67,
       "osdDrawMs": {
-        "p50": 0.13,
-        "p95": 0.31,
-        "max": 2.83,
+        "p50": 0.2,
+        "p95": 0.54,
+        "max": 2.28,
         "n": 283
       },
       "timeVsPixelMismatches": null,
       "elementDropped": null,
       "calibratedFrames": null,
-      "encodedBytes": 1823426
+      "encodedBytes": 1566350
     },
     {
-      "config": "cine/webcodecs/canvas/60",
-      "loadAvg": [8.42, 8.1, 9.04],
-      "prepMs": 1005,
-      "memDeltaMB": 634,
-      "achievedFps": 54.2,
-      "droppedPct": 9.3,
+      "config": "cine/webcodecs/canvas/60 #2",
+      "loadAvg": [5.24, 5.04, 4.42],
+      "prepMs": 1867,
+      "memDeltaMB": 639,
+      "achievedFps": 56.2,
+      "droppedPct": 6,
       "incoherent": 0,
       "applyMs": {
-        "p50": 3.4,
-        "p95": 6.31,
-        "max": 14.95,
-        "n": 272
+        "p50": 4.96,
+        "p95": 9.19,
+        "max": 16.99,
+        "n": 285
       },
-      "paintMsPerFrame": 3.24,
+      "paintMsPerFrame": 4.43,
       "osdDrawMs": {
-        "p50": 0.12,
-        "p95": 0.3,
-        "max": 3.21,
-        "n": 272
+        "p50": 0.2,
+        "p95": 0.47,
+        "max": 2.04,
+        "n": 282
       },
       "timeVsPixelMismatches": null,
       "elementDropped": null,
       "calibratedFrames": null,
-      "encodedBytes": 1565777
+      "encodedBytes": 1566487
     },
     {
-      "config": "cine/video-nominal/canvas/30",
-      "loadAvg": [7.76, 7.96, 8.99],
-      "prepMs": 3860,
-      "memDeltaMB": 642,
-      "achievedFps": 29.4,
-      "droppedPct": 0,
-      "incoherent": 137,
+      "config": "cine/webcodecs/canvas/60 #3",
+      "loadAvg": [5.29, 5.06, 4.43],
+      "prepMs": 1925,
+      "memDeltaMB": 637,
+      "achievedFps": 53.2,
+      "droppedPct": 11,
+      "incoherent": 0,
       "applyMs": {
-        "p50": 2.67,
-        "p95": 4.95,
-        "max": 8.88,
-        "n": 295
+        "p50": 5.59,
+        "p95": 10.62,
+        "max": 19.43,
+        "n": 270
       },
-      "paintMsPerFrame": 0.47,
+      "paintMsPerFrame": 4.95,
       "osdDrawMs": {
-        "p50": 0.1,
-        "p95": 0.24,
-        "max": 2.98,
-        "n": 297
+        "p50": 0.21,
+        "p95": 0.48,
+        "max": 2.83,
+        "n": 267
       },
-      "timeVsPixelMismatches": 68,
+      "timeVsPixelMismatches": null,
+      "elementDropped": null,
+      "calibratedFrames": null,
+      "encodedBytes": 1566138
+    },
+    {
+      "config": "cine/video-nominal/canvas/30 #1",
+      "loadAvg": [5.01, 5, 4.42],
+      "prepMs": 4517,
+      "memDeltaMB": 643,
+      "achievedFps": 28.7,
+      "droppedPct": 0,
+      "incoherent": 470,
+      "applyMs": {
+        "p50": 3.69,
+        "p95": 7.85,
+        "max": 18.07,
+        "n": 287
+      },
+      "paintMsPerFrame": 0.68,
+      "osdDrawMs": {
+        "p50": 0.17,
+        "p95": 0.34,
+        "max": 4.35,
+        "n": 287
+      },
+      "timeVsPixelMismatches": 231,
       "elementDropped": 0,
       "calibratedFrames": null,
-      "encodedBytes": 2454477
+      "encodedBytes": 2485434
     },
     {
-      "config": "cine/video-calibrated/canvas/30",
-      "loadAvg": [6.84, 7.75, 8.9],
-      "prepMs": 4029,
-      "memDeltaMB": 641,
-      "achievedFps": 29.4,
-      "droppedPct": 0.3,
-      "incoherent": 4,
+      "config": "cine/video-calibrated/canvas/30 #1",
+      "loadAvg": [4.57, 4.9, 4.4],
+      "prepMs": 4396,
+      "memDeltaMB": 648,
+      "achievedFps": 28.6,
+      "droppedPct": 1.4,
+      "incoherent": 0,
       "applyMs": {
-        "p50": 2.52,
-        "p95": 4.89,
-        "max": 8.26,
-        "n": 294
+        "p50": 3.58,
+        "p95": 7.63,
+        "max": 32.08,
+        "n": 287
       },
-      "paintMsPerFrame": 0.46,
+      "paintMsPerFrame": 0.71,
       "osdDrawMs": {
-        "p50": 0.1,
-        "p95": 0.25,
-        "max": 5.34,
-        "n": 294
+        "p50": 0.15,
+        "p95": 0.3,
+        "max": 5.2,
+        "n": 287
       },
-      "timeVsPixelMismatches": 1,
+      "timeVsPixelMismatches": 0,
       "elementDropped": 1,
       "calibratedFrames": 100,
-      "encodedBytes": 2452746
+      "encodedBytes": 2464073
     },
     {
-      "config": "cine/video-nominal/canvas/60",
-      "loadAvg": [6.32, 7.58, 8.83],
-      "prepMs": 2286,
-      "memDeltaMB": 618,
-      "achievedFps": 45.1,
-      "droppedPct": 24.7,
-      "incoherent": 14,
+      "config": "cine/video-nominal/canvas/60 #1",
+      "loadAvg": [4.14, 4.78, 4.37],
+      "prepMs": 2671,
+      "memDeltaMB": 494,
+      "achievedFps": 35.4,
+      "droppedPct": 43.3,
+      "incoherent": 216,
       "applyMs": {
-        "p50": 2.67,
-        "p95": 6.76,
-        "max": 13.44,
-        "n": 230
+        "p50": 3.96,
+        "p95": 10.87,
+        "max": 51.86,
+        "n": 179
       },
-      "paintMsPerFrame": 0.67,
+      "paintMsPerFrame": 1.08,
       "osdDrawMs": {
-        "p50": 0.1,
-        "p95": 0.19,
-        "max": 2.13,
-        "n": 232
+        "p50": 0.18,
+        "p95": 0.36,
+        "max": 4.84,
+        "n": 179
       },
-      "timeVsPixelMismatches": 12,
-      "elementDropped": 54,
+      "timeVsPixelMismatches": 119,
+      "elementDropped": 44,
       "calibratedFrames": null,
-      "encodedBytes": 1782911
+      "encodedBytes": 1533723
     },
     {
-      "config": "cine/video-calibrated/canvas/60",
-      "loadAvg": [6.14, 7.5, 8.79],
-      "prepMs": 2335,
-      "memDeltaMB": 638,
-      "achievedFps": 44.9,
-      "droppedPct": 22.3,
-      "incoherent": 24,
+      "config": "cine/video-calibrated/canvas/60 #1",
+      "loadAvg": [4.43, 4.82, 4.38],
+      "prepMs": 2826,
+      "memDeltaMB": 554,
+      "achievedFps": 33.3,
+      "droppedPct": 45.4,
+      "incoherent": 146,
       "applyMs": {
-        "p50": 2.75,
-        "p95": 6.64,
-        "max": 17,
-        "n": 226
+        "p50": 3.69,
+        "p95": 8.92,
+        "max": 11.66,
+        "n": 167
       },
-      "paintMsPerFrame": 0.6,
+      "paintMsPerFrame": 0.87,
       "osdDrawMs": {
-        "p50": 0.09,
-        "p95": 0.16,
-        "max": 1.16,
-        "n": 226
+        "p50": 0.16,
+        "p95": 0.35,
+        "max": 0.73,
+        "n": 167
       },
-      "timeVsPixelMismatches": 20,
-      "elementDropped": 81,
-      "calibratedFrames": 81,
-      "encodedBytes": 1812276
+      "timeVsPixelMismatches": 69,
+      "elementDropped": 69,
+      "calibratedFrames": 51,
+      "encodedBytes": 1621311
     }
   ],
   "solid": [
     {
-      "binding": "optimized (HEAD)",
-      "rows": [
-        {
-          "config": "solid/canvas/0",
-          "loadAvg": [6.37, 7.5, 8.77],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 58.4
+      "name": "solid/frame-axis/default/0",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 0
+      },
+      "reps": 3,
+      "errors": [],
+      "setup": {
+        "genMs": 871.795,
+        "mountMs": 57.515,
+        "model": "frame-axis",
+        "annotations": 0,
+        "imageBuckets": 0,
+        "drawer": "canvas",
+        "objectCachingEffective": null
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 59.7,
+            "min": 59.7,
+            "max": 59.7,
+            "n": 3
           },
-          "warm": {
-            "fps": 59.7,
-            "shownPerSec": 58.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 0.8
+          "slicesPerSec": {
+            "median": 58.1,
+            "min": 58,
+            "max": 58.4,
+            "n": 3
           },
-          "realWheel": {
-            "fps": 59.8,
-            "shownPerSec": 19.2,
-            "eventsSent": 60
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
           },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
           },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
+          "syncMsP95": {
+            "median": 2.1,
+            "min": 1.94,
+            "max": 2.2,
+            "n": 3
           },
-          "memDeltaMB": 111
+          "heapMB": {
+            "median": 100.1,
+            "min": 99.9,
+            "max": 100.4,
+            "n": 3
+          },
+          "framesVisited": 181,
+          "window": 300
         },
-        {
-          "config": "solid/canvas/10",
-          "loadAvg": [6.01, 7.38, 8.72],
-          "cold": {
-            "fps": 57,
-            "shownPerSec": 55.1
+        "revisit": {
+          "fps": {
+            "median": 59.4,
+            "min": 59.3,
+            "max": 59.7,
+            "n": 3
           },
-          "warm": {
-            "fps": 59.7,
-            "shownPerSec": 58.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 1.11
+          "slicesPerSec": {
+            "median": 58,
+            "min": 57.4,
+            "max": 58,
+            "n": 3
           },
-          "realWheel": {
-            "fps": 59.6,
-            "shownPerSec": 19.2,
-            "eventsSent": 61
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
           },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
           },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
+          "syncMsP95": {
+            "median": 1.59,
+            "min": 1.52,
+            "max": 1.7,
+            "n": 3
           },
-          "memDeltaMB": 1180
+          "heapMB": {
+            "median": 100,
+            "min": 99.4,
+            "max": 100.4,
+            "n": 3
+          },
+          "framesVisited": 181,
+          "window": 300
         },
-        {
-          "config": "solid/canvas/50",
-          "loadAvg": [5.73, 7.27, 8.66],
-          "cold": {
-            "fps": 12.7,
-            "shownPerSec": 12.1
+        "window": {
+          "fps": {
+            "median": 59.7,
+            "min": 59.7,
+            "max": 59.7,
+            "n": 3
           },
-          "warm": {
-            "fps": 25.1,
-            "shownPerSec": 24.2,
-            "incoherent": 7,
-            "blank": 0,
-            "syncWorkMsP95": 0.77
+          "slicesPerSec": {
+            "median": 58.4,
+            "min": 58,
+            "max": 58.4,
+            "n": 3
           },
-          "realWheel": {
-            "fps": 35.8,
-            "shownPerSec": 16.3,
-            "eventsSent": 52
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
           },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
           },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
+          "syncMsP95": {
+            "median": 1.7,
+            "min": 1.54,
+            "max": 1.7,
+            "n": 3
           },
-          "memDeltaMB": 1686
-        },
-        {
-          "config": "solid/canvas/10/nocache",
-          "loadAvg": [6.52, 7.32, 8.64],
-          "cold": {
-            "fps": 59.4,
-            "shownPerSec": 58
+          "heapMB": {
+            "median": 101.5,
+            "min": 100.6,
+            "max": 103.5,
+            "n": 3
           },
-          "warm": {
-            "fps": 59.7,
-            "shownPerSec": 58.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 0.85
-          },
-          "realWheel": {
-            "fps": 58.4,
-            "shownPerSec": 18.9,
-            "eventsSent": 59
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 318
-        },
-        {
-          "config": "solid/canvas/50/nocache",
-          "loadAvg": [6.21, 7.22, 8.59],
-          "cold": {
-            "fps": 48.6,
-            "shownPerSec": 47
-          },
-          "warm": {
-            "fps": 59.7,
-            "shownPerSec": 58,
-            "incoherent": 1,
-            "blank": 0,
-            "syncWorkMsP95": 1.11
-          },
-          "realWheel": {
-            "fps": 58.8,
-            "shownPerSec": 18.9,
-            "eventsSent": 60
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 726
-        },
-        {
-          "config": "solid/webgl/10",
-          "loadAvg": [6.14, 7.16, 8.55],
-          "cold": {
-            "fps": 10.2,
-            "shownPerSec": 9.6
-          },
-          "warm": {
-            "fps": 13.3,
-            "shownPerSec": 12.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 1.03
-          },
-          "realWheel": {
-            "fps": 20.5,
-            "shownPerSec": 7.9,
-            "eventsSent": 26
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 1123
-        },
-        {
-          "config": "solid/per-slice/canvas/0",
-          "loadAvg": [6.74, 7.24, 8.55],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 0
-          },
-          "warm": {
-            "fps": 59.7,
-            "shownPerSec": 0,
-            "incoherent": 0,
-            "blank": 180,
-            "syncWorkMsP95": 2.67
-          },
-          "realWheel": {
-            "fps": 59.8,
-            "shownPerSec": 19.3,
-            "eventsSent": 61
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 0,
-            "zoomOverHome": 1
-          },
-          "memDeltaMB": 115
-        },
-        {
-          "config": "solid/per-slice/canvas/10/nocache",
-          "loadAvg": [6.48, 7.16, 8.51],
-          "cold": {
-            "fps": 58.4,
-            "shownPerSec": 0
-          },
-          "warm": {
-            "fps": 58.4,
-            "shownPerSec": 0,
-            "incoherent": 0,
-            "blank": 176,
-            "syncWorkMsP95": 9.99
-          },
-          "realWheel": {
-            "fps": 59.7,
-            "shownPerSec": 18.9,
-            "eventsSent": 59
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 0,
-            "zoomOverHome": 1
-          },
-          "memDeltaMB": 273
+          "framesVisited": 180,
+          "window": 180
         }
-      ]
+      },
+      "editAddMsP50": null,
+      "editDeleteMsP50": null,
+      "memDeltaMB": {
+        "median": 126,
+        "min": 125,
+        "max": 126,
+        "n": 3
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 59.3,
+        "slicesPerSec": 18.8,
+        "events": 40,
+        "incoherent": 0
+      },
+      "loadAvg": [3.67, 4.12]
     },
     {
-      "binding": "67f398a (before the coherence fixes)",
-      "rows": [
-        {
-          "config": "solid/canvas/0",
-          "loadAvg": [6.24, 6.99, 4],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 57.4
-          },
-          "warm": {
-            "fps": 59.7,
-            "shownPerSec": 58.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 1.05
-          },
-          "realWheel": {
-            "fps": 59.8,
-            "shownPerSec": 19.3,
-            "eventsSent": 60
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 145
-        },
-        {
-          "config": "solid/canvas/10",
-          "loadAvg": [5, 6.68, 3.94],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 52.5
-          },
-          "warm": {
-            "fps": 56.4,
-            "shownPerSec": 48.5,
-            "incoherent": 42,
-            "blank": 0,
-            "syncWorkMsP95": 5.62
-          },
-          "realWheel": {
-            "fps": 56.5,
-            "shownPerSec": 17.4,
-            "eventsSent": 55
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 804
-        },
-        {
-          "config": "solid/canvas/50",
-          "loadAvg": [5.48, 6.72, 3.99],
-          "cold": {
-            "fps": 23.9,
-            "shownPerSec": 13.7
-          },
-          "warm": {
-            "fps": 32.1,
-            "shownPerSec": 18.8,
-            "incoherent": 64,
-            "blank": 0,
-            "syncWorkMsP95": 3.67
-          },
-          "realWheel": {
-            "fps": 35.1,
-            "shownPerSec": 15,
-            "eventsSent": 48
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 1843
-        },
-        {
-          "config": "solid/canvas/10/nocache",
-          "loadAvg": [5.91, 6.77, 4.05],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 56.7
-          },
-          "warm": {
-            "fps": 59.3,
-            "shownPerSec": 54.5,
-            "incoherent": 30,
-            "blank": 0,
-            "syncWorkMsP95": 3.15
-          },
-          "realWheel": {
-            "fps": 60,
-            "shownPerSec": 19,
-            "eventsSent": 60
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 298
-        },
-        {
-          "config": "solid/canvas/50/nocache",
-          "loadAvg": [5.61, 6.68, 4.05],
-          "cold": {
-            "fps": 54.5,
-            "shownPerSec": 43.4
-          },
-          "warm": {
-            "fps": 51.3,
-            "shownPerSec": 39.2,
-            "incoherent": 65,
-            "blank": 0,
-            "syncWorkMsP95": 5.29
-          },
-          "realWheel": {
-            "fps": 55.4,
-            "shownPerSec": 14,
-            "eventsSent": 45
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 487
-        },
-        {
-          "config": "solid/webgl/10",
-          "loadAvg": [5.1, 6.51, 4.03],
-          "cold": {
-            "fps": 12.9,
-            "shownPerSec": 6.9
-          },
-          "warm": {
-            "fps": 12.8,
-            "shownPerSec": 6.7,
-            "incoherent": 28,
-            "blank": 0,
-            "syncWorkMsP95": 1.58
-          },
-          "realWheel": {
-            "fps": 19.1,
-            "shownPerSec": 7.5,
-            "eventsSent": 26
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 474
-        },
-        {
-          "config": "solid/per-slice/canvas/0",
-          "loadAvg": [7.07, 6.88, 4.19],
-          "cold": {
-            "fps": 53.5,
-            "shownPerSec": 0
-          },
-          "warm": {
-            "fps": 55.1,
-            "shownPerSec": 2,
-            "incoherent": 0,
-            "blank": 154,
-            "syncWorkMsP95": 0.87
-          },
-          "realWheel": {
-            "fps": 57.5,
-            "shownPerSec": 16.8,
-            "eventsSent": 53
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 0,
-            "zoomOverHome": 1
-          },
-          "memDeltaMB": 132
-        },
-        {
-          "config": "solid/per-slice/canvas/10/nocache",
-          "loadAvg": [10.28, 7.59, 4.47],
-          "cold": {
-            "fps": 50.3,
-            "shownPerSec": 0
-          },
-          "warm": {
-            "fps": 54.5,
-            "shownPerSec": 0.3,
-            "incoherent": 4,
-            "blank": 159,
-            "syncWorkMsP95": 14.75
-          },
-          "realWheel": {
-            "fps": 58.8,
-            "shownPerSec": 16.5,
-            "eventsSent": 53
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 0,
-            "zoomOverHome": 1
-          },
-          "memDeltaMB": 268
+      "name": "solid/frame-axis/rebuild/10",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 10,
+        "frameCellOptions": {
+          "reuseObjects": false
         }
-      ]
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1060.05,
+        "mountMs": 172.295,
+        "model": "frame-axis",
+        "annotations": 3000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 54.4,
+            "min": 52.8,
+            "max": 57.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 52.8,
+            "min": 51.5,
+            "max": 55.7,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.63,
+            "min": 1.55,
+            "max": 1.8,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 96.5,
+            "min": 91.6,
+            "max": 101.7,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 54.8,
+            "min": 50.2,
+            "max": 57.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 53.1,
+            "min": 49.5,
+            "max": 55.8,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.84,
+            "min": 1.67,
+            "max": 1.94,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 95.6,
+            "min": 92,
+            "max": 100.8,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 54.1,
+            "min": 53.1,
+            "max": 56.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 52.8,
+            "min": 51.8,
+            "max": 54.8,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.65,
+            "min": 1.61,
+            "max": 1.72,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 97.3,
+            "min": 92.9,
+            "max": 102.9,
+            "n": 5
+          },
+          "framesVisited": 180,
+          "window": 180
+        }
+      },
+      "editAddMsP50": {
+        "median": 14.66,
+        "min": 13.38,
+        "max": 18.8,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 14.94,
+        "min": 13.54,
+        "max": 17.64,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 212,
+        "min": 206,
+        "max": 228,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 59.7,
+        "slicesPerSec": 19.3,
+        "events": 41,
+        "incoherent": 0
+      },
+      "loadAvg": [3.93, 4.44]
     },
     {
-      "binding": "9053a30 (redraw fix + pixel/annotation split, no look-ahead)",
-      "rows": [
-        {
-          "config": "solid/canvas/0",
-          "loadAvg": [9.65, 11.6, 11.16],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 58.4
-          },
-          "warm": {
-            "fps": 59,
-            "shownPerSec": 57.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 0.98
-          },
-          "realWheel": {
-            "fps": 59.8,
-            "shownPerSec": 19.2,
-            "eventsSent": 60
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 117
-        },
-        {
-          "config": "solid/canvas/10",
-          "loadAvg": [8.98, 11.36, 11.09],
-          "cold": {
-            "fps": 58.4,
-            "shownPerSec": 56.7
-          },
-          "warm": {
-            "fps": 49.7,
-            "shownPerSec": 48.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 0.94
-          },
-          "realWheel": {
-            "fps": 58.5,
-            "shownPerSec": 18.1,
-            "eventsSent": 57
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 1162
-        },
-        {
-          "config": "solid/canvas/50",
-          "loadAvg": [8.99, 11.24, 11.05],
-          "cold": {
-            "fps": 50.7,
-            "shownPerSec": 49.1
-          },
-          "warm": {
-            "fps": 25.7,
-            "shownPerSec": 25,
-            "incoherent": 106,
-            "blank": 0,
-            "syncWorkMsP95": 1.08
-          },
-          "realWheel": {
-            "fps": 49,
-            "shownPerSec": 14.3,
-            "eventsSent": 46
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 1369
-        },
-        {
-          "config": "solid/canvas/10/nocache",
-          "loadAvg": [9.16, 11.11, 11.02],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 58.4
-          },
-          "warm": {
-            "fps": 59.7,
-            "shownPerSec": 58.4,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 3.36
-          },
-          "realWheel": {
-            "fps": 57.5,
-            "shownPerSec": 18.5,
-            "eventsSent": 58
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 306
-        },
-        {
-          "config": "solid/canvas/50/nocache",
-          "loadAvg": [8.12, 10.83, 10.93],
-          "cold": {
-            "fps": 58,
-            "shownPerSec": 56.1
-          },
-          "warm": {
-            "fps": 57.7,
-            "shownPerSec": 54.7,
-            "incoherent": 168,
-            "blank": 0,
-            "syncWorkMsP95": 1.27
-          },
-          "realWheel": {
-            "fps": 58.5,
-            "shownPerSec": 17.6,
-            "eventsSent": 55
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 771
-        },
-        {
-          "config": "solid/webgl/10",
-          "loadAvg": [8.47, 10.71, 10.89],
-          "cold": {
-            "fps": 8,
-            "shownPerSec": 7.1
-          },
-          "warm": {
-            "fps": 9.2,
-            "shownPerSec": 8.3,
-            "incoherent": 0,
-            "blank": 0,
-            "syncWorkMsP95": 0.77
-          },
-          "realWheel": {
-            "fps": 20.5,
-            "shownPerSec": 7.6,
-            "eventsSent": 25
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "memDeltaMB": 1156
-        },
-        {
-          "config": "solid/per-slice/canvas/0",
-          "loadAvg": [8.53, 10.61, 10.85],
-          "cold": {
-            "fps": 59.7,
-            "shownPerSec": 0
-          },
-          "warm": {
-            "fps": 59.3,
-            "shownPerSec": 0,
-            "incoherent": 0,
-            "blank": 179,
-            "syncWorkMsP95": 0.64
-          },
-          "realWheel": {
-            "fps": 59.7,
-            "shownPerSec": 19.3,
-            "eventsSent": 61
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 0,
-            "zoomOverHome": 1
-          },
-          "memDeltaMB": 123
-        },
-        {
-          "config": "solid/per-slice/canvas/10/nocache",
-          "loadAvg": [8.15, 10.46, 10.8],
-          "cold": {
-            "fps": 58.4,
-            "shownPerSec": 0
-          },
-          "warm": {
-            "fps": 59.3,
-            "shownPerSec": 0,
-            "incoherent": 0,
-            "blank": 179,
-            "syncWorkMsP95": 7.76
-          },
-          "realWheel": {
-            "fps": 58.5,
-            "shownPerSec": 17.9,
-            "eventsSent": 57
-          },
-          "viewBefore": {
-            "rotation": 90,
-            "zoomOverHome": 2
-          },
-          "viewAfter": {
-            "rotation": 0,
-            "zoomOverHome": 1
-          },
-          "memDeltaMB": 285
+      "name": "solid/frame-axis/reuse/10",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 10,
+        "frameCellOptions": {
+          "reuseObjects": true
         }
-      ]
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1005.605,
+        "mountMs": 173.73,
+        "model": "frame-axis",
+        "annotations": 3000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 48.6,
+            "min": 46.2,
+            "max": 49.1,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 47.6,
+            "min": 44.9,
+            "max": 47.9,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.65,
+            "min": 1.46,
+            "max": 1.69,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 106.9,
+            "min": 103,
+            "max": 112.1,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 52.4,
+            "min": 49.2,
+            "max": 55.1,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 51.5,
+            "min": 47.5,
+            "max": 54.1,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.52,
+            "min": 1.49,
+            "max": 2.06,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 118,
+            "min": 110.9,
+            "max": 123.5,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 50.9,
+            "min": 47.9,
+            "max": 54.9,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 49.6,
+            "min": 46.9,
+            "max": 53.6,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.81,
+            "min": 1.4,
+            "max": 2.22,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 121,
+            "min": 107.8,
+            "max": 130,
+            "n": 5
+          },
+          "framesVisited": 180,
+          "window": 180
+        }
+      },
+      "editAddMsP50": {
+        "median": 20.61,
+        "min": 17.41,
+        "max": 21.74,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 18.76,
+        "min": 17.29,
+        "max": 21.43,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 304,
+        "min": 300,
+        "max": 307,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 59.8,
+        "slicesPerSec": 20.4,
+        "events": 44,
+        "incoherent": 0
+      },
+      "loadAvg": [3.79, 4.44]
+    },
+    {
+      "name": "solid/slice-ids/default/10",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "model": "slice-ids",
+        "annotationsPerFrame": 10
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1181.815,
+        "mountMs": 149.735,
+        "model": "slice-ids",
+        "annotations": 3000,
+        "imageBuckets": 300,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 51.5,
+            "min": 50.2,
+            "max": 53.8,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 50.5,
+            "min": 48.5,
+            "max": 51.9,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.92,
+            "min": 1.67,
+            "max": 2.24,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 96.3,
+            "min": 94.5,
+            "max": 99.4,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 54.4,
+            "min": 53.8,
+            "max": 55.1,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 52.2,
+            "min": 51.5,
+            "max": 52.8,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.7,
+            "min": 1.55,
+            "max": 1.8,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 95.9,
+            "min": 92.6,
+            "max": 105.7,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 56.7,
+            "min": 51.5,
+            "max": 58.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 53.2,
+            "min": 50.2,
+            "max": 55.4,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.73,
+            "min": 1.5,
+            "max": 2.29,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 96,
+            "min": 93.8,
+            "max": 105.5,
+            "n": 5
+          },
+          "framesVisited": 180,
+          "window": 180
+        }
+      },
+      "editAddMsP50": {
+        "median": 13.6,
+        "min": 11.14,
+        "max": 17.05,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 12.84,
+        "min": 10.35,
+        "max": 14.85,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 222,
+        "min": 216,
+        "max": 239,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 59.3,
+        "slicesPerSec": 19.6,
+        "events": 42,
+        "incoherent": 0
+      },
+      "loadAvg": [3.84, 4.75]
+    },
+    {
+      "name": "solid/frame-axis/rebuild/50",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 50,
+        "frameCellOptions": {
+          "reuseObjects": false
+        }
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1725.495,
+        "mountMs": 923.765,
+        "model": "frame-axis",
+        "annotations": 15000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 30.1,
+            "min": 28,
+            "max": 30.8,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 29.2,
+            "min": 27.4,
+            "max": 29.5,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.8,
+            "min": 1.53,
+            "max": 2.03,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 120,
+            "min": 112.8,
+            "max": 136.5,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 33.7,
+            "min": 31.5,
+            "max": 34.2,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 32.6,
+            "min": 30.5,
+            "max": 33.3,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.57,
+            "min": 1.46,
+            "max": 2.15,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 117.2,
+            "min": 113.9,
+            "max": 148.3,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 31.8,
+            "min": 30.7,
+            "max": 36.5,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 30.5,
+            "min": 29.4,
+            "max": 35.5,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.58,
+            "min": 1.38,
+            "max": 1.63,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 127.5,
+            "min": 122.3,
+            "max": 162.3,
+            "n": 5
+          },
+          "framesVisited": 100,
+          "window": 100
+        }
+      },
+      "editAddMsP50": {
+        "median": 82.66,
+        "min": 80.22,
+        "max": 102.44,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 81.69,
+        "min": 73.83,
+        "max": 94.93,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 376,
+        "min": 365,
+        "max": 446,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 52.2,
+        "slicesPerSec": 21.5,
+        "events": 46,
+        "incoherent": 0
+      },
+      "loadAvg": [3.97, 5.03]
+    },
+    {
+      "name": "solid/frame-axis/reuse/50",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 50,
+        "frameCellOptions": {
+          "reuseObjects": true
+        }
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1791.94,
+        "mountMs": 650.555,
+        "model": "frame-axis",
+        "annotations": 15000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 21.8,
+            "min": 18.7,
+            "max": 23.7,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 20.2,
+            "min": 18.1,
+            "max": 23.1,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.47,
+            "min": 1.42,
+            "max": 1.83,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 163.1,
+            "min": 147.4,
+            "max": 172.4,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 23.8,
+            "min": 19.3,
+            "max": 25.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 22.8,
+            "min": 18.3,
+            "max": 24.1,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.42,
+            "min": 1.07,
+            "max": 1.53,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 195.4,
+            "min": 150.5,
+            "max": 218.7,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 30.8,
+            "min": 26.6,
+            "max": 32.1,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 29,
+            "min": 25.6,
+            "max": 30.6,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.42,
+            "min": 1.3,
+            "max": 1.6,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 195.6,
+            "min": 166.9,
+            "max": 204.6,
+            "n": 5
+          },
+          "framesVisited": 100,
+          "window": 100
+        }
+      },
+      "editAddMsP50": {
+        "median": 75.2,
+        "min": 70.72,
+        "max": 82.53,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 72.77,
+        "min": 67.82,
+        "max": 87.91,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 442,
+        "min": 401,
+        "max": 487,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 43.1,
+        "slicesPerSec": 19.4,
+        "events": 42,
+        "incoherent": 0
+      },
+      "loadAvg": [4.56, 4.7]
+    },
+    {
+      "name": "solid/slice-ids/default/50",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "model": "slice-ids",
+        "annotationsPerFrame": 50
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1702.68,
+        "mountMs": 593.52,
+        "model": "slice-ids",
+        "annotations": 15000,
+        "imageBuckets": 300,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 32.5,
+            "min": 29.4,
+            "max": 33.1,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 31.2,
+            "min": 28.7,
+            "max": 32.1,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 2.09,
+            "min": 1.64,
+            "max": 2.27,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 132.1,
+            "min": 119.7,
+            "max": 140.1,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 34.6,
+            "min": 31.4,
+            "max": 35.8,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 33.3,
+            "min": 30.8,
+            "max": 35.2,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.53,
+            "min": 1.48,
+            "max": 2.31,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 135.5,
+            "min": 121.2,
+            "max": 141.1,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 34.4,
+            "min": 31.1,
+            "max": 38.1,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 32.5,
+            "min": 30.5,
+            "max": 37.1,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.89,
+            "min": 1.68,
+            "max": 2.6,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 135.8,
+            "min": 120.3,
+            "max": 143.5,
+            "n": 5
+          },
+          "framesVisited": 100,
+          "window": 100
+        }
+      },
+      "editAddMsP50": {
+        "median": 68.48,
+        "min": 53.01,
+        "max": 74.95,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 64.07,
+        "min": 48.97,
+        "max": 78.17,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 391,
+        "min": 389,
+        "max": 444,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 55.4,
+        "slicesPerSec": 21.7,
+        "events": 46,
+        "incoherent": 0
+      },
+      "loadAvg": [4.66, 5.4]
+    },
+    {
+      "name": "solid/frame-axis/rebuild/200",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 200,
+        "frameCellOptions": {
+          "reuseObjects": false
+        }
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 4044.755,
+        "mountMs": 3435.595,
+        "model": "frame-axis",
+        "annotations": 60000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 13,
+            "min": 12.7,
+            "max": 14.9,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 12.3,
+            "min": 11.4,
+            "max": 14,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.15,
+            "min": 1.04,
+            "max": 1.49,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 209.8,
+            "min": 176,
+            "max": 239.6,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 12.1,
+            "min": 11.4,
+            "max": 13.9,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 11.2,
+            "min": 10.5,
+            "max": 13,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.06,
+            "min": 1.03,
+            "max": 1.36,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 203.7,
+            "min": 177.4,
+            "max": 219.1,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 12.8,
+            "min": 12.5,
+            "max": 14.9,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 12.2,
+            "min": 11.2,
+            "max": 13.7,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.24,
+            "min": 1.09,
+            "max": 1.36,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 258.6,
+            "min": 203.1,
+            "max": 261.5,
+            "n": 5
+          },
+          "framesVisited": 25,
+          "window": 25
+        }
+      },
+      "editAddMsP50": {
+        "median": 406.86,
+        "min": 401.92,
+        "max": 441.5,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 402.57,
+        "min": 396.57,
+        "max": 414.67,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 681,
+        "min": 595,
+        "max": 700,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 34.3,
+        "slicesPerSec": 10.8,
+        "events": 24,
+        "incoherent": 0
+      },
+      "loadAvg": [4.46, 5.2]
+    },
+    {
+      "name": "solid/frame-axis/reuse/200",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 200,
+        "frameCellOptions": {
+          "reuseObjects": true
+        }
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 4270.305,
+        "mountMs": 3480.68,
+        "model": "frame-axis",
+        "annotations": 60000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 7.4,
+            "min": 7,
+            "max": 8.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 6.8,
+            "min": 6.4,
+            "max": 7.2,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.03,
+            "min": 0.99,
+            "max": 1.22,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 257.3,
+            "min": 239.6,
+            "max": 279,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 6.5,
+            "min": 6,
+            "max": 7.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 6,
+            "min": 5.4,
+            "max": 6.8,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 0.97,
+            "min": 0.3,
+            "max": 1.1,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 224.8,
+            "min": 203.7,
+            "max": 325.3,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 10.5,
+            "min": 9.6,
+            "max": 12.2,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 9.9,
+            "min": 9,
+            "max": 10.3,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.04,
+            "min": 0.93,
+            "max": 1.16,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 271.9,
+            "min": 237.4,
+            "max": 299.6,
+            "n": 5
+          },
+          "framesVisited": 25,
+          "window": 25
+        }
+      },
+      "editAddMsP50": {
+        "median": 383.75,
+        "min": 318.54,
+        "max": 410.34,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 355.95,
+        "min": 352.01,
+        "max": 365.88,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 622,
+        "min": 601,
+        "max": 711,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 24.5,
+        "slicesPerSec": 7.2,
+        "events": 17,
+        "incoherent": 0
+      },
+      "loadAvg": [4, 5.12]
+    },
+    {
+      "name": "solid/slice-ids/default/200",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "model": "slice-ids",
+        "annotationsPerFrame": 200
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 3899.93,
+        "mountMs": 2662.325,
+        "model": "slice-ids",
+        "annotations": 60000,
+        "imageBuckets": 300,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 14.8,
+            "min": 14,
+            "max": 15.6,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 13.8,
+            "min": 13.4,
+            "max": 14.4,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.19,
+            "min": 1.12,
+            "max": 1.34,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 247.9,
+            "min": 213.6,
+            "max": 260.7,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 14.1,
+            "min": 13.5,
+            "max": 14.6,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 13.2,
+            "min": 12.5,
+            "max": 13.7,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.1,
+            "min": 1.05,
+            "max": 1.35,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 216.1,
+            "min": 201.8,
+            "max": 222.8,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 17.1,
+            "min": 14.4,
+            "max": 18.8,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 16.2,
+            "min": 13.8,
+            "max": 17.5,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 1.12,
+            "min": 1.04,
+            "max": 1.46,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 275.2,
+            "min": 223,
+            "max": 288.2,
+            "n": 5
+          },
+          "framesVisited": 25,
+          "window": 25
+        }
+      },
+      "editAddMsP50": {
+        "median": 207.44,
+        "min": 203.34,
+        "max": 243.84,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 221.67,
+        "min": 199.8,
+        "max": 234.29,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 707,
+        "min": 675,
+        "max": 818,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 31.3,
+        "slicesPerSec": 9.5,
+        "events": 21,
+        "incoherent": 0
+      },
+      "loadAvg": [4.4, 5.51]
+    },
+    {
+      "name": "solid/frame-axis/default/50/limit",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 50,
+        "perSliceLimit": true
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1807.89,
+        "mountMs": 940.605,
+        "model": "frame-axis",
+        "annotations": 15000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 0.5,
+            "min": 0.4,
+            "max": 0.5,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 0.3,
+            "min": 0.3,
+            "max": 0.3,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 92.08,
+            "min": 87.79,
+            "max": 94.66,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 132.2,
+            "min": 123.5,
+            "max": 146.1,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 0.5,
+            "min": 0.4,
+            "max": 0.5,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 0.3,
+            "min": 0.2,
+            "max": 0.3,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 91.41,
+            "min": 86.84,
+            "max": 101.06,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 145.3,
+            "min": 131.6,
+            "max": 161.8,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 0.5,
+            "min": 0.5,
+            "max": 0.5,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 0.3,
+            "min": 0.3,
+            "max": 0.4,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 91.42,
+            "min": 84.6,
+            "max": 93.85,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 135.4,
+            "min": 122.4,
+            "max": 142.3,
+            "n": 5
+          },
+          "framesVisited": 100,
+          "window": 100
+        }
+      },
+      "editAddMsP50": {
+        "median": 76.59,
+        "min": 72.64,
+        "max": 79.56,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 76.5,
+        "min": 69.66,
+        "max": 79.81,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 232,
+        "min": 227,
+        "max": 251,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 19,
+        "slicesPerSec": 7.6,
+        "events": 17,
+        "incoherent": 0
+      },
+      "loadAvg": [4.15, 5.14]
+    },
+    {
+      "name": "solid/slice-ids/default/50/limit",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "model": "slice-ids",
+        "annotationsPerFrame": 50,
+        "perSliceLimit": true
+      },
+      "reps": 5,
+      "errors": [],
+      "setup": {
+        "genMs": 1590.42,
+        "mountMs": 408.105,
+        "model": "slice-ids",
+        "annotations": 15000,
+        "imageBuckets": 300,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 31.4,
+            "min": 29,
+            "max": 33.8,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 30.2,
+            "min": 27.7,
+            "max": 32.8,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 3.58,
+            "min": 2.5,
+            "max": 4.79,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 130.8,
+            "min": 115.2,
+            "max": 134.9,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 32.9,
+            "min": 30.4,
+            "max": 36.4,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 32.3,
+            "min": 29.1,
+            "max": 35.4,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 2.27,
+            "min": 1.96,
+            "max": 2.87,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 117.5,
+            "min": 112.2,
+            "max": 124.9,
+            "n": 5
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 32.8,
+            "min": 31.4,
+            "max": 36.3,
+            "n": 5
+          },
+          "slicesPerSec": {
+            "median": 31.9,
+            "min": 30.5,
+            "max": 35.7,
+            "n": 5
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 5
+          },
+          "syncMsP95": {
+            "median": 2.33,
+            "min": 1.96,
+            "max": 3.08,
+            "n": 5
+          },
+          "heapMB": {
+            "median": 126.1,
+            "min": 116.8,
+            "max": 142.7,
+            "n": 5
+          },
+          "framesVisited": 100,
+          "window": 100
+        }
+      },
+      "editAddMsP50": {
+        "median": 3.02,
+        "min": 2.72,
+        "max": 3.67,
+        "n": 5
+      },
+      "editDeleteMsP50": {
+        "median": 3,
+        "min": 2.35,
+        "max": 3.35,
+        "n": 5
+      },
+      "memDeltaMB": {
+        "median": 399,
+        "min": 363,
+        "max": 446,
+        "n": 5
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 56.9,
+        "slicesPerSec": 21.2,
+        "events": 45,
+        "incoherent": 0
+      },
+      "loadAvg": [4.67, 5.2]
+    },
+    {
+      "name": "solid/frame-axis/objcache/50",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 50,
+        "frameCellOptions": {
+          "objectCaching": true
+        }
+      },
+      "reps": 3,
+      "errors": [],
+      "setup": {
+        "genMs": 2113.24,
+        "mountMs": 753.78,
+        "model": "frame-axis",
+        "annotations": 15000,
+        "imageBuckets": 1,
+        "drawer": "canvas",
+        "objectCachingEffective": true
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 11.4,
+            "min": 11.1,
+            "max": 11.8,
+            "n": 3
+          },
+          "slicesPerSec": {
+            "median": 10.7,
+            "min": 9.9,
+            "max": 11.2,
+            "n": 3
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "syncMsP95": {
+            "median": 1.29,
+            "min": 1.23,
+            "max": 1.43,
+            "n": 3
+          },
+          "heapMB": {
+            "median": 130.3,
+            "min": 107.6,
+            "max": 134.1,
+            "n": 3
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 12.3,
+            "min": 12,
+            "max": 12.8,
+            "n": 3
+          },
+          "slicesPerSec": {
+            "median": 11.3,
+            "min": 11.1,
+            "max": 11.6,
+            "n": 3
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "syncMsP95": {
+            "median": 1.06,
+            "min": 1.04,
+            "max": 1.42,
+            "n": 3
+          },
+          "heapMB": {
+            "median": 119.9,
+            "min": 116.8,
+            "max": 120.7,
+            "n": 3
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 12.2,
+            "min": 12,
+            "max": 12.4,
+            "n": 3
+          },
+          "slicesPerSec": {
+            "median": 10.9,
+            "min": 10.4,
+            "max": 11.4,
+            "n": 3
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "syncMsP95": {
+            "median": 1.19,
+            "min": 1.07,
+            "max": 1.21,
+            "n": 3
+          },
+          "heapMB": {
+            "median": 118.1,
+            "min": 117.6,
+            "max": 120.9,
+            "n": 3
+          },
+          "framesVisited": 100,
+          "window": 100
+        }
+      },
+      "editAddMsP50": {
+        "median": 74.13,
+        "min": 73.47,
+        "max": 100.29,
+        "n": 3
+      },
+      "editDeleteMsP50": {
+        "median": 98.69,
+        "min": 68.05,
+        "max": 105.11,
+        "n": 3
+      },
+      "memDeltaMB": {
+        "median": 374,
+        "min": 365,
+        "max": 495,
+        "n": 3
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 24.8,
+        "slicesPerSec": 9.2,
+        "events": 21,
+        "incoherent": 0
+      },
+      "loadAvg": [5.18, 6.23]
+    },
+    {
+      "name": "solid/frame-axis/webgl/10",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "annotationsPerFrame": 10,
+        "frameCellOptions": {
+          "drawer": "webgl"
+        }
+      },
+      "reps": 3,
+      "errors": [],
+      "setup": {
+        "genMs": 1028.84,
+        "mountMs": 203.335,
+        "model": "frame-axis",
+        "annotations": 3000,
+        "imageBuckets": 1,
+        "drawer": "webgl",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 8.3,
+            "min": 7.5,
+            "max": 8.7,
+            "n": 3
+          },
+          "slicesPerSec": {
+            "median": 7.8,
+            "min": 6.9,
+            "max": 8.1,
+            "n": 3
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "syncMsP95": {
+            "median": 1.07,
+            "min": 0.62,
+            "max": 1.44,
+            "n": 3
+          },
+          "heapMB": {
+            "median": 94.2,
+            "min": 93.7,
+            "max": 96.3,
+            "n": 3
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 8.4,
+            "min": 8,
+            "max": 8.7,
+            "n": 3
+          },
+          "slicesPerSec": {
+            "median": 7.6,
+            "min": 7.1,
+            "max": 8.1,
+            "n": 3
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "syncMsP95": {
+            "median": 1.39,
+            "min": 1.22,
+            "max": 1.41,
+            "n": 3
+          },
+          "heapMB": {
+            "median": 96.3,
+            "min": 95.6,
+            "max": 98.4,
+            "n": 3
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 8.3,
+            "min": 8.1,
+            "max": 9.2,
+            "n": 3
+          },
+          "slicesPerSec": {
+            "median": 7.7,
+            "min": 7.2,
+            "max": 8,
+            "n": 3
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "blank": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 3
+          },
+          "syncMsP95": {
+            "median": 1.04,
+            "min": 1.02,
+            "max": 1.19,
+            "n": 3
+          },
+          "heapMB": {
+            "median": 94.6,
+            "min": 92.9,
+            "max": 96.8,
+            "n": 3
+          },
+          "framesVisited": 180,
+          "window": 180
+        }
+      },
+      "editAddMsP50": {
+        "median": 17.53,
+        "min": 15.81,
+        "max": 18.93,
+        "n": 3
+      },
+      "editDeleteMsP50": {
+        "median": 16.66,
+        "min": 15.51,
+        "max": 18.23,
+        "n": 3
+      },
+      "memDeltaMB": {
+        "median": 203,
+        "min": 203,
+        "max": 204,
+        "n": 3
+      },
+      "viewKept": true,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "realWheel": {
+        "fps": 16.1,
+        "slicesPerSec": 6.4,
+        "events": 15,
+        "incoherent": 0
+      },
+      "loadAvg": [6.23, 7.17]
+    },
+    {
+      "name": "solid/reopen-per-slice/10",
+      "opts": {
+        "frames": 300,
+        "width": 512,
+        "height": 512,
+        "model": "reopen-per-slice",
+        "annotationsPerFrame": 10
+      },
+      "reps": 1,
+      "errors": [],
+      "setup": {
+        "genMs": 1059.405,
+        "mountMs": 158.045,
+        "model": "reopen-per-slice",
+        "annotations": 3000,
+        "imageBuckets": 300,
+        "drawer": "canvas",
+        "objectCachingEffective": false
+      },
+      "passes": {
+        "cold": {
+          "fps": {
+            "median": 47.2,
+            "min": 47.2,
+            "max": 47.2,
+            "n": 1
+          },
+          "slicesPerSec": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "blank": {
+            "median": 142,
+            "min": 142,
+            "max": 142,
+            "n": 1
+          },
+          "syncMsP95": {
+            "median": 15.18,
+            "min": 15.18,
+            "max": 15.18,
+            "n": 1
+          },
+          "heapMB": {
+            "median": 98.8,
+            "min": 98.8,
+            "max": 98.8,
+            "n": 1
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "revisit": {
+          "fps": {
+            "median": 48.5,
+            "min": 48.5,
+            "max": 48.5,
+            "n": 1
+          },
+          "slicesPerSec": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "blank": {
+            "median": 146,
+            "min": 146,
+            "max": 146,
+            "n": 1
+          },
+          "syncMsP95": {
+            "median": 12.98,
+            "min": 12.98,
+            "max": 12.98,
+            "n": 1
+          },
+          "heapMB": {
+            "median": 95.8,
+            "min": 95.8,
+            "max": 95.8,
+            "n": 1
+          },
+          "framesVisited": 181,
+          "window": 300
+        },
+        "window": {
+          "fps": {
+            "median": 47.9,
+            "min": 47.9,
+            "max": 47.9,
+            "n": 1
+          },
+          "slicesPerSec": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "incoherent": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "blank": {
+            "median": 146,
+            "min": 146,
+            "max": 146,
+            "n": 1
+          },
+          "syncMsP95": {
+            "median": 14.29,
+            "min": 14.29,
+            "max": 14.29,
+            "n": 1
+          },
+          "heapMB": {
+            "median": 100,
+            "min": 100,
+            "max": 100,
+            "n": 1
+          },
+          "framesVisited": 180,
+          "window": 180
+        }
+      },
+      "editAddMsP50": null,
+      "editDeleteMsP50": null,
+      "memDeltaMB": {
+        "median": 223,
+        "min": 223,
+        "max": 223,
+        "n": 1
+      },
+      "viewKept": false,
+      "viewBefore": {
+        "rotation": 90,
+        "zoomOverHome": 2
+      },
+      "viewAfter": {
+        "rotation": 0,
+        "zoomOverHome": 1
+      },
+      "realWheel": {
+        "fps": 58.7,
+        "slicesPerSec": 12.7,
+        "events": 30,
+        "incoherent": 46
+      },
+      "loadAvg": [6.74, 6.81]
     }
-  ]
+  ],
+  "solidRun": {
+    "startedAt": "2026-10-24T12:38:19.758Z",
+    "finishedAt": "2026-10-24T13:03:15.599Z",
+    "loadAvg": [3.67, 3.63, 4.26],
+    "note": "Solid group re-run at 3e6ded1, after fixing the mount-time series revive; the full run's Solid rows (7383321) were measured before that fix and are superseded."
+  }
 }
