@@ -272,8 +272,12 @@ async function runInt8Suite(openPage, results) {
   results.int8 = out;
   for (const id of new Set([...INT8_ENCODERS, ...INT8_DECODERS])) {
     const files = modelPaths(modelById(id), MODELS_DIR);
-    if (!files)
-      throw new Error(`int8 suite: model files for ${id} missing (scripts/quantize_variants.py)`);
+    if (!files) {
+      // Not fatal: the other suites still run. fetch-models derives them.
+      out.skipped = `model files for ${id} missing (fetch-models runs scripts/quantize_variants.py)`;
+      console.warn(`int8 suite skipped: ${out.skipped}`);
+      return;
+    }
     out.sizes[id] = {
       encoderBytes: fs.statSync(files.encoder).size,
       decoderBytes: fs.statSync(files.decoder).size,

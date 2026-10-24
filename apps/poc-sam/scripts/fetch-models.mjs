@@ -112,6 +112,18 @@ if (probe.status !== 0) {
     return r.status === 0;
   };
   if (!have('sam_vit_h_4b8939.decoder.lowres.onnx')) run(['scripts/lowres_decoder.py']);
+  // int8 variants for the int8 / quality suites (review finding B1): static
+  // QDQ needs calibration inputs, read from the synthetic DZI by Node.
+  const calib = path.resolve(HERE, '..', '.model-src', 'calib');
+  if (
+    have('mobile_sam.encoder.onnx') &&
+    !['mobile_sam.encoder.int8mm.onnx', 'mobile_sam.encoder.qdq.onnx'].every(have)
+  ) {
+    spawnSync(process.execPath, [path.join(HERE, 'calib-inputs.mjs'), '--out', calib], {
+      stdio: 'inherit',
+    });
+    run(['scripts/quantize_variants.py', '--models', MODELS, '--calib', calib]);
+  }
   const torch = spawnSync(python, ['-c', 'import torch, segment_anything, timm, iopath'], {
     encoding: 'utf8',
   });

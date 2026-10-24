@@ -60,6 +60,10 @@ const REQUESTED = arg(
 const referenceOf = (id) => modelById(id).reference ?? REQUESTED[0];
 const MODELS = [];
 for (const id of REQUESTED) {
+  if (!modelPaths(modelById(id), MODELS_DIR)) {
+    console.warn(`skip ${id}: model files missing (fetch-models derives them)`);
+    continue;
+  }
   const ref = referenceOf(id);
   if (ref !== id && !MODELS.includes(ref)) MODELS.push(ref);
   if (!MODELS.includes(id)) MODELS.push(id);
