@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "vite",
     "fetch-models": "node scripts/fetch-models.mjs",
-    "bench": "node scripts/bench.mjs",
+    "bench": "turbo run build --filter=@osdlabel/poc-sam^... --output-logs=errors-only && node scripts/bench.mjs",
+    "bench:summary": "node scripts/summary.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

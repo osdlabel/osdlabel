@@ -32,6 +32,8 @@ export interface ProviderCapabilities {
  */
 export interface SegmentationTarget {
   readonly imageKey: SegmentationImageKey;
+  /** See {@link EncodeView.variant}: window/level, channel mapping, slice or frame. */
+  readonly variant?: string | undefined;
   readonly imageSize: ImageSize;
   readonly viewport: ImageRegion;
   readonly viewportScale: number;

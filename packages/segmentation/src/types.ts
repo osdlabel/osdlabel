@@ -57,6 +57,14 @@ export interface SegmentationPrompt {
  */
 export interface EncodeView {
   readonly imageKey: SegmentationImageKey;
+  /**
+   * Everything besides the region that changes the pixels the encoder sees,
+   * as an opaque key: the window/level a CT is rendered with, the channel
+   * mapping of a multiplex image, the slice of a stack or the frame of a cine.
+   * Embeddings are reused only for an equal variant. Omitted means "the one
+   * rendering of a plain RGB image".
+   */
+  readonly variant?: string | undefined;
   readonly imageSize: ImageSize;
   readonly region: ImageRegion;
   readonly scale: number;

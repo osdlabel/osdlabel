@@ -65,6 +65,15 @@ describe('canReuse', () => {
     expect(canReuse(view, target(41_000, 31_000, 16_000, 9_000, 1 / 16), null)).toEqual({ reuse: true });
   });
 
+  it('never reuses across variants, and treats "no variant" as its own variant', () => {
+    const ct = planEncodeView({ ...t0, variant: 'wl=40/400' });
+    expect(ct.variant).toBe('wl=40/400');
+    expect(canReuse(ct, { ...t0, variant: 'wl=40/400' }, null)).toEqual({ reuse: true });
+    expect(canReuse(ct, { ...t0, variant: 'wl=-600/1500' }, null)).toEqual({ reuse: false, reason: 'other-variant' });
+    expect(canReuse(ct, t0, null)).toEqual({ reuse: false, reason: 'other-variant' });
+    expect(canReuse(view, { ...t0, variant: 'wl=40/400' }, null)).toEqual({ reuse: false, reason: 'other-variant' });
+  });
+
   it('re-encodes when panned beyond the margin', () => {
     expect(canReuse(view, target(50_000, 30_000, 16_000, 9_000, 1 / 16), null)).toEqual({
       reuse: false,
@@ -127,6 +136,24 @@ describe('composeSegmentationProvider', () => {
     expect(r2.cached).toBe(true);
     await provider.segment(target(60_000, 30_000, 16_000, 9_000, 1 / 16), { points: [{ x: 66_000, y: 34_000, label: 1 }] }, signal);
     expect(log).toHaveLength(2);
+  });
+
+  it('keys embeddings by variant: a new window/level or slice re-encodes, returning to one reuses it', async () => {
+    const log: EncodeView[] = [];
+    const provider = composeSegmentationProvider(fakeEncoder(log), decoder);
+    const signal = new AbortController().signal;
+    const at = (variant: string): SegmentationTarget => ({ ...target(40_000, 30_000, 16_000, 9_000, 1 / 16), variant });
+    const p = { points: [{ x: 48_000, y: 34_000, label: 1 as const }] };
+    await provider.segment(at('wl=40/400;z=12'), p, signal);
+    await provider.segment(at('wl=40/400;z=12'), p, signal);
+    expect(log).toHaveLength(1);
+    expect(log[0]!.variant).toBe('wl=40/400;z=12');
+    const lung = await provider.segment(at('wl=-600/1500;z=12'), p, signal);
+    const slice = await provider.segment(at('wl=40/400;z=13'), p, signal);
+    expect(lung.cached).toBe(false);
+    expect(slice.cached).toBe(false);
+    expect(log).toHaveLength(3);
+    expect((await provider.segment(at('wl=40/400;z=12'), p, signal)).cached).toBe(true);
   });
 
   it('shares an in-flight encode between prepare and segment', async () => {

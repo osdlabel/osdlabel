@@ -80,7 +80,13 @@ export function planEncodeView(
     region = clampRegion(growTo(region, minSide, minSide, W, H), W, H);
   }
   const scale = Math.min(policy.maxScale, policy.inputSize / Math.max(region.width, region.height));
-  return { imageKey: target.imageKey, imageSize: target.imageSize, region, scale };
+  return {
+    imageKey: target.imageKey,
+    ...(target.variant !== undefined ? { variant: target.variant } : {}),
+    imageSize: target.imageSize,
+    region,
+    scale,
+  };
 }
 
 function contains(outer: ImageRegion, inner: ImageRegion, tolerance: number): boolean {
@@ -119,7 +125,7 @@ export type ReuseVerdict =
   | { readonly reuse: true }
   | {
       readonly reuse: false;
-      readonly reason: 'other-image' | 'panned-out' | 'prompt-outside' | 'too-coarse';
+      readonly reason: 'other-image' | 'other-variant' | 'panned-out' | 'prompt-outside' | 'too-coarse';
     };
 
 /**
@@ -140,6 +146,7 @@ export function canReuse(
   policy: EncodePolicy = DEFAULT_ENCODE_POLICY,
 ): ReuseVerdict {
   if (view.imageKey !== target.imageKey) return { reuse: false, reason: 'other-image' };
+  if (view.variant !== target.variant) return { reuse: false, reason: 'other-variant' };
   const slack = 1 / view.scale;
   if (!contains(view.region, target.viewport, slack)) return { reuse: false, reason: 'panned-out' };
   if (prompt) {
