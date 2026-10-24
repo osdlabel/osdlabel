@@ -8,7 +8,7 @@ import type { Point } from '@osdlabel/annotation';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { buildMaskFabricObject, type ToolCallbacks } from '@osdlabel/fabric-annotations';
 import { FabricOverlay } from '@osdlabel/fabric-osd';
-import { encodeCanonical } from '@osdlabel/mask';
+import { encodeCanonical, type MaskSnapshot } from '@osdlabel/mask';
 import { binaryIou, fillRings, type Ring } from '@osdlabel/mask-contour';
 import { describeOsdTileSource, type TilePyramid } from '@osdlabel/region-reader';
 import { stats } from './stats.js';
@@ -37,6 +37,13 @@ export interface E2eInit {
   readonly model: string;
   readonly mode: Mode;
   readonly threads: number;
+  /**
+   * OSD's drawer. OSD 5 defaults to WebGL, which in GPU-less headless
+   * Chromium is SwiftShader (a CPU emulation): every tile upload and redraw
+   * then costs main-thread time a real GPU would not. 'canvas' draws with
+   * Canvas 2D. The responsiveness suite measures both.
+   */
+  readonly drawer?: 'webgl' | 'canvas' | undefined;
 }
 
 /** Ground truth for a synthetic object, to check the whole coordinate pipeline. */
@@ -187,10 +194,14 @@ async function init(cfg: E2eInit): Promise<unknown> {
     maxZoomPixelRatio: 4,
     crossOriginPolicy: false,
     imageLoaderLimit: 8,
+    drawer: cfg.drawer ?? 'webgl',
   });
   const opened = waitOpen(viewer);
   viewer.open(img.url);
   await opened;
+  viewer.addHandler('tile-loaded', () => {
+    tilesLoadedTotal++;
+  });
   overlay = new FabricOverlay(viewer, { testMode: true });
   const tileSource = viewer.world.getItemAt(0)!.source;
   const pyramid: TilePyramid | null = describeOsdTileSource(
@@ -304,6 +315,7 @@ async function init(cfg: E2eInit): Promise<unknown> {
   );
   return {
     info,
+    drawer: (viewer as unknown as { drawer?: { getType?(): string } }).drawer?.getType?.() ?? null,
     imageSize: imageSize(),
     pyramid: absolute,
     crossOriginIsolated: globalThis.crossOriginIsolated,
@@ -315,6 +327,7 @@ async function view(p: {
   cy: number;
   zoom: number;
   waitTiles?: boolean;
+  settleTimeoutMs?: number;
 }): Promise<unknown> {
   const v = viewer!;
   const vp = v.viewport;
@@ -322,7 +335,7 @@ async function view(p: {
   vp.panTo(vp.imageToViewportCoordinates(p.cx, p.cy), true);
   v.forceRedraw();
   const t0 = performance.now();
-  const loaded = p.waitTiles === false ? null : await waitTilesSettled();
+  const loaded = p.waitTiles === false ? null : await waitTilesSettled(p.settleTimeoutMs);
   return { target: getTarget(), tilesLoaded: loaded, tileWaitMs: performance.now() - t0 };
 }
 
@@ -366,6 +379,106 @@ async function waitPainted(from: number, timeoutMs = 300_000): Promise<unknown[]
   return [...eventsSince(from), { type: 'timeout' }];
 }
 let markedAt = 0;
+let tilesLoadedTotal = 0;
+
+/** OSD tile jobs running or queued: > 0 means tiles are still loading. */
+function tileJobs(): number {
+  const loader = (
+    viewer as unknown as { imageLoader?: { jobsInProgress: number; jobQueue: unknown[] } }
+  )?.imageLoader;
+  return loader ? loader.jobsInProgress + loader.jobQueue.length : -1;
+}
+
+/**
+ * A scripted continuous pan: every animation frame moves the view by
+ * `pxPerFrame` screen px, so OSD keeps requesting, decoding and drawing new
+ * tiles. Run while inference runs, it is the user panning during an encode;
+ * how many frames it got is how interactive the pan was.
+ */
+let panning: { frames: number; px: number; stop: boolean } | null = null;
+function startPan(pxPerFrame: number): void {
+  const v = viewer!;
+  const state = { frames: 0, px: 0, stop: false };
+  panning = state;
+  const step = (): void => {
+    if (state.stop) return;
+    const delta = v.viewport.deltaPointsFromPixels(new OpenSeadragon.Point(pxPerFrame, 0));
+    v.viewport.panBy(delta, true);
+    state.frames++;
+    state.px += pxPerFrame;
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function stopPan(): { frames: number; px: number } {
+  const p = panning ?? { frames: 0, px: 0, stop: true };
+  p.stop = true;
+  panning = null;
+  return { frames: p.frames, px: p.px };
+}
+
+/** The best candidate kept by {@link remember}, for refinement checks. */
+let remembered: { snap: MaskSnapshot; cellPx: number } | null = null;
+
+function bestSnapshot(): { snap: MaskSnapshot; cellPx: number } | null {
+  const best = tool?.currentCandidate;
+  const target = getTarget();
+  if (!best || !target) return null;
+  try {
+    return {
+      snap: rasterToMaskSnapshot(best.mask, target.imageSize, { maxPixels: MEASURE_CAP }),
+      cellPx: best.mask.frame.pixelWidth,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function centroidOf(s: MaskSnapshot): { x: number; y: number } | null {
+  let n = 0;
+  let sx = 0;
+  let sy = 0;
+  for (let r = 0; r < s.height; r++)
+    for (let c = 0; c < s.width; c++)
+      if (s.data[r * s.width + c]) {
+        n++;
+        sx += c;
+        sy += r;
+      }
+  return n ? { x: s.x + sx / n + 0.5, y: s.y + sy / n + 0.5 } : null;
+}
+
+/**
+ * The current best mask against the remembered one, in image space: IoU and
+ * centroid shift. After a refinement click across a pan/zoom, both masks are
+ * the same object, so a misaligned mask_input or a missed earlier point shows
+ * up here.
+ */
+function compareWithRemembered(): unknown {
+  const cur = bestSnapshot();
+  if (!cur || !remembered) return { error: 'nothing to compare' };
+  const a = remembered.snap;
+  const b = cur.snap;
+  const x0 = Math.min(a.x, b.x);
+  const y0 = Math.min(a.y, b.y);
+  const w = Math.max(a.x + a.width, b.x + b.width) - x0;
+  const h = Math.max(a.y + a.height, b.y + b.height) - y0;
+  if (w * h > MEASURE_CAP) return { error: 'too large to compare' };
+  const paste = (s: MaskSnapshot): Uint8Array => {
+    const out = new Uint8Array(w * h);
+    for (let r = 0; r < s.height; r++)
+      out.set(s.data.subarray(r * s.width, (r + 1) * s.width), (s.y - y0 + r) * w + (s.x - x0));
+    return out;
+  };
+  const ca = centroidOf(a);
+  const cb = centroidOf(b);
+  return {
+    iou: binaryIou(paste(a), paste(b)),
+    centroidShiftPx: ca && cb ? Math.hypot(cb.x - ca.x, cb.y - ca.y) : null,
+    previousCellPx: remembered.cellPx,
+    newCellPx: cur.cellPx,
+  };
+}
 
 function ellipseRing(gt: Extract<GroundTruth, { kind: 'ellipse' }>, n = 256): Ring {
   return Array.from({ length: n }, (_, i) => {
@@ -460,7 +573,13 @@ declare global {
   interface Window {
     __e2e?: {
       init(cfg: E2eInit): Promise<unknown>;
-      view(p: { cx: number; cy: number; zoom: number; waitTiles?: boolean }): Promise<unknown>;
+      view(p: {
+        cx: number;
+        cy: number;
+        zoom: number;
+        waitTiles?: boolean;
+        settleTimeoutMs?: number;
+      }): Promise<unknown>;
       toScreen(p: Point): Point;
       mark(): number;
       waitPainted(from: number, timeoutMs?: number): Promise<unknown[]>;
@@ -475,6 +594,12 @@ declare global {
       cacheStats(): Promise<unknown>;
       target(): SegmentationTarget | null;
       memory(): unknown;
+      remember(): boolean;
+      compareWithRemembered(): unknown;
+      startPan(pxPerFrame: number): void;
+      stopPan(): { frames: number; px: number };
+      frameStats(): unknown;
+      tiles(): { jobs: number; loaded: number };
     };
   }
 }
@@ -503,6 +628,15 @@ window.__e2e = {
   },
   cacheStats: async () => (workerProvider ? workerProvider.configure({ cacheStats: true }) : null),
   target: getTarget,
+  remember: () => {
+    remembered = bestSnapshot();
+    return remembered !== null;
+  },
+  compareWithRemembered,
+  startPan,
+  stopPan,
+  frameStats: () => frameStatsSince(markedAt),
+  tiles: () => ({ jobs: tileJobs(), loaded: tilesLoadedTotal }),
   memory: () => {
     const m = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
     return m ? { usedJSHeapMB: m.usedJSHeapSize / 2 ** 20 } : null;

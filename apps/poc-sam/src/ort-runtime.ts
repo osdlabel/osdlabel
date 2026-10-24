@@ -1,5 +1,15 @@
 import type * as Ort from 'onnxruntime-web';
-import type { OrtModuleLike, OrtSessionLike } from '@osdlabel/segmentation-onnx';
+import { modelFrame } from '@osdlabel/segmentation';
+import {
+  OnnxSamModel,
+  chooseExecutionProvider,
+  type EpGateOptions,
+  type EpVerdict,
+  type GpuLike,
+  type OrtModuleLike,
+  type OrtSessionLike,
+  type ProbeEp,
+} from '@osdlabel/segmentation-onnx';
 
 export type ExecutionProvider = 'wasm' | 'webgpu';
 
@@ -63,4 +73,43 @@ export async function webgpuAdapterInfo(): Promise<Record<string, string> | null
     architecture: info['architecture'] ?? '',
     description: info['description'] ?? '',
   };
+}
+
+/**
+ * The WebGPU gate, as the app runs it: `chooseExecutionProvider` with a probe
+ * that times the SAM low-res decoder (one warm-up, then the median of three
+ * runs of a one-click prompt on a zero embedding) on each EP of the WebGPU
+ * build. The probe only runs on a hardware, non-fallback adapter.
+ */
+export async function webgpuGate(decoderUrl: string, options?: EpGateOptions): Promise<EpVerdict> {
+  const gpu = (navigator as Navigator & { gpu?: GpuLike }).gpu;
+  const probe = async (ep: ProbeEp): Promise<number> => {
+    const { ort } = await loadOrt('webgpu', 1);
+    const model = await OnnxSamModel.load(
+      ort,
+      { family: 'sam1', inputSize: 1024, decoder: decoderUrl },
+      { decoderSession: { executionProviders: [ep] } },
+    );
+    const view = {
+      imageKey: 'probe',
+      imageSize: { width: 1024, height: 1024 },
+      region: { x: 0, y: 0, width: 1024, height: 1024 },
+      scale: 1,
+    };
+    const embedding = {
+      family: 'sam1' as const,
+      frame: modelFrame(view, 1024, 'letterbox'),
+      tensors: [
+        { name: 'image_embeddings', dims: [1, 256, 64, 64], data: new Float32Array(256 * 64 * 64) },
+      ],
+    };
+    const prompt = { points: [{ x: 400, y: 500, label: 1 as const }] };
+    await model.decode(embedding, prompt);
+    const times: number[] = [];
+    for (let i = 0; i < 3; i++)
+      times.push((await model.decode(embedding, prompt)).timings['decode']!);
+    await model.release();
+    return times.sort((a, b) => a - b)[1]!;
+  };
+  return chooseExecutionProvider(gpu, probe, options);
 }

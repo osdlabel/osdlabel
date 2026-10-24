@@ -20,6 +20,162 @@ function table(rows, header) {
 
 const medMin = (s, d = 0) => (s && s.n ? `${f(s.median, d)} (${f(s.min, d)})` : '-');
 
+/** Median, min and max of finite numbers, or null. */
+export function spread(values) {
+  const v = values.filter((x) => typeof x === 'number' && Number.isFinite(x)).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const mid = (v.length - 1) / 2;
+  return {
+    n: v.length,
+    median: (v[Math.floor(mid)] + v[Math.ceil(mid)]) / 2,
+    min: v[0],
+    max: v[v.length - 1],
+  };
+}
+const range = (s, d = 0) => (s ? `${f(s.median, d)} [${f(s.min, d)}-${f(s.max, d)}]` : '-');
+
+function printInt8(results) {
+  const q = results.int8;
+  if (!q) return;
+  console.log(
+    `\nH7  int8 vs fp32, graph for graph. Browser WASM: median of ${q.rounds} interleaved rounds' medians [min-max over rounds], ms; ` +
+      'cpu = browser CPU ms per call (median over rounds). Native: onnxruntime-node, same rounds.',
+  );
+  const pick = (arr, role, model, threads) =>
+    arr.filter(
+      (r) =>
+        !r.error &&
+        (role === null || r.role === role) &&
+        r.config.model === model &&
+        r.config.threads === threads,
+    );
+  for (const role of ['encoder', 'decoder']) {
+    const ids = role === 'encoder' ? q.encoders : q.decoders;
+    const metric = (r) => (role === 'encoder' ? r.encode?.median : r.decodeClick?.median);
+    const cpu = (r) => (role === 'encoder' ? r.cpu?.encodeMs : r.cpu?.decodeMs);
+    const ref = Object.fromEntries(
+      q.threads.map((t) => [t, spread(pick(q.browser, role, ids[0], t).map(metric))?.median]),
+    );
+    const rows = ids.map((id) => {
+      const row = [id, f((q.sizes[id]?.[`${role}Bytes`] ?? NaN) / 1e6, 1)];
+      for (const t of q.threads) {
+        const b = pick(q.browser, role, id, t);
+        const s = spread(b.map(metric));
+        row.push(
+          range(s, role === 'encoder' ? 0 : 1),
+          f(spread(b.map(cpu))?.median, role === 'encoder' ? 0 : 1),
+          s && ref[t] ? `${f((s.median / ref[t] - 1) * 100)}%` : '-',
+        );
+      }
+      for (const t of q.threads) {
+        const n = pick(q.native, null, id, t);
+        row.push(f(spread(n.map(metric))?.median, role === 'encoder' ? 0 : 1));
+      }
+      return row;
+    });
+    table(rows, [
+      `${role} variant`,
+      'MB',
+      ...q.threads.flatMap((t) => [`wasm t${t}`, `cpu t${t}`, `vs ${ids[0]}`]),
+      ...q.threads.map((t) => `native t${t}`),
+    ]);
+  }
+}
+
+function printQuality(results) {
+  const q = results.quality;
+  if (!q?.runs) return;
+  console.log(
+    `\nH7  mask quality vs the fp32 reference, same prompts, ${q.meta?.runtime} t=${q.meta?.threads}: ` +
+      'best-mask IoU over the scenario steps with a mask (median [min-max]), and GT IoU drops > 0.05',
+  );
+  const rows = (q.comparisons ?? []).map((c) => {
+    const ious = spread(c.rows.map((r) => r.bestMaskIoU));
+    const gt = c.rows.filter(
+      (r) => typeof r.groundTruthIoU[0] === 'number' && typeof r.groundTruthIoU[1] === 'number',
+    );
+    const drops = gt.filter((r) => r.groundTruthIoU[1] < r.groundTruthIoU[0] - 0.05);
+    return [
+      c.model,
+      c.reference,
+      range(ious, 3),
+      `${drops.length}/${gt.length}`,
+      drops
+        .map((r) => `${r.id} ${f(r.groundTruthIoU[0], 2)}->${f(r.groundTruthIoU[1], 2)}`)
+        .join(' '),
+    ];
+  });
+  table(rows, ['variant', 'reference', 'best-mask IoU', 'GT drops', 'which']);
+  console.log('\nH2  refinement across a zoom (quality check): refining step vs the step before');
+  const ref = [];
+  for (const run of q.runs)
+    for (const s of run.steps)
+      if (s.refinement)
+        ref.push([
+          run.model,
+          s.id,
+          s.cached ? 'hit' : 'miss',
+          s.promptInsideRegion ? 'yes' : 'NO',
+          f(s.refinement.bestMaskIoU, 3),
+          f(s.refinement.centroidShiftPx, 1),
+          f(s.refinement.previousCellPx, 1),
+          `${f(s.refinement.previousResampledIoU, 3)} / ${f(s.refinement.previousCopiedIoU, 3)}`,
+          f(s.groundTruthIoU, 3),
+        ]);
+  table(ref, [
+    'model',
+    'step',
+    'cache',
+    'all points encoded',
+    'IoU vs prev',
+    'centroid shift px',
+    'prev cell px',
+    'prev logits on new grid: resampled / copied IoU',
+    'GT IoU',
+  ]);
+}
+
+function printResponsiveness(results) {
+  const runs = results.responsiveness;
+  if (!runs?.length) return;
+  console.log(
+    '\nH4  main-thread responsiveness during cold encodes (rAF fps, Long Tasks API), median [min-max] over reps',
+  );
+  const rows = [];
+  for (const run of runs) {
+    const c = run.config;
+    const conds = [...new Set(run.samples.map((s) => s.cond))];
+    for (const cond of conds) {
+      const ss = run.samples.filter((s) => s.cond === cond && !s.error);
+      const fr = (k) => spread(ss.map((s) => s.frames?.[k]));
+      rows.push([
+        `${c.mode} t=${c.threads} ${run.init?.drawer ?? c.drawer ?? ''}`,
+        cond,
+        ss.length,
+        cond === 'pan-only' ? '-' : range(spread(ss.map((s) => s.latency))),
+        cond === 'pan-only' ? '-' : range(spread(ss.map((s) => s.timings?.encode))),
+        range(fr('fps')),
+        range(fr('longTaskMs')),
+        range(fr('maxGap')),
+        cond === 'pan-only' ? '-' : f(spread(ss.map((s) => s.tilesAtClick?.jobs))?.median),
+        f(spread(ss.map((s) => s.tilesLoadedDuring ?? s.tilesLoaded))?.median),
+      ]);
+    }
+  }
+  table(rows, [
+    'config',
+    'condition',
+    'n',
+    'click->paint ms',
+    'encode ms',
+    'fps',
+    'long-task ms',
+    'max gap ms',
+    'tile jobs at click',
+    'tiles loaded',
+  ]);
+}
+
 export function printSummary(results, modelTable = []) {
   const weights = Object.fromEntries(modelTable.map((m) => [m.id, m.weights]));
   const models = [
@@ -191,6 +347,11 @@ export function printSummary(results, modelTable = []) {
       'commit',
     ]);
   }
+  printInt8(results);
+  printQuality(results);
+  printResponsiveness(results);
+  if (results.webgpuGate)
+    console.log(`\nWebGPU gate verdict: ${JSON.stringify(results.webgpuGate)}`);
   for (const x of results.f16check ?? []) {
     console.log(
       `f16 wire check ${x.id}: mask IoU f32 vs f16 ${x.perCandidate?.map((c) => f(c.iou, 4)).join(', ')}; ` +

@@ -7,7 +7,8 @@
 import { modelFrame, type SegmentationPrompt } from '@osdlabel/segmentation';
 import { OnnxSamModel, embeddingBytes } from '@osdlabel/segmentation-onnx';
 import { findSpec, modelUrl } from './model-specs.js';
-import { loadOrt, webgpuAdapterInfo, type ExecutionProvider } from './ort-runtime.js';
+import type { EpVerdict } from '@osdlabel/segmentation-onnx';
+import { loadOrt, webgpuAdapterInfo, webgpuGate, type ExecutionProvider } from './ort-runtime.js';
 import { stats, type Stats } from './stats.js';
 
 export interface ModelBenchConfig {
@@ -96,8 +97,12 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
   window.__benchProgress = { firstEncode, load: model.loadTimings };
   const pre: number[] = [];
   const enc: number[] = [];
+  // A model whose first encode takes over 10 s (ViT-B at one thread: 41 s)
+  // gets one timed encode, so the case fits the runner's timeout; the
+  // result's encode.n says how many were taken.
+  const encoderReps = firstEncode > 10_000 ? Math.min(cfg.encoderReps, 1) : cfg.encoderReps;
   await cpuMark('encode-start');
-  for (let i = 0; i < cfg.encoderReps; i++) {
+  for (let i = 0; i < encoderReps; i++) {
     const r = await model.encode(pixels, frame);
     embedding = r.embedding;
     pre.push(r.timings['preprocess']!);
@@ -158,6 +163,8 @@ declare global {
     ) => Promise<ModelBenchResult | { config: ModelBenchConfig; error: string }>;
     /** Partial results, readable by the runner when a configuration times out. */
     __benchProgress?: Record<string, unknown>;
+    /** The WebGPU gate's verdict for this browser (see ort-runtime.ts webgpuGate). */
+    __webgpuGate?: () => Promise<EpVerdict>;
     /**
      * Exposed by the runner: samples the browser's per-process CPU time (CDP
      * SystemInfo.getProcessInfo) at phase boundaries, outside timed regions.
@@ -170,6 +177,11 @@ declare global {
 async function cpuMark(label: string): Promise<void> {
   await window.__cpuMark?.(label);
 }
+
+window.__webgpuGate = async () =>
+  webgpuGate(
+    await modelUrl('sam_vit_h_4b8939.decoder.lowres.onnx', 'sam_vit_h_4b8939.decoder.onnx'),
+  );
 
 window.__runModelBench = async (cfg) => {
   try {
