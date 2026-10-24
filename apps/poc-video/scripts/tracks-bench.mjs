@@ -87,6 +87,88 @@ export async function runH3Harness(browser, base, { video = 'h264-720p-30-g30-bf
         );
       }
     }
+    // Pixels, not properties: paint only the rectangle through Fabric's own
+    // render (object caching at its default) after each in-place update, at
+    // two zooms, and compare the painted box with the geometry's box.
+    const rectId = doc.tracks[0]?.id;
+    const boxErrs = [];
+    const boxes = [];
+    let caching = null;
+    for (const zoom of [1, 2.5]) {
+      if (zoom !== 1) await page.evaluate((z) => window.__tracks.zoomBy(z), zoom);
+      for (let f = 10; f <= 40; f += 3) {
+        await scrub(f);
+        const b = await page.evaluate((id) => window.__tracks.renderedBox(id), rectId);
+        if (b !== null) {
+          boxes.push({ zoom, frame: f, ...b });
+          boxErrs.push(b.maxEdgeErrPx);
+          caching = b.objectCaching;
+        }
+      }
+      if (zoom !== 1) await page.evaluate((z) => window.__tracks.zoomBy(1 / z), zoom);
+    }
+
+    // Occlusion and leaving the frame, set the way an annotator would.
+    await scrub(25);
+    await page.evaluate((id) => window.__tracks.setVisibility(id, 'occluded'), rectId);
+    const occ = [];
+    for (const f of [25, 30, 39, 40]) occ.push(await scrub(f));
+    const occOk =
+      occ
+        .slice(0, 3)
+        .every((r) => r.samples[0]?.visibility === 'occluded' && r.objects[0]?.visible) &&
+      occ[3].samples[0]?.visibility === 'visible';
+    const occFaded = occ[1].objects[0]?.opacity < occ[3].objects[0]?.opacity;
+    // Still interpolated while occluded: frame 30 is on the k10 -> k40 line.
+    const g30 = occ[1].objects[0]?.geometry;
+    const t30 = 20 / 30;
+    const occErr =
+      g30 && k10 && k40
+        ? Math.max(
+            Math.abs(g30.origin.x - lerp(k10.origin.x, k40.origin.x, t30)),
+            Math.abs(g30.origin.y - lerp(k10.origin.y, k40.origin.y, t30)),
+          )
+        : Infinity;
+    await scrub(60);
+    await page.evaluate((id) => window.__tracks.setVisibility(id, 'outside'), rectId);
+    const out59 = await scrub(59);
+    const out60 = await scrub(60);
+    const out200 = await scrub(200);
+    const outsideOk =
+      out59.objects[0]?.visible === true &&
+      out60.objects[0]?.visible === false &&
+      out200.objects[0]?.visible === false;
+
+    // Polygon 12 CCW -> 24 CW with an outside gap, and a held brush mask.
+    const [polyId, maskId] = await page.evaluate(() => window.__tracks.addDemoTracks());
+    const pick = (r, id) => ({
+      obj: r.objects.find((o) => o.id === id),
+      smp: r.samples.find((o) => o.id === id),
+    });
+    const demo = {};
+    for (const f of [99, 100, 105, 115, 116, 125, 130, 135, 140, 150, 159, 160, 200]) {
+      demo[f] = await scrub(f);
+    }
+    const area = (pts) => {
+      let s = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i];
+        const b = pts[(i + 1) % pts.length];
+        s += a.x * b.y - b.x * a.y;
+      }
+      return Math.abs(s / 2);
+    };
+    const polyPts = (f) => pick(demo[f], polyId).obj?.geometry?.points ?? [];
+    const a100 = area(polyPts(100));
+    const a130 = area(polyPts(130));
+    const a115 = area(polyPts(115));
+    const polyVisible = (f) => pick(demo[f], polyId).obj?.visible === true;
+    const maskFrom = (f) => pick(demo[f], maskId).smp?.payloadFrame ?? null;
+    const maskVisible = (f) => pick(demo[f], maskId).obj?.visible === true;
+    await scrub(115);
+    await page.screenshot({ path: path.join(APP_DIR, 'results', 'tracks-frame115.png') });
+    const counters = await page.evaluate(() => window.__tracks.counters());
+
     const stats = await page.evaluate(() => window.__tracks.stats());
     const g25 = r25.objects[0]?.geometry;
     const rows = [
@@ -135,8 +217,88 @@ export async function runH3Harness(browser, base, { video = 'h264-720p-30-g30-bf
         ).toFixed(1)} / ${Math.max(...sweep.map((r) => r.ms)).toFixed(1)}`,
         pass: true,
       },
+      {
+        check:
+          'painted pixels vs the object box after in-place updates, max edge err px (22 frames, zoom 1 and 2.5)',
+        value: `${Math.max(...boxErrs).toFixed(2)} (objectCaching=${caching})`,
+        pass: boxErrs.length === 22 && Math.max(...boxErrs) <= 3,
+      },
+      {
+        // Not a temporal-model check: how far the stock rectangle builder's
+        // object sits from its geometry (Fabric 7 defaults origin to center).
+        check: 'stock Rect object box vs its geometry box, px (origin = top-left expected)',
+        value: `${Math.max(...boxes.map((b) => b.geometryOffsetPx)).toFixed(2)} max, ${Math.min(...boxes.map((b) => b.geometryOffsetPx)).toFixed(2)} min (originX=${boxes[0]?.originX})`,
+        pass: Math.max(...boxes.map((b) => b.geometryOffsetPx)) <= 1,
+      },
+      {
+        check: 'occluded from frame 25: frames 25-39 occluded + faded, 40 visible',
+        value: `${occ.map((r) => `${r.frame}:${r.samples[0]?.visibility}@${(r.objects[0]?.opacity ?? 0).toFixed(2)}`).join(' ')}`,
+        pass: occOk && occFaded,
+      },
+      {
+        check: 'occluded track still interpolates (frame 30 vs lerp, px)',
+        value: occErr.toFixed(3),
+        pass: occErr < 0.01,
+      },
+      {
+        check: 'outside from frame 60: 59 shown, 60 and 200 hidden',
+        value: `${out59.objects[0]?.visible}/${out60.objects[0]?.visible}/${out200.objects[0]?.visible}`,
+        pass: outsideOk,
+      },
+      {
+        check: 'polygon vertex counts at 100 / 115 / 130 (12 CCW -> 24 CW)',
+        value: `${polyPts(100).length} / ${polyPts(115).length} / ${polyPts(130).length}`,
+        pass: polyPts(100).length === 12 && polyPts(130).length === 24 && polyPts(115).length >= 24,
+      },
+      {
+        check: 'polygon area at 115 / mean(area 100, area 130)',
+        value: (a115 / ((a100 + a130) / 2)).toFixed(3),
+        pass: Math.abs(a115 / ((a100 + a130) / 2) - 1) < 0.2,
+      },
+      {
+        check: 'polygon gap: shown 99/100/135/159/160 (hidden 99, 140-159)',
+        value: [99, 100, 135, 140, 150, 159, 160]
+          .map((f) => `${f}:${polyVisible(f) ? 'on' : 'off'}`)
+          .join(' '),
+        pass:
+          !polyVisible(99) &&
+          polyVisible(100) &&
+          polyVisible(135) &&
+          !polyVisible(140) &&
+          !polyVisible(150) &&
+          !polyVisible(159) &&
+          polyVisible(160),
+      },
+      {
+        check: 'mask held at nearest keyframe: pixels from frame (100,105,115,116,125,130,200)',
+        value: [100, 105, 115, 116, 125, 130, 200].map((f) => `${f}<-${maskFrom(f)}`).join(' '),
+        pass:
+          maskFrom(100) === 100 &&
+          maskFrom(105) === 100 &&
+          maskFrom(115) === 100 &&
+          maskFrom(116) === 130 &&
+          maskFrom(125) === 130 &&
+          maskFrom(130) === 130 &&
+          maskFrom(200) === 130 &&
+          !maskVisible(99) &&
+          maskVisible(116),
+      },
+      {
+        check:
+          'Fabric object updates: in place / rebuilt / unchanged; contour correspondences computed',
+        value: `${counters.inPlace} / ${counters.rebuilt} / ${counters.unchanged}; ${counters.correspondences}`,
+        pass: true,
+      },
     ];
-    return { video, rows, keyframes: kfs, decoderStats: stats, errors, trackDocument: doc };
+    return {
+      video,
+      rows,
+      keyframes: kfs,
+      paintedBoxes: boxes,
+      decoderStats: stats,
+      errors,
+      trackDocument: doc,
+    };
   } finally {
     await ctx.close();
   }

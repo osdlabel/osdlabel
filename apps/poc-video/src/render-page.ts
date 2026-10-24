@@ -15,11 +15,16 @@
  * The overlay carries 50 interpolated track rectangles, a green square
  * abutting the video's red marker (spatial sync), and a 4x4 code of the frame
  * index it believes is shown, beside the video's own code (temporal sync).
+ * With `deco=1` (the default) every track also gets two DOM decorations from
+ * the stock providers (its label and its area), recomputed each frame through
+ * the existing DecorationLayer.
  */
 import OpenSeadragon from 'openseadragon';
 import { Rect } from 'fabric';
-import { FabricOverlay } from '@osdlabel/fabric-osd';
-import type { Geometry } from '@osdlabel/annotation';
+import { DecorationLayer, FabricOverlay } from '@osdlabel/fabric-osd';
+import { createAnnotationId } from '@osdlabel/annotation';
+import type { Annotation, Geometry } from '@osdlabel/annotation';
+import { composeProviders, createLabelProvider, createMeasurementProvider } from 'osdlabel';
 import {
   createFrameMaterializer,
   createTimestampAxis,
@@ -42,6 +47,7 @@ const host = (params.get('host') ?? 'osd-canvas') as Host;
 const source = (params.get('source') ?? 'video') as Source;
 const videoName = params.get('video') ?? 'h264-1080p-30-g30-bf';
 const TRACKS = Number(params.get('tracks') ?? '50');
+const DECORATIONS = (params.get('deco') ?? '1') !== '0';
 
 interface Stats {
   raf: number;
@@ -53,6 +59,7 @@ interface Stats {
   osdDraws: number;
   fabricMs: number;
   fabricRenders: number;
+  decoMs: number;
   t0: number;
   droppedAtStart: number;
 }
@@ -67,6 +74,7 @@ const stats: Stats = {
   osdDraws: 0,
   fabricMs: 0,
   fabricRenders: 0,
+  decoMs: 0,
   t0: performance.now(),
   droppedAtStart: 0,
 };
@@ -255,14 +263,26 @@ async function main(): Promise<void> {
     code.push(r);
     canvas.add(r);
   }
-  const materialize = createFrameMaterializer((t: TrackBase, s) => ({
-    id: t.id,
-    geometry: s.geometry,
-  }));
+  const materialize = createFrameMaterializer(
+    (t: TrackBase, s): Annotation => ({
+      id: createAnnotationId(t.id),
+      geometry: s.geometry,
+      toolType: 'rectangle',
+      label: t.id,
+      createdAt: '',
+      updatedAt: '',
+    }),
+  );
+  const decorations = DECORATIONS ? new DecorationLayer(overlay) : null;
+  const provider = composeProviders([
+    createLabelProvider(),
+    createMeasurementProvider({ area: true }),
+  ]);
 
   const applyFrameToOverlay = (idx: number): void => {
     const t = performance.now();
-    for (const a of materialize(tracks, idx)) {
+    const anns = materialize(tracks, idx);
+    for (const a of anns) {
       const r = rects.get(a.id)!;
       const g = a.geometry;
       if (g.type === 'rectangle') {
@@ -272,6 +292,11 @@ async function main(): Promise<void> {
     }
     for (let k = 0; k < 16; k++) {
       code[k]!.set({ fill: (idx >> (15 - k)) & 1 ? '#fff' : '#000' });
+    }
+    if (decorations !== null) {
+      const td = performance.now();
+      decorations.setDecorations(provider({ annotations: anns, selectedAnnotationId: null }));
+      stats.decoMs += performance.now() - td;
     }
     overlay.sync();
     stats.fabricMs += performance.now() - t;
@@ -404,7 +429,16 @@ async function main(): Promise<void> {
 
   window.__render = {
     ready: true,
-    info: { host, source, video: v.name, width: v.width, height: v.height, layout: v.layout },
+    info: {
+      host,
+      source,
+      video: v.name,
+      width: v.width,
+      height: v.height,
+      layout: v.layout,
+      decorations: DECORATIONS,
+      tracks: TRACKS,
+    },
     async play(): Promise<void> {
       if (source === 'video') await video!.play();
       else {
@@ -427,6 +461,7 @@ async function main(): Promise<void> {
         osdDraws: 0,
         fabricMs: 0,
         fabricRenders: 0,
+        decoMs: 0,
         t0: performance.now(),
         droppedAtStart: video?.getVideoPlaybackQuality().droppedVideoFrames ?? 0,
       });
@@ -444,7 +479,12 @@ async function main(): Promise<void> {
         handlerMsPerFrame: stats.handlerMs / Math.max(1, stats.contentFrames),
         osdDrawMsPerDraw: stats.osdDrawMs / Math.max(1, stats.osdDraws),
         osdDrawsPerS: stats.osdDraws / wall,
-        fabricMsPerRender: stats.fabricMs / Math.max(1, stats.fabricRenders),
+        // fabricMs is the whole per-frame overlay update; report the Fabric part
+        // and the decoration part (providers + DecorationLayer diff) apart.
+        fabricMsPerRender: (stats.fabricMs - stats.decoMs) / Math.max(1, stats.fabricRenders),
+        decoMsPerFrame: stats.decoMs / Math.max(1, stats.fabricRenders),
+        decorationElements: document.querySelectorAll('[data-osdlabel="decoration-layer"] > *')
+          .length,
         fabricRendersPerS: stats.fabricRenders / wall,
         mainThreadJsMsPerS: (stats.handlerMs + stats.osdDrawMs + stats.fabricMs) / wall,
         lastShown,

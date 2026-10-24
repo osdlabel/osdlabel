@@ -9,13 +9,18 @@
  */
 import { PNG } from 'pngjs';
 
+// [host, source, decorations]. Every cell carries 50 interpolated rectangles
+// on the Fabric overlay; `deco` adds their label + area DOM decorations (100
+// elements) recomputed per frame. One combo also runs without them, to price
+// the decorations alone.
 const COMBOS = [
-  ['osd-canvas', 'video'],
-  ['osd-webgl', 'video'],
-  ['css', 'video'],
-  ['osd-canvas', 'webcodecs'],
-  ['osd-webgl', 'webcodecs'],
-  ['css', 'webcodecs'],
+  ['osd-canvas', 'video', true],
+  ['osd-webgl', 'video', true],
+  ['css', 'video', true],
+  ['osd-canvas', 'webcodecs', true],
+  ['osd-webgl', 'webcodecs', true],
+  ['css', 'webcodecs', true],
+  ['osd-webgl', 'webcodecs', false],
 ];
 
 async function processCpu(cdp) {
@@ -146,10 +151,15 @@ export async function runH2(
   const bcdp = await browser.newBrowserCDPSession();
   const rows = [];
   const raw = [];
-  const list = combos === null ? COMBOS : COMBOS.filter(([h, s]) => combos.includes(`${h}/${s}`));
-  for (const [host, source] of list) {
+  const list =
+    combos === null
+      ? COMBOS
+      : COMBOS.filter(([h, s, d]) => combos.includes(`${h}/${s}${d ? '' : '/nodeco'}`));
+  for (const [host, source, deco] of list) {
     for (const motion of [false, true]) {
-      process.stderr.write(`H2 ${host}/${source} ${motion ? 'panzoom' : 'static'} ...\n`);
+      process.stderr.write(
+        `H2 ${host}/${source}${deco ? '' : '/nodeco'} ${motion ? 'panzoom' : 'static'} ...\n`,
+      );
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
       const page = await ctx.newPage();
       const errors = [];
@@ -158,7 +168,9 @@ export async function runH2(
         if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text());
       });
       try {
-        await page.goto(`${base}/render.html?host=${host}&source=${source}&video=${video}`);
+        await page.goto(
+          `${base}/render.html?host=${host}&source=${source}&video=${video}&deco=${deco ? 1 : 0}`,
+        );
         await page.waitForFunction(
           () => window.__render?.ready === true || window.__renderError !== undefined,
           null,
@@ -190,6 +202,7 @@ export async function runH2(
         const row = {
           host,
           source,
+          deco: deco ? 'on' : 'off',
           motion: motion ? 'panzoom' : 'static',
           rafFps: r2(st.rafFps),
           contentFps: r2(st.contentFps),
@@ -199,6 +212,8 @@ export async function runH2(
           handlerMs: r2(st.handlerMsPerFrame),
           osdDrawMs: r2(st.osdDrawMsPerDraw),
           fabricMs: r2(st.fabricMsPerRender),
+          decoMs: r2(st.decoMsPerFrame),
+          decoEls: st.decorationElements,
           mainBusyPct: r2((100 * (m1.TaskDuration - m0.TaskDuration)) / wall),
           cpuRenderer: r2(cpu.renderer ?? 0),
           cpuGpu: r2(cpu.GPU ?? cpu.gpu ?? 0),
@@ -219,10 +234,11 @@ export async function runH2(
         rows.push({
           host,
           source,
+          deco: deco ? 'on' : 'off',
           motion: motion ? 'panzoom' : 'static',
           error: String(e).slice(0, 200),
         });
-        raw.push({ host, source, motion, error: String(e), errors });
+        raw.push({ host, source, deco, motion, error: String(e), errors });
       } finally {
         await ctx.close();
       }
@@ -233,7 +249,7 @@ export async function runH2(
     seconds,
     viewport: '1280x720',
     notes:
-      'cpu* = CPU cores used (process cpuTime delta / wall). GPU process = SwiftShader software rasterisation in this sandbox. mainBusyPct = renderer main-thread TaskDuration / wall.',
+      'cpu* = CPU cores used (process cpuTime delta / wall). GPU process = SwiftShader software rasterisation in this sandbox. mainBusyPct = renderer main-thread TaskDuration / wall. fabricMs = per-frame overlay update (50 rect sets + frame code + sync) excluding decoMs; decoMs = label + area providers and DecorationLayer.setDecorations per frame. syncMaxPx = worst |offset| of the Fabric green square from the video red marker in screenshots; frameDelta = histogram of (overlay frame code - video frame code) in the same screenshots.',
     rows,
     raw,
   };
