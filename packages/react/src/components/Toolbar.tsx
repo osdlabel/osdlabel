@@ -1,5 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
+import type { ConstraintStatus } from '@osdlabel/annotation-context';
 import { useAnnotator } from '../state/annotator-context.js';
+import { selectActiveImageId, type AnnotatorSnapshot } from '../state/annotator-store.js';
 import {
   adoptStockStyles,
   deriveToolbarModel,
@@ -7,17 +9,54 @@ import {
   preventButtonFocusSteal,
   toolButtonPart,
   OSDLABEL_PARTS,
+  type OsdAnnotation,
+  type ToolbarModel,
   type ToolbarSlotProps,
 } from 'osdlabel';
+
+/** The toolbar model and the selected annotation, derived from one state snapshot. */
+function deriveToolbarState(
+  state: AnnotatorSnapshot,
+  constraintStatus: ConstraintStatus,
+): { readonly model: ToolbarModel; readonly selected: OsdAnnotation | undefined } {
+  const { uiState, contextState, annotationState } = state;
+  const imageId = selectActiveImageId(uiState);
+  const id = uiState.selectedAnnotationId;
+  const selected = id && imageId ? annotationState.byImage[imageId]?.[id] : undefined;
+  const ctx = contextState.contexts.find((c) => c.id === contextState.activeContextId);
+  return {
+    selected,
+    model: deriveToolbarModel({
+      activeTool: uiState.activeTool,
+      allowedTools: ctx ? ctx.tools.map((t) => t.type) : [],
+      constraintStatus,
+      brushRadius: uiState.brushRadius,
+      brushErasing: uiState.brushErasing,
+      selectedGeometryType: selected?.geometry.type,
+    }),
+  };
+}
 
 /**
  * The toolbar's model and commands, as an override toolbar receives them.
  * Memoised on the state slices the model reads, so an unrelated annotator
  * update hands an override the same `model` reference.
+ *
+ * The commands re-derive the model from the store rather than closing over
+ * the rendered one, so a command issued after an action in the same handler
+ * sees that action's write (#217), as Solid's live memo does: e.g. a tool
+ * whose limit the handler's own `addAnnotation` just reached stays disabled.
  */
 export function useToolbarSlotProps(): ToolbarSlotProps {
-  const { uiState, contextState, annotationState, constraintStatus, actions, activeImageId } =
-    useAnnotator();
+  const {
+    uiState,
+    contextState,
+    annotationState,
+    constraintStatus,
+    actions,
+    activeImageId,
+    store,
+  } = useAnnotator();
 
   const selectedId = uiState.selectedAnnotationId;
   // `activeImageId` is `undefined` exactly when the active cell is empty.
@@ -47,23 +86,24 @@ export function useToolbarSlotProps(): ToolbarSlotProps {
     selectedGeometryType,
   ]);
 
-  return useMemo(
-    (): ToolbarSlotProps => ({
+  return useMemo((): ToolbarSlotProps => {
+    const live = () => deriveToolbarState(store.getSnapshot(), store.getConstraintStatus());
+    return {
       model,
       onSelectTool: (tool) => {
-        const button = model.buttons.find((b) => b.tool === tool);
+        const button = live().model.buttons.find((b) => b.tool === tool);
         if (button?.enabled) actions.setActiveTool(tool);
       },
       onBrushRadiusChange: (radius) => actions.setBrushRadius(radius),
       onBrushErasingChange: (erasing) => actions.setBrushErasing(erasing),
       onConvertToRect: () => {
-        if (selected && model.convertToRect?.enabled) {
-          actions.convertAnnotation(selected.id, selected.imageId);
+        const now = live();
+        if (now.selected && now.model.convertToRect?.enabled) {
+          actions.convertAnnotation(now.selected.id, now.selected.imageId);
         }
       },
-    }),
-    [model, actions, selected],
-  );
+    };
+  }, [model, actions, store]);
 }
 
 /** A toolbar button's `part` value and its class twin, for the given state. */

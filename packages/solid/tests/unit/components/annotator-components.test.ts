@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createComponent, untrack, type Component } from 'solid-js';
+import { batch, createComponent, untrack, type Component } from 'solid-js';
 import { render } from 'solid-js/web';
 import { createAnnotationContextId, type AnnotationContext } from '@osdlabel/annotation-context';
 import { createImageId, type ImageSource } from '@osdlabel/viewer-api';
-import { ANNOTATOR_SLOT_NAMES, OSDLABEL_STOCK_CSS } from 'osdlabel';
+import { ANNOTATOR_SLOT_NAMES, OSDLABEL_STOCK_CSS, createAnnotationFromGeometry } from 'osdlabel';
 import type { AnnotatorSlotName, AnnotatorSlotPropsMap, ToolbarSlotProps } from 'osdlabel';
 import {
   ANNOTATOR_SLOT_RENDERERS,
@@ -31,8 +31,12 @@ type AnnotatorComponents = import('../../../src/components/Annotator.js').Annota
 const IMAGES: ImageSource[] = [{ id: createImageId('img'), tileSource: 'img.png' }];
 
 /** Assigns the image to cell 0 from inside the provider, as a host would. */
+/** The provider's actions, captured for tests that drive state alongside the slot's commands. */
+let annotatorActions: ReturnType<typeof useAnnotator>['actions'] | undefined;
+
 const AssignImage: Component = () => {
   const { actions } = useAnnotator();
+  annotatorActions = actions;
   untrack(() => actions.assignImageToCell(0, IMAGES[0]!.id));
   return null;
 };
@@ -131,6 +135,27 @@ describe('Annotator components.Toolbar override', () => {
     expect(q(root, 'status-tool')!.textContent).toContain('Rectangle');
     // The model the override holds is live: it now reports rectangle active.
     expect(received!.model.buttons.find((b) => b.key === 'rectangle')!.active).toBe(true);
+  });
+});
+
+describe('slot commands read live state (#217)', () => {
+  const line = () =>
+    createAnnotationFromGeometry(
+      { type: 'line', start: { x: 0, y: 0 }, end: { x: 10, y: 10 } },
+      { imageId: IMAGES[0]!.id, contextId: CONTEXTS[0]!.id, toolType: 'line' },
+    );
+
+  it('refuses a tool whose limit an earlier action in the same handler reached', () => {
+    const root = mountAnnotator({ Toolbar: CustomToolbar });
+    expect(received!.model.buttons.find((b) => b.key === 'line')!.enabled).toBe(true);
+    // One handler, one batch: reach the line limit (maxCount 2), then select line.
+    batch(() => {
+      annotatorActions!.addAnnotation(line());
+      annotatorActions!.addAnnotation(line());
+      received!.onSelectTool('line');
+    });
+    expect(q(root, 'status-tool')!.textContent).toContain('Navigate');
+    expect(received!.model.buttons.find((b) => b.key === 'line')!.enabled).toBe(false);
   });
 });
 
