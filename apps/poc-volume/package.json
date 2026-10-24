@@ -1,0 +1,35 @@
+{
+  "name": "@osdlabel/poc-volume",
+  "version": "0.0.0",
+  "author": "Guy Or <guydude1@gmail.com>",
+  "private": true,
+  "type": "module",
+  "description": "PoC: 3D volumes (MPR + cross-view annotation + embedded 3D renderer) composed from osdlabel's 2D pipeline.",
+  "scripts": {
+    "dev": "vite",
+    "bench": "node scripts/run.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@niivue/niivue": "1.0.0-rc.37",
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/decoration": "workspace:*",
+    "@osdlabel/fabric-annotations": "workspace:*",
+    "@osdlabel/fabric-osd": "workspace:*",
+    "@osdlabel/mask": "workspace:*",
+    "@osdlabel/mpr": "workspace:*",
+    "@osdlabel/spatial": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*",
+    "@osdlabel/volume": "workspace:*",
+    "fabric": "catalog:",
+    "openseadragon": "catalog:"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "playwright": "^1.60.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

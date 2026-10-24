@@ -1,0 +1,193 @@
+/**
+ * One-command volume PoC benchmark.
+ *
+ *   pnpm --filter @osdlabel/poc-volume bench [-- --quick] [-- --only bench,mpr,niivue]
+ *
+ * Starts the PoC's Vite dev server (cross-origin isolated), drives headless
+ * Chromium through bench.html (reslice + label maps), mpr.html (four osdlabel
+ * cells: scrolling, rotation, cross-view annotation) and niivue.html (an
+ * embedded Niivue 3D cell beside osdlabel cells), samples per-process memory
+ * between steps, writes results/<timestamp>.json and prints a summary.
+ *
+ * Flags:
+ *   --quick              small volume (256x256x200) and fewer reps
+ *   --only <list>        subset of: bench,mpr,niivue
+ *   --headed             run a visible browser (desktop reproduction)
+ *   --chromium <path>    browser binary (default: $POC_CHROMIUM, then
+ *                        /opt/pw-browsers/chromium if present, else
+ *                        Playwright's own)
+ *   --port <n>           first dev server port to try (default 5637)
+ *   --out <file>         output path (default results/<timestamp>.json)
+ *
+ * The packages it imports must be built first (`pnpm exec turbo run build
+ * --filter=@osdlabel/poc-volume^...`); `pnpm exec turbo run bench
+ * --filter=@osdlabel/poc-volume` does that for you.
+ */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+import { chromium } from 'playwright';
+import { findPidByMarker, sampleProcessMemory, MiB } from './proc-mem.mjs';
+import { printSummary } from './summary.mjs';
+
+const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const argv = process.argv.slice(2);
+const flag = (f) => argv.includes(f);
+const arg = (f, d) => {
+  const i = argv.indexOf(f);
+  return i === -1 ? d : argv[i + 1];
+};
+
+const quick = flag('--quick');
+const only = new Set(String(arg('--only', 'bench,mpr,niivue')).split(','));
+const port = Number(arg('--port', '5637'));
+const defaultChromium = fs.existsSync('/opt/pw-browsers/chromium')
+  ? '/opt/pw-browsers/chromium'
+  : undefined;
+const executablePath = arg('--chromium', process.env.POC_CHROMIUM ?? defaultChromium);
+const dims = quick ? { nx: 256, ny: 256, nz: 200 } : { nx: 512, ny: 512, nz: 400 };
+const reps = quick ? 8 : 30;
+const query = `?nx=${dims.nx}&ny=${dims.ny}&nz=${dims.nz}`;
+
+const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+const outFile = path.resolve(arg('--out', path.join(APP, 'results', `${stamp}.json`)));
+
+function gitSha() {
+  try {
+    return execFileSync('git', ['-C', APP, 'rev-parse', '--short', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+const log = (...a) => console.log('[poc-volume]', ...a);
+
+async function main() {
+  // Other benchmarks may hold ports: take the first free one from --port up.
+  let server = null;
+  let usedPort = port;
+  for (; usedPort < port + 40 && !server; usedPort++) {
+    const s = await createServer({
+      configFile: path.join(APP, 'vite.config.mjs'),
+      server: { port: usedPort, strictPort: true, host: '127.0.0.1' },
+    });
+    try {
+      await s.listen();
+      server = s;
+    } catch {
+      await s.close();
+    }
+  }
+  if (!server) throw new Error(`no free port in ${port}..${port + 39}`);
+  const base = `http://localhost:${usedPort - 1}`;
+  const browser = await chromium.launch({
+    headless: !flag('--headed'),
+    ...(executablePath ? { executablePath } : {}),
+    args: [
+      '--enable-unsafe-webgpu',
+      '--ignore-gpu-blocklist',
+      '--enable-precise-memory-info',
+      '--js-flags=--expose-gc',
+      // Unknown to Chromium (ignored); lets proc-mem find this browser's pid.
+      `--poc-volume-run=${stamp}`,
+    ],
+  });
+  const browserPid = findPidByMarker(`--poc-volume-run=${stamp}`);
+  const mem = (label) => {
+    const m = sampleProcessMemory(browserPid);
+    if (!m) return { label, byType: null };
+    const byType = Object.fromEntries(
+      Object.entries(m).map(([k, v]) => [
+        k,
+        { count: v.count, rssMiB: MiB(v.rss), pssMiB: MiB(v.pss) },
+      ]),
+    );
+    return { label, byType };
+  };
+
+  const result = {
+    meta: {
+      when: new Date().toISOString(),
+      git: gitSha(),
+      quick,
+      dims,
+      reps,
+      chromium: browser.version(),
+      executablePath: executablePath ?? 'playwright-default',
+      headless: !flag('--headed'),
+      host: {
+        cpus: os.cpus().length,
+        cpuModel: os.cpus()[0]?.model,
+        totalMemGiB: Math.round(os.totalmem() / 2 ** 30),
+      },
+      note: 'GPU timings are SwiftShader (CPU-emulated) unless meta.gpu says otherwise.',
+    },
+    memory: [],
+  };
+
+  const context = await browser.newContext({
+    viewport: { width: 1100, height: 1100 },
+    deviceScaleFactor: 1,
+  });
+  const open = async (page, file) => {
+    page.on('pageerror', (e) => log('pageerror', file, e.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') log('console.error', file, m.text().slice(0, 300));
+    });
+    await page.goto(`${base}/${file}${query}`);
+    await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, {
+      timeout: 120000,
+    });
+  };
+  const call = (page, fn, ...args) => page.evaluate(([f, a]) => window.__poc[f](...a), [fn, args]);
+
+  try {
+    if (only.has('bench')) {
+      const page = await context.newPage();
+      await open(page, 'bench.html');
+      result.memory.push(mem('bench:start'));
+      log('building volume', dims);
+      result.build = await call(page, 'build');
+      result.memory.push(mem('bench:volume-built'));
+      log('cpu reslice');
+      result.cpu = await call(page, 'cpu', reps);
+      log('worker reslice');
+      result.workers = await call(page, 'workers', quick ? [1, 2] : [1, 2, 4], reps);
+      result.gl = {};
+      for (const fmt of ['r16i', 'r16f', 'r32f']) {
+        log('webgl2', fmt);
+        result.gl[fmt] = await call(page, 'gl', fmt, reps);
+        result.memory.push(mem(`bench:gl-${fmt}-uploaded`));
+        await call(page, 'glDispose');
+        await page.waitForTimeout(500);
+        result.memory.push(mem(`bench:gl-${fmt}-disposed`));
+      }
+      log('label maps');
+      result.labels = await call(page, 'labels', quick ? 10 : 20, 15, quick ? 3 : 5);
+      result.memory.push(mem('bench:labels'));
+      result.benchContexts = await call(page, 'contexts');
+      await page.close();
+    }
+    // MPR_SECTION
+    // NIIVUE_SECTION
+  } finally {
+    await context.close();
+    await browser.close();
+    await server.close();
+  }
+
+  fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  fs.writeFileSync(outFile, JSON.stringify(result, null, 2));
+  log('wrote', path.relative(process.cwd(), outFile));
+  printSummary(result);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -1,0 +1,3 @@
+# Benchmark runs are not committed, except the one representative run.
+results/*
+!results/representative.json
