@@ -1,0 +1,2738 @@
+{
+ "source": "results/2026-10-24T05-01-39-141Z/results.json",
+ "startedAt": "2026-10-24T05:01:39.735Z",
+ "finishedAt": "2026-10-24T05:13:21.151Z",
+ "chromium": "/opt/pw-browsers/chromium",
+ "env": {
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "webgl2Renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "hardwareConcurrency": 4,
+  "crossOriginIsolated": true,
+  "baselineFps": 59.667,
+  "idleMemoryMB": 265,
+  "loadAvg": [
+   5.58,
+   7.94,
+   9.76
+  ]
+ },
+ "model": [
+  {
+   "config": "model/300x10",
+   "frames": 300,
+   "perFrame": 10,
+   "annotations": 3000,
+   "reps": 15,
+   "buildMs": 130.115,
+   "indexMs": 0.48,
+   "stepUs": {
+    "frameAxisIndexed": 0.05,
+    "frameAxisNaiveFilter": 491.117,
+    "perSlice": 0.1
+   },
+   "constraints": {
+    "perSliceLimit": {
+     "frameAxisPerFrameMs": 0.53,
+     "perSlicePerImageMs": 0.005
+    },
+    "perSeriesLimit": {
+     "frameAxisPerImageMs": 0.51,
+     "perSliceGlobalOverSeriesMs": 0.08
+    }
+   },
+   "serialization": {
+    "frameAxis": {
+     "bytes": 3604289,
+     "serializeMs": 13.315,
+     "deserializeMs": 33.275
+    },
+    "perSlice": {
+     "bytes": 3431389,
+     "serializeMs": 12.18,
+     "deserializeMs": 36.96
+    }
+   },
+   "serializationKeepsFrames": true,
+   "reconcile": {
+    "reversedMs": 0.22,
+    "reversedMoved": 3000,
+    "sameOrderMs": 0.1,
+    "sameOrderMoved": 0,
+    "sameOrderIdentityKept": true
+   }
+  },
+  {
+   "config": "model/300x50",
+   "frames": 300,
+   "perFrame": 50,
+   "annotations": 15000,
+   "reps": 15,
+   "buildMs": 358.725,
+   "indexMs": 3.68,
+   "stepUs": {
+    "frameAxisIndexed": 0.1,
+    "frameAxisNaiveFilter": 3232.3,
+    "perSlice": 5.533
+   },
+   "constraints": {
+    "perSliceLimit": {
+     "frameAxisPerFrameMs": 3.29,
+     "perSlicePerImageMs": 0.005
+    },
+    "perSeriesLimit": {
+     "frameAxisPerImageMs": 3.13,
+     "perSliceGlobalOverSeriesMs": 1.84
+    }
+   },
+   "serialization": {
+    "frameAxis": {
+     "bytes": 18271221,
+     "serializeMs": 78.165,
+     "deserializeMs": 214.545
+    },
+    "perSlice": {
+     "bytes": 17406721,
+     "serializeMs": 76.245,
+     "deserializeMs": 183.48
+    }
+   },
+   "serializationKeepsFrames": true,
+   "reconcile": {
+    "reversedMs": 0.865,
+    "reversedMoved": 15000,
+    "sameOrderMs": 0.385,
+    "sameOrderMoved": 0,
+    "sameOrderIdentityKept": true
+   }
+  }
+ ],
+ "strategies": [
+  {
+   "config": "mutable/webgl",
+   "loadAvg": [
+    5.37,
+    7.78,
+    9.67
+   ],
+   "setupMs": 956,
+   "memDeltaMB": 163,
+   "latencyMs": {
+    "p50": 69.72,
+    "p95": 101.14,
+    "max": 106.17,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "n": 40
+   },
+   "blankPerStep": 0,
+   "scrollLatest": {
+    "fps": 28.7,
+    "shownPerSec": 17,
+    "blank": 0
+   },
+   "scrollAwaitDrawn": {
+    "fps": 26.3,
+    "shownPerSec": 15.1,
+    "blank": 0
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 45.52,
+    "p95": 64.45,
+    "max": 76.42,
+    "n": 53
+   },
+   "osdDrawMsStatic": {
+    "p50": 60.17,
+    "p95": 125.36,
+    "max": 171.09,
+    "n": 30
+   },
+   "paintMsPerFrame": 0.64,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "reset/webgl",
+   "loadAvg": [
+    5.5,
+    7.69,
+    9.61
+   ],
+   "setupMs": 990,
+   "memDeltaMB": 160,
+   "latencyMs": {
+    "p50": 94.92,
+    "p95": 167.35,
+    "max": 215.13,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 2,
+    "p95": 2,
+    "max": 2,
+    "n": 40
+   },
+   "blankPerStep": 1,
+   "scrollLatest": {
+    "fps": 60.9,
+    "shownPerSec": 0,
+    "blank": 180
+   },
+   "scrollAwaitDrawn": {
+    "fps": 27.4,
+    "shownPerSec": 13.2,
+    "blank": 41
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.05,
+    "p95": 0.1,
+    "max": 61.89,
+    "n": 181
+   },
+   "osdDrawMsStatic": {
+    "p50": 51.5,
+    "p95": 69.01,
+    "max": 75.56,
+    "n": 30
+   },
+   "paintMsPerFrame": 0.9,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "open/webgl",
+   "loadAvg": [
+    5.64,
+    7.58,
+    9.54
+   ],
+   "setupMs": 951,
+   "memDeltaMB": 163,
+   "latencyMs": {
+    "p50": 90.52,
+    "p95": 138.63,
+    "max": 188.73,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 1.5,
+    "p95": 2,
+    "max": 2,
+    "n": 40
+   },
+   "blankPerStep": 1,
+   "scrollLatest": {
+    "fps": 20.5,
+    "shownPerSec": 8.3,
+    "blank": 34
+   },
+   "scrollAwaitDrawn": {
+    "fps": 25.5,
+    "shownPerSec": 12.1,
+    "blank": 38
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.09,
+    "p95": 137,
+    "max": 273.77,
+    "n": 60
+   },
+   "osdDrawMsStatic": {
+    "p50": 57.66,
+    "p95": 71.14,
+    "max": 78.54,
+    "n": 30
+   },
+   "paintMsPerFrame": 1.3,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "open-png/webgl",
+   "loadAvg": [
+    5.95,
+    7.55,
+    9.5
+   ],
+   "setupMs": 3844,
+   "memDeltaMB": 249,
+   "latencyMs": {
+    "p50": 102.45,
+    "p95": 151.74,
+    "max": 198.11,
+    "n": 39
+   },
+   "latencyFrames": {
+    "p50": 2,
+    "p95": 2.1,
+    "max": 3,
+    "n": 39
+   },
+   "blankPerStep": 1.05,
+   "scrollLatest": {
+    "fps": 60,
+    "shownPerSec": 0,
+    "blank": 178
+   },
+   "scrollAwaitDrawn": {
+    "fps": 31.4,
+    "shownPerSec": 10.3,
+    "blank": 29
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.04,
+    "p95": 0.07,
+    "max": 0.72,
+    "n": 157
+   },
+   "osdDrawMsStatic": {
+    "p50": 59.45,
+    "p95": 123.57,
+    "max": 183.25,
+    "n": 30
+   },
+   "paintMsPerFrame": 0,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "opacity/webgl",
+   "loadAvg": [
+    6.76,
+    7.62,
+    9.47
+   ],
+   "setupMs": 48044,
+   "memDeltaMB": 791,
+   "latencyMs": {
+    "p50": 105.88,
+    "p95": 188.21,
+    "max": 266.61,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 1,
+    "p95": 1,
+    "max": 1,
+    "n": 40
+   },
+   "blankPerStep": 0,
+   "scrollLatest": {
+    "fps": 19.6,
+    "shownPerSec": 9.3,
+    "blank": 0
+   },
+   "scrollAwaitDrawn": {
+    "fps": 15.2,
+    "shownPerSec": 7.6,
+    "blank": 0
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 94.71,
+    "p95": 142.64,
+    "max": 170.44,
+    "n": 30
+   },
+   "osdDrawMsStatic": {
+    "p50": 101.92,
+    "p95": 135.96,
+    "max": 158.22,
+    "n": 30
+   },
+   "paintMsPerFrame": 0,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "mutable-noinval/webgl",
+   "loadAvg": [
+    9.42,
+    8.21,
+    9.55
+   ],
+   "setupMs": 939,
+   "memDeltaMB": 157,
+   "latencyMs": {
+    "p50": 77.7,
+    "p95": 107.46,
+    "max": 267.78,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "n": 40
+   },
+   "blankPerStep": 0,
+   "scrollLatest": {
+    "fps": 21.7,
+    "shownPerSec": 12.1,
+    "blank": 0
+   },
+   "scrollAwaitDrawn": {
+    "fps": 23.6,
+    "shownPerSec": 12.6,
+    "blank": 0
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 66.98,
+    "p95": 141.9,
+    "max": 167.44,
+    "n": 38
+   },
+   "osdDrawMsStatic": {
+    "p50": 96.31,
+    "p95": 169.96,
+    "max": 208.69,
+    "n": 30
+   },
+   "paintMsPerFrame": 0.57,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 15
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "mutable/canvas",
+   "loadAvg": [
+    8.75,
+    8.14,
+    9.49
+   ],
+   "setupMs": 665,
+   "memDeltaMB": 122,
+   "latencyMs": {
+    "p50": 16.9,
+    "p95": 17.52,
+    "max": 17.94,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "n": 40
+   },
+   "blankPerStep": 0,
+   "scrollLatest": {
+    "fps": 59.6,
+    "shownPerSec": 57.6,
+    "blank": 0
+   },
+   "scrollAwaitDrawn": {
+    "fps": 61,
+    "shownPerSec": 59.7,
+    "blank": 0
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.1,
+    "p95": 0.18,
+    "max": 1.18,
+    "n": 174
+   },
+   "osdDrawMsStatic": {
+    "p50": 0.12,
+    "p95": 0.17,
+    "max": 0.2,
+    "n": 30
+   },
+   "paintMsPerFrame": 0.94,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "reset/canvas",
+   "loadAvg": [
+    7.7,
+    7.93,
+    9.4
+   ],
+   "setupMs": 698,
+   "memDeltaMB": 122,
+   "latencyMs": {
+    "p50": 33.53,
+    "p95": 34.97,
+    "max": 36.3,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 1,
+    "p95": 2,
+    "max": 2,
+    "n": 40
+   },
+   "blankPerStep": 1,
+   "scrollLatest": {
+    "fps": 60.9,
+    "shownPerSec": 0,
+    "blank": 180
+   },
+   "scrollAwaitDrawn": {
+    "fps": 59.3,
+    "shownPerSec": 29,
+    "blank": 88
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.04,
+    "p95": 0.08,
+    "max": 0.13,
+    "n": 181
+   },
+   "osdDrawMsStatic": {
+    "p50": 0.1,
+    "p95": 0.13,
+    "max": 0.14,
+    "n": 30
+   },
+   "paintMsPerFrame": 1.02,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "open/canvas",
+   "loadAvg": [
+    8.54,
+    8.1,
+    9.43
+   ],
+   "setupMs": 643,
+   "memDeltaMB": 122,
+   "latencyMs": {
+    "p50": 33.48,
+    "p95": 35.93,
+    "max": 38.69,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 1,
+    "p95": 2,
+    "max": 2,
+    "n": 40
+   },
+   "blankPerStep": 1,
+   "scrollLatest": {
+    "fps": 60.3,
+    "shownPerSec": 0.3,
+    "blank": 177
+   },
+   "scrollAwaitDrawn": {
+    "fps": 60.9,
+    "shownPerSec": 30,
+    "blank": 91
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.04,
+    "p95": 0.1,
+    "max": 1.71,
+    "n": 179
+   },
+   "osdDrawMsStatic": {
+    "p50": 0.13,
+    "p95": 0.21,
+    "max": 0.39,
+    "n": 30
+   },
+   "paintMsPerFrame": 1.4,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "open-png/canvas",
+   "loadAvg": [
+    8.24,
+    8.05,
+    9.4
+   ],
+   "setupMs": 4079,
+   "memDeltaMB": 211,
+   "latencyMs": {
+    "p50": 38.12,
+    "p95": 40.85,
+    "max": 43.83,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 2,
+    "p95": 2,
+    "max": 2,
+    "n": 40
+   },
+   "blankPerStep": 1,
+   "scrollLatest": {
+    "fps": 58.9,
+    "shownPerSec": 0,
+    "blank": 174
+   },
+   "scrollAwaitDrawn": {
+    "fps": 59.6,
+    "shownPerSec": 28.3,
+    "blank": 76
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.03,
+    "p95": 0.07,
+    "max": 8.29,
+    "n": 173
+   },
+   "osdDrawMsStatic": {
+    "p50": 0.12,
+    "p95": 0.2,
+    "max": 0.22,
+    "n": 30
+   },
+   "paintMsPerFrame": 0,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "opacity/canvas",
+   "loadAvg": [
+    8.47,
+    8.11,
+    9.39
+   ],
+   "setupMs": 2663,
+   "memDeltaMB": 429,
+   "latencyMs": {
+    "p50": 16.77,
+    "p95": 17.09,
+    "max": 17.59,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "n": 40
+   },
+   "blankPerStep": 0,
+   "scrollLatest": {
+    "fps": 59.6,
+    "shownPerSec": 58.3,
+    "blank": 0
+   },
+   "scrollAwaitDrawn": {
+    "fps": 59.9,
+    "shownPerSec": 58.3,
+    "blank": 0
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.14,
+    "p95": 0.25,
+    "max": 2.2,
+    "n": 176
+   },
+   "osdDrawMsStatic": {
+    "p50": 0.16,
+    "p95": 0.21,
+    "max": 0.22,
+    "n": 30
+   },
+   "paintMsPerFrame": 0,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "mutable-bitmap/webgl",
+   "loadAvg": [
+    7.83,
+    7.99,
+    9.33
+   ],
+   "setupMs": 1610,
+   "memDeltaMB": 445,
+   "latencyMs": {
+    "p50": 105.54,
+    "p95": 168,
+    "max": 182.25,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "n": 40
+   },
+   "blankPerStep": 0,
+   "scrollLatest": {
+    "fps": 18.8,
+    "shownPerSec": 9.9,
+    "blank": 0
+   },
+   "scrollAwaitDrawn": {
+    "fps": 13.3,
+    "shownPerSec": 7.3,
+    "blank": 0
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 80.35,
+    "p95": 133.85,
+    "max": 168.81,
+    "n": 32
+   },
+   "osdDrawMsStatic": {
+    "p50": 74.87,
+    "p95": 113.99,
+    "max": 135.32,
+    "n": 30
+   },
+   "paintMsPerFrame": 0.03,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  },
+  {
+   "config": "mutable-bitmap/canvas",
+   "loadAvg": [
+    9.44,
+    8.36,
+    9.43
+   ],
+   "setupMs": 1318,
+   "memDeltaMB": 410,
+   "latencyMs": {
+    "p50": 16.81,
+    "p95": 17.49,
+    "max": 39.14,
+    "n": 40
+   },
+   "latencyFrames": {
+    "p50": 0,
+    "p95": 1,
+    "max": 1,
+    "n": 40
+   },
+   "blankPerStep": 0,
+   "scrollLatest": {
+    "fps": 58.7,
+    "shownPerSec": 47,
+    "blank": 0
+   },
+   "scrollAwaitDrawn": {
+    "fps": 60.7,
+    "shownPerSec": 58.3,
+    "blank": 0
+   },
+   "osdDrawMsDuringScroll": {
+    "p50": 0.11,
+    "p95": 0.2,
+    "max": 0.71,
+    "n": 142
+   },
+   "osdDrawMsStatic": {
+    "p50": 0.13,
+    "p95": 0.72,
+    "max": 2.29,
+    "n": 30
+   },
+   "paintMsPerFrame": 0.01,
+   "pixelVerify": {
+    "checked": 15,
+    "mismatches": 0
+   },
+   "sync": {
+    "vptMaxAbsDiff": 0,
+    "zoomRelDrift": 0
+   },
+   "consoleErrors": 0
+  }
+ ],
+ "layers": [
+  {
+   "config": "cache/0/canvas",
+   "loadAvg": [
+    9.17,
+    8.34,
+    9.4
+   ],
+   "layerInitMs": 0,
+   "memDeltaMB": 118,
+   "annSwapMs": {
+    "p50": 0,
+    "p95": 0.01,
+    "max": 0.01,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 0.03,
+    "p95": 0.09,
+    "max": 0.12,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 0.04,
+    "p95": 0.12,
+    "max": 0.14,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.91,
+    "p95": 19.23,
+    "max": 20.53,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 60.6,
+    "shownPerSec": 58.3,
+    "incoherent": 0,
+    "longFrames": 1,
+    "frames": 180
+   }
+  },
+  {
+   "config": "cache/10/canvas",
+   "loadAvg": [
+    9.31,
+    8.39,
+    9.41
+   ],
+   "layerInitMs": 75,
+   "memDeltaMB": 134,
+   "annSwapMs": {
+    "p50": 0.27,
+    "p95": 0.97,
+    "max": 1.53,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 0.58,
+    "p95": 1.07,
+    "max": 1.09,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 4.25,
+    "p95": 6.75,
+    "max": 19.36,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.82,
+    "p95": 18.71,
+    "max": 19.3,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 58.4,
+    "shownPerSec": 50.2,
+    "incoherent": 0,
+    "longFrames": 7,
+    "frames": 174
+   }
+  },
+  {
+   "config": "cache/50/canvas",
+   "loadAvg": [
+    9.43,
+    8.44,
+    9.42
+   ],
+   "layerInitMs": 389,
+   "memDeltaMB": 235,
+   "annSwapMs": {
+    "p50": 0.92,
+    "p95": 2.07,
+    "max": 2.48,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 1.4,
+    "p95": 3.24,
+    "max": 3.46,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 20.82,
+    "p95": 33.12,
+    "max": 38.66,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.81,
+    "p95": 22.01,
+    "max": 25.42,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 33.8,
+    "shownPerSec": 19.6,
+    "incoherent": 0,
+    "longFrames": 64,
+    "frames": 101
+   }
+  },
+  {
+   "config": "cache/200/canvas",
+   "loadAvg": [
+    10.17,
+    8.63,
+    9.47
+   ],
+   "layerInitMs": 1513,
+   "memDeltaMB": 450,
+   "annSwapMs": {
+    "p50": 2.21,
+    "p95": 8.66,
+    "max": 160.86,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 3.73,
+    "p95": 14.17,
+    "max": 22.39,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 119,
+    "p95": 173.94,
+    "max": 416.35,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 22.03,
+    "p95": 44.95,
+    "max": 176.8,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 11.3,
+    "shownPerSec": 5.8,
+    "incoherent": 0,
+    "longFrames": 24,
+    "frames": 34
+   }
+  },
+  {
+   "config": "cache-nocache/10/canvas",
+   "loadAvg": [
+    9.53,
+    8.54,
+    9.43
+   ],
+   "layerInitMs": 58,
+   "memDeltaMB": 136,
+   "annSwapMs": {
+    "p50": 0.28,
+    "p95": 0.96,
+    "max": 2.58,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 0.59,
+    "p95": 1.31,
+    "max": 1.64,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 0.25,
+    "p95": 0.42,
+    "max": 0.73,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.86,
+    "p95": 18.59,
+    "max": 19.43,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 61,
+    "shownPerSec": 59,
+    "incoherent": 0,
+    "longFrames": 0,
+    "frames": 181
+   }
+  },
+  {
+   "config": "cache-nocache/50/canvas",
+   "loadAvg": [
+    8.59,
+    8.37,
+    9.37
+   ],
+   "layerInitMs": 381,
+   "memDeltaMB": 194,
+   "annSwapMs": {
+    "p50": 0.72,
+    "p95": 2.02,
+    "max": 3.27,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 1.63,
+    "p95": 4.17,
+    "max": 5.87,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 0.59,
+    "p95": 1.29,
+    "max": 2.62,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.91,
+    "p95": 23.36,
+    "max": 46.27,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 60.6,
+    "shownPerSec": 58.6,
+    "incoherent": 0,
+    "longFrames": 1,
+    "frames": 180
+   }
+  },
+  {
+   "config": "cache-nocache/200/canvas",
+   "loadAvg": [
+    8.14,
+    8.28,
+    9.33
+   ],
+   "layerInitMs": 929,
+   "memDeltaMB": 395,
+   "annSwapMs": {
+    "p50": 2.06,
+    "p95": 3.32,
+    "max": 3.79,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 3.91,
+    "p95": 6.37,
+    "max": 7.11,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 1.53,
+    "p95": 2.77,
+    "max": 3.49,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 17.72,
+    "p95": 27.37,
+    "max": 31.14,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 44.4,
+    "shownPerSec": 39.4,
+    "incoherent": 0,
+    "longFrames": 44,
+    "frames": 132
+   }
+  },
+  {
+   "config": "rebuild-sync/10/canvas",
+   "loadAvg": [
+    7.28,
+    8.09,
+    9.26
+   ],
+   "layerInitMs": 0,
+   "memDeltaMB": 137,
+   "annSwapMs": {
+    "p50": 0.65,
+    "p95": 1.1,
+    "max": 1.32,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 0.56,
+    "p95": 0.84,
+    "max": 0.94,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 3.67,
+    "p95": 5.65,
+    "max": 5.86,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.84,
+    "p95": 17.18,
+    "max": 17.23,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 60.9,
+    "shownPerSec": 54.3,
+    "incoherent": 0,
+    "longFrames": 0,
+    "frames": 181
+   }
+  },
+  {
+   "config": "rebuild-sync/50/canvas",
+   "loadAvg": [
+    6.77,
+    7.97,
+    9.21
+   ],
+   "layerInitMs": 0,
+   "memDeltaMB": 156,
+   "annSwapMs": {
+    "p50": 1.55,
+    "p95": 4.54,
+    "max": 4.97,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 1.23,
+    "p95": 1.77,
+    "max": 3.37,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 16.86,
+    "p95": 20.16,
+    "max": 23.8,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.87,
+    "p95": 18.88,
+    "max": 21.16,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 31.2,
+    "shownPerSec": 17.9,
+    "incoherent": 0,
+    "longFrames": 54,
+    "frames": 93
+   }
+  },
+  {
+   "config": "rebuild-sync/200/canvas",
+   "loadAvg": [
+    6.73,
+    7.93,
+    9.18
+   ],
+   "layerInitMs": 0,
+   "memDeltaMB": 291,
+   "annSwapMs": {
+    "p50": 6.28,
+    "p95": 31.58,
+    "max": 137,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 3.84,
+    "p95": 15.83,
+    "max": 130.13,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 112.25,
+    "p95": 189.86,
+    "max": 240.72,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 22.58,
+    "p95": 129.34,
+    "max": 195.37,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 11.9,
+    "shownPerSec": 5.7,
+    "incoherent": 0,
+    "longFrames": 25,
+    "frames": 37
+   }
+  },
+  {
+   "config": "rebuild-async/10/canvas",
+   "loadAvg": [
+    7.46,
+    8.04,
+    9.21
+   ],
+   "layerInitMs": 0,
+   "memDeltaMB": 176,
+   "annSwapMs": {
+    "p50": 0.18,
+    "p95": 0.44,
+    "max": 0.61,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 0.52,
+    "p95": 0.86,
+    "max": 0.95,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 3.23,
+    "p95": 4.66,
+    "max": 4.9,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.81,
+    "p95": 17.41,
+    "max": 17.5,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 60.9,
+    "shownPerSec": 53.9,
+    "incoherent": 0,
+    "longFrames": 0,
+    "frames": 181
+   }
+  },
+  {
+   "config": "rebuild-async/50/canvas",
+   "loadAvg": [
+    7.37,
+    8.01,
+    9.19
+   ],
+   "layerInitMs": 0,
+   "memDeltaMB": 158,
+   "annSwapMs": {
+    "p50": 0.48,
+    "p95": 0.89,
+    "max": 1.03,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 1.25,
+    "p95": 2.46,
+    "max": 3.32,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 15.48,
+    "p95": 25.59,
+    "max": 29.48,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.75,
+    "p95": 18.26,
+    "max": 19.55,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 35.9,
+    "shownPerSec": 21.2,
+    "incoherent": 0,
+    "longFrames": 58,
+    "frames": 107
+   }
+  },
+  {
+   "config": "rebuild-async/200/canvas",
+   "loadAvg": [
+    7.18,
+    7.96,
+    9.16
+   ],
+   "layerInitMs": 0,
+   "memDeltaMB": 290,
+   "annSwapMs": {
+    "p50": 1.72,
+    "p95": 11.6,
+    "max": 19.63,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 3.81,
+    "p95": 13.72,
+    "max": 25.43,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 103.8,
+    "p95": 156.52,
+    "max": 200.91,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 25.13,
+    "p95": 207.25,
+    "max": 416.61,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 10.7,
+    "shownPerSec": 4.9,
+    "incoherent": 0,
+    "longFrames": 26,
+    "frames": 32
+   }
+  },
+  {
+   "config": "visibility/10/canvas",
+   "loadAvg": [
+    6.95,
+    7.86,
+    9.11
+   ],
+   "layerInitMs": 322,
+   "memDeltaMB": 157,
+   "annSwapMs": {
+    "p50": 0.03,
+    "p95": 0.07,
+    "max": 0.1,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 0.64,
+    "p95": 1.68,
+    "max": 2.15,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 5.13,
+    "p95": 8.11,
+    "max": 10.03,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.82,
+    "p95": 17.47,
+    "max": 17.65,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 56.6,
+    "shownPerSec": 50.3,
+    "incoherent": 0,
+    "longFrames": 4,
+    "frames": 168
+   }
+  },
+  {
+   "config": "visibility/50/canvas",
+   "loadAvg": [
+    7.19,
+    7.9,
+    9.12
+   ],
+   "layerInitMs": 817,
+   "memDeltaMB": 306,
+   "annSwapMs": {
+    "p50": 0.05,
+    "p95": 0.09,
+    "max": 0.12,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 1.67,
+    "p95": 2.98,
+    "max": 12.36,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 24.43,
+    "p95": 35.59,
+    "max": 83.44,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 16.79,
+    "p95": 21.45,
+    "max": 34.88,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 32.8,
+    "shownPerSec": 17.7,
+    "incoherent": 0,
+    "longFrames": 56,
+    "frames": 99
+   }
+  },
+  {
+   "config": "visibility/200/canvas",
+   "error": "page.evaluate: RangeError: Maximum call stack size exceeded\n    at ho.remove (http://127.0.0.1:5531/node_modules/.vite/deps/fabric.js?v=e9044e2c:772:17)\n    at VisibilityLayer.clearAnnotations (http://127.0.0.1:5531/src/annotations/layers.ts:70:35)\n    at VisibilityLayer.dispose (http://127.0.0.1:5531/src/annotations/layers.ts:79:8)\n    at Object.teardown (http://127.0.0.1:5531/src/main.ts:505:21)\n    at eval (eval at evaluate (:302:30), <anonymous>:1:28)\n    at UtilityScript.evaluate (<anonymous>:304:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+   "loadAvg": [
+    7.46,
+    7.94,
+    9.12
+   ],
+   "layerInitMs": 2721,
+   "memDeltaMB": 725,
+   "annSwapMs": {
+    "p50": 0.1,
+    "p95": 0.2,
+    "max": 0.26,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 3.65,
+    "p95": 6,
+    "max": 215.81,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 141.78,
+    "p95": 239.51,
+    "max": 382.75,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 17.9,
+    "p95": 46.83,
+    "max": 301.7,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 10.2,
+    "shownPerSec": 5.3,
+    "incoherent": 0,
+    "longFrames": 18,
+    "frames": 30
+   }
+  },
+  {
+   "config": "cache-nocache/10/webgl",
+   "loadAvg": [
+    6.74,
+    7.76,
+    9.04
+   ],
+   "layerInitMs": 65,
+   "memDeltaMB": 165,
+   "annSwapMs": {
+    "p50": 0.29,
+    "p95": 1.11,
+    "max": 1.98,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 0.63,
+    "p95": 1.19,
+    "max": 1.88,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 0.31,
+    "p95": 0.59,
+    "max": 1.01,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 100.67,
+    "p95": 197.96,
+    "max": 220.37,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 19.3,
+    "shownPerSec": 10.1,
+    "incoherent": 0,
+    "longFrames": 32,
+    "frames": 58
+   }
+  },
+  {
+   "config": "cache-nocache/50/webgl",
+   "loadAvg": [
+    7.69,
+    7.9,
+    9.06
+   ],
+   "layerInitMs": 359,
+   "memDeltaMB": 249,
+   "annSwapMs": {
+    "p50": 0.8,
+    "p95": 3.07,
+    "max": 6.42,
+    "n": 30
+   },
+   "decoMs": {
+    "p50": 1.53,
+    "p95": 3.44,
+    "max": 4.54,
+    "n": 30
+   },
+   "fabricRenderMs": {
+    "p50": 0.79,
+    "p95": 1.77,
+    "max": 3.48,
+    "n": 30
+   },
+   "imageLatencyMs": {
+    "p50": 120.58,
+    "p95": 165.29,
+    "max": 176.13,
+    "n": 30
+   },
+   "scroll": {
+    "fps": 13.7,
+    "shownPerSec": 7.2,
+    "incoherent": 0,
+    "longFrames": 26,
+    "frames": 41
+   }
+  }
+ ],
+ "cine": [
+  {
+   "config": "cine/rgba/canvas/30",
+   "loadAvg": [
+    8.35,
+    8.04,
+    9.1
+   ],
+   "prepMs": 471,
+   "memDeltaMB": 228,
+   "achievedFps": 30,
+   "droppedPct": 0,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 0.73,
+    "p95": 1.15,
+    "max": 5.32,
+    "n": 300
+   },
+   "paintMsPerFrame": 0.33,
+   "osdDrawMs": {
+    "p50": 0.11,
+    "p95": 0.19,
+    "max": 4.25,
+    "n": 301
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 0
+  },
+  {
+   "config": "cine/rgba/canvas/60",
+   "loadAvg": [
+    8.44,
+    8.07,
+    9.09
+   ],
+   "prepMs": 521,
+   "memDeltaMB": 326,
+   "achievedFps": 58.4,
+   "droppedPct": 2.7,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 1.48,
+    "p95": 2.48,
+    "max": 6.56,
+    "n": 292
+   },
+   "paintMsPerFrame": 1.13,
+   "osdDrawMs": {
+    "p50": 0.1,
+    "p95": 0.27,
+    "max": 2.61,
+    "n": 293
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 0
+  },
+  {
+   "config": "cine/rgba/webgl/30",
+   "loadAvg": [
+    8.41,
+    8.07,
+    9.09
+   ],
+   "prepMs": 605,
+   "memDeltaMB": 303,
+   "achievedFps": 14.3,
+   "droppedPct": 51,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 0.93,
+    "p95": 2.55,
+    "max": 12.16,
+    "n": 147
+   },
+   "paintMsPerFrame": 0.44,
+   "osdDrawMs": {
+    "p50": 53.77,
+    "p95": 93.54,
+    "max": 378.92,
+    "n": 148
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 0
+  },
+  {
+   "config": "cine/rgba/webgl/60",
+   "loadAvg": [
+    8.42,
+    8.08,
+    9.08
+   ],
+   "prepMs": 501,
+   "memDeltaMB": 289,
+   "achievedFps": 21.8,
+   "droppedPct": 63.7,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 0.85,
+    "p95": 1.65,
+    "max": 4.78,
+    "n": 109
+   },
+   "paintMsPerFrame": 0.39,
+   "osdDrawMs": {
+    "p50": 37.43,
+    "p95": 44.01,
+    "max": 203.11,
+    "n": 110
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 0
+  },
+  {
+   "config": "cine/bitmap/canvas/30",
+   "loadAvg": [
+    8.15,
+    8.03,
+    9.05
+   ],
+   "prepMs": 752,
+   "memDeltaMB": 132,
+   "achievedFps": 30,
+   "droppedPct": 0,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 0.44,
+    "p95": 0.77,
+    "max": 3.21,
+    "n": 300
+   },
+   "paintMsPerFrame": 0.03,
+   "osdDrawMs": {
+    "p50": 0.13,
+    "p95": 0.23,
+    "max": 2.17,
+    "n": 301
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 0
+  },
+  {
+   "config": "cine/bitmap/canvas/60",
+   "loadAvg": [
+    7.91,
+    7.98,
+    9.03
+   ],
+   "prepMs": 757,
+   "memDeltaMB": 139,
+   "achievedFps": 57.4,
+   "droppedPct": 4,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 0.3,
+    "p95": 1.29,
+    "max": 3.92,
+    "n": 288
+   },
+   "paintMsPerFrame": 0.02,
+   "osdDrawMs": {
+    "p50": 0.11,
+    "p95": 0.61,
+    "max": 3.12,
+    "n": 289
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 0
+  },
+  {
+   "config": "cine/webcodecs/canvas/30",
+   "loadAvg": [
+    8.15,
+    8.03,
+    9.03
+   ],
+   "prepMs": 1256,
+   "memDeltaMB": 652,
+   "achievedFps": 28.3,
+   "droppedPct": 5.7,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 3.65,
+    "p95": 8.63,
+    "max": 575.37,
+    "n": 285
+   },
+   "paintMsPerFrame": 5.08,
+   "osdDrawMs": {
+    "p50": 0.13,
+    "p95": 0.31,
+    "max": 2.83,
+    "n": 283
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 1823426
+  },
+  {
+   "config": "cine/webcodecs/canvas/60",
+   "loadAvg": [
+    8.42,
+    8.1,
+    9.04
+   ],
+   "prepMs": 1005,
+   "memDeltaMB": 634,
+   "achievedFps": 54.2,
+   "droppedPct": 9.3,
+   "incoherent": 0,
+   "applyMs": {
+    "p50": 3.4,
+    "p95": 6.31,
+    "max": 14.95,
+    "n": 272
+   },
+   "paintMsPerFrame": 3.24,
+   "osdDrawMs": {
+    "p50": 0.12,
+    "p95": 0.3,
+    "max": 3.21,
+    "n": 272
+   },
+   "timeVsPixelMismatches": null,
+   "elementDropped": null,
+   "calibratedFrames": null,
+   "encodedBytes": 1565777
+  },
+  {
+   "config": "cine/video-nominal/canvas/30",
+   "loadAvg": [
+    7.76,
+    7.96,
+    8.99
+   ],
+   "prepMs": 3860,
+   "memDeltaMB": 642,
+   "achievedFps": 29.4,
+   "droppedPct": 0,
+   "incoherent": 137,
+   "applyMs": {
+    "p50": 2.67,
+    "p95": 4.95,
+    "max": 8.88,
+    "n": 295
+   },
+   "paintMsPerFrame": 0.47,
+   "osdDrawMs": {
+    "p50": 0.1,
+    "p95": 0.24,
+    "max": 2.98,
+    "n": 297
+   },
+   "timeVsPixelMismatches": 68,
+   "elementDropped": 0,
+   "calibratedFrames": null,
+   "encodedBytes": 2454477
+  },
+  {
+   "config": "cine/video-calibrated/canvas/30",
+   "loadAvg": [
+    6.84,
+    7.75,
+    8.9
+   ],
+   "prepMs": 4029,
+   "memDeltaMB": 641,
+   "achievedFps": 29.4,
+   "droppedPct": 0.3,
+   "incoherent": 4,
+   "applyMs": {
+    "p50": 2.52,
+    "p95": 4.89,
+    "max": 8.26,
+    "n": 294
+   },
+   "paintMsPerFrame": 0.46,
+   "osdDrawMs": {
+    "p50": 0.1,
+    "p95": 0.25,
+    "max": 5.34,
+    "n": 294
+   },
+   "timeVsPixelMismatches": 1,
+   "elementDropped": 1,
+   "calibratedFrames": 100,
+   "encodedBytes": 2452746
+  },
+  {
+   "config": "cine/video-nominal/canvas/60",
+   "loadAvg": [
+    6.32,
+    7.58,
+    8.83
+   ],
+   "prepMs": 2286,
+   "memDeltaMB": 618,
+   "achievedFps": 45.1,
+   "droppedPct": 24.7,
+   "incoherent": 14,
+   "applyMs": {
+    "p50": 2.67,
+    "p95": 6.76,
+    "max": 13.44,
+    "n": 230
+   },
+   "paintMsPerFrame": 0.67,
+   "osdDrawMs": {
+    "p50": 0.1,
+    "p95": 0.19,
+    "max": 2.13,
+    "n": 232
+   },
+   "timeVsPixelMismatches": 12,
+   "elementDropped": 54,
+   "calibratedFrames": null,
+   "encodedBytes": 1782911
+  },
+  {
+   "config": "cine/video-calibrated/canvas/60",
+   "loadAvg": [
+    6.14,
+    7.5,
+    8.79
+   ],
+   "prepMs": 2335,
+   "memDeltaMB": 638,
+   "achievedFps": 44.9,
+   "droppedPct": 22.3,
+   "incoherent": 24,
+   "applyMs": {
+    "p50": 2.75,
+    "p95": 6.64,
+    "max": 17,
+    "n": 226
+   },
+   "paintMsPerFrame": 0.6,
+   "osdDrawMs": {
+    "p50": 0.09,
+    "p95": 0.16,
+    "max": 1.16,
+    "n": 226
+   },
+   "timeVsPixelMismatches": 20,
+   "elementDropped": 81,
+   "calibratedFrames": 81,
+   "encodedBytes": 1812276
+  }
+ ],
+ "solid": [
+  {
+   "binding": "optimized (HEAD)",
+   "rows": [
+    {
+     "config": "solid/canvas/0",
+     "loadAvg": [
+      6.37,
+      7.5,
+      8.77
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 58.4
+     },
+     "warm": {
+      "fps": 59.7,
+      "shownPerSec": 58.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 0.8
+     },
+     "realWheel": {
+      "fps": 59.8,
+      "shownPerSec": 19.2,
+      "eventsSent": 60
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 111
+    },
+    {
+     "config": "solid/canvas/10",
+     "loadAvg": [
+      6.01,
+      7.38,
+      8.72
+     ],
+     "cold": {
+      "fps": 57,
+      "shownPerSec": 55.1
+     },
+     "warm": {
+      "fps": 59.7,
+      "shownPerSec": 58.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 1.11
+     },
+     "realWheel": {
+      "fps": 59.6,
+      "shownPerSec": 19.2,
+      "eventsSent": 61
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 1180
+    },
+    {
+     "config": "solid/canvas/50",
+     "loadAvg": [
+      5.73,
+      7.27,
+      8.66
+     ],
+     "cold": {
+      "fps": 12.7,
+      "shownPerSec": 12.1
+     },
+     "warm": {
+      "fps": 25.1,
+      "shownPerSec": 24.2,
+      "incoherent": 7,
+      "blank": 0,
+      "syncWorkMsP95": 0.77
+     },
+     "realWheel": {
+      "fps": 35.8,
+      "shownPerSec": 16.3,
+      "eventsSent": 52
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 1686
+    },
+    {
+     "config": "solid/canvas/10/nocache",
+     "loadAvg": [
+      6.52,
+      7.32,
+      8.64
+     ],
+     "cold": {
+      "fps": 59.4,
+      "shownPerSec": 58
+     },
+     "warm": {
+      "fps": 59.7,
+      "shownPerSec": 58.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 0.85
+     },
+     "realWheel": {
+      "fps": 58.4,
+      "shownPerSec": 18.9,
+      "eventsSent": 59
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 318
+    },
+    {
+     "config": "solid/canvas/50/nocache",
+     "loadAvg": [
+      6.21,
+      7.22,
+      8.59
+     ],
+     "cold": {
+      "fps": 48.6,
+      "shownPerSec": 47
+     },
+     "warm": {
+      "fps": 59.7,
+      "shownPerSec": 58,
+      "incoherent": 1,
+      "blank": 0,
+      "syncWorkMsP95": 1.11
+     },
+     "realWheel": {
+      "fps": 58.8,
+      "shownPerSec": 18.9,
+      "eventsSent": 60
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 726
+    },
+    {
+     "config": "solid/webgl/10",
+     "loadAvg": [
+      6.14,
+      7.16,
+      8.55
+     ],
+     "cold": {
+      "fps": 10.2,
+      "shownPerSec": 9.6
+     },
+     "warm": {
+      "fps": 13.3,
+      "shownPerSec": 12.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 1.03
+     },
+     "realWheel": {
+      "fps": 20.5,
+      "shownPerSec": 7.9,
+      "eventsSent": 26
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 1123
+    },
+    {
+     "config": "solid/per-slice/canvas/0",
+     "loadAvg": [
+      6.74,
+      7.24,
+      8.55
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 0
+     },
+     "warm": {
+      "fps": 59.7,
+      "shownPerSec": 0,
+      "incoherent": 0,
+      "blank": 180,
+      "syncWorkMsP95": 2.67
+     },
+     "realWheel": {
+      "fps": 59.8,
+      "shownPerSec": 19.3,
+      "eventsSent": 61
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 0,
+      "zoomOverHome": 1
+     },
+     "memDeltaMB": 115
+    },
+    {
+     "config": "solid/per-slice/canvas/10/nocache",
+     "loadAvg": [
+      6.48,
+      7.16,
+      8.51
+     ],
+     "cold": {
+      "fps": 58.4,
+      "shownPerSec": 0
+     },
+     "warm": {
+      "fps": 58.4,
+      "shownPerSec": 0,
+      "incoherent": 0,
+      "blank": 176,
+      "syncWorkMsP95": 9.99
+     },
+     "realWheel": {
+      "fps": 59.7,
+      "shownPerSec": 18.9,
+      "eventsSent": 59
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 0,
+      "zoomOverHome": 1
+     },
+     "memDeltaMB": 273
+    }
+   ]
+  },
+  {
+   "binding": "67f398a (before the coherence fixes)",
+   "rows": [
+    {
+     "config": "solid/canvas/0",
+     "loadAvg": [
+      6.24,
+      6.99,
+      4
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 57.4
+     },
+     "warm": {
+      "fps": 59.7,
+      "shownPerSec": 58.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 1.05
+     },
+     "realWheel": {
+      "fps": 59.8,
+      "shownPerSec": 19.3,
+      "eventsSent": 60
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 145
+    },
+    {
+     "config": "solid/canvas/10",
+     "loadAvg": [
+      5,
+      6.68,
+      3.94
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 52.5
+     },
+     "warm": {
+      "fps": 56.4,
+      "shownPerSec": 48.5,
+      "incoherent": 42,
+      "blank": 0,
+      "syncWorkMsP95": 5.62
+     },
+     "realWheel": {
+      "fps": 56.5,
+      "shownPerSec": 17.4,
+      "eventsSent": 55
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 804
+    },
+    {
+     "config": "solid/canvas/50",
+     "loadAvg": [
+      5.48,
+      6.72,
+      3.99
+     ],
+     "cold": {
+      "fps": 23.9,
+      "shownPerSec": 13.7
+     },
+     "warm": {
+      "fps": 32.1,
+      "shownPerSec": 18.8,
+      "incoherent": 64,
+      "blank": 0,
+      "syncWorkMsP95": 3.67
+     },
+     "realWheel": {
+      "fps": 35.1,
+      "shownPerSec": 15,
+      "eventsSent": 48
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 1843
+    },
+    {
+     "config": "solid/canvas/10/nocache",
+     "loadAvg": [
+      5.91,
+      6.77,
+      4.05
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 56.7
+     },
+     "warm": {
+      "fps": 59.3,
+      "shownPerSec": 54.5,
+      "incoherent": 30,
+      "blank": 0,
+      "syncWorkMsP95": 3.15
+     },
+     "realWheel": {
+      "fps": 60,
+      "shownPerSec": 19,
+      "eventsSent": 60
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 298
+    },
+    {
+     "config": "solid/canvas/50/nocache",
+     "loadAvg": [
+      5.61,
+      6.68,
+      4.05
+     ],
+     "cold": {
+      "fps": 54.5,
+      "shownPerSec": 43.4
+     },
+     "warm": {
+      "fps": 51.3,
+      "shownPerSec": 39.2,
+      "incoherent": 65,
+      "blank": 0,
+      "syncWorkMsP95": 5.29
+     },
+     "realWheel": {
+      "fps": 55.4,
+      "shownPerSec": 14,
+      "eventsSent": 45
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 487
+    },
+    {
+     "config": "solid/webgl/10",
+     "loadAvg": [
+      5.1,
+      6.51,
+      4.03
+     ],
+     "cold": {
+      "fps": 12.9,
+      "shownPerSec": 6.9
+     },
+     "warm": {
+      "fps": 12.8,
+      "shownPerSec": 6.7,
+      "incoherent": 28,
+      "blank": 0,
+      "syncWorkMsP95": 1.58
+     },
+     "realWheel": {
+      "fps": 19.1,
+      "shownPerSec": 7.5,
+      "eventsSent": 26
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 474
+    },
+    {
+     "config": "solid/per-slice/canvas/0",
+     "loadAvg": [
+      7.07,
+      6.88,
+      4.19
+     ],
+     "cold": {
+      "fps": 53.5,
+      "shownPerSec": 0
+     },
+     "warm": {
+      "fps": 55.1,
+      "shownPerSec": 2,
+      "incoherent": 0,
+      "blank": 154,
+      "syncWorkMsP95": 0.87
+     },
+     "realWheel": {
+      "fps": 57.5,
+      "shownPerSec": 16.8,
+      "eventsSent": 53
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 0,
+      "zoomOverHome": 1
+     },
+     "memDeltaMB": 132
+    },
+    {
+     "config": "solid/per-slice/canvas/10/nocache",
+     "loadAvg": [
+      10.28,
+      7.59,
+      4.47
+     ],
+     "cold": {
+      "fps": 50.3,
+      "shownPerSec": 0
+     },
+     "warm": {
+      "fps": 54.5,
+      "shownPerSec": 0.3,
+      "incoherent": 4,
+      "blank": 159,
+      "syncWorkMsP95": 14.75
+     },
+     "realWheel": {
+      "fps": 58.8,
+      "shownPerSec": 16.5,
+      "eventsSent": 53
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 0,
+      "zoomOverHome": 1
+     },
+     "memDeltaMB": 268
+    }
+   ]
+  },
+  {
+   "binding": "9053a30 (redraw fix + pixel/annotation split, no look-ahead)",
+   "rows": [
+    {
+     "config": "solid/canvas/0",
+     "loadAvg": [
+      9.65,
+      11.6,
+      11.16
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 58.4
+     },
+     "warm": {
+      "fps": 59,
+      "shownPerSec": 57.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 0.98
+     },
+     "realWheel": {
+      "fps": 59.8,
+      "shownPerSec": 19.2,
+      "eventsSent": 60
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 117
+    },
+    {
+     "config": "solid/canvas/10",
+     "loadAvg": [
+      8.98,
+      11.36,
+      11.09
+     ],
+     "cold": {
+      "fps": 58.4,
+      "shownPerSec": 56.7
+     },
+     "warm": {
+      "fps": 49.7,
+      "shownPerSec": 48.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 0.94
+     },
+     "realWheel": {
+      "fps": 58.5,
+      "shownPerSec": 18.1,
+      "eventsSent": 57
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 1162
+    },
+    {
+     "config": "solid/canvas/50",
+     "loadAvg": [
+      8.99,
+      11.24,
+      11.05
+     ],
+     "cold": {
+      "fps": 50.7,
+      "shownPerSec": 49.1
+     },
+     "warm": {
+      "fps": 25.7,
+      "shownPerSec": 25,
+      "incoherent": 106,
+      "blank": 0,
+      "syncWorkMsP95": 1.08
+     },
+     "realWheel": {
+      "fps": 49,
+      "shownPerSec": 14.3,
+      "eventsSent": 46
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 1369
+    },
+    {
+     "config": "solid/canvas/10/nocache",
+     "loadAvg": [
+      9.16,
+      11.11,
+      11.02
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 58.4
+     },
+     "warm": {
+      "fps": 59.7,
+      "shownPerSec": 58.4,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 3.36
+     },
+     "realWheel": {
+      "fps": 57.5,
+      "shownPerSec": 18.5,
+      "eventsSent": 58
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 306
+    },
+    {
+     "config": "solid/canvas/50/nocache",
+     "loadAvg": [
+      8.12,
+      10.83,
+      10.93
+     ],
+     "cold": {
+      "fps": 58,
+      "shownPerSec": 56.1
+     },
+     "warm": {
+      "fps": 57.7,
+      "shownPerSec": 54.7,
+      "incoherent": 168,
+      "blank": 0,
+      "syncWorkMsP95": 1.27
+     },
+     "realWheel": {
+      "fps": 58.5,
+      "shownPerSec": 17.6,
+      "eventsSent": 55
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 771
+    },
+    {
+     "config": "solid/webgl/10",
+     "loadAvg": [
+      8.47,
+      10.71,
+      10.89
+     ],
+     "cold": {
+      "fps": 8,
+      "shownPerSec": 7.1
+     },
+     "warm": {
+      "fps": 9.2,
+      "shownPerSec": 8.3,
+      "incoherent": 0,
+      "blank": 0,
+      "syncWorkMsP95": 0.77
+     },
+     "realWheel": {
+      "fps": 20.5,
+      "shownPerSec": 7.6,
+      "eventsSent": 25
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "memDeltaMB": 1156
+    },
+    {
+     "config": "solid/per-slice/canvas/0",
+     "loadAvg": [
+      8.53,
+      10.61,
+      10.85
+     ],
+     "cold": {
+      "fps": 59.7,
+      "shownPerSec": 0
+     },
+     "warm": {
+      "fps": 59.3,
+      "shownPerSec": 0,
+      "incoherent": 0,
+      "blank": 179,
+      "syncWorkMsP95": 0.64
+     },
+     "realWheel": {
+      "fps": 59.7,
+      "shownPerSec": 19.3,
+      "eventsSent": 61
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 0,
+      "zoomOverHome": 1
+     },
+     "memDeltaMB": 123
+    },
+    {
+     "config": "solid/per-slice/canvas/10/nocache",
+     "loadAvg": [
+      8.15,
+      10.46,
+      10.8
+     ],
+     "cold": {
+      "fps": 58.4,
+      "shownPerSec": 0
+     },
+     "warm": {
+      "fps": 59.3,
+      "shownPerSec": 0,
+      "incoherent": 0,
+      "blank": 179,
+      "syncWorkMsP95": 7.76
+     },
+     "realWheel": {
+      "fps": 58.5,
+      "shownPerSec": 17.9,
+      "eventsSent": 57
+     },
+     "viewBefore": {
+      "rotation": 90,
+      "zoomOverHome": 2
+     },
+     "viewAfter": {
+      "rotation": 0,
+      "zoomOverHome": 1
+     },
+     "memDeltaMB": 285
+    }
+   ]
+  }
+ ]
+}

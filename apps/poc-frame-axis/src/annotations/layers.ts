@@ -112,7 +112,8 @@ abstract class BaseLayer implements AnnotationLayer {
   protected clearAnnotations(): void {
     const canvas = this.overlay.canvas;
     const toRemove = canvas.getObjects().filter((o) => o.id);
-    if (toRemove.length > 0) canvas.remove(...toRemove);
+    // In chunks, like VisibilityLayer.init: 60 000 arguments overflow the stack.
+    for (let i = 0; i < toRemove.length; i += 1000) canvas.remove(...toRemove.slice(i, i + 1000));
   }
   protected prepare(objs: FabricObject[]): void {
     for (const o of objs) {
