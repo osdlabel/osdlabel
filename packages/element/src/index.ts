@@ -19,6 +19,7 @@ export type {
   ConstraintChangeDetail,
   ReadyDetail,
   SelectedAnnotationChangeDetail,
+  ToolbarModelChangeDetail,
 } from './element-events.js';
 export { groupAnnotationsByImage } from './annotations-io.js';
 export type { AnnotationsByImage } from './annotations-io.js';

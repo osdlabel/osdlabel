@@ -3,6 +3,7 @@ import { Show } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ImageId } from '@osdlabel/viewer-api';
 import FpsCounter from './FpsCounter.js';
+import { OSDLABEL_PARTS, themeVar } from 'osdlabel';
 
 export interface StatusBarProps {
   readonly imageId: ImageId | undefined;
@@ -34,26 +35,27 @@ const StatusBar: Component<StatusBarProps> = (props) => {
 
   return (
     <div
+      part={OSDLABEL_PARTS.statusBar}
       style={{
         padding: '4px 12px',
-        background: '#111',
-        color: '#aaa',
+        background: themeVar('surfaceSunken'),
+        color: themeVar('textMuted'),
         display: 'flex',
         gap: '16px',
         'align-items': 'center',
-        'font-family': 'system-ui, sans-serif',
-        'font-size': '12px',
+        'font-family': themeVar('fontFamily'),
+        'font-size': themeVar('fontSizeStatus'),
         'flex-shrink': '0',
       }}
     >
       <span data-testid="status-context">
-        Context: <strong style={{ color: '#fff' }}>{activeContextLabel()}</strong>
+        Context: <strong style={{ color: themeVar('text') }}>{activeContextLabel()}</strong>
       </span>
       <span data-testid="status-tool">
-        Tool: <strong style={{ color: '#fff' }}>{activeToolName()}</strong>
+        Tool: <strong style={{ color: themeVar('text') }}>{activeToolName()}</strong>
       </span>
       <span data-testid="status-count">
-        Annotations: <strong style={{ color: '#fff' }}>{totalAnnotationCount()}</strong>
+        Annotations: <strong style={{ color: themeVar('text') }}>{totalAnnotationCount()}</strong>
       </span>
       <Show when={props.showFps}>
         <FpsCounter />

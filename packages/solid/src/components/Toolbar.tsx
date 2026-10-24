@@ -1,215 +1,194 @@
-import { Show, type Component } from 'solid-js';
+import { Index, Show, createMemo, type Component } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
-import type { ToolType } from '@osdlabel/annotation';
-import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
-import { preventButtonFocusSteal } from 'osdlabel';
+import {
+  deriveToolbarModel,
+  preventButtonFocusSteal,
+  themeVar,
+  toolButtonPart,
+  OSDLABEL_PARTS,
+  type ToolbarButtonModel,
+  type ToolbarSlotProps,
+} from 'osdlabel';
+import type { JSX } from 'solid-js';
 
-const TOOL_LABELS: Record<ToolType, string> = {
-  rectangle: 'Rect',
-  circle: 'Circle',
-  line: 'Line',
-  point: 'Point',
-  polyline: 'Polyline',
-  freeHandPath: 'Free Draw',
-  segmentationBrush: 'Brush',
-};
-
-const Toolbar: Component = () => {
+/**
+ * The toolbar's model and commands, as an override toolbar receives them.
+ * `model` is a getter over a memo, so reading it inside JSX or an effect
+ * tracks the state it is derived from.
+ */
+export function useToolbarSlotProps(): ToolbarSlotProps {
   const { uiState, contextState, annotationState, constraintStatus, actions, activeImageId } =
     useAnnotator();
 
-  const activeContext = () => {
-    if (!contextState.activeContextId) return undefined;
-    return contextState.contexts.find((c) => c.id === contextState.activeContextId);
-  };
-
-  // The currently selected annotation, looked up across the active image's
-  // annotations. Drives the contextual "Convert to Rect" action.
-  const selectedAnnotation = () => {
+  const selected = () => {
     const id = uiState.selectedAnnotationId;
-    if (!id) return undefined;
-    // `activeImageId` comes from the context, which keys it on an
-    // `activeCellIndex` the reducer holds inside the grid — so `undefined`
-    // means exactly one thing: the active cell is empty.
+    // `activeImageId` is `undefined` exactly when the active cell is empty.
     const imageId = activeImageId();
-    if (!imageId) return undefined;
+    if (!id || !imageId) return undefined;
     return annotationState.byImage[imageId]?.[id];
   };
 
-  const canConvertSelectedToRect = () =>
-    selectedAnnotation()?.geometry.type === 'circle' && constraintStatus().rectangle.enabled;
+  const model = createMemo(() => {
+    const ctx = contextState.contexts.find((c) => c.id === contextState.activeContextId);
+    return deriveToolbarModel({
+      activeTool: uiState.activeTool,
+      allowedTools: ctx ? ctx.tools.map((t) => t.type) : [],
+      constraintStatus: constraintStatus(),
+      brushRadius: uiState.brushRadius,
+      brushErasing: uiState.brushErasing,
+      selectedGeometryType: selected()?.geometry.type,
+    });
+  });
 
-  const allowedTools = (): ToolType[] => {
-    const ctx = activeContext();
-    if (!ctx) return [];
-    return ctx.tools.map((t) => t.type);
+  return {
+    get model() {
+      return model();
+    },
+    onSelectTool: (tool) => {
+      const button = model().buttons.find((b) => b.tool === tool);
+      if (button?.enabled) actions.setActiveTool(tool);
+    },
+    onBrushRadiusChange: (radius) => actions.setBrushRadius(radius),
+    onBrushErasingChange: (erasing) => actions.setBrushErasing(erasing),
+    onConvertToRect: () => {
+      const ann = selected();
+      if (ann && model().convertToRect?.enabled) actions.convertAnnotation(ann.id, ann.imageId);
+    },
   };
+}
+
+const buttonStyle = (b: {
+  readonly active: boolean;
+  readonly enabled: boolean;
+}): JSX.CSSProperties => ({
+  padding: themeVar('controlPadding'),
+  border: 'none',
+  'border-radius': themeVar('radius'),
+  cursor: b.enabled ? 'pointer' : 'not-allowed',
+  background: b.active
+    ? themeVar('accent')
+    : b.enabled
+      ? themeVar('control')
+      : themeVar('controlDisabled'),
+  color: b.enabled ? themeVar('text') : themeVar('textDisabled'),
+  'font-weight': b.active ? 'bold' : 'normal',
+  'font-size': themeVar('fontSizeControl'),
+  opacity: b.enabled ? '1' : '0.5',
+});
+
+/** The stock toolbar's rendering, from {@link ToolbarSlotProps} alone. */
+export const ToolbarView: Component<ToolbarSlotProps> = (props) => {
+  const button = (b: () => ToolbarButtonModel) => (
+    <button
+      data-testid={`tool-${b().key}`}
+      part={toolButtonPart(b())}
+      data-active={b().active}
+      disabled={!b().enabled}
+      onClick={() => props.onSelectTool(b().tool)}
+      style={buttonStyle(b())}
+    >
+      {b().countLabel === null ? b().label : `${b().label} ${b().countLabel}`}
+    </button>
+  );
 
   return (
     <div
+      part={OSDLABEL_PARTS.toolbar}
       onMouseDown={preventButtonFocusSteal}
       style={{
         display: 'flex',
-        gap: '4px',
+        gap: themeVar('gap'),
         'align-items': 'center',
         'flex-wrap': 'wrap',
       }}
     >
-      {/* Navigation mode button */}
-      <button
-        data-testid="tool-navigate"
-        onClick={() => actions.setActiveTool(null)}
-        style={{
-          padding: '4px 10px',
-          border: 'none',
-          'border-radius': '4px',
-          cursor: 'pointer',
-          background: uiState.activeTool === null ? '#2196F3' : '#333',
-          color: '#fff',
-          'font-weight': uiState.activeTool === null ? 'bold' : 'normal',
-          'font-size': '13px',
-        }}
-      >
-        Navigate
-      </button>
+      {/* Index, not For: the model is re-derived as one object, so keying by
+          identity would remount every button on every change. */}
+      <Index each={props.model.buttons}>{button}</Index>
 
-      {/* Select tool button (always present) */}
-      <button
-        data-testid="tool-select"
-        onClick={() => actions.setActiveTool('select')}
-        style={{
-          padding: '4px 10px',
-          border: 'none',
-          'border-radius': '4px',
-          cursor: 'pointer',
-          background: uiState.activeTool === 'select' ? '#2196F3' : '#333',
-          color: '#fff',
-          'font-weight': uiState.activeTool === 'select' ? 'bold' : 'normal',
-          'font-size': '13px',
-        }}
-      >
-        Select
-      </button>
-
-      {/* Drawing tool buttons — one per allowed tool in active context */}
-      {allowedTools().map((toolType) => {
-        const status = () => constraintStatus()[toolType];
-        const isActive = () => uiState.activeTool === toolType;
-        const enabled = () => status().enabled;
-        const countLabel = () => {
-          const s = status();
-          if (s.maxCount === null) return `${s.currentCount}`;
-          return `${s.currentCount}/${s.maxCount}`;
-        };
-
-        return (
-          <button
-            data-testid={`tool-${toolType}`}
-            disabled={!enabled()}
-            onClick={() => {
-              if (enabled()) {
-                actions.setActiveTool(toolType);
-              }
-            }}
-            style={{
-              padding: '4px 10px',
-              border: 'none',
-              'border-radius': '4px',
-              cursor: enabled() ? 'pointer' : 'not-allowed',
-              background: isActive() ? '#2196F3' : enabled() ? '#333' : '#1a1a1a',
-              color: enabled() ? '#fff' : '#666',
-              'font-weight': isActive() ? 'bold' : 'normal',
-              'font-size': '13px',
-              opacity: enabled() ? '1' : '0.5',
-            }}
-          >
-            {TOOL_LABELS[toolType]} {countLabel()}
-          </button>
-        );
-      })}
-
-      {/* Brush options, shown only while the brush is the active tool */}
-      <Show when={uiState.activeTool === 'segmentationBrush'}>
-        <div style={{ display: 'flex', 'align-items': 'center', gap: '4px' }}>
-          <label
-            for="brush-radius"
-            style={{ color: '#bbb', 'font-size': '12px', 'white-space': 'nowrap' }}
-          >
-            Brush
-          </label>
-          <input
-            id="brush-radius"
-            data-testid="brush-radius"
-            type="range"
-            min={MIN_BRUSH_RADIUS}
-            max={MAX_BRUSH_RADIUS}
-            value={uiState.brushRadius}
-            onInput={(e) => actions.setBrushRadius(Number(e.currentTarget.value))}
-            // A focused input suppresses every keyboard shortcut, so after
-            // touching the slider `[`, `]`, `b` and Escape were all dead until
-            // the user clicked elsewhere — including the mid-stroke cancel.
-            // Focus is released on any pointer interaction, click included, so
-            // click-then-arrow-keys does not work; tabbing to it still does,
-            // which is the path where the arrow keys are the point.
-            onPointerUp={(e) => e.currentTarget.blur()}
-            style={{ width: '90px' }}
-          />
-          <span
-            data-testid="brush-radius-value"
-            style={{ color: '#fff', 'font-size': '12px', 'min-width': '34px' }}
-          >
-            {uiState.brushRadius}px
-          </span>
-          <button
-            data-testid="brush-eraser"
-            aria-pressed={uiState.brushErasing}
-            onClick={() => actions.setBrushErasing(!uiState.brushErasing)}
-            style={{
-              padding: '4px 10px',
-              border: 'none',
-              'border-radius': '4px',
-              cursor: 'pointer',
-              background: uiState.brushErasing ? '#2196F3' : '#333',
-              color: '#fff',
-              'font-weight': uiState.brushErasing ? 'bold' : 'normal',
-              'font-size': '13px',
-            }}
-          >
-            Erase
-          </button>
-        </div>
+      {/* Brush options, present only while the brush is the active tool */}
+      <Show when={props.model.brush}>
+        {(brush) => (
+          <div style={{ display: 'flex', 'align-items': 'center', gap: themeVar('gap') }}>
+            <label
+              for="brush-radius"
+              style={{
+                color: themeVar('textSubtle'),
+                'font-size': themeVar('fontSizeStatus'),
+                'white-space': 'nowrap',
+              }}
+            >
+              Brush
+            </label>
+            <input
+              id="brush-radius"
+              data-testid="brush-radius"
+              type="range"
+              min={brush().min}
+              max={brush().max}
+              value={brush().radius}
+              onInput={(e) => props.onBrushRadiusChange(Number(e.currentTarget.value))}
+              // A focused input suppresses every keyboard shortcut, so after
+              // touching the slider `[`, `]`, `b` and Escape were all dead until
+              // the user clicked elsewhere — including the mid-stroke cancel.
+              // Focus is released on any pointer interaction, click included, so
+              // click-then-arrow-keys does not work; tabbing to it still does,
+              // which is the path where the arrow keys are the point.
+              onPointerUp={(e) => e.currentTarget.blur()}
+              style={{ width: '90px' }}
+            />
+            <span
+              data-testid="brush-radius-value"
+              style={{
+                color: themeVar('text'),
+                'font-size': themeVar('fontSizeStatus'),
+                'min-width': '34px',
+              }}
+            >
+              {brush().radius}px
+            </span>
+            <button
+              data-testid="brush-eraser"
+              aria-pressed={brush().erasing}
+              onClick={() => props.onBrushErasingChange(!brush().erasing)}
+              style={buttonStyle({ active: brush().erasing, enabled: true })}
+            >
+              Erase
+            </button>
+          </div>
+        )}
       </Show>
 
       {/* Contextual action: convert the selected circle to its bounding rectangle */}
-      <Show when={selectedAnnotation()?.geometry.type === 'circle'}>
-        {(() => {
-          const enabled = () => canConvertSelectedToRect();
-          return (
-            <button
-              data-testid="convert-to-rect"
-              disabled={!enabled()}
-              onClick={() => {
-                const ann = selectedAnnotation();
-                if (!ann || !enabled()) return;
-                actions.convertAnnotation(ann.id, ann.imageId);
-              }}
-              style={{
-                padding: '4px 10px',
-                border: 'none',
-                'border-radius': '4px',
-                cursor: enabled() ? 'pointer' : 'not-allowed',
-                background: enabled() ? '#333' : '#1a1a1a',
-                color: enabled() ? '#fff' : '#666',
-                'font-size': '13px',
-                opacity: enabled() ? '1' : '0.5',
-              }}
-            >
-              Convert to Rect
-            </button>
-          );
-        })()}
+      <Show when={props.model.convertToRect}>
+        {(convert) => (
+          <button
+            data-testid="convert-to-rect"
+            disabled={!convert().enabled}
+            onClick={() => props.onConvertToRect()}
+            style={{
+              ...buttonStyle({ active: false, enabled: convert().enabled }),
+              'font-weight': undefined,
+            }}
+          >
+            Convert to Rect
+          </button>
+        )}
       </Show>
     </div>
+  );
+};
+
+const Toolbar: Component = () => {
+  const slot = useToolbarSlotProps();
+  return (
+    <ToolbarView
+      model={slot.model}
+      onSelectTool={slot.onSelectTool}
+      onBrushRadiusChange={slot.onBrushRadiusChange}
+      onBrushErasingChange={slot.onBrushErasingChange}
+      onConvertToRect={slot.onConvertToRect}
+    />
   );
 };
 

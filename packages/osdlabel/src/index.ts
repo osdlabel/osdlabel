@@ -372,3 +372,26 @@ export type { ResolveFullscreenTargetOptions } from './fullscreen-target.js';
 // Dropdown placement: keep a popover inside the region that can show it
 export { choosePopoverAlignment, getHorizontalClipBounds } from './popover-placement.js';
 export type { PopoverAlignment, HorizontalSpan } from './popover-placement.js';
+
+// UI contract shared by both bindings and the custom element: theme tokens,
+// `part` names, the toolbar view-model, and the override (slot) points.
+export {
+  OSDLABEL_THEME_TOKENS,
+  themeTokenProperty,
+  themeVar,
+  themeToCustomProperties,
+} from './ui/theme-tokens.js';
+export type { OsdlabelTheme, OsdlabelThemeToken } from './ui/theme-tokens.js';
+export { OSDLABEL_PARTS, toolButtonPart } from './ui/parts.js';
+export type { OsdlabelPart } from './ui/parts.js';
+export { TOOL_LABELS, deriveToolbarModel } from './ui/toolbar-model.js';
+export type {
+  ToolbarTool,
+  ToolbarButtonModel,
+  ToolbarBrushModel,
+  ToolbarModel,
+  ToolbarModelInput,
+  ToolbarSlotProps,
+} from './ui/toolbar-model.js';
+export { ANNOTATOR_SLOT_NAMES } from './ui/annotator-slots.js';
+export type { AnnotatorSlotName, AnnotatorSlotPropsMap } from './ui/annotator-slots.js';

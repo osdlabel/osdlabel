@@ -1,12 +1,19 @@
 import { render } from 'solid-js/web';
-import { createEffect, createSignal, on, onCleanup, type JSX } from 'solid-js';
-import { Annotator, useAnnotator } from '@osdlabel/solid';
+import { createEffect, createSignal, on, onCleanup, type Component, type JSX } from 'solid-js';
+import { Annotator, ToolbarView, useAnnotator } from '@osdlabel/solid';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { AnnotationContext, AnnotationContextId } from '@osdlabel/annotation-context';
 import type { ImageId, ImageSource, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import type { DecorationProvider } from '@osdlabel/decoration';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
-import type { OsdAnnotation, OsdFields } from 'osdlabel';
+import { ANNOTATOR_SLOT_NAMES } from 'osdlabel';
+import type {
+  OsdAnnotation,
+  OsdFields,
+  ToolbarModel,
+  ToolbarSlotProps,
+  ToolbarTool,
+} from 'osdlabel';
 import { groupAnnotationsByImage } from './annotations-io.js';
 import {
   BOOLEAN_ATTRIBUTES,
@@ -52,7 +59,14 @@ export interface OsdlabelAnnotatorElement extends HTMLElement {
   readonly selectedAnnotationId: AnnotationId | null;
   /** The shadow root, or the element itself in light-DOM mode. */
   readonly renderRoot: ShadowRoot | HTMLElement;
+  /** The toolbar's shared view-model; `null` before mount. See `toolbarmodelchange`. */
+  readonly toolbarModel: ToolbarModel | null;
   setActiveTool(tool: ToolType | 'select' | null): void;
+  /** As the stock toolbar's buttons do: a no-op for a tool the constraints disable. */
+  selectTool(tool: ToolbarTool): void;
+  setBrushRadius(radius: number): void;
+  setBrushErasing(erasing: boolean): void;
+  convertSelectedToRect(): void;
   selectAnnotation(id: AnnotationId | null): void;
   assignImageToCell(cellIndex: number, imageId: ImageId): void;
 }
@@ -127,6 +141,8 @@ export function createAnnotatorElementClass(
     #contexts: readonly AnnotationContext[] = [];
     #pendingAnnotations: readonly OsdAnnotation[] = [];
     #api: AnnotatorApi | undefined;
+    /** The toolbar slot's props, captured from inside the tree. */
+    #toolbar: ToolbarSlotProps | undefined;
     #dispose: (() => void) | undefined;
     #root: ShadowRoot | HTMLElement | undefined;
     /** Set while a property write loads state, so it is not echoed back as a change event. */
@@ -204,6 +220,10 @@ export function createAnnotatorElementClass(
       return this.#api?.uiState.selectedAnnotationId ?? null;
     }
 
+    get toolbarModel(): ToolbarModel | null {
+      return this.#toolbar?.model ?? null;
+    }
+
     get renderRoot(): ShadowRoot | HTMLElement {
       return this.#root ?? this;
     }
@@ -211,6 +231,22 @@ export function createAnnotatorElementClass(
     // ── Commands ──────────────────────────────────────────────────
     setActiveTool(tool: ToolType | 'select' | null): void {
       this.#api?.actions.setActiveTool(tool);
+    }
+
+    selectTool(tool: ToolbarTool): void {
+      this.#toolbar?.onSelectTool(tool);
+    }
+
+    setBrushRadius(radius: number): void {
+      this.#toolbar?.onBrushRadiusChange(radius);
+    }
+
+    setBrushErasing(erasing: boolean): void {
+      this.#toolbar?.onBrushErasingChange(erasing);
+    }
+
+    convertSelectedToRect(): void {
+      this.#toolbar?.onConvertToRect();
     }
 
     selectAnnotation(id: AnnotationId | null): void {
@@ -266,6 +302,41 @@ export function createAnnotatorElementClass(
         this.dispatchEvent(createAnnotatorEvent(name, detail));
       };
 
+      /**
+       * The Toolbar override point. In shadow mode the stock toolbar is the
+       * fallback content of `<slot name="toolbar">`, so a host child with
+       * `slot="toolbar"` replaces it with no script; that child drives the
+       * annotator through `toolbarModel` / `toolbarmodelchange` and the
+       * `selectTool()`-style commands. Light DOM has no slots, so there the
+       * stock toolbar always renders.
+       */
+      const ToolbarSlot: Component<ToolbarSlotProps> = (slotProps) => {
+        this.#toolbar = slotProps;
+        onCleanup(() => {
+          this.#toolbar = undefined;
+        });
+        createEffect(
+          on(
+            () => slotProps.model,
+            (model) => emit('toolbarmodelchange', { model }),
+          ),
+        );
+        const stock = (
+          <ToolbarView
+            model={slotProps.model}
+            onSelectTool={slotProps.onSelectTool}
+            onBrushRadiusChange={slotProps.onBrushRadiusChange}
+            onBrushErasingChange={slotProps.onBrushErasingChange}
+            onConvertToRect={slotProps.onConvertToRect}
+          />
+        );
+        return shadowMode === 'open' ? (
+          <slot name={ANNOTATOR_SLOT_NAMES.Toolbar}>{stock}</slot>
+        ) : (
+          stock
+        );
+      };
+
       const disposeTree = render(
         () => (
           <Annotator
@@ -283,6 +354,7 @@ export function createAnnotatorElementClass(
             showFps={flags()['show-fps']}
             filmstripPosition={filmstripPosition()}
             testMode={flags()['test-mode']}
+            components={{ Toolbar: ToolbarSlot }}
             onAnnotationsChange={(annotations) => {
               if (!this.#applyingProperty) emit('annotationschange', { annotations });
             }}

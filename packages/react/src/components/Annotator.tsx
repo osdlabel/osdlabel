@@ -1,8 +1,14 @@
-import { useCallback, useEffect, type ReactNode, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  type ComponentType,
+  type ReactNode,
+  type CSSProperties,
+} from 'react';
 import { AnnotatorProvider } from '../state/annotator-context.js';
 import type { AnnotatorProviderProps } from '../state/annotator-context.js';
 import { useAnnotator } from '../state/annotator-context.js';
-import Toolbar from './Toolbar.js';
+import Toolbar, { useToolbarSlotProps } from './Toolbar.js';
 import StatusBar from './StatusBar.js';
 import GridView from './GridView.js';
 import Filmstrip from './Filmstrip.js';
@@ -11,6 +17,16 @@ import ContextSwitcher from './ContextSwitcher.js';
 import { ViewControls } from './ViewControls.js';
 import type { ImageSource } from '@osdlabel/viewer-api';
 import type { AnnotationContext, AnnotationContextId } from '@osdlabel/annotation-context';
+import { OSDLABEL_PARTS, themeVar } from 'osdlabel';
+import type { AnnotatorSlotName, AnnotatorSlotPropsMap, ToolbarSlotProps } from 'osdlabel';
+
+/**
+ * Replacement components for the stock layout's override points, keyed by the
+ * shared slot names; each receives that slot's shared props contract.
+ */
+export type AnnotatorComponents = {
+  readonly [K in AnnotatorSlotName]?: ComponentType<AnnotatorSlotPropsMap[K]> | undefined;
+};
 
 export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'> {
   /** Available images for annotation */
@@ -39,6 +55,17 @@ export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'>
   readonly showFps?: boolean | undefined;
   /** Other children of the provider. */
   readonly providerChildren?: ReactNode | undefined;
+  /** Components replacing parts of the stock layout; see {@link AnnotatorComponents}. */
+  readonly components?: AnnotatorComponents | undefined;
+}
+
+/** Renders an override toolbar with the stock toolbar's model and commands. */
+function ToolbarOverride({
+  component: Override,
+}: {
+  readonly component: ComponentType<ToolbarSlotProps>;
+}) {
+  return <Override {...useToolbarSlotProps()} />;
 }
 
 function AnnotatorSetup({
@@ -77,6 +104,7 @@ function AnnotatorInner({
   maxGridSize,
   style,
   showFps,
+  components,
 }: Omit<AnnotatorProps, keyof AnnotatorProviderProps>) {
   const { uiState, fullscreenTargetRef, activeImageId } = useAnnotator();
 
@@ -101,6 +129,7 @@ function AnnotatorInner({
     <div
       ref={setRootRef}
       data-testid="annotator-root"
+      part={OSDLABEL_PARTS.root}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -109,11 +138,12 @@ function AnnotatorInner({
         // The root painted nothing of its own, so in fullscreen the black
         // ::backdrop showed through wherever the flex children did not reach.
         // Matches the toolbar bar so the annotator reads as one surface.
-        background: '#1a1a1a',
+        background: themeVar('surface'),
         ...style,
       }}
     >
       <div
+        part={OSDLABEL_PARTS.toolbarBar}
         style={{
           display: 'flex',
           // Wrap rather than overflow: the root does not scroll, so controls
@@ -121,11 +151,11 @@ function AnnotatorInner({
           flexWrap: 'wrap',
           alignItems: 'center',
           gap: '4px 12px',
-          background: '#1a1a1a',
+          background: themeVar('surface'),
           padding: '4px 8px',
         }}
       >
-        <Toolbar />
+        {components?.Toolbar ? <ToolbarOverride component={components.Toolbar} /> : <Toolbar />}
         {/* Sits next to the tools rather than pinned to the right edge with
             `marginLeft: auto`: its grid popover opens rightward from the
             button, so anchoring it at the edge clipped it whenever the
@@ -180,6 +210,7 @@ export default function Annotator({
   style,
   showFps,
   providerChildren,
+  components,
   ...providerProps
 }: AnnotatorProps) {
   return (
@@ -197,6 +228,7 @@ export default function Annotator({
         maxGridSize={maxGridSize}
         style={style}
         showFps={showFps}
+        components={components}
       />
       {providerChildren}
     </AnnotatorProvider>

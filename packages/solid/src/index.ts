@@ -19,7 +19,7 @@ export type {
 
 // Components
 export { default as ViewerCell } from './components/ViewerCell.js';
-export { default as Toolbar } from './components/Toolbar.js';
+export { default as Toolbar, ToolbarView, useToolbarSlotProps } from './components/Toolbar.js';
 export { default as StatusBar } from './components/StatusBar.js';
 export { default as ContextSwitcher } from './components/ContextSwitcher.js';
 export { default as GridView } from './components/GridView.js';
@@ -28,7 +28,7 @@ export { default as GridControls } from './components/GridControls.js';
 export { ViewControls } from './components/ViewControls.js';
 export { default as FpsCounter } from './components/FpsCounter.js';
 export { default as Annotator } from './components/Annotator.js';
-export type { AnnotatorProps } from './components/Annotator.js';
+export type { AnnotatorProps, AnnotatorComponents } from './components/Annotator.js';
 
 // Hooks
 export { useConstraints } from './hooks/useConstraints.js';

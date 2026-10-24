@@ -2,7 +2,7 @@ import { createEffect, onCleanup, Show, type Component, type JSX } from 'solid-j
 import { AnnotatorProvider } from '../state/annotator-context.js';
 import type { AnnotatorProviderProps } from '../state/annotator-context.js';
 import { useAnnotator } from '../state/annotator-context.js';
-import Toolbar from './Toolbar.js';
+import Toolbar, { useToolbarSlotProps } from './Toolbar.js';
 import StatusBar from './StatusBar.js';
 import GridView from './GridView.js';
 import Filmstrip from './Filmstrip.js';
@@ -11,6 +11,16 @@ import ContextSwitcher from './ContextSwitcher.js';
 import { ViewControls } from './ViewControls.js';
 import type { ImageSource } from '@osdlabel/viewer-api';
 import type { AnnotationContext, AnnotationContextId } from '@osdlabel/annotation-context';
+import { OSDLABEL_PARTS, themeVar } from 'osdlabel';
+import type { AnnotatorSlotName, AnnotatorSlotPropsMap, ToolbarSlotProps } from 'osdlabel';
+
+/**
+ * Replacement components for the stock layout's override points, keyed by the
+ * shared slot names; each receives that slot's shared props contract.
+ */
+export type AnnotatorComponents = {
+  readonly [K in AnnotatorSlotName]?: Component<AnnotatorSlotPropsMap[K]> | undefined;
+};
 
 export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'> {
   /** Available images for annotation */
@@ -39,7 +49,29 @@ export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'>
   readonly showFps?: boolean | undefined;
   /** Other children of the provider. */
   readonly providerChildren?: JSX.Element | undefined;
+  /** Components replacing parts of the stock layout; see {@link AnnotatorComponents}. */
+  readonly components?: AnnotatorComponents | undefined;
 }
+
+/** The stock toolbar, or the override with the same model and commands. */
+const ToolbarSlot: Component<{
+  readonly override: Component<ToolbarSlotProps> | undefined;
+}> = (props) => (
+  <Show when={props.override} fallback={<Toolbar />} keyed>
+    {(Override) => {
+      const slot = useToolbarSlotProps();
+      return (
+        <Override
+          model={slot.model}
+          onSelectTool={slot.onSelectTool}
+          onBrushRadiusChange={slot.onBrushRadiusChange}
+          onBrushErasingChange={slot.onBrushErasingChange}
+          onConvertToRect={slot.onConvertToRect}
+        />
+      );
+    }}
+  </Show>
+);
 
 const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProps>> = (props) => {
   const { uiState, fullscreenTargetRef, activeImageId } = useAnnotator();
@@ -64,6 +96,7 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
         fullscreenTargetRef.element = el;
       }}
       data-testid="annotator-root"
+      part={OSDLABEL_PARTS.root}
       style={{
         display: 'flex',
         'flex-direction': 'column',
@@ -72,11 +105,12 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
         // The root painted nothing of its own, so in fullscreen the black
         // ::backdrop showed through wherever the flex children did not reach.
         // Matches the toolbar bar so the annotator reads as one surface.
-        background: '#1a1a1a',
+        background: themeVar('surface'),
         ...props.style,
       }}
     >
       <div
+        part={OSDLABEL_PARTS.toolbarBar}
         style={{
           display: 'flex',
           // Wrap rather than overflow: the root does not scroll, so controls
@@ -84,11 +118,11 @@ const AnnotatorInner: Component<Omit<AnnotatorProps, keyof AnnotatorProviderProp
           'flex-wrap': 'wrap',
           'align-items': 'center',
           gap: '4px 12px',
-          background: '#1a1a1a',
+          background: themeVar('surface'),
           padding: '4px 8px',
         }}
       >
-        <Toolbar />
+        <ToolbarSlot override={props.components?.Toolbar} />
         {/* Sits next to the tools rather than pinned to the right edge with
             `margin-left: auto`: its grid popover opens rightward from the
             button, so anchoring it at the edge clipped it whenever the
@@ -161,6 +195,7 @@ const Annotator: Component<AnnotatorProps> = (props) => {
         maxGridSize={props.maxGridSize}
         style={props.style}
         showFps={props.showFps}
+        components={props.components}
       />
       <Show when={props.providerChildren}>{props.providerChildren}</Show>
     </AnnotatorProvider>

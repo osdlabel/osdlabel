@@ -1,6 +1,6 @@
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { ConstraintStatus } from '@osdlabel/annotation-context';
-import type { OsdAnnotation } from 'osdlabel';
+import type { OsdAnnotation, ToolbarModel } from 'osdlabel';
 
 /**
  * DOM event names `<osdlabel-annotator>` dispatches on itself.
@@ -21,6 +21,7 @@ export const ANNOTATOR_EVENTS = {
   activeToolChange: 'activetoolchange',
   constraintChange: 'constraintchange',
   ready: 'osdlabelready',
+  toolbarModelChange: 'toolbarmodelchange',
 } as const;
 
 export type AnnotatorEventName = (typeof ANNOTATOR_EVENTS)[keyof typeof ANNOTATOR_EVENTS];
@@ -41,6 +42,11 @@ export interface ConstraintChangeDetail {
   readonly status: ConstraintStatus;
 }
 
+/** The toolbar's shared view-model, for a host toolbar slotted into `slot="toolbar"`. */
+export interface ToolbarModelChangeDetail {
+  readonly model: ToolbarModel;
+}
+
 export interface ReadyDetail {
   /** `performance.now()` when the Solid tree finished its first synchronous render. */
   readonly renderedAt: number;
@@ -53,6 +59,7 @@ export interface AnnotatorEventDetailMap {
   activetoolchange: ActiveToolChangeDetail;
   constraintchange: ConstraintChangeDetail;
   osdlabelready: ReadyDetail;
+  toolbarmodelchange: ToolbarModelChangeDetail;
 }
 
 /** `addEventListener` typing for hosts written in TypeScript. */

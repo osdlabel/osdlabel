@@ -1,0 +1,141 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createComponent, untrack, type Component } from 'solid-js';
+import { render } from 'solid-js/web';
+import { createAnnotationContextId, type AnnotationContext } from '@osdlabel/annotation-context';
+import { createImageId, type ImageSource } from '@osdlabel/viewer-api';
+import type { ToolbarSlotProps } from 'osdlabel';
+import { useAnnotator } from '../../../src/state/annotator-context.js';
+
+// A viewer that never opens: the cell mounts, no overlay is ever built, and
+// the tools' constraint status sees an active image.
+vi.mock('openseadragon', () => ({
+  default: () => ({
+    addHandler: vi.fn(),
+    removeHandler: vi.fn(),
+    open: vi.fn(),
+    close: vi.fn(),
+    destroy: vi.fn(),
+    world: { getItemCount: () => 0, getItemAt: () => undefined },
+    viewport: {},
+  }),
+}));
+
+const { default: Annotator } = await import('../../../src/components/Annotator.js');
+type AnnotatorComponents = import('../../../src/components/Annotator.js').AnnotatorComponents;
+
+const IMAGES: ImageSource[] = [{ id: createImageId('img'), tileSource: 'img.png' }];
+
+/** Assigns the image to cell 0 from inside the provider, as a host would. */
+const AssignImage: Component = () => {
+  const { actions } = useAnnotator();
+  untrack(() => actions.assignImageToCell(0, IMAGES[0]!.id));
+  return null;
+};
+
+/**
+ * The override slot and the theme hooks, through the real `<Annotator>` and
+ * provider. Mirrors `packages/react/tests/unit/components/annotator-components.test.tsx`.
+ */
+const CONTEXTS: AnnotationContext[] = [
+  {
+    id: createAnnotationContextId('general'),
+    label: 'General',
+    tools: [{ type: 'rectangle' }, { type: 'line', maxCount: 2 }],
+  },
+];
+
+let dispose: (() => void) | undefined;
+afterEach(() => {
+  dispose?.();
+  dispose = undefined;
+  document.body.innerHTML = '';
+});
+
+function mountAnnotator(components?: AnnotatorComponents): HTMLElement {
+  const container = document.createElement('div');
+  document.body.append(container);
+  dispose = render(
+    () =>
+      createComponent(Annotator, {
+        images: IMAGES,
+        contexts: CONTEXTS,
+        showFilmstrip: false,
+        ...(components ? { components } : {}),
+        get providerChildren() {
+          return createComponent(AssignImage, {});
+        },
+      }),
+    container,
+  );
+  return container;
+}
+
+/** A host toolbar: one plain button per model button, nothing from the stock UI. */
+let received: ToolbarSlotProps | undefined;
+const CustomToolbar: Component<ToolbarSlotProps> = (props) => {
+  received = props;
+  const el = document.createElement('div');
+  el.dataset['testid'] = 'custom-toolbar';
+  // Imperative on purpose: an override may render however it likes.
+  const paint = () => {
+    el.replaceChildren(
+      ...props.model.buttons.map((b) => {
+        const button = document.createElement('button');
+        button.dataset['testid'] = `custom-${b.key}`;
+        button.dataset['active'] = String(b.active);
+        button.textContent = b.countLabel ? `${b.label} (${b.countLabel})` : b.label;
+        button.disabled = !b.enabled;
+        button.onclick = () => props.onSelectTool(b.tool);
+        return button;
+      }),
+    );
+  };
+  paint();
+  queueMicrotask(paint);
+  return el;
+};
+
+const q = (root: ParentNode, testId: string) => root.querySelector(`[data-testid="${testId}"]`);
+
+describe('Annotator components.Toolbar override', () => {
+  it('replaces the stock toolbar and hands the override the shared model', () => {
+    const root = mountAnnotator({ Toolbar: CustomToolbar });
+    expect(q(root, 'tool-navigate')).toBeNull();
+    expect(q(root, 'custom-toolbar')).not.toBeNull();
+    expect(received).toBeDefined();
+    expect(received!.model.buttons.map((b) => b.key)).toEqual([
+      'navigate',
+      'select',
+      'rectangle',
+      'line',
+    ]);
+    expect(received!.model.buttons.find((b) => b.key === 'line')!.countLabel).toBe('0/2');
+  });
+
+  it('drives annotator state through the override’s commands', () => {
+    const root = mountAnnotator({ Toolbar: CustomToolbar });
+    expect(q(root, 'status-tool')!.textContent).toContain('Navigate');
+    received!.onSelectTool('rectangle');
+    expect(q(root, 'status-tool')!.textContent).toContain('Rectangle');
+    // The model the override holds is live: it now reports rectangle active.
+    expect(received!.model.buttons.find((b) => b.key === 'rectangle')!.active).toBe(true);
+  });
+});
+
+describe('stock toolbar theming hooks', () => {
+  it('reads colours through --osdlabel-* tokens with the old values as fallbacks', () => {
+    const root = mountAnnotator();
+    const navigate = q(root, 'tool-navigate') as HTMLButtonElement;
+    expect(navigate.style.background).toContain('var(--osdlabel-accent, #2196F3)');
+    const rect = q(root, 'tool-rectangle') as HTMLButtonElement;
+    expect(rect.style.background).toContain('var(--osdlabel-control, #333)');
+  });
+
+  it('exposes part names, with a state part on the active button', () => {
+    const root = mountAnnotator();
+    expect(q(root, 'annotator-root')!.getAttribute('part')).toBe('root');
+    expect(q(root, 'tool-navigate')!.getAttribute('part')).toBe('tool-button tool-button-active');
+    expect(q(root, 'tool-rectangle')!.getAttribute('part')).toBe('tool-button');
+    expect(root.querySelector('[part="status-bar"]')).not.toBeNull();
+  });
+});

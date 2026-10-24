@@ -1,5 +1,6 @@
 // Ad-hoc probe: open a page, print console + page errors and the probe state.
 //   node scripts/debug-page.mjs <url> [waitMs]
+/* global window */
 import { chromium } from 'playwright';
 
 const url = process.argv[2];

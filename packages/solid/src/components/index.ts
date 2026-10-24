@@ -1,10 +1,10 @@
 export { default as Annotator } from './Annotator.js';
-export type { AnnotatorProps } from './Annotator.js';
+export type { AnnotatorProps, AnnotatorComponents } from './Annotator.js';
 export { default as Filmstrip } from './Filmstrip.js';
 export { default as GridControls } from './GridControls.js';
 export { default as GridView } from './GridView.js';
 export { default as StatusBar } from './StatusBar.js';
-export { default as Toolbar } from './Toolbar.js';
+export { default as Toolbar, ToolbarView, useToolbarSlotProps } from './Toolbar.js';
 export { default as ContextSwitcher } from './ContextSwitcher.js';
 export { default as ViewerCell } from './ViewerCell.js';
 export { ViewControls } from './ViewControls.js';
