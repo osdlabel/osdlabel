@@ -49,10 +49,12 @@ export function composeSegmentationProvider<TEmbedding>(
     },
     async segment(target, prompt, signal) {
       const t0 = performance.now();
+      // The plan covers the prompt too: a refinement click whose earlier
+      // points left the viewport must not re-encode a region that misses them.
       const lookup = cache.lookupOrEncode(
         target,
         prompt,
-        planEncodeView(target, policy),
+        planEncodeView(target, policy, prompt),
         encode,
         policy,
       );

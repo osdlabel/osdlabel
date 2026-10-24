@@ -1,6 +1,13 @@
 import type { RgbaImage } from '@osdlabel/region-reader';
 import type { MaskCandidate, ModelFrame, SegmentationPrompt } from '@osdlabel/segmentation';
-import { adapterFor, type FamilyAdapter, type ModelFamily, type SamEmbedding } from './families.js';
+import {
+  adapterFor,
+  alignPreviousMask,
+  type FamilyAdapter,
+  type ModelFamily,
+  type PreviousMaskAlignment,
+  type SamEmbedding,
+} from './families.js';
 import type {
   OrtModuleLike,
   OrtSessionLike,
@@ -21,6 +28,12 @@ export interface OnnxSamModelSpec {
 export interface OnnxSamLoadOptions {
   readonly encoderSession?: OrtSessionOptionsLike | undefined;
   readonly decoderSession?: OrtSessionOptionsLike | undefined;
+  /**
+   * A previous result (SAM `mask_input`) on another grid than the embedding
+   * being decoded, as after a pan/zoom re-encode during refinement: resample
+   * it onto the grid (default) or drop it. It is never copied misaligned.
+   */
+  readonly previousMask?: PreviousMaskAlignment | undefined;
 }
 
 /**
@@ -38,6 +51,7 @@ export class OnnxSamModel<T extends OrtTensorLike = OrtTensorLike> {
   private readonly ort: OrtModuleLike<T>;
   private readonly encoder: OrtSessionLike<T> | null;
   private readonly decoder: OrtSessionLike<T>;
+  private readonly previousMask: PreviousMaskAlignment;
 
   private constructor(
     ort: OrtModuleLike<T>,
@@ -45,8 +59,10 @@ export class OnnxSamModel<T extends OrtTensorLike = OrtTensorLike> {
     encoder: OrtSessionLike<T> | null,
     decoder: OrtSessionLike<T>,
     loadTimings: Record<string, number>,
+    previousMask: PreviousMaskAlignment,
   ) {
     this.ort = ort;
+    this.previousMask = previousMask;
     this.family = spec.family;
     this.inputSize = spec.inputSize;
     this.adapter = adapterFor(spec.family);
@@ -67,10 +83,14 @@ export class OnnxSamModel<T extends OrtTensorLike = OrtTensorLike> {
     const t1 = performance.now();
     const decoder = await ort.createSession(spec.decoder, options?.decoderSession);
     const t2 = performance.now();
-    return new OnnxSamModel(ort, spec, encoder, decoder, {
-      encoderLoad: t1 - t0,
-      decoderLoad: t2 - t1,
-    });
+    return new OnnxSamModel(
+      ort,
+      spec,
+      encoder,
+      decoder,
+      { encoderLoad: t1 - t0, decoderLoad: t2 - t1 },
+      options?.previousMask ?? 'resample',
+    );
   }
 
   get canEncode(): boolean {
@@ -105,12 +125,16 @@ export class OnnxSamModel<T extends OrtTensorLike = OrtTensorLike> {
     prompt: SegmentationPrompt,
   ): Promise<{ candidates: MaskCandidate[]; timings: Record<string, number> }> {
     const t0 = performance.now();
-    const feeds = this.adapter.decoderFeeds(this.ort, this.decoder, embedding, prompt);
+    const aligned = alignPreviousMask(prompt, embedding, this.previousMask);
+    const feeds = this.adapter.decoderFeeds(this.ort, this.decoder, embedding, aligned);
     const outputs = await this.decoder.run(feeds, this.adapter.decoderFetches());
     const t1 = performance.now();
     const candidates = this.adapter.candidates(outputs, embedding, prompt);
     const t2 = performance.now();
-    return { candidates, timings: { decode: t1 - t0, decodeOutputs: t2 - t1 } };
+    // 1 when the previous logits were fed back as mask_input (diagnostic).
+    const has = feeds['has_mask_input'];
+    const maskInput = has ? (float32Data(has, 'has_mask_input')[0] ?? 0) : 0;
+    return { candidates, timings: { decode: t1 - t0, decodeOutputs: t2 - t1, maskInput } };
   }
 
   async release(): Promise<void> {

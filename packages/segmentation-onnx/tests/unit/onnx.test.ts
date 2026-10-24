@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { modelFrame, type EncodeView, type SegmentationProvider } from '@osdlabel/segmentation';
+import {
+  modelFrame,
+  modelGridFrame,
+  type EncodeView,
+  type SegmentationProvider,
+} from '@osdlabel/segmentation';
 import {
   EFFICIENT_SAM,
   SAM1,
   SAM2,
+  alignPreviousMask,
+  maskInputFeeds,
   orderCandidates,
   WorkerSegmentationProvider,
   createRemoteEncoder,
@@ -128,6 +135,77 @@ describe('SAM1 decoder feeds', () => {
     const out = SAM2.candidates(outputs, embedding('sam2'), { points: [{ x: 1, y: 1, label: 1 }] });
     expect(out.map((c) => c.predictedIou)).toEqual([0.9, 0.6, 0.4].map((v) => Math.fround(v)));
     expect(orderCandidates(Float32Array.from([0.2]), 1, {})).toEqual([0]);
+  });
+});
+
+describe('mask_input feedback', () => {
+  const emb = embedding('sam1');
+  const grid = modelGridFrame(emb.frame, 256);
+  const point = { x: 12_000, y: 22_000, label: 1 as const };
+  const logits = (w: number, h: number): Float32Array => new Float32Array(w * h).fill(4);
+
+  it("feeds the previous logits back only on this embedding's own grid", () => {
+    const same = maskInputFeeds(
+      ort,
+      { points: [point], previous: { frame: grid, data: logits(grid.width, grid.height) } },
+      emb,
+    );
+    expect(Array.from(same.has_mask_input.data as Float32Array)).toEqual([1]);
+    expect((same.mask_input.data as Float32Array)[0]).toBe(4);
+  });
+
+  it('drops a previous result from another encode instead of misaligning it', () => {
+    // The same grid size, but placed elsewhere: what a re-encode after a pan
+    // or zoom produces. Before the fix only the size was checked.
+    const moved = { ...grid, originX: grid.originX + 4 * grid.pixelWidth };
+    const coarser = { ...grid, pixelWidth: grid.pixelWidth * 4, pixelHeight: grid.pixelHeight * 4 };
+    for (const frame of [moved, coarser]) {
+      const f = maskInputFeeds(
+        ort,
+        { points: [point], previous: { frame, data: logits(frame.width, frame.height) } },
+        emb,
+      );
+      expect(Array.from(f.has_mask_input.data as Float32Array)).toEqual([0]);
+      expect((f.mask_input.data as Float32Array).every((v) => v === 0)).toBe(true);
+    }
+  });
+
+  it('resamples a result from another grid onto this one (default), or drops it', () => {
+    // The previous result: a coarser grid over a larger region, foreground in
+    // one block. After resampling, the logits sit on this embedding's grid at
+    // the same image place.
+    const coarse = {
+      originX: grid.originX - 1000,
+      originY: grid.originY - 1000,
+      pixelWidth: grid.pixelWidth * 2,
+      pixelHeight: grid.pixelHeight * 2,
+      width: 200,
+      height: 200,
+    };
+    const data = new Float32Array(200 * 200).fill(-8);
+    const fg = { x: 18_000, y: 24_000 }; // inside the view
+    const u = Math.floor((fg.x - coarse.originX) / coarse.pixelWidth);
+    const v = Math.floor((fg.y - coarse.originY) / coarse.pixelHeight);
+    for (let dv = -3; dv <= 3; dv++)
+      for (let du = -3; du <= 3; du++) data[(v + dv) * 200 + u + du] = 6;
+    const prompt = { points: [point], previous: { frame: coarse, data } };
+
+    const resampled = alignPreviousMask(prompt, emb, 'resample');
+    expect(resampled.previous!.frame).toEqual(grid);
+    const g = resampled.previous!.data as Float32Array;
+    const gu = Math.floor((fg.x - grid.originX) / grid.pixelWidth);
+    const gv = Math.floor((fg.y - grid.originY) / grid.pixelHeight);
+    expect(g[gv * grid.width + gu]).toBeCloseTo(6);
+    expect(g[0]).toBeCloseTo(-8);
+    const fed = maskInputFeeds(ort, resampled, emb);
+    expect(Array.from(fed.has_mask_input.data as Float32Array)).toEqual([1]);
+
+    expect(alignPreviousMask(prompt, emb, 'drop').previous).toBeUndefined();
+    const onGrid = {
+      points: [point],
+      previous: { frame: grid, data: logits(grid.width, grid.height) },
+    };
+    expect(alignPreviousMask(onGrid, emb, 'resample')).toBe(onGrid);
   });
 });
 

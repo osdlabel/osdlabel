@@ -1,5 +1,6 @@
-import type { EncodeView, ImageRegion, SegmentationPrompt } from './types.js';
+import type { EncodeView, ImageRegion, ImageSize, SegmentationPrompt } from './types.js';
 import type { SegmentationTarget } from './provider.js';
+import { rasterImageBounds } from './raster.js';
 
 /**
  * How a crop-based provider turns "what the user sees" into "what to encode",
@@ -28,6 +29,16 @@ export interface EncodePolicy {
    * before mask edges lag the image enough to justify a re-encode.
    */
   readonly maxZoomIn: number;
+  /**
+   * A zoom-triggered re-encode must resolve the image at least this many times
+   * finer than the embedding it replaces; otherwise the embedding is kept.
+   * Without it, a view that no encode can resolve finer re-encodes on every
+   * click: a refinement whose earlier prompts left the viewport (the plan
+   * must still cover them), or a viewport wider than
+   * `inputSize * maxZoomIn / (1 + 2 * margin)` screen px (2048 by default).
+   * Default 1.5.
+   */
+  readonly reencodeGain: number;
 }
 
 export const DEFAULT_ENCODE_POLICY: EncodePolicy = {
@@ -35,6 +46,7 @@ export const DEFAULT_ENCODE_POLICY: EncodePolicy = {
   margin: 0.25,
   maxScale: 1,
   maxZoomIn: 3,
+  reencodeGain: 1.5,
 };
 
 function clampRegion(r: ImageRegion, w: number, h: number): ImageRegion {
@@ -56,24 +68,65 @@ function growTo(r: ImageRegion, sizeX: number, sizeY: number, w: number, h: numb
   return { x, y, width, height };
 }
 
+function unionRegion(a: ImageRegion, b: ImageRegion): ImageRegion {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
+}
+
+/**
+ * Image-space extent of the object a prompt describes: its points and box,
+ * plus the foreground of the previous result it refines. Null for an empty
+ * prompt.
+ */
+export function promptExtent(prompt: SegmentationPrompt, imageSize: ImageSize): ImageRegion | null {
+  const pb = promptBounds(prompt);
+  const prev = prompt.previous ? rasterImageBounds(prompt.previous, imageSize) : null;
+  if (pb && prev) return unionRegion(pb, prev);
+  return pb ?? prev;
+}
+
 /**
  * The view to encode for `target`: the viewport plus a margin, clipped to the
  * image, at the scale that fits its longer side into the model input — but
  * never finer than `maxScale`, in which case the crop grows instead.
+ *
+ * With a `prompt`, the region also covers the prompt's extent (see
+ * {@link promptExtent}) padded by the same margin: SAM cannot segment what it
+ * did not see, so a refinement click after the earlier clicks (or the object
+ * they selected) left the viewport encodes both, at the coarser scale that
+ * takes. Prompts inside the viewport leave the plan unchanged.
  */
 export function planEncodeView(
   target: SegmentationTarget,
   policy: EncodePolicy = DEFAULT_ENCODE_POLICY,
+  prompt: SegmentationPrompt | null = null,
 ): EncodeView {
   const { width: W, height: H } = target.imageSize;
   const v = target.viewport;
   const mx = v.width * policy.margin;
   const my = v.height * policy.margin;
-  let region = clampRegion(
-    { x: v.x - mx, y: v.y - my, width: v.width + 2 * mx, height: v.height + 2 * my },
-    W,
-    H,
-  );
+  let wanted: ImageRegion = {
+    x: v.x - mx,
+    y: v.y - my,
+    width: v.width + 2 * mx,
+    height: v.height + 2 * my,
+  };
+  const extent = prompt ? promptExtent(prompt, target.imageSize) : null;
+  if (extent) {
+    wanted = unionRegion(wanted, {
+      x: extent.x - mx,
+      y: extent.y - my,
+      width: extent.width + 2 * mx,
+      height: extent.height + 2 * my,
+    });
+  }
+  let region = clampRegion(wanted, W, H);
   const minSide = policy.inputSize / policy.maxScale;
   if (Math.max(region.width, region.height) < minSide) {
     // Zoomed past the finest scale: spend the spare model pixels on context.
@@ -141,8 +194,11 @@ export type ReuseVerdict =
  * - Every prompt point and the box must lie inside it: SAM cannot segment
  *   what it did not see.
  * - The screen must not show the image more than `maxZoomIn` times finer than
- *   the embedding resolves it. Zooming *out* never invalidates by resolution,
- *   but it does by coverage (the viewport outgrows the region).
+ *   the embedding resolves it — unless a fresh encode for this target and
+ *   prompt ({@link planEncodeView}) would not be at least `reencodeGain` times
+ *   finer, in which case re-encoding buys nothing. Zooming *out* never
+ *   invalidates by resolution, but it does by coverage (the viewport outgrows
+ *   the region).
  */
 export function canReuse(
   view: EncodeView,
@@ -160,7 +216,8 @@ export function canReuse(
   }
   // viewportScale is screen px per image px; view.scale is model px per image px.
   if (target.viewportScale / view.scale > policy.maxZoomIn) {
-    return { reuse: false, reason: 'too-coarse' };
+    const fresh = planEncodeView(target, policy, prompt).scale;
+    if (fresh >= view.scale * policy.reencodeGain) return { reuse: false, reason: 'too-coarse' };
   }
   return { reuse: true };
 }

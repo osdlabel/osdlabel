@@ -37,7 +37,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
-import { pickTargets } from './scene-targets.mjs';
+import { VIEW_W, scenarioSteps as allScenarioSteps } from './scenario.mjs';
 import { MAX_LEVEL, SYNTH, levelDims, tileBytes } from './synth-tiles.mjs';
 import { MODEL_TABLE, modelById, modelPaths } from './model-table.mjs';
 import { runNativeCase } from './native-suite.mjs';
@@ -100,86 +100,8 @@ const E2E_MODELS = list('--e2e-models', 'mobile_sam');
 const WEBGPU_MODELS = list('--webgpu-models', 'edge_sam,mobile_sam');
 const MAIN_THREADS = list('--main-threads', '4').map(Number);
 const E2E_THREADS = list('--e2e-threads', '4').map(Number);
-const VIEW_W = 1280;
-
-/** The H2/H3 scenario: zoom levels and pans a pathologist actually does. */
 const STEP_FILTER = process.argv.includes('--steps') ? list('--steps', '') : null;
-function scenarioSteps() {
-  const T = pickTargets();
-  const overview = VIEW_W / 40_000; // the whole island on screen
-  const glandZoom = VIEW_W / 10_000;
-  const glandGt = { kind: 'ellipse', x: T.gland.x, y: T.gland.y, rx: T.gland.rx, ry: T.gland.ry };
-  const lumenGt = { ...glandGt, rx: T.gland.rx * 0.72, ry: T.gland.ry * 0.72 };
-  const nucleusGt = {
-    kind: 'ellipse',
-    x: T.nucleus.x,
-    y: T.nucleus.y,
-    rx: T.nucleus.r,
-    ry: T.nucleus.r,
-  };
-  const g2 = T.gland2 ?? T.gland;
-  return [
-    {
-      id: 'S1',
-      name: 'overview, first click (cold encode): tissue island',
-      view: { cx: T.island.x, cy: T.island.y, zoom: overview },
-      click: T.stroma,
-      gt: { kind: 'none' },
-    },
-    {
-      id: 'S2',
-      name: 'same view, second object: gland (embedding cache hit)',
-      click: { x: T.gland.x, y: T.gland.y },
-      gt: glandGt,
-      altGt: lumenGt,
-    },
-    {
-      id: 'S3',
-      name: 'pan 10% of viewport (inside margin): gland 2',
-      view: { cx: T.island.x + 0.1 * 40_000, cy: T.island.y, zoom: overview },
-      click: { x: g2.x, y: g2.y },
-      gt: { kind: 'ellipse', x: g2.x, y: g2.y, rx: g2.rx, ry: g2.ry },
-    },
-    {
-      id: 'S4',
-      name: 'pan 70% (beyond margin): re-encode',
-      view: { cx: T.island.x + 0.7 * 40_000, cy: T.island.y, zoom: overview },
-      click: { x: T.island.x + 0.7 * 40_000, y: T.island.y },
-      gt: { kind: 'none' },
-    },
-    {
-      id: 'S5',
-      name: 'zoom 4x onto the gland (too coarse: re-encode)',
-      view: { cx: T.gland.x, cy: T.gland.y, zoom: glandZoom },
-      click: { x: T.gland.x, y: T.gland.y },
-      gt: glandGt,
-      altGt: lumenGt,
-    },
-    {
-      id: 'S6',
-      name: 'zoom 1.5x more (within maxZoomIn: reuse)',
-      view: { cx: T.gland.x, cy: T.gland.y, zoom: glandZoom * 1.5 },
-      click: { x: T.gland.x + T.gland.rx * 0.86, y: T.gland.y },
-      gt: glandGt,
-      altGt: lumenGt,
-    },
-    {
-      id: 'S7',
-      name: 'zoom to 1:1 on a nucleus (crop capped at native resolution)',
-      view: { cx: T.nucleus.x, cy: T.nucleus.y, zoom: 1 },
-      click: { x: T.nucleus.x, y: T.nucleus.y },
-      gt: nucleusGt,
-    },
-    {
-      id: 'S8',
-      name: 'new view, prepare() on settle, then click (decode only)',
-      view: { cx: g2.x, cy: g2.y, zoom: glandZoom },
-      prepare: true,
-      click: { x: g2.x, y: g2.y },
-      gt: { kind: 'ellipse', x: g2.x, y: g2.y, rx: g2.rx, ry: g2.ry },
-    },
-  ].filter((s) => !STEP_FILTER || STEP_FILTER.includes(s.id));
-}
+const scenarioSteps = () => allScenarioSteps(STEP_FILTER);
 
 /**
  * Renders (and disk-caches) every synthetic tile the scenario can touch, so
@@ -236,8 +158,11 @@ async function runScenario(openPage, cfg, steps) {
   const init = await page.evaluate((c) => window.__e2e.init({ image: 'synth', ...c }), cfg);
   const out = { config: cfg, init, initMs: Date.now() - t0, steps: [], loadavg: [os.loadavg()[0]] };
   console.log(`\n[e2e ${cfg.mode} ${cfg.model} t=${cfg.threads}] init ${out.initMs} ms`);
+  // Points of the prompt being built (steps with `keep` add to it).
+  let promptPoints = [];
   for (const step of steps) {
     const rec = { id: step.id, name: step.name };
+    promptPoints.push(step.click);
     try {
       if (step.view) rec.view = await page.evaluate((v) => window.__e2e.view(v), step.view);
       if (step.prepare) rec.prepareMs = await page.evaluate(() => window.__e2e.prepare());
@@ -259,13 +184,27 @@ async function runScenario(openPage, cfg, steps) {
         const alt = await page.evaluate((gt) => window.__e2e.analyze(gt), step.altGt);
         rec.altGroundTruthIoU = alt.groundTruthIoU;
       }
-      rec.commitMask = await page.evaluate(() => window.__e2e.commit('mask'));
+      const result = rec.events?.find((e) => e.type === 'result');
+      if (result) {
+        // Did the decode see every point of the prompt (the encode covered them)?
+        const r = result.view.region;
+        rec.promptPoints = promptPoints.length;
+        rec.promptInsideRegion = promptPoints.every(
+          (p) => p.x >= r.x && p.y >= r.y && p.x <= r.x + r.width && p.y <= r.y + r.height,
+        );
+        if (step.expectCached !== undefined)
+          rec.expectation = { cached: step.expectCached, ok: result.cached === step.expectCached };
+      }
+      if (!step.keep) rec.commitMask = await page.evaluate(() => window.__e2e.commit('mask'));
       rec.cache = await page.evaluate(() => window.__e2e.cacheStats());
       rec.memory = await page.evaluate(() => window.__e2e.memory());
     } catch (e) {
       rec.error = String(e?.message ?? e);
     }
-    await page.evaluate(() => window.__e2e.cancel()).catch(() => {});
+    if (!step.keep || rec.error) {
+      await page.evaluate(() => window.__e2e.cancel()).catch(() => {});
+      promptPoints = [];
+    }
     out.steps.push(rec);
     printStep(rec);
   }
@@ -293,13 +232,19 @@ function printStep(rec) {
   console.log(
     `  ${rec.id} ${r?.cached ? 'HIT ' : 'MISS'} click->painted ${fmt(p?.latency).padStart(6)} ms | ` +
       `read ${fmt((t.readFetch ?? 0) + (t.readComposite ?? 0) + (t.readback ?? 0)).padStart(4)} (tiles ${fmt(t.tiles)}, L${fmt(t.level)}) ` +
-      `pre ${fmt(t.preprocess).padStart(3)} enc ${fmt(t.encode ?? t.serverEncode).padStart(5)} dec ${fmt(t.decode, 1).padStart(5)} ` +
+      `pre ${fmt(t.preprocess).padStart(3)} enc ${fmt(t.encode ?? t.serverEncode).padStart(5)} dec ${fmt(t.decode, 1).padStart(5)}${t.maskInput ? ' +mask_input' : ''} ` +
       `rt ${fmt(t.roundTrip).padStart(4)}${t.wireBytes ? ` (${fmt(t.wireBytes / 1024)} KiB)` : ''} preview ${fmt(r?.previewBuild, 1)} | ` +
       `main-thread max frame gap ${fmt(fr?.maxGap)} ms | scale ${r ? r.view.scale.toFixed(4) : '-'} | ` +
       `GT IoU ${fmt(a.groundTruthIoU, 3)}${rec.altGroundTruthIoU !== undefined ? `/${fmt(rec.altGroundTruthIoU, 3)}` : ''} ` +
       `poly ${fmt(a.polygonVertices)}v ${fmt(a.polygonMs, 1)}ms IoU(poly,mask) ${fmt(a.polygonVsMaskIoU, 4)} | ` +
       `mask box ${fmt((a.maskBoxPixels ?? 0) / 1e6, 2)} Mpx ${fmt(a.maskMs, 1)}ms rle ${fmt(a.canonicalBytes)}B render ${fmt(a.renderBuildMs, 1)}ms | ` +
-      `commit ${commit?.output ?? '-'}${cap ? ` (cap: ${fmt(cap.requested / 1e6)} Mpx)` : ''}`,
+      `commit ${commit?.output ?? '-'}${cap ? ` (cap: ${fmt(cap.requested / 1e6)} Mpx)` : ''}` +
+      (rec.promptPoints > 1
+        ? ` | ${rec.promptPoints}-point prompt ${rec.promptInsideRegion ? 'inside' : 'OUTSIDE'} the encoded region`
+        : '') +
+      (rec.expectation
+        ? ` | expected ${rec.expectation.cached ? 'HIT' : 'MISS'}: ${rec.expectation.ok ? 'ok' : 'FAILED'}`
+        : ''),
   );
 }
 

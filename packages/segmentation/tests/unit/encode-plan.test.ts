@@ -202,6 +202,102 @@ describe('composeSegmentationProvider', () => {
   });
 });
 
+describe('refinement after a view change', () => {
+  // The review's probe: click A at overview, zoom 4x onto a region that no
+  // longer shows A, then refine with B, C, D. Before the fix every refinement
+  // re-encoded (4 encodes for 4 clicks) and A lay outside every encoded region.
+  const overview = target(30_000, 30_000, 40_000, 25_000, 1280 / 40_000);
+  const zoomed = target(58_000, 38_000, 10_000, 6_250, 1280 / 10_000);
+  const A = { x: 35_000, y: 40_000, label: 1 as const };
+  const B = { x: 62_000, y: 41_000, label: 1 as const };
+  const C = { x: 63_000, y: 41_500, label: 0 as const };
+  const D = { x: 62_500, y: 40_500, label: 1 as const };
+  const inside = (v: EncodeView, p: { x: number; y: number }): boolean =>
+    p.x >= v.region.x &&
+    p.y >= v.region.y &&
+    p.x <= v.region.x + v.region.width &&
+    p.y <= v.region.y + v.region.height;
+
+  it('plans a region that covers prompts outside the viewport, plus the margin', () => {
+    const v = planEncodeView(zoomed, DEFAULT_ENCODE_POLICY, { points: [A, B] });
+    expect(inside(v, A)).toBe(true);
+    expect(inside(v, B)).toBe(true);
+    // A is padded by the same margin the viewport gets (0.25 x 10_000).
+    expect(v.region.x).toBe(A.x - 2_500);
+    // Prompts inside the viewport leave the plan unchanged.
+    expect(planEncodeView(zoomed, DEFAULT_ENCODE_POLICY, { points: [B] })).toEqual(
+      planEncodeView(zoomed),
+    );
+  });
+
+  it("covers the previous result's foreground: the object being refined", () => {
+    const data = new Float32Array(16).fill(-5);
+    data[5] = 3; // one foreground cell at (1, 1)
+    const previous = {
+      frame: {
+        originX: 20_000,
+        originY: 50_000,
+        pixelWidth: 100,
+        pixelHeight: 100,
+        width: 4,
+        height: 4,
+      },
+      data,
+    };
+    const v = planEncodeView(zoomed, DEFAULT_ENCODE_POLICY, { points: [B], previous });
+    // Foreground cell (1,1) spans 20_100..20_200; logits spill half a cell.
+    expect(v.region.x).toBeLessThanOrEqual(20_050 - 2_500);
+    expect(v.region.y + v.region.height).toBeGreaterThanOrEqual(50_250);
+  });
+
+  it('encodes once for the refinement, then reuses it; every decode sees every point', async () => {
+    const log: EncodeView[] = [];
+    const seen: boolean[][] = [];
+    const provider = composeSegmentationProvider(fakeEncoder(log), {
+      ...decoder,
+      async decode(encoded, prompt) {
+        seen.push((prompt.points ?? []).map((p) => inside(encoded.view, p)));
+        return decoder.decode(encoded, prompt, new AbortController().signal);
+      },
+    });
+    const signal = new AbortController().signal;
+    await provider.segment(overview, { points: [A] }, signal);
+    await provider.segment(zoomed, { points: [A, B] }, signal);
+    await provider.segment(zoomed, { points: [A, B, C] }, signal);
+    await provider.segment(zoomed, { points: [A, B, C, D] }, signal);
+    expect(log).toHaveLength(2);
+    expect(provider.cache.size).toBe(2);
+    expect(seen.flat().every(Boolean)).toBe(true);
+  });
+
+  it('never re-encodes on every click when no encode can be finer (viewport wider than 2048 px)', async () => {
+    // 2560 screen px across 25_600 image px: the plan's scale is 1024 / 38_400,
+    // 3.75x coarser than the screen, so the old rule rejected every embedding
+    // as too coarse, including the one it had just made.
+    const wide = target(40_000, 30_000, 25_600, 16_000, 0.1);
+    const fresh = planEncodeView(wide);
+    expect(wide.viewportScale / fresh.scale).toBeGreaterThan(DEFAULT_ENCODE_POLICY.maxZoomIn);
+    expect(canReuse(fresh, wide, null)).toEqual({ reuse: true });
+    const log: EncodeView[] = [];
+    const provider = composeSegmentationProvider(fakeEncoder(log), decoder);
+    const signal = new AbortController().signal;
+    for (const x of [45_000, 50_000, 55_000]) {
+      await provider.segment(wide, { points: [{ x, y: 38_000, label: 1 }] }, signal);
+    }
+    expect(log).toHaveLength(1);
+  });
+
+  it('still re-encodes a plain zoom-in that a fresh encode resolves finer', () => {
+    const t0 = target(40_000, 30_000, 16_000, 9_000, 1 / 16);
+    const view = planEncodeView(t0);
+    const zoomedIn = target(46_000, 33_375, 4_000, 2_250, 1 / 4);
+    expect(canReuse(view, zoomedIn, { points: [{ x: 47_000, y: 34_000, label: 1 }] })).toEqual({
+      reuse: false,
+      reason: 'too-coarse',
+    });
+  });
+});
+
 describe('EmbeddingCache eviction', () => {
   it('evicts least recently used settled entries beyond maxEntries', async () => {
     const cache = new EmbeddingCache<string>({ maxEntries: 2 });

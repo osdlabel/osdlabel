@@ -39,7 +39,7 @@ const SYNTH_PYRAMID = {
 };
 
 /** onnxruntime-node adapted to @osdlabel/segmentation-onnx's OrtModuleLike. */
-function nodeOrt(threads) {
+export function nodeOrt(threads) {
   return {
     async createSession(model) {
       const s = await ort.InferenceSession.create(model, {
@@ -60,7 +60,7 @@ function nodeOrt(threads) {
 }
 
 /** Reads a region of the synthetic DZI at out size: tiles -> level buffer -> bilinear resample. */
-function readSynthRegion(region, outW, outH) {
+export function readSynthRegion(region, outW, outH) {
   const plan = planRegionRead(SYNTH_PYRAMID, region, outW, outH);
   const LW = plan.levelRect.width;
   const LH = plan.levelRect.height;

@@ -2,6 +2,8 @@ import {
   cropGrid,
   imageToModel,
   modelGridFrame,
+  sameRasterFrame,
+  resampleLogits,
   type InputLayout,
   type MaskCandidate,
   type ModelFrame,
@@ -131,19 +133,26 @@ export function orderCandidates(
   return Array.from({ length: count }, (_, i) => i).sort((a, b) => (iou[b] ?? 0) - (iou[a] ?? 0));
 }
 
-function maskInputFeeds<T extends OrtTensorLike>(
+/**
+ * SAM's `mask_input` / `has_mask_input` feeds. Only logits on this embedding's
+ * own low-res grid are fed back: after a re-encode, or a switch to another
+ * cached embedding, the previous result sits on a different grid, and copying
+ * it in unchanged would misalign it with the image. {@link OnnxSamModel.decode}
+ * resamples such a result onto the grid first (or drops it), see
+ * {@link alignPreviousMask}.
+ */
+export function maskInputFeeds<T extends OrtTensorLike>(
   ort: OrtModuleLike<T>,
   prompt: SegmentationPrompt,
+  embedding: SamEmbedding,
 ): { mask_input: T; has_mask_input: T } {
   const prev = prompt.previous;
   const data = new Float32Array(LOW_RES * LOW_RES);
   let has = 0;
-  // Only a previous result on the same low-res grid can be fed back.
   if (
     prev &&
     prev.data instanceof Float32Array &&
-    prev.frame.width <= LOW_RES &&
-    prev.frame.height <= LOW_RES
+    sameRasterFrame(prev.frame, modelGridFrame(embedding.frame, LOW_RES))
   ) {
     for (let y = 0; y < prev.frame.height; y++) {
       data.set(prev.data.subarray(y * prev.frame.width, (y + 1) * prev.frame.width), y * LOW_RES);
@@ -155,6 +164,35 @@ function maskInputFeeds<T extends OrtTensorLike>(
     has_mask_input: ort.float32(Float32Array.from([has]), [1]),
   };
 }
+
+/**
+ * Puts `prompt.previous` on `embedding`'s low-res grid: unchanged when it is
+ * already there; otherwise resampled (bilinear on logits, `'resample'`) or
+ * removed (`'drop'`). Binary previous masks are left alone (never fed back).
+ */
+export function alignPreviousMask(
+  prompt: SegmentationPrompt,
+  embedding: SamEmbedding,
+  mode: PreviousMaskAlignment,
+): SegmentationPrompt {
+  const prev = prompt.previous;
+  if (!prev || !(prev.data instanceof Float32Array)) return prompt;
+  const grid = modelGridFrame(embedding.frame, LOW_RES);
+  if (sameRasterFrame(prev.frame, grid)) return prompt;
+  const { previous: _dropped, ...rest } = prompt;
+  void _dropped;
+  if (mode === 'drop') return rest;
+  return { ...rest, previous: { frame: grid, data: resampleLogits(prev.data, prev.frame, grid) } };
+}
+
+/**
+ * What to do with a previous result (SAM `mask_input`) that sits on another
+ * grid than the embedding being decoded — after a pan/zoom re-encode.
+ * Measured on the PoC's refinement scenario (R1-R3, MobileSAM): dropping it
+ * left the top-ranked 2-point mask at ground-truth IoU 0.27, resampling it gave
+ * 0.98.
+ */
+export type PreviousMaskAlignment = 'resample' | 'drop';
 
 function lowResCandidates(
   planes: Float32Array,
@@ -191,7 +229,7 @@ export const SAM1: FamilyAdapter = {
       image_embeddings: ort.float32(emb.data, emb.dims),
       point_coords: ort.float32(pts.coords, [1, pts.n, 2]),
       point_labels: ort.float32(pts.labels, [1, pts.n]),
-      ...maskInputFeeds(ort, prompt),
+      ...maskInputFeeds(ort, prompt, embedding),
     };
     if (session.inputNames.includes('orig_im_size')) {
       // Full graph: keep its internal upsample at model size — passing the
@@ -233,7 +271,7 @@ export const SAM2: FamilyAdapter = {
       high_res_feats_1: t('high_res_feats_1'),
       point_coords: ort.float32(pts.coords, [1, pts.n, 2]),
       point_labels: ort.float32(pts.labels, [1, pts.n]),
-      ...maskInputFeeds(ort, prompt),
+      ...maskInputFeeds(ort, prompt, embedding),
     };
   },
   decoderFetches: () => ['masks', 'iou_predictions'],

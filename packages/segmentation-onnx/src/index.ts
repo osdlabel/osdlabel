@@ -6,13 +6,21 @@ export type {
 } from './ort-like.js';
 export type { PixelNormalization } from './preprocess.js';
 export { rgbaToChw } from './preprocess.js';
-export type { ModelFamily, SamTensor, SamEmbedding, FamilyAdapter } from './families.js';
+export type {
+  ModelFamily,
+  SamTensor,
+  SamEmbedding,
+  FamilyAdapter,
+  PreviousMaskAlignment,
+} from './families.js';
 export {
   SAM1,
   SAM2,
   EFFICIENT_SAM,
   LOW_RES,
   adapterFor,
+  alignPreviousMask,
+  maskInputFeeds,
   embeddingBytes,
   orderCandidates,
 } from './families.js';
