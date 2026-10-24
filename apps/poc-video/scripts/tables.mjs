@@ -7,7 +7,7 @@
  * a supplementary run can be tabulated together with the main one.
  */
 import fs from 'node:fs';
-import { summarizeH1 } from './summarize.mjs';
+import { poolH1, summarizeH1 } from './summarize.mjs';
 
 const files = process.argv.slice(2);
 if (files.length === 0) throw new Error('usage: tables.mjs run.json [...]');
@@ -15,9 +15,10 @@ const runs = files.map((f) => JSON.parse(fs.readFileSync(f, 'utf8')));
 const h1 = {};
 for (const r of runs) {
   for (const [video, cell] of Object.entries(r.h1 ?? {})) {
-    const into = (h1[video] ??= { ...cell, videoElement: {}, webcodecs: {} });
+    const into = (h1[video] ??= { ...cell, videoElement: {}, webcodecs: {}, sink: {} });
     Object.assign(into.videoElement, cell.videoElement);
     Object.assign(into.webcodecs, cell.webcodecs);
+    Object.assign(into.sink, cell.sink ?? {});
   }
 }
 const md = (rows, cols) => {
@@ -61,9 +62,38 @@ console.log(
   ),
 );
 
+if (Object.keys(h1).length > 0) {
+  console.log('\n## H1 pooled per method, with the presented-frame callback\n');
+  console.log(
+    md(
+      Object.entries(poolH1(h1)).map(([method, p]) => ({ method, ...p })),
+      [
+        'method',
+        'ops',
+        'exact',
+        'exactPct',
+        'rvfcFired',
+        'rvfcMediaTimeAgrees',
+        'rvfcMissedSlowSeek',
+        'rvfcMissedFastSeek',
+        'rvfcAfterSeekedP50Ms',
+        'rvfcAfterSeekedP95Ms',
+        'p50ms',
+        'p95ms',
+      ],
+    ),
+  );
+}
+
 for (const r of runs) {
+  if (r.h2?.cells) {
+    console.log(
+      `\n## H2 per cell (${r.h2.video}, ${r.h2.reps} reps x ${r.h2.seconds}s, ${r.h2.viewport})\n`,
+    );
+    console.log(md(r.h2.cells, Object.keys(r.h2.cells[0])));
+  }
   if (r.h2?.rows) {
-    console.log(`\n## H2 (${r.h2.video}, ${r.h2.seconds}s per cell, ${r.h2.viewport})\n`);
+    console.log(`\n## H2 per rep (${r.h2.video}, ${r.h2.seconds}s per cell, ${r.h2.viewport})\n`);
     console.log(md(r.h2.rows, Object.keys(r.h2.rows.find((x) => !x.error) ?? r.h2.rows[0])));
   }
   if (r.h2Replaced?.rows) {
@@ -87,8 +117,15 @@ for (const r of runs) {
     );
   }
   if (r.h3?.axis?.rows) {
-    console.log('\n## H3 frame axis: time -> index lookups\n');
+    console.log('\n## H3 frame axis: stored time -> frame, per writer, rate class and rule\n');
     console.log(md(r.h3.axis.rows, Object.keys(r.h3.axis.rows[0])));
+  }
+  if (r.h3?.keyframes?.rows) {
+    console.log('\n## H3 keyframes as annotations vs TrackDocument\n');
+    console.log(md(r.h3.keyframes.rows, Object.keys(r.h3.keyframes.rows[0])));
+    const a = { ...r.h3.keyframes.a };
+    delete a.sampleKeyframe;
+    console.log('\n```json\n' + JSON.stringify(a, null, 1) + '\n```');
   }
   if (r.h3?.harness?.rows) {
     console.log('\n## H3 harness\n');

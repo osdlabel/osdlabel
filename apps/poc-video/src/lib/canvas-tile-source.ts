@@ -1,7 +1,8 @@
 import OpenSeadragon from 'openseadragon';
 
 /**
- * A one-tile OpenSeadragon TileSource whose only tile *is* `canvas`. Redraw
+ * A one-tile OpenSeadragon TileSource whose only tile *is* `canvas` (or,
+ * with `direct`, whatever frame `direct()` returns). Redraw
  * the canvas (a video frame) and call `viewer.forceRedraw()`: the canvas
  * drawer `drawImage`s the tile's context every frame, so the new pixels show
  * on the next OSD draw with no re-fetch and no new cache entry.
@@ -14,6 +15,7 @@ export function createCanvasTileSource(
   canvas: HTMLCanvasElement,
   width: number,
   height: number,
+  direct?: () => (CanvasImageSource & { width: number; height: number }) | null,
 ): OpenSeadragon.TileSource {
   const level = Math.ceil(Math.log2(Math.max(width, height)));
   const ts = new OpenSeadragon.TileSource({
@@ -40,7 +42,16 @@ export function createCanvasTileSource(
     },
     getTileCacheData: (): HTMLCanvasElement => canvas,
     getTileCacheDataAsImage: (): HTMLCanvasElement => canvas,
-    getTileCacheDataAsContext2D: (): CanvasRenderingContext2D => ctx,
+    // With `direct`, the canvas drawer gets a stand-in context whose `canvas`
+    // is the current frame: OSD's _drawTileToCanvas only reads `.canvas` (and
+    // its width/height) and drawImage()s it, so the frame is drawn once,
+    // straight into OSD's canvas, instead of copied into `canvas` first.
+    getTileCacheDataAsContext2D: (): CanvasRenderingContext2D => {
+      const d = direct?.();
+      return d === undefined || d === null
+        ? ctx
+        : ({ canvas: d } as unknown as CanvasRenderingContext2D);
+    },
   });
   return ts;
 }

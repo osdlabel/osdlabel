@@ -3,6 +3,10 @@
  * one of these hosts, while the bench measures fps, CPU and sync:
  *
  *   host=osd-canvas  frame drawn into a one-tile canvas TileSource, OSD canvas drawer
+ *                    (two 1080p blits per frame: frame -> tile canvas -> OSD canvas)
+ *   host=osd-direct  the same one-tile source, but the tile's "rendered context"
+ *                    hands OSD's canvas drawer the frame itself (a VideoFrame or
+ *                    the <video>), so it is drawn once, straight into OSD's canvas
  *   host=osd-webgl   frame uploaded into the OSD WebGL drawer's tile texture
  *   host=css         OSD keeps the viewport, gestures and overlay sync, but the
  *                    frame is a <video> (or <canvas>) element under the Fabric
@@ -40,13 +44,14 @@ import type { WebCodecsFrameSource } from '@osdlabel/video';
 import { openFrameSource } from './lib/open-frame-source.js';
 import { mulberry32 } from './lib/rng.js';
 
-type Host = 'osd-canvas' | 'osd-webgl' | 'css';
+type Host = 'osd-canvas' | 'osd-direct' | 'osd-webgl' | 'css';
+type Motion = 'static' | 'panzoom' | 'fastpan';
 type Source = 'video' | 'webcodecs';
 
 const params = new URLSearchParams(location.search);
 const host = (params.get('host') ?? 'osd-canvas') as Host;
 const source = (params.get('source') ?? 'video') as Source;
-const videoName = params.get('video') ?? 'h264-1080p-30-g30-bf';
+const videoName = params.get('video') ?? 'h264-1080p-60-g60-bf';
 const TRACKS = Number(params.get('tracks') ?? '50');
 const DECORATIONS = (params.get('deco') ?? '1') !== '0';
 
@@ -61,6 +66,9 @@ interface Stats {
   fabricMs: number;
   fabricRenders: number;
   decoMs: number;
+  /** Sum over rAF ticks of (frame the clock wants - frame on screen), WebCodecs only. */
+  clockLagSum: number;
+  clockLagTicks: number;
   t0: number;
   droppedAtStart: number;
 }
@@ -76,12 +84,14 @@ const stats: Stats = {
   fabricMs: 0,
   fabricRenders: 0,
   decoMs: 0,
+  clockLagSum: 0,
+  clockLagTicks: 0,
   t0: performance.now(),
   droppedAtStart: 0,
 };
 
 let video: HTMLVideoElement | null = null;
-let motion = false;
+let motion: Motion = 'static';
 let motionT0 = 0;
 let lastShown = -1;
 let pendingFrame = -1;
@@ -113,9 +123,24 @@ async function main(): Promise<void> {
   const axis = createTimestampAxis(v.ptsUs, (1e6 * v.fpsDen) / v.fpsNum);
 
   const tileCanvas = document.createElement('canvas');
-  tileCanvas.width = host === 'css' ? 2 : v.width;
-  tileCanvas.height = host === 'css' ? 2 : v.height;
+  tileCanvas.width = host === 'css' || host === 'osd-direct' ? 2 : v.width;
+  tileCanvas.height = host === 'css' || host === 'osd-direct' ? 2 : v.height;
   const tileCtx = tileCanvas.getContext('2d')!;
+  // osd-direct: what OSD's canvas drawer draws as the tile. OSD reads
+  // `.width` / `.height` off it, which a VideoFrame lacks, so they are added.
+  let direct: (CanvasImageSource & { width: number; height: number }) | null = null;
+  let directFrame: VideoFrame | null = null;
+  const setDirect = (src: CanvasImageSource): void => {
+    if (src instanceof VideoFrame) {
+      if (directFrame !== null && directFrame !== src) directFrame.close();
+      directFrame = src;
+      Object.defineProperties(src, {
+        width: { value: v.width, configurable: true },
+        height: { value: v.height, configurable: true },
+      });
+    }
+    direct = src as CanvasImageSource & { width: number; height: number };
+  };
 
   const viewer = OpenSeadragon({
     element: document.getElementById('viewer')!,
@@ -132,6 +157,7 @@ async function main(): Promise<void> {
       tileCanvas,
       v.width,
       v.height,
+      host === 'osd-direct' ? () => direct : undefined,
     ) as unknown as OpenSeadragon.TileSourceOptions,
     ...(host === 'css' ? { opacity: 0 } : {}),
   });
@@ -197,6 +223,9 @@ async function main(): Promise<void> {
     overlay.onSync(applyCss);
     applyCss();
   } else if (source === 'video') {
+    // OSD's canvas drawer reads the tile image's width/height attributes.
+    video.width = v.width;
+    video.height = v.height;
     // Kept in the DOM (and nominally visible) so Chrome does not suspend it.
     Object.assign(video.style, {
       position: 'fixed',
@@ -337,6 +366,7 @@ async function main(): Promise<void> {
 
   const drawSource = (src: CanvasImageSource & TexImageSource): void => {
     if (host === 'osd-canvas') tileCtx.drawImage(src, 0, 0, v.width, v.height);
+    else if (host === 'osd-direct') setDirect(src);
     else if (host === 'osd-webgl') {
       if (!uploadToWebglTile(viewer.drawer, tileCanvas, src)) {
         tileCtx.drawImage(src, 0, 0, v.width, v.height);
@@ -385,7 +415,7 @@ async function main(): Promise<void> {
 
   const tick = (now: number): void => {
     stats.raf++;
-    if (motion) {
+    if (motion === 'panzoom') {
       const s = (now - motionT0) / 1000;
       const z = 1.4 + 0.4 * Math.sin(s * 1.3);
       const vp = viewer.viewport;
@@ -394,6 +424,14 @@ async function main(): Promise<void> {
         new OpenSeadragon.Point(0.5 + 0.08 * Math.sin(s * 0.9), 0.16 + 0.03 * Math.cos(s * 0.7)),
         true,
       );
+    } else if (motion === 'fastpan') {
+      // Zoom 2, horizontal pan of +-0.18 viewport units at 5.5 rad/s: about
+      // 1,600 px/s mean and 2,500 px/s peak on a 1280 px viewport, so a
+      // one-frame lag of the overlay is tens of pixels, not 3.
+      const s = (now - motionT0) / 1000;
+      const vp = viewer.viewport;
+      vp.zoomTo(2, undefined, true);
+      vp.panTo(new OpenSeadragon.Point(0.5 + 0.18 * Math.sin(s * 5.5), 0.16), true);
     }
     if (wc !== null && playT0 >= 0) {
       const tUs =
@@ -415,6 +453,7 @@ async function main(): Promise<void> {
         if (best >= 0 && (lastShown < 0 || lag(best) < lag(lastShown))) {
           const f = ready.get(best)!;
           showFrame(best, () => drawSource(f));
+          if (host === 'osd-direct') ready.delete(best); // OSD draws it later; closed when replaced
         } else if (best < 0) {
           stats.lateFrames++;
           // Nothing usable decoded: when nothing near is coming either,
@@ -422,6 +461,10 @@ async function main(): Promise<void> {
           // so the frame is still current when it arrives.
           const ahead = [...ready.keys()].some((k) => (k - want + N) % N <= AHEAD * 2);
           if (!ahead && !inflight) next = (want + 2) % N;
+        }
+        if (lastShown >= 0) {
+          stats.clockLagSum += lag(lastShown) < N / 2 ? lag(lastShown) : 0;
+          stats.clockLagTicks++;
         }
         // Drop everything at or behind the clock; frames ahead stay queued.
         for (const [k, fr] of ready) {
@@ -459,8 +502,8 @@ async function main(): Promise<void> {
         pump();
       }
     },
-    setMotion(on: boolean): void {
-      motion = on;
+    setMotion(m: Motion): void {
+      motion = m;
       motionT0 = performance.now();
     },
     resetStats(): void {
@@ -475,6 +518,8 @@ async function main(): Promise<void> {
         fabricMs: 0,
         fabricRenders: 0,
         decoMs: 0,
+        clockLagSum: 0,
+        clockLagTicks: 0,
         t0: performance.now(),
         droppedAtStart: video?.getVideoPlaybackQuality().droppedVideoFrames ?? 0,
       });
@@ -501,6 +546,8 @@ async function main(): Promise<void> {
         fabricRendersPerS: stats.fabricRenders / wall,
         mainThreadJsMsPerS: (stats.handlerMs + stats.osdDrawMs + stats.fabricMs) / wall,
         lastShown,
+        meanClockLagFrames: stats.clockLagSum / Math.max(1, stats.clockLagTicks),
+        sourceFps: v.fpsNum / v.fpsDen,
       };
     },
     /** Where the marker is on screen right now (image -> screen via the overlay transform). */
@@ -512,6 +559,14 @@ async function main(): Promise<void> {
         scale: Math.hypot(t[0], t[1]),
       };
     },
+    /** Marker speed on screen, px/s, measured across two animation frames. */
+    async markerSpeed(): Promise<number> {
+      const a = this.markerScreen();
+      const t0 = performance.now();
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      const b = this.markerScreen();
+      return Math.hypot(b.x - a.x, b.y - a.y) / ((performance.now() - t0) / 1000);
+    },
   };
 }
 
@@ -521,10 +576,11 @@ declare global {
       ready: boolean;
       info: Record<string, unknown>;
       play: () => Promise<void>;
-      setMotion: (on: boolean) => void;
+      setMotion: (m: Motion) => void;
       resetStats: () => void;
       stats: () => Record<string, number>;
       markerScreen: () => { x: number; y: number; scale: number };
+      markerSpeed: () => Promise<number>;
     };
     __renderError?: string;
   }

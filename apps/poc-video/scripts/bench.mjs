@@ -41,6 +41,9 @@
  *                          Chrome.app/Contents/MacOS/Google Chrome" --headed
  *   --headed               show the browser (real GPU, real vsync)
  *   --port 5420
+ *   --h1-from <run.json>   with --only h3: take the H1 browser times (element
+ *                          currentTime / mediaTime, paused playback) for the
+ *                          axis writer study from an earlier run
  *   --no-build
  */
 import fs from 'node:fs';
@@ -348,9 +351,15 @@ async function main() {
     }
     if (only.has('h3')) {
       process.stderr.write('H3 frame-axis writer study (Node)...\n');
+      const h1From = arg('--h1-from', null);
+      const prior =
+        result.h1 === undefined && h1From !== null
+          ? JSON.parse(fs.readFileSync(h1From, 'utf8'))
+          : null;
+      if (prior !== null) result.meta.h1From = path.basename(h1From);
       result.h3.axis = await runAxisStudy(manifest, MEDIA_DIR, {
-        h1: result.h1 ?? null,
-        pauses: result.h1Pauses ?? null,
+        h1: result.h1 ?? prior?.h1 ?? null,
+        pauses: result.h1Pauses ?? prior?.h1Pauses ?? null,
       });
     }
     if (only.has('h2')) {

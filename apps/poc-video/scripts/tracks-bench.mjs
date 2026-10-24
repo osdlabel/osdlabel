@@ -197,7 +197,9 @@ export async function runH3Harness(browser, base, { video = 'h264-720p-30-g30-bf
         pass: r25.samples[0]?.source === 'interpolated',
       },
       {
-        check: 'max |object - lerp| over sweep (image px)',
+        // Property level: the object's left/top read back against the same lerp, not
+        // painted pixels (the painted-box row below is the pixel check).
+        check: 'max |object - lerp| over sweep (image px, object properties)',
         value: maxErrPx.toFixed(3),
         pass: maxErrPx < 0.01,
       },
@@ -215,7 +217,7 @@ export async function runH3Harness(browser, base, { video = 'h264-720p-30-g30-bf
           sweep.map((r) => r.ms),
           0.95,
         ).toFixed(1)} / ${Math.max(...sweep.map((r) => r.ms)).toFixed(1)}`,
-        pass: true,
+        pass: null, // informational, not a check
       },
       {
         check:
@@ -287,7 +289,7 @@ export async function runH3Harness(browser, base, { video = 'h264-720p-30-g30-bf
         check:
           'Fabric object updates: in place / rebuilt / unchanged; contour correspondences computed',
         value: `${counters.inPlace} / ${counters.rebuilt} / ${counters.unchanged}; ${counters.correspondences}`,
-        pass: true,
+        pass: null, // informational, not a check
       },
     ];
     return {

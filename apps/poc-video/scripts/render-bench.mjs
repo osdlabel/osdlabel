@@ -1,6 +1,9 @@
 /**
- * H2: 1080p playback through each render host, with and without continuous
- * pan + zoom. Per cell: fps (rAF and content), dropped/late frames, JS time,
+ * H2: 1080p playback through each render host, static, under slow pan + zoom,
+ * and under a fast pan (about 1,600 px/s), `reps` times each. The default
+ * source is 60 fps, so a host that keeps up shows ~60 content fps and one
+ * that cannot shows its own ceiling (a 30 fps source capped the first run's
+ * metric at the target). Per cell: fps (rAF and content), dropped/late frames, JS time,
  * main-thread busy time (CDP Performance), CPU per process type (CDP
  * SystemInfo: renderer vs GPU process, where SwiftShader runs), and sync
  * error read from screenshots: the Fabric green square must abut the video's
@@ -12,17 +15,23 @@ import { PNG } from 'pngjs';
 
 // [host, source, decorations]. Every cell carries 50 interpolated rectangles
 // on the Fabric overlay; `deco` adds their label + area DOM decorations (100
-// elements) recomputed per frame. One combo also runs without them, to price
-// the decorations alone.
+// elements) recomputed per frame. Two of the fastest combos also run without
+// them, to price the decorations alone (the first run did that A/B on a
+// starved 5 fps WebGL cell, which could not show a 2-3 ms cost).
 const COMBOS = [
   ['osd-canvas', 'video', true],
+  ['osd-direct', 'video', true],
   ['osd-webgl', 'video', true],
   ['css', 'video', true],
   ['osd-canvas', 'webcodecs', true],
+  ['osd-direct', 'webcodecs', true],
   ['osd-webgl', 'webcodecs', true],
   ['css', 'webcodecs', true],
-  ['osd-webgl', 'webcodecs', false],
+  ['css', 'webcodecs', false],
+  ['osd-direct', 'webcodecs', false],
 ];
+const MOTIONS = ['static', 'panzoom', 'fastpan'];
+const SHOTS = { static: 8, panzoom: 12, fastpan: 12 };
 
 async function processCpu(cdp) {
   const { processInfo } = await cdp.send('SystemInfo.getProcessInfo');
@@ -111,15 +120,11 @@ export function analyzeScreenshot(buf) {
 async function sampleSync(page, count) {
   const out = [];
   for (let i = 0; i < count; i++) {
-    const a = await page.evaluate(() => window.__render.markerScreen());
-    const t0 = Date.now();
+    // Speed over two rAFs right before the shot: an average across the
+    // screenshot itself (hundreds of ms) under-reads an oscillating pan.
+    const speed = await page.evaluate(() => window.__render.markerSpeed());
     const buf = await page.screenshot({ type: 'png' });
-    const b = await page.evaluate(() => window.__render.markerScreen());
-    const dt = (Date.now() - t0) / 1000;
-    out.push({
-      ...analyzeScreenshot(buf),
-      markerSpeedPxPerS: Math.hypot(b.x - a.x, b.y - a.y) / dt,
-    });
+    out.push({ ...analyzeScreenshot(buf), markerSpeedPxPerS: speed });
     await page.waitForTimeout(150);
   }
   return out;
@@ -147,7 +152,7 @@ const r2 = (x) => (Number.isFinite(x) ? Math.round(x * 100) / 100 : x);
 export async function runH2(
   browser,
   base,
-  { seconds = 6, video = 'h264-1080p-30-g30-bf', combos = null } = {},
+  { seconds = 6, reps = 3, video = 'h264-1080p-60-g60-bf', combos = null, motions = null } = {},
 ) {
   const bcdp = await browser.newBrowserCDPSession();
   const rows = [];
@@ -156,10 +161,18 @@ export async function runH2(
     combos === null
       ? COMBOS
       : COMBOS.filter(([h, s, d]) => combos.includes(`${h}/${s}${d ? '' : '/nodeco'}`));
-  for (const [host, source, deco] of list) {
-    for (const motion of [false, true]) {
+  // Reps are the outer loop, so a load spike on the shared host hits one rep
+  // of many cells rather than every rep of one cell.
+  const cells = [];
+  for (let rep = 0; rep < reps; rep++) {
+    for (const [host, source, deco] of list) {
+      for (const motion of motions ?? MOTIONS) cells.push([rep, host, source, deco, motion]);
+    }
+  }
+  for (const [rep, host, source, deco, motion] of cells) {
+    {
       process.stderr.write(
-        `H2 ${host}/${source}${deco ? '' : '/nodeco'} ${motion ? 'panzoom' : 'static'} ...\n`,
+        `H2 rep ${rep + 1}/${reps} ${host}/${source}${deco ? '' : '/nodeco'} ${motion} ...\n`,
       );
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
       const page = await ctx.newPage();
@@ -195,16 +208,17 @@ export async function runH2(
         const wall = (Date.now() - w0) / 1000;
         const m1 = await perfMetrics(pcdp);
         const c1 = await processCpu(bcdp);
-        const sync = await sampleSync(page, motion ? 12 : 6);
+        const sync = await sampleSync(page, SHOTS[motion]);
         const cpu = Object.fromEntries(
           Object.keys(c1).map((k) => [k, (c1[k] - (c0[k] ?? 0)) / wall]),
         );
         const syncSummary = summarizeSync(sync);
         const row = {
+          rep,
           host,
           source,
           deco: deco ? 'on' : 'off',
-          motion: motion ? 'panzoom' : 'static',
+          motion,
           rafFps: r2(st.rafFps),
           contentFps: r2(st.contentFps),
           skipped: st.skippedFrames,
@@ -215,11 +229,13 @@ export async function runH2(
           fabricMs: r2(st.fabricMsPerRender),
           decoMs: r2(st.decoMsPerFrame),
           decoEls: st.decorationElements,
+          clockLag: r2(st.meanClockLagFrames),
           mainBusyPct: r2((100 * (m1.TaskDuration - m0.TaskDuration)) / wall),
           cpuRenderer: r2(cpu.renderer ?? 0),
           cpuGpu: r2(cpu.GPU ?? cpu.gpu ?? 0),
           cpuBrowser: r2(cpu.browser ?? 0),
           syncMaxPx: syncSummary.spatialMaxPx,
+          markerPxPerS: r2(syncSummary.meanMarkerSpeedPxPerS),
           frameDelta: JSON.stringify(syncSummary.frameDeltaHistogram),
           // Host 1-minute load average when the cell ended: other processes
           // on a shared machine show up here before they show up as noise.
@@ -236,10 +252,11 @@ export async function runH2(
         });
       } catch (e) {
         rows.push({
+          rep,
           host,
           source,
           deco: deco ? 'on' : 'off',
-          motion: motion ? 'panzoom' : 'static',
+          motion,
           error: String(e).slice(0, 200),
         });
         raw.push({ host, source, deco, motion, error: String(e), errors });
@@ -251,10 +268,75 @@ export async function runH2(
   return {
     video,
     seconds,
+    reps,
     viewport: '1280x720',
+    cells: aggregateH2(rows, raw),
     notes:
       'cpu* = CPU cores used (process cpuTime delta / wall). GPU process = SwiftShader software rasterisation in this sandbox. mainBusyPct = renderer main-thread TaskDuration / wall. fabricMs = per-frame overlay update (50 rect sets + frame code + sync) excluding decoMs; decoMs = label + area providers and DecorationLayer.setDecorations per frame. syncMaxPx = worst |offset| of the Fabric green square from the video red marker in screenshots; frameDelta = histogram of (overlay frame code - video frame code) in the same screenshots.',
     rows,
     raw,
   };
+}
+
+const median = (xs) => {
+  const s = xs.filter(Number.isFinite).sort((a, b) => a - b);
+  return s.length === 0 ? null : s[Math.floor((s.length - 1) / 2)];
+};
+
+/**
+ * One row per (host, source, deco, motion) over its reps: median / min / max
+ * content fps, and frame lock pooled over every screenshot of every rep:
+ * `behind` counts screenshots where the overlay's frame differs from the
+ * video frame on screen (`frameDelta` != 0), `lockedPct` the rest.
+ */
+export function aggregateH2(rows, raw) {
+  const groups = new Map();
+  rows.forEach((r, i) => {
+    const k = `${r.host}/${r.source}/${r.deco}/${r.motion}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push({ row: r, raw: raw[i] });
+  });
+  const out = [];
+  for (const [k, g] of groups) {
+    const ok = g.filter((x) => x.row.error === undefined);
+    const fps = ok.map((x) => x.row.contentFps);
+    const hist = {};
+    let shots = 0;
+    let maxSpatial = 0;
+    let speed = 0;
+    for (const x of ok) {
+      for (const [d, n] of Object.entries(x.raw.syncSummary.frameDeltaHistogram)) {
+        hist[d] = (hist[d] ?? 0) + n;
+        shots += n;
+      }
+      maxSpatial = Math.max(maxSpatial, x.raw.syncSummary.spatialMaxPx ?? 0);
+      speed += x.raw.syncSummary.meanMarkerSpeedPxPerS ?? 0;
+    }
+    const [host, source, deco, motion] = k.split('/');
+    out.push({
+      host,
+      source,
+      deco,
+      motion,
+      reps: ok.length,
+      errors: g.length - ok.length,
+      contentFpsMedian: median(fps),
+      contentFpsMin: fps.length ? Math.min(...fps) : null,
+      contentFpsMax: fps.length ? Math.max(...fps) : null,
+      rafFpsMedian: median(ok.map((x) => x.row.rafFps)),
+      mainBusyPctMedian: median(ok.map((x) => x.row.mainBusyPct)),
+      handlerMsMedian: median(ok.map((x) => x.row.handlerMs)),
+      fabricMsMedian: median(ok.map((x) => x.row.fabricMs)),
+      decoMsMedian: median(ok.map((x) => x.row.decoMs)),
+      clockLagMedian: median(ok.map((x) => x.row.clockLag)),
+      shotsRead: shots,
+      behind: shots - (hist['0'] ?? 0),
+      lockedPct: shots === 0 ? null : r2((100 * (hist['0'] ?? 0)) / shots),
+      frameDelta: JSON.stringify(hist),
+      syncMaxPx: maxSpatial,
+      markerPxPerS: ok.length ? r2(speed / ok.length) : null,
+      load1Median: median(ok.map((x) => x.row.load1)),
+    });
+  }
+  return out;
 }
