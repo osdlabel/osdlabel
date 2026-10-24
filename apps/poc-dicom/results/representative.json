@@ -1,0 +1,4089 @@
+{
+ "meta": {
+  "started": "2026-10-24T04:38:50.087Z",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+  "memGB": 15.7,
+  "loadavgStart": [
+   9.29,
+   8.11,
+   5.85
+  ],
+  "node": "v22.22.0",
+  "opts": {
+   "reps": 3,
+   "browser": true,
+   "remote": true,
+   "survey": false,
+   "bulk": true,
+   "headed": false,
+   "port": 5420,
+   "python": "yes"
+  },
+  "gitHead": "aa5815d5bc56f918d69b1b03d52ce4837be0f8cc",
+  "idcIndexVersion": "v25",
+  "data": [
+   {
+    "role": "ct",
+    "files": 24,
+    "fetched": 0,
+    "mb": 3.2
+   },
+   {
+    "role": "mr",
+    "files": 24,
+    "fetched": 0,
+    "mb": 0.31
+   },
+   {
+    "role": "mr-implicit",
+    "files": 25,
+    "fetched": 0,
+    "mb": 0.35
+   },
+   {
+    "role": "us-multiframe",
+    "files": 1,
+    "fetched": 0,
+    "mb": 26.55
+   },
+   {
+    "role": "us-ge",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0.49
+   },
+   {
+    "role": "us-philips",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0.79
+   },
+   {
+    "role": "us-ceus",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0.26
+   },
+   {
+    "role": "dx",
+    "files": 1,
+    "fetched": 0,
+    "mb": 4.58
+   },
+   {
+    "role": "mg",
+    "files": 8,
+    "fetched": 0,
+    "mb": 4.22
+   },
+   {
+    "role": "sm-jpeg",
+    "files": 5,
+    "fetched": 0,
+    "mb": 15.9
+   },
+   {
+    "role": "sm-j2k",
+    "files": 6,
+    "fetched": 0,
+    "mb": 8.08
+   },
+   {
+    "role": "3p-ann-nuclei",
+    "files": 1,
+    "fetched": 0,
+    "mb": 12.76
+   },
+   {
+    "role": "3p-ann-small",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0.01
+   },
+   {
+    "role": "3p-seg-lidc",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0.04
+   },
+   {
+    "role": "3p-sr-lidc",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0.05
+   },
+   {
+    "role": "3p-seg-qiba",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0
+   },
+   {
+    "role": "3p-sr-qiba",
+    "files": 1,
+    "fetched": 0,
+    "mb": 0.02
+   }
+  ],
+  "chromium": "153.0.8010.12",
+  "loadavgEnd": [
+   18.51,
+   16.75,
+   11.77
+  ],
+  "durationS": 701.1
+ },
+ "h1": {
+  "ingest": {
+   "ct": {
+    "collection": "nlst",
+    "license": "CC BY 4.0",
+    "modality": "CT",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 24,
+    "rows": 256,
+    "columns": 256,
+    "frames": 1,
+    "headerBytes": 2214,
+    "fileBytes": 133286,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 1.48438,
+     "y": 1.48438,
+     "unit": "mm",
+     "source": "PixelSpacing",
+     "plane": "patient",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 12,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": -1024
+     },
+     "windows": [
+      {
+       "center": 30,
+       "width": 400,
+       "label": "WINDOW1"
+      },
+      {
+       "center": -550,
+       "width": 1800,
+       "label": "WINDOW2"
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": []
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": {
+     "oblique": false,
+     "frameOfReference": true
+    },
+    "stack": {
+     "slices": 24,
+     "uniform": false,
+     "sameOrientation": true,
+     "minGap": 6.55,
+     "maxGap": 6.7,
+     "notes": [
+      "non-uniform slice spacing: resampling needed for a regular volume"
+     ],
+     "instanceNumberOrder": "same"
+    },
+    "imageSources": 24
+   },
+   "mr": {
+    "collection": "prostate_mri_us_biopsy",
+    "license": "CC BY 4.0",
+    "modality": "MR",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 24,
+    "rows": 48,
+    "columns": 100,
+    "frames": 1,
+    "headerBytes": 3414,
+    "fileBytes": 13014,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 1.6,
+     "y": 1.6,
+     "unit": "mm",
+     "source": "PixelSpacing",
+     "plane": "patient",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 16,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [
+      {
+       "center": 119,
+       "width": 360
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": []
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": {
+     "oblique": true,
+     "frameOfReference": true
+    },
+    "stack": {
+     "slices": 24,
+     "uniform": true,
+     "sameOrientation": true,
+     "minGap": 3,
+     "maxGap": 3,
+     "notes": [],
+     "instanceNumberOrder": "reversed"
+    },
+    "imageSources": 24
+   },
+   "mr-implicit": {
+    "collection": "tcga_kich",
+    "license": "CC BY 3.0",
+    "modality": "MR",
+    "transferSyntax": "1.2.840.10008.1.2",
+    "instances": 25,
+    "rows": 64,
+    "columns": 64,
+    "frames": 1,
+    "headerBytes": 5638,
+    "fileBytes": 13830,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 7.5,
+     "y": 7.5,
+     "unit": "mm",
+     "source": "PixelSpacing",
+     "plane": "patient",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 16,
+     "signed": true,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [
+      {
+       "center": 491,
+       "width": 983
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": []
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": {
+     "oblique": false,
+     "frameOfReference": true
+    },
+    "stack": {
+     "slices": 25,
+     "uniform": true,
+     "sameOrientation": true,
+     "minGap": 16.9997,
+     "maxGap": 17.0003,
+     "notes": [],
+     "instanceNumberOrder": "reversed"
+    },
+    "imageSources": 25
+   },
+   "us-multiframe": {
+    "collection": "prostate_mri_us_biopsy",
+    "license": "CC BY 4.0",
+    "modality": "US",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "rows": 342,
+    "columns": 342,
+    "frames": 227,
+    "headerBytes": 2270,
+    "fileBytes": 26553098,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.268,
+     "y": 0.268,
+     "unit": "mm",
+     "source": "PixelSpacing",
+     "plane": "patient",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [
+      {
+       "center": 128,
+       "width": 256
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": []
+    },
+    "timing": {
+     "axis": "space",
+     "dimensions": [
+      "space"
+     ],
+     "incrementPointer": "(0054,0080)",
+     "frames": 227,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "us-ge": {
+    "collection": "cmb_crc",
+    "license": "CC BY 4.0",
+    "modality": "US",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "rows": 590,
+    "columns": 819,
+    "frames": 1,
+    "headerBytes": 2306,
+    "fileBytes": 485516,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.0687994,
+     "y": 0.0687994,
+     "unit": "mm",
+     "source": "SequenceOfUltrasoundRegions",
+     "plane": "ultrasound-region",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [
+      {
+       "center": 127,
+       "width": 256
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": []
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [
+     {
+      "bounds": [
+       2,
+       60,
+       690,
+       518
+      ],
+      "format": "2d",
+      "dataType": "tissue",
+      "x": "0.00687994 cm/px",
+      "y": "0.00687994 cm/px"
+     }
+    ],
+    "plane": null
+   },
+   "us-philips": {
+    "collection": "cmb_crc",
+    "license": "CC BY 4.0",
+    "modality": "US",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "rows": 768,
+    "columns": 1024,
+    "frames": 1,
+    "headerBytes": 2710,
+    "fileBytes": 789142,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.191242,
+     "y": 0.191242,
+     "unit": "mm",
+     "source": "SequenceOfUltrasoundRegions",
+     "plane": "ultrasound-region",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [
+      {
+       "center": 127,
+       "width": 254
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": []
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [
+     {
+      "bounds": [
+       14,
+       38,
+       1010,
+       758
+      ],
+      "format": "2d",
+      "dataType": "tissue",
+      "x": "0.0191242 cm/px",
+      "y": "0.0191242 cm/px"
+     }
+    ],
+    "plane": null
+   },
+   "us-ceus": {
+    "collection": "b_mode_and_ceus_liver",
+    "license": "CC BY 4.0",
+    "modality": "US",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "rows": 649,
+    "columns": 1170,
+    "frames": 38,
+    "headerBytes": 2610,
+    "fileBytes": 262144,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.299234,
+     "y": 0.299234,
+     "unit": "mm",
+     "source": "SequenceOfUltrasoundRegions",
+     "plane": "ultrasound-region",
+     "alternatives": [],
+     "notes": [
+      "2 ultrasound regions (1 distinct spatial calibration(s)); a single PixelSpacing is only valid inside one of them"
+     ]
+    },
+    "display": {
+     "photometric": "YBR_FULL",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": []
+    },
+    "timing": {
+     "axis": "time",
+     "dimensions": [
+      "time"
+     ],
+     "incrementPointer": "(0018,1063)",
+     "acquisitionFps": 9.00128,
+     "playbackFps": 9,
+     "frames": 38,
+     "notes": []
+    },
+    "ultrasoundRegions": [
+     {
+      "bounds": [
+       585,
+       32,
+       1169,
+       596
+      ],
+      "format": "2d",
+      "dataType": "tissue",
+      "x": "0.0299234 cm/px",
+      "y": "0.0299234 cm/px"
+     },
+     {
+      "bounds": [
+       0,
+       32,
+       584,
+       596
+      ],
+      "format": "2d",
+      "dataType": "tissue",
+      "x": "0.0299234 cm/px",
+      "y": "0.0299234 cm/px"
+     }
+    ],
+    "plane": null
+   },
+   "dx": {
+    "collection": "cmb_lca",
+    "license": "CC BY 4.0",
+    "modality": "DX",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "rows": 1693,
+    "columns": 1353,
+    "frames": 1,
+    "headerBytes": 2952,
+    "fileBytes": 4584210,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.15,
+     "y": 0.15,
+     "unit": "mm",
+     "source": "ImagerPixelSpacing",
+     "plane": "detector",
+     "alternatives": [],
+     "notes": [
+      "Pixel Spacing equals Imager Pixel Spacing without a calibration type: detector plane"
+     ]
+    },
+    "display": {
+     "photometric": "MONOCHROME1",
+     "bitsStored": 14,
+     "signed": false,
+     "invert": true,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0,
+      "type": "US"
+     },
+     "windows": [
+      {
+       "center": 8192,
+       "width": 11222
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": [
+      "MONOCHROME1 with Presentation LUT Shape INVERSE: one inversion, not two"
+     ]
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "mg": {
+    "collection": "breast_diagnosis",
+    "license": "CC BY 3.0",
+    "modality": "MG",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 8,
+    "rows": 512,
+    "columns": 512,
+    "frames": 1,
+    "headerBytes": 2996,
+    "fileBytes": 527284,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.024,
+     "y": 0.024,
+     "unit": "mm",
+     "source": "ImagerPixelSpacing",
+     "plane": "detector",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME1",
+     "bitsStored": 14,
+     "signed": false,
+     "invert": true,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0,
+      "type": "US"
+     },
+     "windows": [
+      {
+       "center": 1110,
+       "width": 1193
+      },
+      {
+       "center": 1110,
+       "width": 1193
+      }
+     ],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "window",
+     "notes": [
+      "MONOCHROME1 with Presentation LUT Shape INVERSE: one inversion, not two"
+     ]
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "sm-jpeg": {
+    "collection": "gtex",
+    "license": "CC BY 4.0",
+    "modality": "SM",
+    "transferSyntax": "1.2.840.10008.1.2.4.50",
+    "instances": 5,
+    "rows": 240,
+    "columns": 240,
+    "frames": 2250,
+    "headerBytes": 148794,
+    "fileBytes": 9487302,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.4942,
+     "y": 0.4942,
+     "unit": "µm",
+     "source": "PixelMeasuresSequence",
+     "plane": "slide",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "RGB",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": []
+    },
+    "timing": {
+     "axis": "tiles",
+     "dimensions": [],
+     "frames": 2250,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "sm-j2k": {
+    "collection": "cptac_brca",
+    "license": "CC BY 4.0",
+    "modality": "SM",
+    "transferSyntax": "1.2.840.10008.1.2.4.91",
+    "instances": 6,
+    "rows": 256,
+    "columns": 256,
+    "frames": 5168,
+    "headerBytes": 147830,
+    "fileBytes": 2428616,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.2501,
+     "y": 0.2501,
+     "unit": "µm",
+     "source": "PixelMeasuresSequence",
+     "plane": "slide",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "YBR_FULL_422",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": []
+    },
+    "timing": {
+     "axis": "tiles",
+     "dimensions": [],
+     "frames": 5168,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "3p-ann-nuclei": {
+    "collection": "tcga_gbm",
+    "license": "CC BY 4.0",
+    "modality": "ANN",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "frames": 1,
+    "headerBytes": 12758524,
+    "fileBytes": 12758524,
+    "truncatedFetch": false,
+    "pixelSpacing": null,
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": [
+      "no VOI in the header: full stored range (a renderer should prefer the pixel min/max)"
+     ]
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "3p-ann-small": {
+    "collection": "bonemarrowwsi_pediatricleukemia",
+    "license": "CC BY 4.0",
+    "modality": "ANN",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "frames": 1,
+    "headerBytes": 6190,
+    "fileBytes": 6190,
+    "truncatedFetch": false,
+    "pixelSpacing": null,
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": [
+      "no VOI in the header: full stored range (a renderer should prefer the pixel min/max)"
+     ]
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "3p-seg-lidc": {
+    "collection": "lidc_idri",
+    "license": "CC BY 3.0",
+    "modality": "SEG",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "rows": 512,
+    "columns": 512,
+    "frames": 1,
+    "headerBytes": 3218,
+    "fileBytes": 35986,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.622,
+     "y": 0.622,
+     "unit": "mm",
+     "source": "PixelMeasuresSequence",
+     "plane": "patient",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 1,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": [
+      "no VOI in the header: full stored range (a renderer should prefer the pixel min/max)"
+     ]
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "3p-sr-lidc": {
+    "collection": "lidc_idri",
+    "license": "CC BY 3.0",
+    "modality": "SR",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "frames": 1,
+    "headerBytes": 52710,
+    "fileBytes": 52710,
+    "truncatedFetch": false,
+    "pixelSpacing": null,
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": [
+      "no VOI in the header: full stored range (a renderer should prefer the pixel min/max)"
+     ]
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "3p-seg-qiba": {
+    "collection": "rider_pilot",
+    "license": "CC BY 4.0",
+    "modality": "SEG",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "rows": 13,
+    "columns": 13,
+    "frames": 4,
+    "headerBytes": 2940,
+    "fileBytes": 3616,
+    "truncatedFetch": false,
+    "pixelSpacing": {
+     "x": 0.78125,
+     "y": 0.78125,
+     "unit": "mm",
+     "source": "PixelMeasuresSequence",
+     "plane": "patient",
+     "alternatives": [],
+     "notes": []
+    },
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": [
+      "no VOI in the header: full stored range (a renderer should prefer the pixel min/max)"
+     ]
+    },
+    "timing": {
+     "axis": "unknown",
+     "dimensions": [],
+     "frames": 4,
+     "notes": [
+      "enhanced multi-frame: frame semantics are in the dimension index, not timing tags"
+     ]
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   },
+   "3p-sr-qiba": {
+    "collection": "rider_pilot",
+    "license": "CC BY 4.0",
+    "modality": "SR",
+    "transferSyntax": "1.2.840.10008.1.2.1",
+    "instances": 1,
+    "frames": 1,
+    "headerBytes": 16854,
+    "fileBytes": 16854,
+    "truncatedFetch": false,
+    "pixelSpacing": null,
+    "display": {
+     "photometric": "MONOCHROME2",
+     "bitsStored": 8,
+     "signed": false,
+     "invert": false,
+     "rescale": {
+      "slope": 1,
+      "intercept": 0
+     },
+     "windows": [],
+     "voiFunction": "LINEAR",
+     "voiLuts": 0,
+     "defaultVoi": "range",
+     "notes": [
+      "no VOI in the header: full stored range (a renderer should prefer the pixel min/max)"
+     ]
+    },
+    "timing": {
+     "axis": "single",
+     "dimensions": [],
+     "frames": 1,
+     "notes": []
+    },
+    "ultrasoundRegions": [],
+    "plane": null
+   }
+  },
+  "parsers": {
+   "reps": 3,
+   "correctness": {
+    "@osdlabel/dicom": {
+     "files": 103,
+     "ok": 103,
+     "failures": [],
+     "errors": []
+    },
+    "dicom-parser": {
+     "files": 103,
+     "ok": 102,
+     "failures": [],
+     "errors": [
+      {
+       "file": "us-ceus/b6471494-3ca5-4431-9686-6d2568b4c71c.dcm",
+       "error": "[object Object]"
+      }
+     ]
+    },
+    "dcmjs": {
+     "files": 103,
+     "ok": 103,
+     "failures": [],
+     "errors": []
+    }
+   },
+   "perRole": {
+    "3p-ann-nuclei": {
+     "files": 1,
+     "mb": 12.76,
+     "ms": {
+      "@osdlabel/dicom|header": 0.219,
+      "dicom-parser|header": 0.77,
+      "dcmjs|header": 53.425,
+      "@osdlabel/dicom|full": 1.111,
+      "dicom-parser|full": 0.586,
+      "dcmjs|full": 26.285
+     }
+    },
+    "3p-ann-small": {
+     "files": 1,
+     "mb": 0.01,
+     "ms": {
+      "@osdlabel/dicom|header": 0.112,
+      "dicom-parser|header": 0.286,
+      "dcmjs|header": 3.153,
+      "@osdlabel/dicom|full": 0.092,
+      "dicom-parser|full": 0.195,
+      "dcmjs|full": 1.424
+     }
+    },
+    "3p-seg-lidc": {
+     "files": 1,
+     "mb": 0.04,
+     "ms": {
+      "@osdlabel/dicom|header": 0.066,
+      "dicom-parser|header": 0.152,
+      "dcmjs|header": 0.732,
+      "@osdlabel/dicom|full": 0.066,
+      "dicom-parser|full": 0.148,
+      "dcmjs|full": 0.673
+     }
+    },
+    "3p-seg-qiba": {
+     "files": 1,
+     "mb": 0,
+     "ms": {
+      "@osdlabel/dicom|header": 0.059,
+      "dicom-parser|header": 0.12,
+      "dcmjs|header": 0.634,
+      "@osdlabel/dicom|full": 0.06,
+      "dicom-parser|full": 0.135,
+      "dcmjs|full": 0.649
+     }
+    },
+    "3p-sr-lidc": {
+     "files": 1,
+     "mb": 0.05,
+     "ms": {
+      "@osdlabel/dicom|header": 0.408,
+      "dicom-parser|header": 3.138,
+      "dcmjs|header": 64.119,
+      "@osdlabel/dicom|full": 3.201,
+      "dicom-parser|full": 1.192,
+      "dcmjs|full": 17.047
+     }
+    },
+    "3p-sr-qiba": {
+     "files": 1,
+     "mb": 0.02,
+     "ms": {
+      "@osdlabel/dicom|header": 0.364,
+      "dicom-parser|header": 0.456,
+      "dcmjs|header": 6.048,
+      "@osdlabel/dicom|full": 0.408,
+      "dicom-parser|full": 0.524,
+      "dcmjs|full": 3.459
+     }
+    },
+    "ct": {
+     "files": 24,
+     "mb": 3.2,
+     "ms": {
+      "@osdlabel/dicom|header": 0.764,
+      "dicom-parser|header": 3.587,
+      "dcmjs|header": 11.715,
+      "@osdlabel/dicom|full": 0.848,
+      "dicom-parser|full": 10.8,
+      "dcmjs|full": 9.286
+     }
+    },
+    "dx": {
+     "files": 1,
+     "mb": 4.58,
+     "ms": {
+      "@osdlabel/dicom|header": 0.091,
+      "dicom-parser|header": 0.134,
+      "dcmjs|header": 0.66,
+      "@osdlabel/dicom|full": 0.074,
+      "dicom-parser|full": 0.177,
+      "dcmjs|full": 5.878
+     }
+    },
+    "mg": {
+     "files": 8,
+     "mb": 4.22,
+     "ms": {
+      "@osdlabel/dicom|header": 0.447,
+      "dicom-parser|header": 5.385,
+      "dcmjs|header": 14.168,
+      "@osdlabel/dicom|full": 0.274,
+      "dicom-parser|full": 0.595,
+      "dcmjs|full": 4.963
+     }
+    },
+    "mr": {
+     "files": 24,
+     "mb": 0.31,
+     "ms": {
+      "@osdlabel/dicom|header": 0.895,
+      "dicom-parser|header": 1.765,
+      "dcmjs|header": 10.807,
+      "@osdlabel/dicom|full": 2.3,
+      "dicom-parser|full": 1.708,
+      "dcmjs|full": 14.799
+     }
+    },
+    "mr-implicit": {
+     "files": 25,
+     "mb": 0.35,
+     "ms": {
+      "@osdlabel/dicom|header": 3.855,
+      "dicom-parser|header": 4.882,
+      "dcmjs|header": 47.577,
+      "@osdlabel/dicom|full": 1.586,
+      "dicom-parser|full": 4.016,
+      "dcmjs|full": 39.366
+     }
+    },
+    "sm-j2k": {
+     "files": 6,
+     "mb": 8.08,
+     "ms": {
+      "@osdlabel/dicom|header": 0.288,
+      "dicom-parser|header": 0.711,
+      "dcmjs|header": 9.175,
+      "@osdlabel/dicom|full": 0.592,
+      "dicom-parser|full": 4.812,
+      "dcmjs|full": 20.216
+     }
+    },
+    "sm-jpeg": {
+     "files": 5,
+     "mb": 15.9,
+     "ms": {
+      "@osdlabel/dicom|header": 0.326,
+      "dicom-parser|header": 10.048,
+      "dcmjs|header": 23.002,
+      "@osdlabel/dicom|full": 1.025,
+      "dicom-parser|full": 5.678,
+      "dcmjs|full": 10826.039
+     }
+    },
+    "us-ceus": {
+     "files": 1,
+     "mb": 0.26,
+     "ms": {
+      "@osdlabel/dicom|header": 0.074,
+      "dicom-parser|header": 0.33,
+      "dcmjs|header": 0.747,
+      "@osdlabel/dicom|full": 0.146,
+      "dicom-parser|full": 0.142,
+      "dcmjs|full": 0.781
+     }
+    },
+    "us-ge": {
+     "files": 1,
+     "mb": 0.49,
+     "ms": {
+      "@osdlabel/dicom|header": 0.066,
+      "dicom-parser|header": 0.132,
+      "dcmjs|header": 0.55,
+      "@osdlabel/dicom|full": 0.066,
+      "dicom-parser|full": 0.136,
+      "dcmjs|full": 0.758
+     }
+    },
+    "us-multiframe": {
+     "files": 1,
+     "mb": 26.55,
+     "ms": {
+      "@osdlabel/dicom|header": 0.076,
+      "dicom-parser|header": 0.125,
+      "dcmjs|header": 0.59,
+      "@osdlabel/dicom|full": 0.081,
+      "dicom-parser|full": 0.112,
+      "dcmjs|full": 34.897
+     }
+    },
+    "us-philips": {
+     "files": 1,
+     "mb": 0.79,
+     "ms": {
+      "@osdlabel/dicom|header": 0.077,
+      "dicom-parser|header": 0.145,
+      "dcmjs|header": 0.612,
+      "@osdlabel/dicom|full": 0.079,
+      "dicom-parser|full": 0.14,
+      "dcmjs|full": 0.869
+     }
+    }
+   },
+   "truth": "pydicom"
+  },
+  "bundles": {
+   "own: readPart10 only": {
+    "raw": 17415,
+    "gzip": 5512,
+    "brotli": 4694
+   },
+   "own: ingest (reader + mapping + DICOM JSON)": {
+    "raw": 32162,
+    "gzip": 10774,
+    "brotli": 9422
+   },
+   "own: @osdlabel/dicom (all)": {
+    "raw": 42611,
+    "gzip": 14505,
+    "brotli": 12772
+   },
+   "own: @osdlabel/dicom-wsi (all, incl. dicom)": {
+    "raw": 35523,
+    "gzip": 11821,
+    "brotli": 10393
+   },
+   "own: @osdlabel/dicom-export (all, incl. dicom)": {
+    "raw": 42508,
+    "gzip": 13633,
+    "brotli": 11959
+   },
+   "dicom-parser: parseDicom": {
+    "raw": 31307,
+    "gzip": 7563,
+    "brotli": 6724
+   },
+   "dcmjs: read + naturalize": {
+    "raw": 715328,
+    "gzip": 198059,
+    "brotli": 161249
+   },
+   "dcmjs: read + write": {
+    "raw": 715359,
+    "gzip": 198077,
+    "brotli": 161291
+   },
+   "dcmjs: whole package (SR/SEG derivations)": {
+    "raw": 715235,
+    "gzip": 198033,
+    "brotli": 161156
+   },
+   "reference: openseadragon": {
+    "raw": 278377,
+    "gzip": 68217,
+    "brotli": 57309
+   },
+   "codec: @cornerstonejs/codec-openjpeg (decode wasm + glue)": {
+    "raw": 316093,
+    "gzip": 101390,
+    "brotli": 84346
+   }
+  },
+  "survey": {
+   "CT": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 3044,
+    "maxHeaderBytes": 14036,
+    "maxRangeRequests": 1,
+    "spacing": {
+     "PixelSpacing@patient": 39,
+     "none@-": 1
+    },
+    "pctNoSpacing": 2.5,
+    "pctImagerPixelSpacing": 0,
+    "pctERMF": 0,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 32.5,
+    "pctNoWindow": 10,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 0,
+    "pctEnhanced": 0,
+    "pctMultiFrame": 0,
+    "multiFrameAxes": {},
+    "pctPlane": 97.5,
+    "errors": []
+   },
+   "MR": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 3926,
+    "maxHeaderBytes": 11294,
+    "maxRangeRequests": 3,
+    "spacing": {
+     "PixelSpacing@patient": 38,
+     "none@-": 2
+    },
+    "pctNoSpacing": 5,
+    "pctImagerPixelSpacing": 0,
+    "pctERMF": 0,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 2.5,
+    "pctNoWindow": 5,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 0,
+    "pctEnhanced": 0,
+    "pctMultiFrame": 0,
+    "multiFrameAxes": {},
+    "pctPlane": 95,
+    "errors": []
+   },
+   "US": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 2710,
+    "maxHeaderBytes": 58866,
+    "maxRangeRequests": 1,
+    "spacing": {
+     "SequenceOfUltrasoundRegions@ultrasound-region": 26,
+     "PixelMeasuresSequence@patient": 5,
+     "PixelSpacing@patient": 4,
+     "none@-": 5
+    },
+    "pctNoSpacing": 12.5,
+    "pctImagerPixelSpacing": 0,
+    "pctERMF": 0,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 0,
+    "pctNoWindow": 37.5,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 0,
+    "pctEnhanced": 12.5,
+    "pctMultiFrame": 25,
+    "multiFrameAxes": {
+     "other": 5,
+     "time": 1,
+     "space": 4
+    },
+    "pctPlane": 0,
+    "usRegions": {
+     "withRegions": 27,
+     "multiRegion": 3,
+     "multiCalibration": 0,
+     "units": {
+      "cmxcm": 28,
+      "nonexnone": 2
+     }
+    },
+    "errors": []
+   },
+   "DX": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 3262,
+    "maxHeaderBytes": 102078,
+    "maxRangeRequests": 2,
+    "spacing": {
+     "none@-": 6,
+     "ImagerPixelSpacing@detector": 34
+    },
+    "pctNoSpacing": 15,
+    "pctImagerPixelSpacing": 85,
+    "pctERMF": 0,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 42.5,
+    "pctNoWindow": 0,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 7.5,
+    "pctModalityLut": 0,
+    "pctInvert": 15,
+    "pctEnhanced": 0,
+    "pctMultiFrame": 0,
+    "multiFrameAxes": {},
+    "pctPlane": 0,
+    "errors": []
+   },
+   "CR": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 3048,
+    "maxHeaderBytes": 102510,
+    "maxRangeRequests": 2,
+    "spacing": {
+     "ImagerPixelSpacing@detector": 38,
+     "ImagerPixelSpacing/EstimatedRadiographicMagnificationFactor@estimated-patient": 1,
+     "none@-": 1
+    },
+    "pctNoSpacing": 2.5,
+    "pctImagerPixelSpacing": 97.5,
+    "pctERMF": 2.5,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 17.5,
+    "pctNoWindow": 15,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 27.5,
+    "pctModalityLut": 0,
+    "pctInvert": 57.5,
+    "pctEnhanced": 0,
+    "pctMultiFrame": 0,
+    "multiFrameAxes": {},
+    "pctPlane": 0,
+    "errors": []
+   },
+   "MG": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 2828,
+    "maxHeaderBytes": 29332,
+    "maxRangeRequests": 1,
+    "spacing": {
+     "ImagerPixelSpacing@detector": 14,
+     "PixelMeasuresSequence@patient": 4,
+     "ImagerPixelSpacing/EstimatedRadiographicMagnificationFactor@estimated-patient": 17,
+     "none@-": 5
+    },
+    "pctNoSpacing": 12.5,
+    "pctImagerPixelSpacing": 77.5,
+    "pctERMF": 42.5,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 2.5,
+    "pctNoWindow": 40,
+    "pctNonLinearVoi": 15,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 5,
+    "pctEnhanced": 10,
+    "pctMultiFrame": 10,
+    "multiFrameAxes": {
+     "unknown": 4
+    },
+    "pctPlane": 0,
+    "errors": []
+   },
+   "XA": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 2640,
+    "maxHeaderBytes": 3478,
+    "maxRangeRequests": 1,
+    "spacing": {
+     "ImagerPixelSpacing@detector": 3,
+     "PixelSpacing@detector": 1,
+     "ImagerPixelSpacing/EstimatedRadiographicMagnificationFactor@estimated-patient": 33,
+     "none@-": 3
+    },
+    "pctNoSpacing": 7.5,
+    "pctImagerPixelSpacing": 90,
+    "pctERMF": 82.5,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 2.5,
+    "pctNoWindow": 0,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 0,
+    "pctEnhanced": 0,
+    "pctMultiFrame": 0,
+    "multiFrameAxes": {},
+    "pctPlane": 2.5,
+    "errors": []
+   },
+   "PT": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 4300,
+    "maxHeaderBytes": 397588,
+    "maxRangeRequests": 3,
+    "spacing": {
+     "PixelSpacing@patient": 39,
+     "none@-": 1
+    },
+    "pctNoSpacing": 2.5,
+    "pctImagerPixelSpacing": 0,
+    "pctERMF": 0,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 25,
+    "pctNoWindow": 45,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 0,
+    "pctEnhanced": 0,
+    "pctMultiFrame": 0,
+    "multiFrameAxes": {},
+    "pctPlane": 97.5,
+    "errors": []
+   },
+   "NM": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 5282,
+    "maxHeaderBytes": 19748,
+    "maxRangeRequests": 1,
+    "spacing": {
+     "PixelSpacing@patient": 39,
+     "none@-": 1
+    },
+    "pctNoSpacing": 2.5,
+    "pctImagerPixelSpacing": 0,
+    "pctERMF": 0,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 0,
+    "pctNoWindow": 15,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 0,
+    "pctEnhanced": 0,
+    "pctMultiFrame": 80,
+    "multiFrameAxes": {
+     "multi": 25,
+     "space": 7
+    },
+    "pctPlane": 0,
+    "errors": []
+   },
+   "SM": {
+    "n": 40,
+    "parsed": 40,
+    "headerComplete": 40,
+    "medianHeaderBytes": 152896,
+    "maxHeaderBytes": 13122818,
+    "maxRangeRequests": 5,
+    "spacing": {
+     "PixelMeasuresSequence@slide": 37,
+     "none@-": 3
+    },
+    "pctNoSpacing": 7.5,
+    "pctImagerPixelSpacing": 0,
+    "pctERMF": 0,
+    "pctCalibrationType": 0,
+    "pctMultiWindow": 0,
+    "pctNoWindow": 100,
+    "pctNonLinearVoi": 0,
+    "pctVoiLut": 0,
+    "pctModalityLut": 0,
+    "pctInvert": 0,
+    "pctEnhanced": 100,
+    "pctMultiFrame": 72.5,
+    "multiFrameAxes": {
+     "tiles": 29
+    },
+    "pctPlane": 0,
+    "errors": []
+   },
+   "_from": "results/survey.json (previous --survey run)"
+  }
+ },
+ "h2": {
+  "wsi": [
+   {
+    "role": "sm-jpeg",
+    "mode": "part10",
+    "drawer": "canvas",
+    "reps": 3,
+    "drawerActual": "canvas",
+    "levels": [
+     {
+      "width": 2240,
+      "height": 873,
+      "tile": 240,
+      "frames": 40,
+      "downsample": 8.003,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 4481,
+      "height": 1746,
+      "tile": 240,
+      "frames": 152,
+      "downsample": 4.001,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 17927,
+      "height": 6985,
+      "tile": 240,
+      "frames": 2250,
+      "downsample": 1,
+      "ts": "1.2.840.10008.1.2.4.50"
+     }
+    ],
+    "metadataMs": 226.5,
+    "firstTileMs": 67.1,
+    "homeMs": 863.2,
+    "homeTiles": 40,
+    "zoomMs": [
+     456.7,
+     593.4
+    ],
+    "zoomTiles": [
+     24,
+     35
+    ],
+    "failedTiles": 0,
+    "tileFetchMedianMs": 0.6,
+    "tileFetchP90Ms": 2.1,
+    "tileDecodeMedianMs": 8.9,
+    "tileDecodeP90Ms": 38.2,
+    "j2kWorkerMedianMs": null,
+    "tileBytes": 1472858,
+    "serverRequests": 5,
+    "serverBytes": 15902732,
+    "raw": [
+     {
+      "homeMs": 683.5,
+      "zoomMs": [
+       456.7,
+       592
+      ],
+      "firstTileMs": 67.1
+     },
+     {
+      "homeMs": 863.2,
+      "zoomMs": [
+       644.3,
+       773.1
+      ],
+      "firstTileMs": 35.2
+     },
+     {
+      "homeMs": 893.9,
+      "zoomMs": [
+       427.8,
+       593.4
+      ],
+      "firstTileMs": 120.1
+     }
+    ]
+   },
+   {
+    "role": "sm-jpeg",
+    "mode": "range",
+    "drawer": "canvas",
+    "reps": 3,
+    "drawerActual": "canvas",
+    "levels": [
+     {
+      "width": 2240,
+      "height": 873,
+      "tile": 240,
+      "frames": 40,
+      "downsample": 8.003,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 4481,
+      "height": 1746,
+      "tile": 240,
+      "frames": 152,
+      "downsample": 4.001,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 17927,
+      "height": 6985,
+      "tile": 240,
+      "frames": 2250,
+      "downsample": 1,
+      "ts": "1.2.840.10008.1.2.4.50"
+     }
+    ],
+    "metadataMs": 72,
+    "firstTileMs": 134.5,
+    "homeMs": 741.9,
+    "homeTiles": 40,
+    "zoomMs": [
+     471.7,
+     763.9
+    ],
+    "zoomTiles": [
+     24,
+     35
+    ],
+    "failedTiles": 0,
+    "tileFetchMedianMs": 23.8,
+    "tileFetchP90Ms": 90.3,
+    "tileDecodeMedianMs": 4.4,
+    "tileDecodeP90Ms": 26.3,
+    "j2kWorkerMedianMs": null,
+    "tileBytes": 1615818,
+    "serverRequests": 104,
+    "serverBytes": 2926538,
+    "raw": [
+     {
+      "homeMs": 741.9,
+      "zoomMs": [
+       471.7,
+       910.7
+      ],
+      "firstTileMs": 134.5
+     },
+     {
+      "homeMs": 692.5,
+      "zoomMs": [
+       481.8,
+       763.9
+      ],
+      "firstTileMs": 130.5
+     },
+     {
+      "homeMs": 852.5,
+      "zoomMs": [
+       429.5,
+       595.5
+      ],
+      "firstTileMs": 216.8
+     }
+    ]
+   },
+   {
+    "role": "sm-jpeg",
+    "mode": "dicomweb",
+    "drawer": "canvas",
+    "reps": 3,
+    "drawerActual": "canvas",
+    "levels": [
+     {
+      "width": 2240,
+      "height": 873,
+      "tile": 240,
+      "frames": 40,
+      "downsample": 8.003,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 4481,
+      "height": 1746,
+      "tile": 240,
+      "frames": 152,
+      "downsample": 4.001,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 17927,
+      "height": 6985,
+      "tile": 240,
+      "frames": 2250,
+      "downsample": 1,
+      "ts": "1.2.840.10008.1.2.4.50"
+     }
+    ],
+    "metadataMs": 33,
+    "firstTileMs": 256.7,
+    "homeMs": 1190.4,
+    "homeTiles": 40,
+    "zoomMs": [
+     469.5,
+     749
+    ],
+    "zoomTiles": [
+     24,
+     35
+    ],
+    "failedTiles": 0,
+    "tileFetchMedianMs": 29.6,
+    "tileFetchP90Ms": 171,
+    "tileDecodeMedianMs": 14.7,
+    "tileDecodeP90Ms": 64.4,
+    "j2kWorkerMedianMs": null,
+    "tileBytes": 1472858,
+    "serverRequests": 100,
+    "serverBytes": 1545179,
+    "raw": [
+     {
+      "homeMs": 1028.5,
+      "zoomMs": [
+       440.2,
+       657
+      ],
+      "firstTileMs": 132
+     },
+     {
+      "homeMs": 1354.7,
+      "zoomMs": [
+       469.5,
+       1190.1
+      ],
+      "firstTileMs": 256.7
+     },
+     {
+      "homeMs": 1190.4,
+      "zoomMs": [
+       555.9,
+       749
+      ],
+      "firstTileMs": 449.2
+     }
+    ]
+   },
+   {
+    "role": "sm-jpeg",
+    "mode": "dicomweb",
+    "drawer": "canvas",
+    "latency": 50,
+    "reps": 3,
+    "drawerActual": "canvas",
+    "levels": [
+     {
+      "width": 2240,
+      "height": 873,
+      "tile": 240,
+      "frames": 40,
+      "downsample": 8.003,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 4481,
+      "height": 1746,
+      "tile": 240,
+      "frames": 152,
+      "downsample": 4.001,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 17927,
+      "height": 6985,
+      "tile": 240,
+      "frames": 2250,
+      "downsample": 1,
+      "ts": "1.2.840.10008.1.2.4.50"
+     }
+    ],
+    "metadataMs": 81.9,
+    "firstTileMs": 257.6,
+    "homeMs": 1027.5,
+    "homeTiles": 40,
+    "zoomMs": [
+     593.2,
+     994.9
+    ],
+    "zoomTiles": [
+     24,
+     35
+    ],
+    "failedTiles": 0,
+    "tileFetchMedianMs": 72.3,
+    "tileFetchP90Ms": 206.4,
+    "tileDecodeMedianMs": 9.7,
+    "tileDecodeP90Ms": 48.4,
+    "j2kWorkerMedianMs": null,
+    "tileBytes": 1472858,
+    "serverRequests": 100,
+    "serverBytes": 1545179,
+    "raw": [
+     {
+      "homeMs": 1136.1,
+      "zoomMs": [
+       462.1,
+       697.5
+      ],
+      "firstTileMs": 257.6
+     },
+     {
+      "homeMs": 1027.5,
+      "zoomMs": [
+       746.4,
+       994.9
+      ],
+      "firstTileMs": 321.8
+     },
+     {
+      "homeMs": 965.1,
+      "zoomMs": [
+       593.2,
+       1177.3
+      ],
+      "firstTileMs": 115.6
+     }
+    ]
+   },
+   {
+    "role": "sm-jpeg",
+    "mode": "dicomweb",
+    "drawer": "webgl",
+    "reps": 3,
+    "drawerActual": "webgl",
+    "levels": [
+     {
+      "width": 2240,
+      "height": 873,
+      "tile": 240,
+      "frames": 40,
+      "downsample": 8.003,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 4481,
+      "height": 1746,
+      "tile": 240,
+      "frames": 152,
+      "downsample": 4.001,
+      "ts": "1.2.840.10008.1.2.4.50"
+     },
+     {
+      "width": 17927,
+      "height": 6985,
+      "tile": 240,
+      "frames": 2250,
+      "downsample": 1,
+      "ts": "1.2.840.10008.1.2.4.50"
+     }
+    ],
+    "metadataMs": 46.7,
+    "firstTileMs": 124.7,
+    "homeMs": 3876.7,
+    "homeTiles": 40,
+    "zoomMs": [
+     8972,
+     11850.9
+    ],
+    "zoomTiles": [
+     24,
+     35
+    ],
+    "failedTiles": 0,
+    "tileFetchMedianMs": 617,
+    "tileFetchP90Ms": 1116.6,
+    "tileDecodeMedianMs": 612.5,
+    "tileDecodeP90Ms": 1130.3,
+    "j2kWorkerMedianMs": null,
+    "tileBytes": 1472858,
+    "serverRequests": 100,
+    "serverBytes": 1545179,
+    "raw": [
+     {
+      "homeMs": 5998.7,
+      "zoomMs": [
+       9188.7,
+       9452
+      ],
+      "firstTileMs": 124.7
+     },
+     {
+      "homeMs": 3135.5,
+      "zoomMs": [
+       5643.5,
+       11850.9
+      ],
+      "firstTileMs": 270
+     },
+     {
+      "homeMs": 3876.7,
+      "zoomMs": [
+       8972,
+       17015.9
+      ],
+      "firstTileMs": 111.2
+     }
+    ]
+   },
+   {
+    "role": "sm-j2k",
+    "mode": "part10",
+    "drawer": "canvas",
+    "reps": 3,
+    "drawerActual": "canvas",
+    "levels": [
+     {
+      "width": 2160,
+      "height": 2414,
+      "tile": 256,
+      "frames": 90,
+      "downsample": 8,
+      "ts": "1.2.840.10008.1.2.4.91"
+     },
+     {
+      "width": 4320,
+      "height": 4829,
+      "tile": 256,
+      "frames": 323,
+      "downsample": 4,
+      "ts": "1.2.840.10008.1.2.4.91"
+     },
+     {
+      "width": 17280,
+      "height": 19316,
+      "tile": 256,
+      "frames": 5168,
+      "downsample": 1,
+      "ts": "1.2.840.10008.1.2.4.91"
+     }
+    ],
+    "metadataMs": 124.6,
+    "firstTileMs": 422.1,
+    "homeMs": 1947.7,
+    "homeTiles": 90,
+    "zoomMs": [
+     538.5,
+     574.2
+    ],
+    "zoomTiles": [
+     24,
+     24
+    ],
+    "failedTiles": 0,
+    "tileFetchMedianMs": 1.1,
+    "tileFetchP90Ms": 3.2,
+    "tileDecodeMedianMs": 11.7,
+    "tileDecodeP90Ms": 73.2,
+    "j2kWorkerMedianMs": 6.8,
+    "tileBytes": 306942,
+    "serverRequests": 6,
+    "serverBytes": 8083124,
+    "raw": [
+     {
+      "homeMs": 2472.2,
+      "zoomMs": [
+       538.5,
+       595.6
+      ],
+      "firstTileMs": 1025.2
+     },
+     {
+      "homeMs": 1947.7,
+      "zoomMs": [
+       1641.5,
+       475.1
+      ],
+      "firstTileMs": 422.1
+     },
+     {
+      "homeMs": 1911.3,
+      "zoomMs": [
+       411.2,
+       574.2
+      ],
+      "firstTileMs": 177.2
+     }
+    ]
+   },
+   {
+    "role": "sm-j2k",
+    "mode": "dicomweb",
+    "drawer": "canvas",
+    "reps": 3,
+    "drawerActual": "canvas",
+    "levels": [
+     {
+      "width": 2160,
+      "height": 2414,
+      "tile": 256,
+      "frames": 90,
+      "downsample": 8,
+      "ts": "1.2.840.10008.1.2.4.91"
+     },
+     {
+      "width": 4320,
+      "height": 4829,
+      "tile": 256,
+      "frames": 323,
+      "downsample": 4,
+      "ts": "1.2.840.10008.1.2.4.91"
+     },
+     {
+      "width": 17280,
+      "height": 19316,
+      "tile": 256,
+      "frames": 5168,
+      "downsample": 1,
+      "ts": "1.2.840.10008.1.2.4.91"
+     }
+    ],
+    "metadataMs": 34.6,
+    "firstTileMs": 410.4,
+    "homeMs": 2600.1,
+    "homeTiles": 90,
+    "zoomMs": [
+     819.9,
+     642.6
+    ],
+    "zoomTiles": [
+     24,
+     24
+    ],
+    "failedTiles": 0,
+    "tileFetchMedianMs": 49.1,
+    "tileFetchP90Ms": 322.6,
+    "tileDecodeMedianMs": 15.9,
+    "tileDecodeP90Ms": 154.5,
+    "j2kWorkerMedianMs": 5.5,
+    "tileBytes": 306942,
+    "serverRequests": 139,
+    "serverBytes": 383777,
+    "raw": [
+     {
+      "homeMs": 2600.1,
+      "zoomMs": [
+       405.2,
+       1171.9
+      ],
+      "firstTileMs": 410.4
+     },
+     {
+      "homeMs": 3212.4,
+      "zoomMs": [
+       1102.4,
+       642.6
+      ],
+      "firstTileMs": 984.4
+     },
+     {
+      "homeMs": 2448.7,
+      "zoomMs": [
+       819.9,
+       605.5
+      ],
+      "firstTileMs": 295.5
+     }
+    ]
+   }
+  ],
+  "annotate": {
+   "ms": 16507,
+   "loadTimings": {
+    "wsi-metadata": 36.375,
+    "ct-load+render": 564.9050000000279,
+    "ct-render-median-ms": 0.7549999998882413,
+    "us-ge-load+render": 35.764999999897555,
+    "us-ge-render-median-ms": 6.3950000000186265,
+    "dx-load+render": 232.1699999999255,
+    "dx-render-median-ms": 25.860000000102445
+   },
+   "images": 27,
+   "drawn": [
+    {
+     "type": "rectangle",
+     "image": "6595905.10.0"
+    },
+    {
+     "type": "line",
+     "image": "6595905.10.0"
+    },
+    {
+     "type": "circle",
+     "image": "392560121716"
+    },
+    {
+     "type": "mask",
+     "image": "392560121716"
+    },
+    {
+     "type": "line",
+     "image": "219773554977"
+    }
+   ],
+   "wsiGeometry": [
+    {
+     "type": "rectangle",
+     "origin": {
+      "x": 6274.4498274181915,
+      "y": 2378.4247782621915
+     },
+     "width": 2689.050172583742,
+     "height": 1671.1132640663718,
+     "rotation": 0
+    },
+    {
+     "type": "line",
+     "start": {
+      "x": 9859.85034516845,
+      "y": 1264.3491250653092
+     },
+     "end": {
+      "x": 12548.899654836383,
+      "y": 2935.4623891316805
+     }
+    }
+   ],
+   "measurementLabels": [
+    "L: 10.01 mm"
+   ],
+   "exported": [
+    {
+     "name": "sm-sr.dcm",
+     "kind": "SR",
+     "items": 2,
+     "bytes": 6234
+    },
+    {
+     "name": "sm-ann.dcm",
+     "kind": "ANN",
+     "items": 2,
+     "bytes": 4530
+    },
+    {
+     "name": "ct-sr.dcm",
+     "kind": "SR",
+     "items": 1,
+     "bytes": 4774
+    },
+    {
+     "name": "ct-seg.dcm",
+     "kind": "SEG",
+     "items": 1,
+     "bytes": 11004
+    },
+    {
+     "name": "us-ge-sr.dcm",
+     "kind": "SR",
+     "items": 1,
+     "bytes": 4488
+    }
+   ],
+   "validation": {
+    "sm-sr.dcm": {
+     "dciodvfyAvailable": true,
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 0,
+     "errorLines": [],
+     "warningLines": [],
+     "highdicomOk": true,
+     "highdicom": {
+      "groups": 2,
+      "measurements": [
+       [
+        "Area",
+        1097514.51811884,
+        "um2"
+       ],
+       [
+        "Perimeter",
+        4309.58554078497,
+        "um"
+       ],
+       [
+        "Length",
+        1564.64108141359,
+        "um"
+       ]
+      ]
+     }
+    },
+    "sm-ann.dcm": {
+     "dciodvfyAvailable": true,
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 0,
+     "errorLines": [],
+     "warningLines": [],
+     "highdicomOk": true,
+     "highdicom": {
+      "groups": [
+       [
+        "rectangle-16d70be4",
+        "RECTANGLE",
+        1
+       ],
+       [
+        "line-de94702e",
+        "POLYLINE",
+        1
+       ]
+      ]
+     }
+    },
+    "ct-sr.dcm": {
+     "dciodvfyAvailable": true,
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 0,
+     "errorLines": [],
+     "warningLines": [],
+     "highdicomOk": true,
+     "highdicom": {
+      "groups": 1,
+      "measurements": [
+       [
+        "Area",
+        7978.58102203666,
+        "mm2"
+       ],
+       [
+        "Perimeter",
+        316.641447223204,
+        "mm"
+       ]
+      ]
+     }
+    },
+    "ct-seg.dcm": {
+     "dciodvfyAvailable": true,
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 0,
+     "errorLines": [],
+     "warningLines": [],
+     "highdicomOk": true,
+     "highdicom": {
+      "segments": [
+       1
+      ],
+      "frames": 1,
+      "sources": 1,
+      "type": "BINARY",
+      "pixelsPerSegment": {
+       "1": 1447
+      }
+     }
+    },
+    "us-ge-sr.dcm": {
+     "dciodvfyAvailable": true,
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 0,
+     "errorLines": [],
+     "warningLines": [],
+     "highdicomOk": true,
+     "highdicom": {
+      "groups": 1,
+      "measurements": [
+       [
+        "Length",
+        10.0056422725834,
+        "mm"
+       ]
+      ]
+     }
+    }
+   }
+  },
+  "bulk": {
+   "fabric": [
+    {
+     "mode": "fabric",
+     "n": 0,
+     "points": 0,
+     "objects": 0,
+     "mountToObjectsMs": 76.67500000004657,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 394.00499999988824,
+        "p90": 610.5200000000186,
+        "max": 769.2349999998696
+       },
+       "fabricRenderAllMs": {
+        "median": 0.060000000055879354,
+        "p90": 0.10499999998137355,
+        "max": 3.444999999832362
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.26500000013038516,
+        "p90": 1.130000000121072,
+        "max": 1.130000000121072
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 198.32499999995343,
+        "p90": 423.8350000001956,
+        "max": 556.5900000000838
+       },
+       "fabricRenderAllMs": {
+        "median": 0.05500000016763806,
+        "p90": 0.09000000008381903,
+        "max": 0.15999999991618097
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.2549999998882413,
+        "p90": 0.6400000001303852,
+        "max": 0.6400000001303852
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 154.40500000002794,
+        "p90": 296.66500000003725,
+        "max": 433.25
+       },
+       "fabricRenderAllMs": {
+        "median": 0.05499999993480742,
+        "p90": 0.060000000055879354,
+        "max": 0.06499999994412065
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.2099999999627471,
+        "p90": 0.5549999999348074,
+        "max": 0.5549999999348074
+       }
+      }
+     },
+     "heapMB": 20.17521381378174,
+     "ann-read-ms": 764.8850000000093,
+     "wsi-metadata-ms": 15.989999999990687,
+     "build-annotations-ms": 0.005000000121071935,
+     "mount-ms": 10.21999999997206
+    },
+    {
+     "mode": "fabric",
+     "n": 500,
+     "points": 11745,
+     "objects": 500,
+     "mountToObjectsMs": 308.45999999996275,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 287.1199999998789,
+        "p90": 494.33499999996275,
+        "max": 544.1049999999814
+       },
+       "fabricRenderAllMs": {
+        "median": 99.31000000005588,
+        "p90": 189.7050000000745,
+        "max": 194.7300000002142
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 98.67000000015832,
+        "p90": 156.14999999990687,
+        "max": 156.14999999990687
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 272.34499999997206,
+        "p90": 430.19999999995343,
+        "max": 665.3000000000466
+       },
+       "fabricRenderAllMs": {
+        "median": 68.64500000001863,
+        "p90": 104.2750000001397,
+        "max": 268.74500000011176
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 2.215000000083819,
+        "p90": 3.279999999795109,
+        "max": 3.279999999795109
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 162.714999999851,
+        "p90": 302.7949999999255,
+        "max": 411.5100000000093
+       },
+       "fabricRenderAllMs": {
+        "median": 2.425000000046566,
+        "p90": 2.7600000000093132,
+        "max": 2.834999999962747
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 2.2299999999813735,
+        "p90": 12.90500000002794,
+        "max": 12.90500000002794
+       }
+      }
+     },
+     "heapMB": 38.29199028015137,
+     "ann-read-ms": 693.964999999851,
+     "wsi-metadata-ms": 14.545000000158325,
+     "build-annotations-ms": 18.889999999897555,
+     "mount-ms": 48.794999999925494
+    },
+    {
+     "mode": "fabric",
+     "n": 2000,
+     "points": 45753,
+     "objects": 2000,
+     "mountToObjectsMs": 643.8149999999441,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 722.2649999998976,
+        "p90": 965.0300000000279,
+        "max": 1677.0749999999534
+       },
+       "fabricRenderAllMs": {
+        "median": 473.1700000001583,
+        "p90": 785.1399999998976,
+        "max": 1538.904999999795
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 644.9550000000745,
+        "p90": 1102.2700000000186,
+        "max": 1102.2700000000186
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 495.8100000000559,
+        "p90": 1258.4550000000745,
+        "max": 1388.1099999998696
+       },
+       "fabricRenderAllMs": {
+        "median": 248.535000000149,
+        "p90": 526.1299999998882,
+        "max": 994.1350000000093
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 6.819999999832362,
+        "p90": 9.96999999997206,
+        "max": 9.96999999997206
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 229.6950000000652,
+        "p90": 476.6049999999814,
+        "max": 837.5600000000559
+       },
+       "fabricRenderAllMs": {
+        "median": 10.175000000046566,
+        "p90": 54.71999999997206,
+        "max": 56.87000000011176
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 6.975000000093132,
+        "p90": 10.355000000214204,
+        "max": 10.355000000214204
+       }
+      }
+     },
+     "heapMB": 91.47914028167725,
+     "ann-read-ms": 916.8850000000093,
+     "wsi-metadata-ms": 19.93999999994412,
+     "build-annotations-ms": 92.94999999995343,
+     "mount-ms": 92.32000000006519
+    },
+    {
+     "mode": "fabric",
+     "n": 8000,
+     "points": 192709,
+     "objects": 8000,
+     "mountToObjectsMs": 3994.059999999823,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 3290.160000000149,
+        "p90": 4690.645000000019,
+        "max": 6011.5449999999255
+       },
+       "fabricRenderAllMs": {
+        "median": 2651.6350000000093,
+        "p90": 4171.854999999981,
+        "max": 5667.6699999999255
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 2308.8900000001304,
+        "p90": 2646.189999999944,
+        "max": 2646.189999999944
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 1709.2900000000373,
+        "p90": 2115.910000000149,
+        "max": 2866.3950000000186
+       },
+       "fabricRenderAllMs": {
+        "median": 1334.8950000000186,
+        "p90": 1680.5900000000838,
+        "max": 2645.0449999999255
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 187.285000000149,
+        "p90": 524.7399999999907,
+        "max": 524.7399999999907
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 221.7600000000093,
+        "p90": 329.83499999996275,
+        "max": 349.9450000000652
+       },
+       "fabricRenderAllMs": {
+        "median": 68.81499999994412,
+        "p90": 103.38999999989755,
+        "max": 104.25499999988824
+       },
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 77.13000000012107,
+        "p90": 95.32499999995343,
+        "max": 95.32499999995343
+       }
+      }
+     },
+     "heapMB": 372.9872760772705,
+     "ann-read-ms": 771.1399999998976,
+     "wsi-metadata-ms": 17.34000000008382,
+     "build-annotations-ms": 328.0450000001583,
+     "mount-ms": 290.75
+    }
+   ],
+   "layer": [
+    {
+     "mode": "layer",
+     "n": 8000,
+     "points": 192709,
+     "objects": 0,
+     "mountToObjectsMs": 202.1149999999907,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 537.7150000000838,
+        "p90": 1454.8549999999814,
+        "max": 1506.4750000000931
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 265.57500000018626,
+        "p90": 307.1500000001397,
+        "max": 307.1500000001397
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 484.4799999999814,
+        "p90": 660.625,
+        "max": 679.9599999999627
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 44.985000000102445,
+        "p90": 216.27000000001863,
+        "max": 216.27000000001863
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 225.19999999995343,
+        "p90": 499.45999999996275,
+        "max": 516.7899999998044
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.2549999998882413,
+        "p90": 0.6800000001676381,
+        "max": 0.6800000001676381
+       }
+      }
+     },
+     "heapMB": 29.00157642364502,
+     "ann-read-ms": 1035.6850000000559,
+     "wsi-metadata-ms": 26.12999999988824,
+     "build-annotations-ms": 4.8950000000186265,
+     "mount-ms": 13.729999999981374,
+     "layer-build-ms": 94.40500000002794
+    },
+    {
+     "mode": "layer",
+     "n": 55092,
+     "points": 1538483,
+     "objects": 0,
+     "mountToObjectsMs": 1810.1850000000559,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 2614.964999999851,
+        "p90": 4596.870000000112,
+        "max": 4878.989999999991
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 2354.929999999935,
+        "p90": 3769.929999999935,
+        "max": 3769.929999999935
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 635.6850000000559,
+        "p90": 1027.2600000000093,
+        "max": 1353.5799999998417
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 357.94999999995343,
+        "p90": 499.30000000004657,
+        "max": 499.30000000004657
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 465.69499999983236,
+        "p90": 788.3549999999814,
+        "max": 834.4799999999814
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 247.51499999989755,
+        "p90": 280.3400000000838,
+        "max": 280.3400000000838
+       }
+      }
+     },
+     "heapMB": 157.29638385772705,
+     "ann-read-ms": 908.5150000001304,
+     "wsi-metadata-ms": 36.25499999988824,
+     "build-annotations-ms": 0.010000000009313226,
+     "mount-ms": 31.075000000186265,
+     "layer-build-ms": 1610.9899999999907
+    }
+   ],
+   "lod": [
+    {
+     "mode": "lod",
+     "n": 8000,
+     "points": 192709,
+     "objects": 0,
+     "mountToObjectsMs": 203.32499999995343,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 331.3350000001956,
+        "p90": 543.4000000001397,
+        "max": 737.1099999998696
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.6450000000186265,
+        "p90": 1.2299999999813735,
+        "max": 1.2299999999813735
+       },
+       "lod": {
+        "dotFrames": 34,
+        "pathFrames": 0,
+        "lastVisible": 7999,
+        "medianScreenPx": 0.20244629964991237
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 315.04000000003725,
+        "p90": 554.6149999999907,
+        "max": 667.5
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.7749999999068677,
+        "p90": 84.01000000000931,
+        "max": 84.01000000000931
+       },
+       "lod": {
+        "dotFrames": 66,
+        "pathFrames": 0,
+        "lastVisible": 425,
+        "medianScreenPx": 1.6195703971962172
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 182.43999999994412,
+        "p90": 288.2849999999162,
+        "max": 299.6049999999814
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.23499999986961484,
+        "p90": 0.659999999916181,
+        "max": 0.659999999916181
+       },
+       "lod": {
+        "dotFrames": 66,
+        "pathFrames": 32,
+        "lastVisible": 1516,
+        "medianScreenPx": 12.956563177594392
+       }
+      }
+     },
+     "heapMB": 43.78792762756348,
+     "ann-read-ms": 976.8649999999907,
+     "wsi-metadata-ms": 27.90500000002794,
+     "build-annotations-ms": 0.005000000121071935,
+     "mount-ms": 11.56499999994412,
+     "layer-build-ms": 71.03499999991618
+    },
+    {
+     "mode": "lod",
+     "n": 55092,
+     "points": 1538483,
+     "objects": 0,
+     "mountToObjectsMs": 700.3599999998696,
+     "phases": {
+      "fit": {
+       "panFrameMs": {
+        "median": 318.33499999996275,
+        "p90": 484.42499999981374,
+        "max": 543.1100000001024
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 2.8950000000186265,
+        "p90": 10.574999999953434,
+        "max": 10.574999999953434
+       },
+       "lod": {
+        "dotFrames": 34,
+        "pathFrames": 0,
+        "lastVisible": 55090,
+        "medianScreenPx": 0.24119486630432432
+       }
+      },
+      "zoom8": {
+       "panFrameMs": {
+        "median": 343.589999999851,
+        "p90": 770.2700000000186,
+        "max": 782.2800000002608
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 0.6499999999068677,
+        "p90": 1.25,
+        "max": 1.25
+       },
+       "lod": {
+        "dotFrames": 66,
+        "pathFrames": 0,
+        "lastVisible": 1010,
+        "medianScreenPx": 1.9295589304309233
+       }
+      },
+      "zoom64": {
+       "panFrameMs": {
+        "median": 191.625,
+        "p90": 318.08499999996275,
+        "max": 362.625
+       },
+       "fabricRenderAllMs": null,
+       "renderErrors": 0,
+       "drawFlushedMs": {
+        "median": 2.025000000372529,
+        "p90": 26.634999999776483,
+        "max": 26.634999999776483
+       },
+       "lod": {
+        "dotFrames": 66,
+        "pathFrames": 32,
+        "lastVisible": 3820,
+        "medianScreenPx": 15.436471443476757
+       }
+      }
+     },
+     "heapMB": 156.09815311431885,
+     "ann-read-ms": 467.8350000001956,
+     "wsi-metadata-ms": 51.02499999990687,
+     "build-annotations-ms": 0.004999999888241291,
+     "mount-ms": 8.834999999962747,
+     "layer-build-ms": 565.5749999999534
+    }
+   ]
+  },
+  "remote": {
+   "host": "storage.googleapis.com",
+   "instances": 5,
+   "metadataMs": 279,
+   "metadataRequests": 5,
+   "metadataBytes": 1310720,
+   "sequentialFrameMs": {
+    "median": 69.3,
+    "p90": 426.1,
+    "n": 8
+   },
+   "parallel": {
+    "frames": 24,
+    "concurrency": 6,
+    "wallMs": 450.7,
+    "perFrameMedianMs": 91.8,
+    "perFrameP90Ms": 128.1
+   },
+   "totalRequests": 37,
+   "totalBytes": 1754492
+  }
+ },
+ "h3": {
+  "cases": [
+   {
+    "file": "sr-ct-2d.dcm",
+    "kind": "SR",
+    "mode": "2d",
+    "bytes": 12150,
+    "shapes": 6,
+    "typesPreserved": 6,
+    "maxCoordErrorPx": 0.000007202148452734036,
+    "maxMeasurementRelError": 3.0366831808773385e-15,
+    "perShape": {
+     "rect": {
+      "type": "rectangle",
+      "template": "1410",
+      "coordErrorPx": 0.000004145360463780889,
+      "measurementRelError": 1.0303922314070381e-15
+     },
+     "circle": {
+      "type": "circle",
+      "template": "1410",
+      "coordErrorPx": 0.000007202148452734036,
+      "measurementRelError": 1.0062896793654136e-15
+     },
+     "polygon": {
+      "type": "polygon",
+      "template": "1410",
+      "coordErrorPx": 0.000005859375022509994,
+      "measurementRelError": 1.0408587410751304e-15
+     },
+     "line": {
+      "type": "line",
+      "template": "1501",
+      "coordErrorPx": 0.000006225585934771516,
+      "measurementRelError": 2.0206183930922898e-15
+     },
+     "polyline": {
+      "type": "polyline",
+      "template": "1501",
+      "coordErrorPx": 0.000003784179696708634,
+      "measurementRelError": 3.0366831808773385e-15
+     },
+     "point": {
+      "type": "point",
+      "template": "1410",
+      "coordErrorPx": 0.00000634765623885869,
+      "measurementRelError": 0
+     }
+    }
+   },
+   {
+    "file": "sr-ct-3d.dcm",
+    "kind": "SR",
+    "mode": "3d",
+    "bytes": 11412,
+    "shapes": 6,
+    "typesPreserved": 6,
+    "maxCoordErrorPx": 0.0000066184210538722255,
+    "maxMeasurementRelError": 3.0366831808773385e-15,
+    "perShape": {
+     "rect": {
+      "type": "rectangle",
+      "template": "1410",
+      "coordErrorPx": 0.000004072368426477624,
+      "measurementRelError": 1.0303922314070381e-15
+     },
+     "circle": {
+      "type": "circle",
+      "template": "1410",
+      "coordErrorPx": 0.0000020953947057478217,
+      "measurementRelError": 1.0062896793654136e-15
+     },
+     "polygon": {
+      "type": "polygon",
+      "template": "1410",
+      "coordErrorPx": 0.000004151315785350107,
+      "measurementRelError": 1.0408587410751304e-15
+     },
+     "line": {
+      "type": "line",
+      "template": "1501",
+      "coordErrorPx": 0.000005717105267422085,
+      "measurementRelError": 2.0206183930922898e-15
+     },
+     "polyline": {
+      "type": "polyline",
+      "template": "1501",
+      "coordErrorPx": 0.0000066184210538722255,
+      "measurementRelError": 3.0366831808773385e-15
+     },
+     "point": {
+      "type": "point",
+      "template": "1410",
+      "coordErrorPx": 0.0000016052631792717875,
+      "measurementRelError": 0
+     }
+    }
+   },
+   {
+    "file": "seg-ct.dcm",
+    "kind": "SEG",
+    "mode": "BINARY",
+    "bytes": 19892,
+    "frames": 2,
+    "exact": true,
+    "perMask": [
+     {
+      "sopInstanceUid": "1.2.840.113654.2.55.280184179478617327806090244392560121716",
+      "pixels": 2011,
+      "pixelsBack": 2011,
+      "hash": "f5130fd95d8a7f7d",
+      "hashBack": "f5130fd95d8a7f7d",
+      "bbox": [
+       67,
+       83,
+       102,
+       41
+      ]
+     },
+     {
+      "sopInstanceUid": "1.2.840.113654.2.55.287543852393826041361402118140881523079",
+      "pixels": 1968,
+      "pixelsBack": 1968,
+      "hash": "f9d846d359a60242",
+      "hashBack": "f9d846d359a60242",
+      "bbox": [
+       69,
+       80,
+       102,
+       44
+      ]
+     }
+    ]
+   },
+   {
+    "file": "sr-mr-3d.dcm",
+    "kind": "SR",
+    "mode": "3d",
+    "bytes": 11520,
+    "shapes": 6,
+    "typesPreserved": 6,
+    "maxCoordErrorPx": 0.0000019708992198275155,
+    "maxMeasurementRelError": 3.6608312397949314e-15,
+    "perShape": {
+     "rect": {
+      "type": "rectangle",
+      "template": "1410",
+      "coordErrorPx": 0.000001655341161921342,
+      "measurementRelError": 9.091711552039587e-16
+     },
+     "circle": {
+      "type": "circle",
+      "template": "1410",
+      "coordErrorPx": 2.5828226313251434e-7,
+      "measurementRelError": 3.6608312397949314e-15
+     },
+     "polygon": {
+      "type": "polygon",
+      "template": "1410",
+      "coordErrorPx": 0.00000165916726047044,
+      "measurementRelError": 2.4477048945826384e-15
+     },
+     "line": {
+      "type": "line",
+      "template": "1501",
+      "coordErrorPx": 8.39066757407636e-7,
+      "measurementRelError": 2.2445058923472985e-16
+     },
+     "polyline": {
+      "type": "polyline",
+      "template": "1501",
+      "coordErrorPx": 0.0000019708992198275155,
+      "measurementRelError": 6.281411339346892e-16
+     },
+     "point": {
+      "type": "point",
+      "template": "1410",
+      "coordErrorPx": 1.9967716013979953e-7,
+      "measurementRelError": 0
+     }
+    }
+   },
+   {
+    "file": "sr-us-2d.dcm",
+    "kind": "SR",
+    "mode": "2d",
+    "bytes": 12232,
+    "shapes": 6,
+    "typesPreserved": 6,
+    "maxCoordErrorPx": 0.000018554687471805664,
+    "maxMeasurementRelError": 2.175790304505079e-15,
+    "perShape": {
+     "rect": {
+      "type": "rectangle",
+      "template": "1410",
+      "coordErrorPx": 0.000007738982986893461,
+      "measurementRelError": 1.3157751904261556e-15
+     },
+     "circle": {
+      "type": "circle",
+      "template": "1410",
+      "coordErrorPx": 0.000010253906282287062,
+      "measurementRelError": 2.175790304505079e-15
+     },
+     "polygon": {
+      "type": "polygon",
+      "template": "1410",
+      "coordErrorPx": 0.000018554687471805664,
+      "measurementRelError": 1.3419408571668732e-15
+     },
+     "line": {
+      "type": "line",
+      "template": "1501",
+      "coordErrorPx": 0.000008056640638187673,
+      "measurementRelError": 1.6730360791397103e-15
+     },
+     "polyline": {
+      "type": "polyline",
+      "template": "1501",
+      "coordErrorPx": 0.00001049804689046141,
+      "measurementRelError": 1.5360712663349738e-15
+     },
+     "point": {
+      "type": "point",
+      "template": "1410",
+      "coordErrorPx": 0.000014160156240450306,
+      "measurementRelError": 0
+     }
+    }
+   },
+   {
+    "file": "seg-us.dcm",
+    "kind": "SEG",
+    "mode": "BINARY",
+    "bytes": 62830,
+    "frames": 1,
+    "exact": true,
+    "perMask": [
+     {
+      "sopInstanceUid": "1.3.6.1.4.1.14519.5.2.1.1.85781768441298344251298300219773554977",
+      "pixels": 14478,
+      "pixelsBack": 14478,
+      "hash": "401c37c609b79038",
+      "hashBack": "401c37c609b79038",
+      "bbox": [
+       246,
+       184,
+       310,
+       95
+      ]
+     }
+    ]
+   },
+   {
+    "file": "ann-sm-2d.dcm",
+    "kind": "ANN",
+    "mode": "2D float32",
+    "bytes": 5908,
+    "groups": 6,
+    "maxCoordErrorPx": 0.00038281249908322934,
+    "perShapeErrorPx": {
+     "rect": 0.0001098631769309577,
+     "circle": 0.0003154296864522621,
+     "polygon": 0.0002382812499490683,
+     "line": 0.00038281249908322934,
+     "polyline": 0.00016796874933788786,
+     "point": 0.00005468749986903276
+    }
+   },
+   {
+    "file": "ann-sm-3d.dcm",
+    "kind": "ANN",
+    "mode": "3D float32",
+    "bytes": 6118,
+    "groups": 6,
+    "maxCoordErrorPx": 0.003795791901211487,
+    "perShapeErrorPx": {
+     "rect": 0.0015497495282943419,
+     "circle": 0.0020702490473922808,
+     "polygon": 0.003795791901211487,
+     "line": 0.003668269675472402,
+     "polyline": 0.003795791901211487,
+     "point": 0.0029718909008806804
+    }
+   },
+   {
+    "file": "ann-sm-3d-f64.dcm",
+    "kind": "ANN",
+    "mode": "3D float64",
+    "bytes": 6346,
+    "groups": 6,
+    "maxCoordErrorPx": 6.366462912410498e-12,
+    "perShapeErrorPx": {
+     "rect": 6.366462912410498e-12,
+     "circle": 1.8189894035458565e-12,
+     "polygon": 5.002220859751105e-12,
+     "line": 5.4569682106375694e-12,
+     "polyline": 2.7284841053187847e-12,
+     "point": 4.547473508864641e-13
+    }
+   },
+   {
+    "file": "sr-sm-2d.dcm",
+    "kind": "SR",
+    "mode": "2d",
+    "bytes": 12274,
+    "shapes": 6,
+    "typesPreserved": 6,
+    "maxCoordErrorPx": 0.0004374999989522621,
+    "maxMeasurementRelError": 3.453018708775211e-15,
+    "perShape": {
+     "rect": {
+      "type": "rectangle",
+      "template": "1410",
+      "coordErrorPx": 0.0001098631769309577,
+      "measurementRelError": 2.0797239405989249e-16
+     },
+     "circle": {
+      "type": "circle",
+      "template": "1410",
+      "coordErrorPx": 0.0004374999989522621,
+      "measurementRelError": 1.4968253314806075e-15
+     },
+     "polygon": {
+      "type": "polygon",
+      "template": "1410",
+      "coordErrorPx": 0.0002382812499490683,
+      "measurementRelError": 3.453018708775211e-15
+     },
+     "line": {
+      "type": "line",
+      "template": "1501",
+      "coordErrorPx": 0.00038281249908322934,
+      "measurementRelError": 9.202823932639258e-16
+     },
+     "polyline": {
+      "type": "polyline",
+      "template": "1501",
+      "coordErrorPx": 0.00016796874933788786,
+      "measurementRelError": 7.354144647308006e-16
+     },
+     "point": {
+      "type": "point",
+      "template": "1410",
+      "coordErrorPx": 0.00005468749986903276,
+      "measurementRelError": 0
+     }
+    }
+   }
+  ],
+  "buildMs": {
+   "sr-ct-2d": 47.63,
+   "sr-ct-3d": 3.85,
+   "seg-ct": 7.01,
+   "ann-sm-2D": 2.15,
+   "ann-sm-3D": 1.25,
+   "ann-sm-3D-double": 1.44
+  },
+  "validation": {
+   "sr-ct-2d.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "groups": 6,
+     "shapes": [
+      {
+       "id": "rect",
+       "found": true,
+       "graphic_type": "POLYLINE",
+       "coord_error_px": 0.0000037495440068369135,
+       "measurement_rel_error": 1.0303922314070381e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "circle",
+       "found": true,
+       "graphic_type": "CIRCLE",
+       "coord_error_px": 0.000007202148452734036,
+       "measurement_rel_error": 1.0062896793654136e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polygon",
+       "found": true,
+       "graphic_type": "POLYLINE",
+       "coord_error_px": 0.000005859375022509994,
+       "measurement_rel_error": 1.0408587410751304e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "line",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 2.0206183930922898e-15,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polyline",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 3.0366831808773385e-15,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "point",
+       "found": true,
+       "graphic_type": "POINT",
+       "coord_error_px": 0.00000634765623885869,
+       "measurement_rel_error": 0,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      }
+     ],
+     "max_measurement_rel_error": 3.0366831808773385e-15,
+     "max_coord_error_px_planar_rois": 0.000007202148452734036
+    }
+   },
+   "sr-ct-3d.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "groups": 6,
+     "shapes": [
+      {
+       "id": "rect",
+       "found": true,
+       "graphic_type": "POLYGON",
+       "coord_error_px": null,
+       "measurement_rel_error": 1.0303922314070381e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "circle",
+       "found": true,
+       "graphic_type": "ELLIPSE",
+       "coord_error_px": null,
+       "measurement_rel_error": 1.0062896793654136e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polygon",
+       "found": true,
+       "graphic_type": "POLYGON",
+       "coord_error_px": null,
+       "measurement_rel_error": 1.0408587410751304e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "line",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 2.0206183930922898e-15,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polyline",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 3.0366831808773385e-15,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "point",
+       "found": true,
+       "graphic_type": "POINT",
+       "coord_error_px": null,
+       "measurement_rel_error": 0,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      }
+     ],
+     "max_measurement_rel_error": 3.0366831808773385e-15,
+     "max_coord_error_px_planar_rois": 0
+    }
+   },
+   "seg-ct.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "segments": [
+      1
+     ],
+     "masks": [
+      {
+       "sop": "392560121716",
+       "pixels": 2011,
+       "expected_pixels": 2011,
+       "hash_equal": true
+      },
+      {
+       "sop": "140881523079",
+       "pixels": 1968,
+       "expected_pixels": 1968,
+       "hash_equal": true
+      }
+     ],
+     "exact": true
+    }
+   },
+   "sr-mr-3d.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "groups": 6,
+     "shapes": [
+      {
+       "id": "rect",
+       "found": true,
+       "graphic_type": "POLYGON",
+       "coord_error_px": null,
+       "measurement_rel_error": 9.091711552039587e-16,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "circle",
+       "found": true,
+       "graphic_type": "ELLIPSE",
+       "coord_error_px": null,
+       "measurement_rel_error": 3.6608312397949314e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polygon",
+       "found": true,
+       "graphic_type": "POLYGON",
+       "coord_error_px": null,
+       "measurement_rel_error": 2.4477048945826384e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "line",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 2.2445058923472985e-16,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polyline",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 6.281411339346892e-16,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "point",
+       "found": true,
+       "graphic_type": "POINT",
+       "coord_error_px": null,
+       "measurement_rel_error": 0,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      }
+     ],
+     "max_measurement_rel_error": 3.6608312397949314e-15,
+     "max_coord_error_px_planar_rois": 0
+    }
+   },
+   "sr-us-2d.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "groups": 6,
+     "shapes": [
+      {
+       "id": "rect",
+       "found": true,
+       "graphic_type": "POLYLINE",
+       "coord_error_px": 0.0000055192099921441695,
+       "measurement_rel_error": 1.3157751904261556e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "circle",
+       "found": true,
+       "graphic_type": "CIRCLE",
+       "coord_error_px": 0.000010253906282287062,
+       "measurement_rel_error": 2.175790304505079e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polygon",
+       "found": true,
+       "graphic_type": "POLYLINE",
+       "coord_error_px": 0.000018554687471805664,
+       "measurement_rel_error": 1.3419408571668732e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "line",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 1.6730360791397103e-15,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polyline",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 1.5360712663349738e-15,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "point",
+       "found": true,
+       "graphic_type": "POINT",
+       "coord_error_px": 0.000014160156240450306,
+       "measurement_rel_error": 0,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      }
+     ],
+     "max_measurement_rel_error": 2.175790304505079e-15,
+     "max_coord_error_px_planar_rois": 0.000018554687471805664
+    }
+   },
+   "seg-us.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "segments": [
+      1
+     ],
+     "masks": [
+      {
+       "sop": "219773554977",
+       "pixels": 14478,
+       "expected_pixels": 14478,
+       "hash_equal": true
+      }
+     ],
+     "exact": true
+    }
+   },
+   "ann-sm-2d.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "coordinate_type": "2D",
+     "groups": [
+      {
+       "label": "rectangle",
+       "graphic_type": "RECTANGLE",
+       "max_abs_error": 0.00009570312477080734
+      },
+      {
+       "label": "circle",
+       "graphic_type": "ELLIPSE",
+       "max_abs_error": null
+      },
+      {
+       "label": "polygon",
+       "graphic_type": "POLYGON",
+       "max_abs_error": 0.0002382812499490683
+      },
+      {
+       "label": "line",
+       "graphic_type": "POLYLINE",
+       "max_abs_error": 0.00038281249908322934
+      },
+      {
+       "label": "polyline",
+       "graphic_type": "POLYLINE",
+       "max_abs_error": 0.00016796874933788786
+      },
+      {
+       "label": "point",
+       "graphic_type": "POINT",
+       "max_abs_error": 0.00005468749986903276
+      }
+     ],
+     "max_abs_error": 0.00038281249908322934,
+     "unit": "px"
+    }
+   },
+   "ann-sm-3d.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "coordinate_type": "3D",
+     "groups": [
+      {
+       "label": "rectangle",
+       "graphic_type": "RECTANGLE",
+       "max_abs_error": 0.0000011800847445897489
+      },
+      {
+       "label": "circle",
+       "graphic_type": "ELLIPSE",
+       "max_abs_error": null
+      },
+      {
+       "label": "polygon",
+       "graphic_type": "POLYGON",
+       "max_abs_error": 0.0000018758803577156868
+      },
+      {
+       "label": "line",
+       "graphic_type": "POLYLINE",
+       "max_abs_error": 0.0000018128588763488551
+      },
+      {
+       "label": "polyline",
+       "graphic_type": "POLYLINE",
+       "max_abs_error": 0.0000018758803577156868
+      },
+      {
+       "label": "point",
+       "graphic_type": "POINT",
+       "max_abs_error": 0.000001468708482832426
+      }
+     ],
+     "max_abs_error": 0.0000018758803577156868,
+     "unit": "mm"
+    }
+   },
+   "ann-sm-3d-f64.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "coordinate_type": "3D",
+     "groups": [
+      {
+       "label": "rectangle",
+       "graphic_type": "RECTANGLE",
+       "max_abs_error": 0
+      },
+      {
+       "label": "circle",
+       "graphic_type": "ELLIPSE",
+       "max_abs_error": null
+      },
+      {
+       "label": "polygon",
+       "graphic_type": "POLYGON",
+       "max_abs_error": 0
+      },
+      {
+       "label": "line",
+       "graphic_type": "POLYLINE",
+       "max_abs_error": 0
+      },
+      {
+       "label": "polyline",
+       "graphic_type": "POLYLINE",
+       "max_abs_error": 0
+      },
+      {
+       "label": "point",
+       "graphic_type": "POINT",
+       "max_abs_error": 0
+      }
+     ],
+     "max_abs_error": 0,
+     "unit": "mm"
+    }
+   },
+   "sr-sm-2d.dcm": {
+    "dciodvfyAvailable": true,
+    "dciodvfyErrors": 0,
+    "dciodvfyWarnings": 0,
+    "errorLines": [],
+    "warningLines": [],
+    "highdicomOk": true,
+    "highdicom": {
+     "groups": 6,
+     "shapes": [
+      {
+       "id": "rect",
+       "found": true,
+       "graphic_type": "POLYLINE",
+       "coord_error_px": 0.00009570312477080734,
+       "measurement_rel_error": 2.0797239405989249e-16,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "circle",
+       "found": true,
+       "graphic_type": "CIRCLE",
+       "coord_error_px": 0.0004374999989522621,
+       "measurement_rel_error": 1.4968253314806075e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polygon",
+       "found": true,
+       "graphic_type": "POLYLINE",
+       "coord_error_px": 0.0002382812499490683,
+       "measurement_rel_error": 3.453018708775211e-15,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "line",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 9.202823932639258e-16,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "polyline",
+       "found": true,
+       "graphic_type": null,
+       "coord_error_px": null,
+       "measurement_rel_error": 7.354144647308006e-16,
+       "template_kind": "MeasurementsAndQualitativeEvaluations"
+      },
+      {
+       "id": "point",
+       "found": true,
+       "graphic_type": "POINT",
+       "coord_error_px": 0.00005468749986903276,
+       "measurement_rel_error": 0,
+       "template_kind": "PlanarROIMeasurementsAndQualitativeEvaluations"
+      }
+     ],
+     "max_measurement_rel_error": 3.453018708775211e-15,
+     "max_coord_error_px_planar_rois": 0.0004374999989522621
+    }
+   }
+  },
+  "transformCrossCheck": {
+   "ct-slice-a": {
+    "max_abs_diff_mm": 0,
+    "points": 6
+   },
+   "mr-oblique": {
+    "max_abs_diff_mm": 2.842170943040401e-14,
+    "points": 6
+   },
+   "sm-volume-slide": {
+    "max_abs_diff_mm": 7.105427357601002e-15,
+    "points": 6
+   }
+  },
+  "validators": {
+   "highdicom": "0.28.2",
+   "pydicom": "3.0.2"
+  },
+  "interop": {
+   "ours": {
+    "3p-ann-nuclei": {
+     "role": "3p-ann-nuclei",
+     "file": "f0e16ee0-c363-4a2d-af5b-b718d624c15e.dcm",
+     "bytes": 12758524,
+     "modality": "ANN",
+     "creator": "Stony Brook University",
+     "parseMs": 0.13,
+     "readMs": 437.87,
+     "coordinateType": "2D",
+     "groups": [
+      {
+       "label": "Nuclei",
+       "graphicType": "POLYGON",
+       "count": 55092
+      }
+     ],
+     "shapes": 55092,
+     "heap": {
+      "shapes": 55092,
+      "points": 1538483,
+      "readMs": 365.9,
+      "heapMB": 122.7,
+      "bytesPerShape": 2336
+     },
+     "ok": true
+    },
+    "3p-ann-small": {
+     "role": "3p-ann-small",
+     "file": "625c7a6e-8aa4-49ea-84fa-48fcb6518cda.dcm",
+     "bytes": 6190,
+     "modality": "ANN",
+     "creator": "University Hospital Erlangen and Fraunhofer MEVIS",
+     "parseMs": 36.88,
+     "readMs": 0.16,
+     "coordinateType": "2D",
+     "groups": [
+      {
+       "label": "region_of_interest",
+       "graphicType": "RECTANGLE",
+       "count": 2
+      }
+     ],
+     "shapes": 2,
+     "heap": {
+      "shapes": 2,
+      "points": 8,
+      "readMs": 2.5,
+      "heapMB": 0.1,
+      "bytesPerShape": 73872
+     },
+     "ok": true
+    },
+    "3p-seg-lidc": {
+     "role": "3p-seg-lidc",
+     "file": "78cc1975-4e61-4b01-919f-e45506366aae.dcm",
+     "bytes": 35986,
+     "modality": "SEG",
+     "creator": "QIICR",
+     "parseMs": 0.09,
+     "readMs": 7.03,
+     "segmentationType": "BINARY",
+     "frames": 1,
+     "segments": [
+      {
+       "number": 1,
+       "label": "Nodule 2 - Annotation 16384",
+       "sources": 1,
+       "pixels": 72
+      }
+     ],
+     "ok": true
+    },
+    "3p-seg-qiba": {
+     "role": "3p-seg-qiba",
+     "file": "fdaf79ac-a13a-4d2a-b9ab-8aaa3774215c.dcm",
+     "bytes": 3616,
+     "modality": "SEG",
+     "creator": "Siemens Corporate Research",
+     "parseMs": 0.05,
+     "readMs": 0.05,
+     "segmentationType": "FRACTIONAL",
+     "frames": 4,
+     "segments": [
+      {
+       "number": 1,
+       "label": "Test Label",
+       "sources": 4,
+       "pixels": 45
+      }
+     ],
+     "ok": true
+    },
+    "3p-sr-lidc": {
+     "role": "3p-sr-lidc",
+     "file": "91d169c6-dbc4-47b3-b0ee-b9d950a6e7a9.dcm",
+     "bytes": 52710,
+     "modality": "SR",
+     "creator": "QIICR",
+     "parseMs": 0.98,
+     "readMs": 0.08,
+     "template": "1500",
+     "groups": 1,
+     "measurements": [
+      [
+       "Volume",
+       160.02,
+       "mm3"
+      ],
+      [
+       "Diameter",
+       6.377929,
+       "mm"
+      ],
+      [
+       "Surface area of mesh",
+       134.4078,
+       "mm2"
+      ]
+     ],
+     "groupsWithGeometry": 0,
+     "groupTemplates": [
+      "1411"
+     ],
+     "ok": true
+    },
+    "3p-sr-qiba": {
+     "role": "3p-sr-qiba",
+     "file": "3d9af5d2-821e-4c9e-a6e9-78e3fb490c72.dcm",
+     "bytes": 16854,
+     "modality": "SR",
+     "creator": "CoreLab Partners, Inc.",
+     "parseMs": 0.18,
+     "readMs": 0.02,
+     "template": "RPH_0001",
+     "groups": 0,
+     "measurements": [],
+     "groupsWithGeometry": 0,
+     "groupTemplates": [],
+     "ok": true
+    }
+   },
+   "vsHighdicom": {
+    "3p-ann-nuclei": {
+     "creator": "Stony Brook University",
+     "sopClass": "Microscopy Bulk Simple Annotations Storage",
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 1,
+     "highdicomOk": true,
+     "compared": true,
+     "agree": true,
+     "detail": {
+      "ours": [
+       "Nuclei|POLYGON|55092"
+      ],
+      "highdicom": [
+       "Nuclei|POLYGON|55092"
+      ]
+     }
+    },
+    "3p-ann-small": {
+     "creator": "University Hospital Erlangen and Fraunhofer MEVIS",
+     "sopClass": "Microscopy Bulk Simple Annotations Storage",
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 3,
+     "highdicomOk": true,
+     "compared": true,
+     "agree": true,
+     "detail": {
+      "ours": [
+       "region_of_interest|RECTANGLE|2"
+      ],
+      "highdicom": [
+       "region_of_interest|RECTANGLE|2"
+      ]
+     }
+    },
+    "3p-seg-lidc": {
+     "creator": "QIICR",
+     "sopClass": "Segmentation Storage",
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 6,
+     "highdicomOk": true,
+     "compared": true,
+     "agree": true,
+     "detail": [
+      {
+       "segment": 1,
+       "ours": 72,
+       "highdicom": 72
+      }
+     ]
+    },
+    "3p-seg-qiba": {
+     "creator": "Siemens Corporate Research",
+     "sopClass": "Segmentation Storage",
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 6,
+     "highdicomOk": true,
+     "compared": true,
+     "agree": true,
+     "detail": [
+      {
+       "segment": 1,
+       "ours": 45,
+       "highdicom": 45
+      }
+     ]
+    },
+    "3p-sr-lidc": {
+     "creator": "QIICR",
+     "sopClass": "Enhanced SR Storage",
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 22,
+     "highdicomOk": true,
+     "compared": true,
+     "agree": true,
+     "detail": {
+      "ours": [
+       "Diameter|6.37792900|mm",
+       "Surface area of mesh|134.407800|mm2",
+       "Volume|160.020000|mm3"
+      ],
+      "highdicom": [
+       "Diameter|6.37792900|mm",
+       "Surface area of mesh|134.407800|mm2",
+       "Volume|160.020000|mm3"
+      ]
+     }
+    },
+    "3p-sr-qiba": {
+     "creator": "CoreLab Partners, Inc.",
+     "sopClass": "Comprehensive SR Storage",
+     "dciodvfyErrors": 0,
+     "dciodvfyWarnings": 17,
+     "highdicomOk": false,
+     "compared": false,
+     "reason": "AttributeError: 'ContentSequence' object has no attribute 'get_planar_roi_measurement_groups'",
+     "oursGroups": 0
+    }
+   }
+  }
+ }
+}
