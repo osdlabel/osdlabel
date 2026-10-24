@@ -224,7 +224,8 @@ async function measureSizes() {
 const TTI_HOSTS = [
   { name: 'solid (binding, no element)', url: '/solid.html' },
   { name: 'vanilla (element, shadow)', url: '/vanilla.html' },
-  { name: 'vanilla (element, light DOM)', url: '/lab.html?mode=light&css=none' },
+  { name: 'lab (element, shadow DOM)', url: '/lab.html?mode=shadow&css=none' },
+  { name: 'lab (element, light DOM)', url: '/lab.html?mode=light&css=none' },
   { name: 'vanilla (solid-element)', url: '/vanilla-se.html' },
   { name: 'vue', url: '/vue.html' },
   { name: 'svelte', url: '/svelte.html' },
@@ -250,7 +251,6 @@ async function withPreviewServer(fn) {
     await new Promise((resolve) => server.httpServer.close(resolve));
   }
 }
-
 
 async function sampleTti(browser, base, host) {
   const context = await browser.newContext({ viewport: { width: 1200, height: 800 } });
@@ -389,8 +389,42 @@ async function sampleCss(browser, base, mode, css) {
         timeout: 5000,
       })
       .catch(() => undefined);
-    const geometry = await page.evaluate(() => window.__lab.el.annotations[0]?.geometry ?? null);
-    return { ...snapshot, geometry };
+    // Where the committed shape is on screen, through the overlay's own
+    // image->screen mapping: compared with where the pointer went, this is
+    // the hit-testing error, independent of any layout shift.
+    const drawn = await page.evaluate(() => {
+      const el = window.__lab.el;
+      const g = el.annotations[0]?.geometry ?? null;
+      if (!g || g.type !== 'rectangle') return { geometry: g, screen: null };
+      const osd = el.renderRoot.querySelector('.openseadragon-canvas');
+      // OSD viewer-element coordinates are relative to the viewer container
+      // (`viewer.container`), the parent of the OSD canvas.
+      const r = osd.__osdViewer.container.getBoundingClientRect();
+      const p0 = osd.__osdOverlay.imageToScreen(g.origin);
+      const p1 = osd.__osdOverlay.imageToScreen({
+        x: g.origin.x + g.width,
+        y: g.origin.y + g.height,
+      });
+      return {
+        geometry: g,
+        screen: { x0: r.left + p0.x, y0: r.top + p0.y, x1: r.left + p1.x, y1: r.top + p1.y },
+      };
+    });
+    const pointer = {
+      x0: c.x + c.w * 0.3,
+      y0: c.y + c.h * 0.3,
+      x1: c.x + c.w * 0.3 + 120,
+      y1: c.y + c.h * 0.3 + 80,
+    };
+    const pointerErrorPx = drawn.screen
+      ? Math.max(
+          Math.abs(drawn.screen.x0 - pointer.x0),
+          Math.abs(drawn.screen.y0 - pointer.y0),
+          Math.abs(drawn.screen.x1 - pointer.x1),
+          Math.abs(drawn.screen.y1 - pointer.y1),
+        )
+      : null;
+    return { ...snapshot, geometry: drawn.geometry, pointerErrorPx };
   } finally {
     await context.close();
   }
@@ -404,6 +438,11 @@ async function measureCss(browser, base) {
       const s = css === 'none' ? baseline : await sampleCss(browser, base, mode, css);
       const diff = diffStyleSignatures(baseline.sig, s.sig);
       const inheritedOnly = Object.keys(diff.propertyCounts).every((k) => INHERITED.has(k));
+      // Neither inherited nor a layout consequence (width/height): only a
+      // host rule whose selector matched the element can change these.
+      const selectorMatched = Object.keys(diff.propertyCounts).filter(
+        (k) => !INHERITED.has(k) && k !== 'width' && k !== 'height',
+      );
       const g0 = baseline.geometry;
       const g1 = s.geometry;
       const geometryDelta =
@@ -423,9 +462,11 @@ async function measureCss(browser, base) {
         missingElements: diff.missing,
         propertyCounts: diff.propertyCounts,
         onlyInheritedPropertiesDiffer: inheritedOnly,
+        selectorMatchedProperties: selectorMatched,
         toolbarBarHeight: s.toolbarBarHeight,
         toolbarBarHeightBaseline: baseline.toolbarBarHeight,
         rectangleCreated: g1 !== null,
+        pointerToShapeErrorScreenPx: s.pointerErrorPx,
         geometryMaxAbsDeltaImagePx: geometryDelta,
       });
       console.error(`  css: ${mode}/${css} done`);
@@ -549,19 +590,21 @@ async function main() {
           'host css',
           'elements',
           'differing',
-          'inherited-only',
-          'bar h',
+          'props via selectors',
+          'bar h (base)',
           'rect drawn',
-          'geom Δ px',
+          'pointer err px',
+          'geom Δ img px',
         ],
         result.css.map((c) => [
           c.mode,
           c.css,
           c.elements,
           c.elementsDiffering,
-          c.onlyInheritedPropertiesDiffer ? 'yes' : 'no',
+          c.selectorMatchedProperties.join(',') || 'none',
           `${c.toolbarBarHeight.toFixed(0)} (${c.toolbarBarHeightBaseline.toFixed(0)})`,
           c.rectangleCreated ? 'yes' : 'NO',
+          c.pointerToShapeErrorScreenPx === null ? '-' : c.pointerToShapeErrorScreenPx.toFixed(2),
           c.geometryMaxAbsDeltaImagePx === null ? '-' : c.geometryMaxAbsDeltaImagePx.toFixed(2),
         ]),
       ),

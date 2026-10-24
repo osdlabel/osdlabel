@@ -43,7 +43,10 @@ el.style.width = '900px';
 el.images = IMAGES;
 el.contexts = CONTEXTS;
 el.decorationProviders = [createMeasurementProvider<OsdFields>({ area: true })];
-el.addEventListener('osdlabelready', () => el.assignImageToCell(0, FIRST_IMAGE_ID));
+el.addEventListener('osdlabelready', () => {
+  mark('element-ready');
+  el.assignImageToCell(0, FIRST_IMAGE_ID);
+});
 for (const name of HOST_EVENT_NAMES) {
   el.addEventListener(name, (e) => reportHostEvent(name, (e as CustomEvent<unknown>).detail));
 }
