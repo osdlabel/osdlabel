@@ -119,7 +119,10 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
     if (!models.has(id)) {
       const files = modelPaths(spec, modelsDir);
       if (!files) throw new Error(`model files for ${id} missing (run fetch-models)`);
-      models.set(id, OnnxSamModel.load(runtime, { family: spec.family, inputSize: spec.inputSize, ...files }));
+      models.set(
+        id,
+        OnnxSamModel.load(runtime, { family: spec.family, inputSize: spec.inputSize, ...files }),
+      );
     }
     return models.get(id);
   };
@@ -133,7 +136,11 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
     const { embedding, timings } = await model.encode(pixels, frame);
     return {
       embedding,
-      timings: { serverRead: t1 - t0, serverPreprocess: timings.preprocess, serverEncode: timings.encode },
+      timings: {
+        serverRead: t1 - t0,
+        serverPreprocess: timings.preprocess,
+        serverEncode: timings.encode,
+      },
     };
   };
 
@@ -175,7 +182,11 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
         res.setHeader('x-server-serialize-ms', serialize.toFixed(2));
       } else if (route === 'segment') {
         const provider = await getProvider(modelId);
-        const result = await provider.segment(body.target, body.prompt, new AbortController().signal);
+        const result = await provider.segment(
+          body.target,
+          body.prompt,
+          new AbortController().signal,
+        );
         bytes = encodeWire(
           result.candidates.map((c, i) => ({
             name: `c${i}`,
@@ -187,7 +198,10 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
             view: result.view,
             cached: result.cached,
             timings: result.timings,
-            candidates: result.candidates.map((c) => ({ predictedIou: c.predictedIou, frame: c.mask.frame })),
+            candidates: result.candidates.map((c) => ({
+              predictedIou: c.predictedIou,
+              frame: c.mask.frame,
+            })),
           },
         );
       } else if (route === 'f16check') {
@@ -196,7 +210,10 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
         const { embedding } = await encodeView(model, body.view);
         const half = {
           ...embedding,
-          tensors: embedding.tensors.map((t) => ({ ...t, data: float16ToFloat32(float32ToFloat16(t.data)) })),
+          tensors: embedding.tensors.map((t) => ({
+            ...t,
+            data: float16ToFloat32(float32ToFloat16(t.data)),
+          })),
         };
         const a = await model.decode(embedding, body.prompt);
         const b = await model.decode(half, body.prompt);
@@ -213,7 +230,11 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
             if (p || q) union++;
             maxDiff = Math.max(maxDiff, Math.abs(x[k] - y[k]));
           }
-          return { iou: union ? inter / union : 1, maxLogitDiff: maxDiff, iouPred: [ca.predictedIou, b.candidates[i].predictedIou] };
+          return {
+            iou: union ? inter / union : 1,
+            maxLogitDiff: maxDiff,
+            iouPred: [ca.predictedIou, b.candidates[i].predictedIou],
+          };
         });
         const json = JSON.stringify({ perCandidate });
         res.setHeader('Content-Type', 'application/json');

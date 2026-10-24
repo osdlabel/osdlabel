@@ -38,7 +38,13 @@ export function composeSegmentationProvider<TEmbedding>(
     capabilities: { ...decoder.capabilities, inputSize: encoder.inputSize },
     async prepare(target, signal) {
       throwIfAborted(signal);
-      const lookup = cache.lookupOrEncode(target, null, planEncodeView(target, policy), encode, policy);
+      const lookup = cache.lookupOrEncode(
+        target,
+        null,
+        planEncodeView(target, policy),
+        encode,
+        policy,
+      );
       await lookup.entry;
     },
     async segment(target, prompt, signal) {

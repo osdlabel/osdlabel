@@ -1,7 +1,12 @@
 import type { RgbaImage } from '@osdlabel/region-reader';
 import type { MaskCandidate, ModelFrame, SegmentationPrompt } from '@osdlabel/segmentation';
 import { adapterFor, type FamilyAdapter, type ModelFamily, type SamEmbedding } from './families.js';
-import type { OrtModuleLike, OrtSessionLike, OrtSessionOptionsLike, OrtTensorLike } from './ort-like.js';
+import type {
+  OrtModuleLike,
+  OrtSessionLike,
+  OrtSessionOptionsLike,
+  OrtTensorLike,
+} from './ort-like.js';
 import { float32Data } from './ort-like.js';
 import { rgbaToChw } from './preprocess.js';
 
@@ -56,11 +61,16 @@ export class OnnxSamModel<T extends OrtTensorLike = OrtTensorLike> {
     options?: OnnxSamLoadOptions,
   ): Promise<OnnxSamModel<T>> {
     const t0 = performance.now();
-    const encoder = spec.encoder ? await ort.createSession(spec.encoder, options?.encoderSession) : null;
+    const encoder = spec.encoder
+      ? await ort.createSession(spec.encoder, options?.encoderSession)
+      : null;
     const t1 = performance.now();
     const decoder = await ort.createSession(spec.decoder, options?.decoderSession);
     const t2 = performance.now();
-    return new OnnxSamModel(ort, spec, encoder, decoder, { encoderLoad: t1 - t0, decoderLoad: t2 - t1 });
+    return new OnnxSamModel(ort, spec, encoder, decoder, {
+      encoderLoad: t1 - t0,
+      decoderLoad: t2 - t1,
+    });
   }
 
   get canEncode(): boolean {
@@ -68,18 +78,26 @@ export class OnnxSamModel<T extends OrtTensorLike = OrtTensorLike> {
   }
 
   /** Encodes pixels that already match `frame` (contentWidth x contentHeight). */
-  async encode(pixels: RgbaImage, frame: ModelFrame): Promise<{ embedding: SamEmbedding; timings: Record<string, number> }> {
+  async encode(
+    pixels: RgbaImage,
+    frame: ModelFrame,
+  ): Promise<{ embedding: SamEmbedding; timings: Record<string, number> }> {
     if (!this.encoder) throw new Error('this model was loaded without an encoder');
     const t0 = performance.now();
     const input = rgbaToChw(pixels, this.inputSize, this.adapter.normalization);
     const t1 = performance.now();
-    const outputs = await this.encoder.run(this.adapter.encoderFeeds(this.ort, this.encoder, input, this.inputSize));
+    const outputs = await this.encoder.run(
+      this.adapter.encoderFeeds(this.ort, this.encoder, input, this.inputSize),
+    );
     const t2 = performance.now();
     const tensors = this.adapter.embeddingNames.map((name) => {
       const t = outputs[name];
       return { name, dims: t?.dims ?? [], data: float32Data(t, name) };
     });
-    return { embedding: { family: this.family, frame, tensors }, timings: { preprocess: t1 - t0, encode: t2 - t1 } };
+    return {
+      embedding: { family: this.family, frame, tensors },
+      timings: { preprocess: t1 - t0, encode: t2 - t1 },
+    };
   }
 
   async decode(

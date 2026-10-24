@@ -32,9 +32,19 @@ export interface RegionReadPlan {
   readonly level: number;
   readonly levelScale: number;
   /** Integer level-pixel rectangle composited before the final resample. */
-  readonly levelRect: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly levelRect: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
   /** The exact (fractional) region within the level canvas, for the final resample. */
-  readonly crop: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly crop: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
   readonly outWidth: number;
   readonly outHeight: number;
   readonly tiles: readonly TileDraw[];

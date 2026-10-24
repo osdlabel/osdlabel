@@ -59,15 +59,23 @@ serveSegmentationWorker<SamWorkerConfig>(scope, async (config) => {
           fetch: (input, init) => {
             // Tell the server which model to run.
             const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
-            return fetch(input, { ...init, body: JSON.stringify({ ...body, model: config.remoteModel }) });
+            return fetch(input, {
+              ...init,
+              body: JSON.stringify({ ...body, model: config.remoteModel }),
+            });
           },
         });
-  const provider = composeSegmentationProvider(encoder, createOnnxDecoder(model), { policy: config.policy });
+  const provider = composeSegmentationProvider(encoder, createOnnxDecoder(model), {
+    policy: config.policy,
+  });
   return {
     provider,
     info: { load: model.loadTimings, crossOriginIsolated: globalThis.crossOriginIsolated },
     configure(message: unknown) {
-      const m = message as { register?: { key: string; pyramid: TilePyramid }; cacheStats?: boolean };
+      const m = message as {
+        register?: { key: string; pyramid: TilePyramid };
+        cacheStats?: boolean;
+      };
       if (m.register) pyramids.set(m.register.key, m.register.pyramid);
       return { cacheEntries: provider.cache.size, cacheBytes: provider.cache.bytes };
     },

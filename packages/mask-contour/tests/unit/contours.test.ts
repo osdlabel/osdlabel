@@ -163,7 +163,10 @@ describe('simplifyRing', () => {
         const b = out[(i + 1) % out.length]!;
         const dx = b.x - a.x;
         const dy = b.y - a.y;
-        const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
+        const t = Math.max(
+          0,
+          Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)),
+        );
         best = Math.min(best, Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y));
       }
       expect(best).toBeLessThanOrEqual(tol + 1e-9);

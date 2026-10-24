@@ -49,10 +49,18 @@ export async function loadOrt(
 }
 
 export async function webgpuAdapterInfo(): Promise<Record<string, string> | null> {
-  const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ info?: Record<string, string> } | null> } }).gpu;
+  const gpu = (
+    navigator as Navigator & {
+      gpu?: { requestAdapter(): Promise<{ info?: Record<string, string> } | null> };
+    }
+  ).gpu;
   if (!gpu) return null;
   const adapter = await gpu.requestAdapter();
   if (!adapter) return null;
   const info = adapter.info ?? {};
-  return { vendor: info['vendor'] ?? '', architecture: info['architecture'] ?? '', description: info['description'] ?? '' };
+  return {
+    vendor: info['vendor'] ?? '',
+    architecture: info['architecture'] ?? '',
+    description: info['description'] ?? '',
+  };
 }

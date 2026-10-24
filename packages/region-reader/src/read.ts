@@ -50,7 +50,10 @@ export function browserTileIO(options?: { readonly maxCachedBitmaps?: number }):
       while (cache.size > max) {
         const oldest = cache.keys().next().value;
         if (oldest === undefined) break;
-        void cache.get(oldest)?.then((bmp) => bmp.close(), () => {});
+        void cache.get(oldest)?.then(
+          (bmp) => bmp.close(),
+          () => {},
+        );
         cache.delete(oldest);
       }
       return p;
@@ -105,7 +108,10 @@ export async function readRegion(
   const bitmaps = await Promise.all(plan.tiles.map((t) => io.loadBitmap(t.url, signal)));
   if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
   const t1 = performance.now();
-  const level = io.createCanvas(Math.max(1, plan.levelRect.width), Math.max(1, plan.levelRect.height));
+  const level = io.createCanvas(
+    Math.max(1, plan.levelRect.width),
+    Math.max(1, plan.levelRect.height),
+  );
   const lctx = ctx2d(level);
   plan.tiles.forEach((t, i) => {
     lctx.drawImage(bitmaps[i]!, t.sx, t.sy, t.w, t.h, t.dx, t.dy, t.w, t.h);

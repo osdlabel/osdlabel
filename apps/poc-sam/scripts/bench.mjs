@@ -94,31 +94,87 @@ function chromiumPath() {
   return undefined; // Playwright's bundled browser
 }
 
-
 const E2E_MODELS = list('--e2e-models', 'mobile_sam');
 const WEBGPU_MODELS = list('--webgpu-models', 'edge_sam,mobile_sam');
 const E2E_THREADS = list('--e2e-threads', '4').map(Number);
 const VIEW_W = 1280;
 
 /** The H2/H3 scenario: zoom levels and pans a pathologist actually does. */
-const STEP_FILTER = process.argv.includes("--steps") ? list("--steps", "") : null;
+const STEP_FILTER = process.argv.includes('--steps') ? list('--steps', '') : null;
 function scenarioSteps() {
   const T = pickTargets();
   const overview = VIEW_W / 40_000; // the whole island on screen
   const glandZoom = VIEW_W / 10_000;
   const glandGt = { kind: 'ellipse', x: T.gland.x, y: T.gland.y, rx: T.gland.rx, ry: T.gland.ry };
   const lumenGt = { ...glandGt, rx: T.gland.rx * 0.72, ry: T.gland.ry * 0.72 };
-  const nucleusGt = { kind: 'ellipse', x: T.nucleus.x, y: T.nucleus.y, rx: T.nucleus.r, ry: T.nucleus.r };
+  const nucleusGt = {
+    kind: 'ellipse',
+    x: T.nucleus.x,
+    y: T.nucleus.y,
+    rx: T.nucleus.r,
+    ry: T.nucleus.r,
+  };
   const g2 = T.gland2 ?? T.gland;
   return [
-    { id: 'S1', name: 'overview, first click (cold encode): tissue island', view: { cx: T.island.x, cy: T.island.y, zoom: overview }, click: T.stroma, gt: { kind: 'none' } },
-    { id: 'S2', name: 'same view, second object: gland (embedding cache hit)', click: { x: T.gland.x, y: T.gland.y }, gt: glandGt, altGt: lumenGt },
-    { id: 'S3', name: 'pan 10% of viewport (inside margin): gland 2', view: { cx: T.island.x + 0.1 * 40_000, cy: T.island.y, zoom: overview }, click: { x: g2.x, y: g2.y }, gt: { kind: 'ellipse', x: g2.x, y: g2.y, rx: g2.rx, ry: g2.ry } },
-    { id: 'S4', name: 'pan 70% (beyond margin): re-encode', view: { cx: T.island.x + 0.7 * 40_000, cy: T.island.y, zoom: overview }, click: { x: T.island.x + 0.7 * 40_000, y: T.island.y }, gt: { kind: 'none' } },
-    { id: 'S5', name: 'zoom 4x onto the gland (too coarse: re-encode)', view: { cx: T.gland.x, cy: T.gland.y, zoom: glandZoom }, click: { x: T.gland.x, y: T.gland.y }, gt: glandGt, altGt: lumenGt },
-    { id: 'S6', name: 'zoom 1.5x more (within maxZoomIn: reuse)', view: { cx: T.gland.x, cy: T.gland.y, zoom: glandZoom * 1.5 }, click: { x: T.gland.x + T.gland.rx * 0.86, y: T.gland.y }, gt: glandGt, altGt: lumenGt },
-    { id: 'S7', name: 'zoom to 1:1 on a nucleus (crop capped at native resolution)', view: { cx: T.nucleus.x, cy: T.nucleus.y, zoom: 1 }, click: { x: T.nucleus.x, y: T.nucleus.y }, gt: nucleusGt },
-    { id: 'S8', name: 'new view, prepare() on settle, then click (decode only)', view: { cx: g2.x, cy: g2.y, zoom: glandZoom }, prepare: true, click: { x: g2.x, y: g2.y }, gt: { kind: 'ellipse', x: g2.x, y: g2.y, rx: g2.rx, ry: g2.ry } },
+    {
+      id: 'S1',
+      name: 'overview, first click (cold encode): tissue island',
+      view: { cx: T.island.x, cy: T.island.y, zoom: overview },
+      click: T.stroma,
+      gt: { kind: 'none' },
+    },
+    {
+      id: 'S2',
+      name: 'same view, second object: gland (embedding cache hit)',
+      click: { x: T.gland.x, y: T.gland.y },
+      gt: glandGt,
+      altGt: lumenGt,
+    },
+    {
+      id: 'S3',
+      name: 'pan 10% of viewport (inside margin): gland 2',
+      view: { cx: T.island.x + 0.1 * 40_000, cy: T.island.y, zoom: overview },
+      click: { x: g2.x, y: g2.y },
+      gt: { kind: 'ellipse', x: g2.x, y: g2.y, rx: g2.rx, ry: g2.ry },
+    },
+    {
+      id: 'S4',
+      name: 'pan 70% (beyond margin): re-encode',
+      view: { cx: T.island.x + 0.7 * 40_000, cy: T.island.y, zoom: overview },
+      click: { x: T.island.x + 0.7 * 40_000, y: T.island.y },
+      gt: { kind: 'none' },
+    },
+    {
+      id: 'S5',
+      name: 'zoom 4x onto the gland (too coarse: re-encode)',
+      view: { cx: T.gland.x, cy: T.gland.y, zoom: glandZoom },
+      click: { x: T.gland.x, y: T.gland.y },
+      gt: glandGt,
+      altGt: lumenGt,
+    },
+    {
+      id: 'S6',
+      name: 'zoom 1.5x more (within maxZoomIn: reuse)',
+      view: { cx: T.gland.x, cy: T.gland.y, zoom: glandZoom * 1.5 },
+      click: { x: T.gland.x + T.gland.rx * 0.86, y: T.gland.y },
+      gt: glandGt,
+      altGt: lumenGt,
+    },
+    {
+      id: 'S7',
+      name: 'zoom to 1:1 on a nucleus (crop capped at native resolution)',
+      view: { cx: T.nucleus.x, cy: T.nucleus.y, zoom: 1 },
+      click: { x: T.nucleus.x, y: T.nucleus.y },
+      gt: nucleusGt,
+    },
+    {
+      id: 'S8',
+      name: 'new view, prepare() on settle, then click (decode only)',
+      view: { cx: g2.x, cy: g2.y, zoom: glandZoom },
+      prepare: true,
+      click: { x: g2.x, y: g2.y },
+      gt: { kind: 'ellipse', x: g2.x, y: g2.y, rx: g2.rx, ry: g2.ry },
+    },
   ].filter((s) => !STEP_FILTER || STEP_FILTER.includes(s.id));
 }
 
@@ -144,7 +200,8 @@ function prewarmTiles(steps) {
       const x1 = Math.min(Math.ceil(width / ts) - 1, Math.floor(((cx + halfW) * scale) / ts));
       const y0 = Math.max(0, Math.floor(((cy - halfH) * scale) / ts));
       const y1 = Math.min(Math.ceil(height / ts) - 1, Math.floor(((cy + halfH) * scale) / ts));
-      for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++, n++) tileBytes(level, tx, ty);
+      for (let ty = y0; ty <= y1; ty++)
+        for (let tx = x0; tx <= x1; tx++, n++) tileBytes(level, tx, ty);
     }
   }
   console.log(`prewarmed ${n} synthetic tiles in ${Date.now() - t0} ms`);
@@ -159,7 +216,8 @@ let cpuTotal = async () => 0;
  */
 function cpuPerCall(marks, cfg) {
   const at = (l) => marks.find((m) => m.label === l)?.cpu;
-  const span = (a, b) => (at(a) !== undefined && at(b) !== undefined ? (at(b) - at(a)) * 1000 : undefined);
+  const span = (a, b) =>
+    at(a) !== undefined && at(b) !== undefined ? (at(b) - at(a)) * 1000 : undefined;
   const enc = span('encode-start', 'encode-end');
   const dec = span('decode-start', 'decode-end');
   return {
@@ -185,7 +243,10 @@ async function runScenario(openPage, cfg, steps) {
       const cpu0 = await cpuTotal();
       const clickAt = Date.now();
       await page.mouse.click(s.x, s.y);
-      rec.events = await page.evaluate(([f, ms]) => window.__e2e.waitPainted(f, ms), [from, TIMEOUT_S * 1000]);
+      rec.events = await page.evaluate(
+        ([f, ms]) => window.__e2e.waitPainted(f, ms),
+        [from, TIMEOUT_S * 1000],
+      );
       rec.wallMs = Date.now() - clickAt;
       // Browser CPU (all processes) from click to painted; the remote modes'
       // server work runs in this Node process and is not included.
@@ -231,7 +292,7 @@ function printStep(rec) {
       `read ${fmt((t.readFetch ?? 0) + (t.readComposite ?? 0) + (t.readback ?? 0)).padStart(4)} (tiles ${fmt(t.tiles)}, L${fmt(t.level)}) ` +
       `pre ${fmt(t.preprocess).padStart(3)} enc ${fmt(t.encode ?? t.serverEncode).padStart(5)} dec ${fmt(t.decode, 1).padStart(5)} ` +
       `rt ${fmt(t.roundTrip).padStart(4)}${t.wireBytes ? ` (${fmt(t.wireBytes / 1024)} KiB)` : ''} preview ${fmt(r?.previewBuild, 1)} | ` +
-      `main-thread max frame gap ${fmt(fr?.maxGap)} ms | scale ${r ? (r.view.scale).toFixed(4) : '-'} | ` +
+      `main-thread max frame gap ${fmt(fr?.maxGap)} ms | scale ${r ? r.view.scale.toFixed(4) : '-'} | ` +
       `GT IoU ${fmt(a.groundTruthIoU, 3)}${rec.altGroundTruthIoU !== undefined ? `/${fmt(rec.altGroundTruthIoU, 3)}` : ''} ` +
       `poly ${fmt(a.polygonVertices)}v ${fmt(a.polygonMs, 1)}ms IoU(poly,mask) ${fmt(a.polygonVsMaskIoU, 4)} | ` +
       `mask box ${fmt((a.maskBoxPixels ?? 0) / 1e6, 2)} Mpx ${fmt(a.maskMs, 1)}ms rle ${fmt(a.canonicalBytes)}B render ${fmt(a.renderBuildMs, 1)}ms | ` +
@@ -252,13 +313,26 @@ async function main() {
   const browser = await chromium.launch({
     executablePath,
     headless: !HEADED,
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--enable-unsafe-webgpu', '--enable-features=Vulkan'],
+    args: [
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--enable-unsafe-webgpu',
+      '--enable-features=Vulkan',
+    ],
   });
   const results = {
     meta: {
       startedAt: new Date().toISOString(),
-      host: { cpus: os.cpus().length, cpuModel: os.cpus()[0]?.model, totalMemGB: +(os.totalmem() / 2 ** 30).toFixed(1), loadavg: os.loadavg() },
-      browser: { executablePath: executablePath ?? 'playwright-bundled', version: browser.version() },
+      host: {
+        cpus: os.cpus().length,
+        cpuModel: os.cpus()[0]?.model,
+        totalMemGB: +(os.totalmem() / 2 ** 30).toFixed(1),
+        loadavg: os.loadavg(),
+      },
+      browser: {
+        executablePath: executablePath ?? 'playwright-bundled',
+        version: browser.version(),
+      },
       args: process.argv.slice(2),
     },
     native: [],
@@ -279,7 +353,11 @@ async function main() {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     const marks = [];
-    if (cpuMarks) await page.exposeFunction('__cpuMark', async (label) => void marks.push({ label, cpu: await cpuTotal() }));
+    if (cpuMarks)
+      await page.exposeFunction(
+        '__cpuMark',
+        async (label) => void marks.push({ label, cpu: await cpuTotal() }),
+      );
     page.on('console', (m) => {
       if (m.type() === 'error') console.log(`  [page] ${m.text()}`);
     });
@@ -297,7 +375,13 @@ async function main() {
         for (const threads of NATIVE_THREADS) {
           const tag = `${model.padEnd(18)} native         t=${threads}`;
           try {
-            const r = await runNativeCase(spec, modelPaths(spec, MODELS_DIR), threads, ENC_REPS, DEC_REPS);
+            const r = await runNativeCase(
+              spec,
+              modelPaths(spec, MODELS_DIR),
+              threads,
+              ENC_REPS,
+              DEC_REPS,
+            );
             results.native.push(r);
             save(results);
             console.log(
@@ -314,25 +398,59 @@ async function main() {
       if (!SUITES.includes('models')) continue;
       const configs = [];
       for (const threads of THREADS) {
-        configs.push({ model, encoderEp: 'wasm', decoderEp: 'wasm', threads, encoderReps: ENC_REPS, decoderReps: DEC_REPS });
+        configs.push({
+          model,
+          encoderEp: 'wasm',
+          decoderEp: 'wasm',
+          threads,
+          encoderReps: ENC_REPS,
+          decoderReps: DEC_REPS,
+        });
       }
       if (EPS.includes('webgpu') && WEBGPU_MODELS.includes(model)) {
         const t = THREADS[THREADS.length - 1];
         // SwiftShader WebGPU is CPU-emulated and 30-50x slower than WASM here
         // (an EdgeSAM encode took 144 s): one first call each, including
         // pipeline compilation, reported as an upper bound, not a GPU number.
-        configs.push({ model, encoderEp: 'wasm', decoderEp: 'webgpu', threads: t, encoderReps: 0, decoderReps: 1, decoderWarmups: 1 });
-        configs.push({ model, encoderEp: 'webgpu', decoderEp: 'wasm', threads: t, encoderReps: 0, decoderReps: 0, decoderWarmups: 0 });
+        configs.push({
+          model,
+          encoderEp: 'wasm',
+          decoderEp: 'webgpu',
+          threads: t,
+          encoderReps: 0,
+          decoderReps: 1,
+          decoderWarmups: 1,
+        });
+        configs.push({
+          model,
+          encoderEp: 'webgpu',
+          decoderEp: 'wasm',
+          threads: t,
+          encoderReps: 0,
+          decoderReps: 0,
+          decoderWarmups: 0,
+        });
       }
       for (const cfg of configs) {
         const loadBefore = os.loadavg()[0];
         const { page, context, marks } = await openPage('/bench-models.html', { cpuMarks: true });
-        await page.waitForFunction(() => typeof window.__runModelBench === 'function', null, { timeout: 60_000 }).catch(() => {});
+        await page
+          .waitForFunction(() => typeof window.__runModelBench === 'function', null, {
+            timeout: 60_000,
+          })
+          .catch(() => {});
         const t0 = Date.now();
         const timeoutMs = TIMEOUT_S * 1000;
         let r = await Promise.race([
-          page.evaluate((c) => window.__runModelBench(c), cfg).catch((e) => ({ config: cfg, error: `runner: ${e?.message ?? e}` })),
-          new Promise((resolve) => setTimeout(() => resolve({ config: cfg, error: `timeout after ${TIMEOUT_S} s` }), timeoutMs)),
+          page
+            .evaluate((c) => window.__runModelBench(c), cfg)
+            .catch((e) => ({ config: cfg, error: `runner: ${e?.message ?? e}` })),
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve({ config: cfg, error: `timeout after ${TIMEOUT_S} s` }),
+              timeoutMs,
+            ),
+          ),
         ]);
         if (r.error?.startsWith('timeout')) {
           const partial = await Promise.race([
@@ -342,14 +460,23 @@ async function main() {
           r = { ...r, partial };
         }
         await context.close();
-        r = { ...r, cpu: cpuPerCall(marks, cfg), loadavg: [loadBefore, os.loadavg()[0]], wallS: (Date.now() - t0) / 1000 };
+        r = {
+          ...r,
+          cpu: cpuPerCall(marks, cfg),
+          loadavg: [loadBefore, os.loadavg()[0]],
+          wallS: (Date.now() - t0) / 1000,
+        };
         results.models.push(r);
         save(results);
         const tag = `${cfg.model.padEnd(18)} enc=${cfg.encoderEp.padEnd(6)} dec=${cfg.decoderEp.padEnd(6)} t=${cfg.threads}`;
         if (r.error) {
-          console.log(`${tag}  ERROR ${r.error}${r.partial ? ` partial=${JSON.stringify(r.partial)}` : ''}`);
+          console.log(
+            `${tag}  ERROR ${r.error}${r.partial ? ` partial=${JSON.stringify(r.partial)}` : ''}`,
+          );
         } else {
-          const enc = r.encode.n ? `${r.encode.median.toFixed(0).padStart(6)} ms` : `first ${r.firstEncode.toFixed(0)} ms`;
+          const enc = r.encode.n
+            ? `${r.encode.median.toFixed(0).padStart(6)} ms`
+            : `first ${r.firstEncode.toFixed(0)} ms`;
           console.log(
             `${tag}  encode ${enc}  decode(click) ${fmt(r.decodeClick.median, 1).padStart(7)} ms  ` +
               `decode(box+2pt) ${fmt(r.decodeBoxPoints.median, 1).padStart(7)} ms  preprocess ${(r.preprocess.median || 0).toFixed(1)} ms  ` +
@@ -364,20 +491,30 @@ async function main() {
       results.e2e = [];
       for (const model of E2E_MODELS) {
         for (const threads of E2E_THREADS) {
-          results.e2e.push(await runScenario(openPage, { mode: 'local', model, threads }, scenarioSteps()));
+          results.e2e.push(
+            await runScenario(openPage, { mode: 'local', model, threads }, scenarioSteps()),
+          );
           save(results);
         }
       }
       // The same inference on the main thread, to show what the worker buys.
       const mainSteps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5'].includes(s.id));
-      results.e2e.push(await runScenario(openPage, { mode: 'local-main', model: E2E_MODELS[0], threads: 4 }, mainSteps));
+      results.e2e.push(
+        await runScenario(
+          openPage,
+          { mode: 'local-main', model: E2E_MODELS[0], threads: 4 },
+          mainSteps,
+        ),
+      );
       save(results);
     }
     if (SUITES.includes('remote')) {
       results.remote = [];
       const steps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5', 'S7'].includes(s.id));
       for (const mode of ['remote-encoder', 'remote-all']) {
-        results.remote.push(await runScenario(openPage, { mode, model: E2E_MODELS[0], threads: 4 }, steps));
+        results.remote.push(
+          await runScenario(openPage, { mode, model: E2E_MODELS[0], threads: 4 }, steps),
+        );
         save(results);
       }
       // float16 embeddings on the wire: does the mask change?
@@ -389,11 +526,17 @@ async function main() {
         const res = await fetch(`${base}/api/sam/f16check`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ view: r.view, prompt: { points: [{ ...step.click, label: 1 }] }, model: E2E_MODELS[0] }),
+          body: JSON.stringify({
+            view: r.view,
+            prompt: { points: [{ ...step.click, label: 1 }] },
+            model: E2E_MODELS[0],
+          }),
         });
         const j = await res.json();
         results.f16check.push({ id: rec.id, ...j });
-        console.log(`  f16 check ${rec.id}: mask IoU f32 vs f16 per candidate ${j.perCandidate.map((c) => c.iou.toFixed(4)).join(', ')}; max |logit diff| ${Math.max(...j.perCandidate.map((c) => c.maxLogitDiff)).toFixed(3)}`);
+        console.log(
+          `  f16 check ${rec.id}: mask IoU f32 vs f16 per candidate ${j.perCandidate.map((c) => c.iou.toFixed(4)).join(', ')}; max |logit diff| ${Math.max(...j.perCandidate.map((c) => c.maxLogitDiff)).toFixed(3)}`,
+        );
       }
     }
   } finally {
@@ -407,7 +550,10 @@ async function main() {
   console.log(`\nwrote ${path.relative(process.cwd(), OUT)}`);
 }
 
-const OUT = arg('--out', path.join(APP, 'results', `run-${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
+const OUT = arg(
+  '--out',
+  path.join(APP, 'results', `run-${new Date().toISOString().replace(/[:.]/g, '-')}.json`),
+);
 /** Written after every case too, so an interrupted run keeps what it measured. */
 function save(results) {
   fs.mkdirSync(path.dirname(OUT), { recursive: true });

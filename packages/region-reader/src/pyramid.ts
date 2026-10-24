@@ -84,7 +84,8 @@ export function describeOsdTileSource(ts: OsdTileSourceLike): TilePyramid | null
   const Y = 7933;
   const probe = ts.getTileUrl(L, X, Y);
   if (typeof probe !== 'string') return null;
-  if (!probe.includes(String(L)) || !probe.includes(String(X)) || !probe.includes(String(Y))) return null;
+  if (!probe.includes(String(L)) || !probe.includes(String(X)) || !probe.includes(String(Y)))
+    return null;
   const tileUrlTemplate = probe
     .replace(String(L), '{level}')
     .replace(String(X), '{x}')

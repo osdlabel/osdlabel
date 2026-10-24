@@ -50,7 +50,9 @@ function fmix32(h) {
 }
 
 function hash32(a, b, c) {
-  return fmix32(fmix32(fmix32(a | 0) ^ Math.imul(b | 0, 0x9e3779b1)) ^ Math.imul(c | 0, 0x7f4a7c15));
+  return fmix32(
+    fmix32(fmix32(a | 0) ^ Math.imul(b | 0, 0x9e3779b1)) ^ Math.imul(c | 0, 0x7f4a7c15),
+  );
 }
 const rnd = (a, b, c) => hash32(a, b, c) / 4294967296;
 
@@ -207,7 +209,6 @@ export function renderRegion(x0, y0, w, h, scale) {
   }
   return out;
 }
-
 
 // ---------------------------------------------------------------- png -------
 

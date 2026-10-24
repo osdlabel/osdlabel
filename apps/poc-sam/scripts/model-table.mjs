@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const MODELS_DIR = path.resolve(HERE, '..', 'models');
-export const MODEL_TABLE = JSON.parse(fs.readFileSync(path.resolve(HERE, '..', 'src', 'model-table.json'), 'utf8'));
+export const MODEL_TABLE = JSON.parse(
+  fs.readFileSync(path.resolve(HERE, '..', 'src', 'model-table.json'), 'utf8'),
+);
 
 export function modelById(id) {
   const spec = MODEL_TABLE.find((m) => m.id === id);
@@ -19,7 +21,8 @@ export function modelById(id) {
 export function modelPaths(spec, modelsDir = MODELS_DIR) {
   const encoder = path.join(modelsDir, spec.encoder);
   let decoder = path.join(modelsDir, spec.decoder);
-  if (!fs.existsSync(decoder) && spec.decoderFallback) decoder = path.join(modelsDir, spec.decoderFallback);
+  if (!fs.existsSync(decoder) && spec.decoderFallback)
+    decoder = path.join(modelsDir, spec.decoderFallback);
   if (!fs.existsSync(encoder) || !fs.existsSync(decoder)) return null;
   return { encoder, decoder };
 }

@@ -105,15 +105,28 @@ if (probe.status !== 0) {
 } else {
   const run = (args) => {
     console.log(`\n$ ${python} ${args.join(' ')}`);
-    const r = spawnSync(python, ['-I', ...args], { stdio: 'inherit', cwd: path.resolve(HERE, '..') });
+    const r = spawnSync(python, ['-I', ...args], {
+      stdio: 'inherit',
+      cwd: path.resolve(HERE, '..'),
+    });
     return r.status === 0;
   };
   if (!have('sam_vit_h_4b8939.decoder.lowres.onnx')) run(['scripts/lowres_decoder.py']);
-  const torch = spawnSync(python, ['-c', 'import torch, segment_anything, timm, iopath'], { encoding: 'utf8' });
+  const torch = spawnSync(python, ['-c', 'import torch, segment_anything, timm, iopath'], {
+    encoding: 'utf8',
+  });
   if (torch.status === 0) {
     run(['scripts/export_models.py']);
   } else {
-    console.log('\nNo torch/segment-anything/timm/iopath: skipping random-weight exports (EdgeSAM, LiteMedSAM, SAM 2.1-T, SAM ViT-B).');
+    console.log(
+      '\nNo torch/segment-anything/timm/iopath: skipping random-weight exports (EdgeSAM, LiteMedSAM, SAM 2.1-T, SAM ViT-B).',
+    );
   }
 }
-console.log('\nmodels:', fs.readdirSync(MODELS).filter((f) => /\.(onnx|ort)$/.test(f)).join(', '));
+console.log(
+  '\nmodels:',
+  fs
+    .readdirSync(MODELS)
+    .filter((f) => /\.(onnx|ort)$/.test(f))
+    .join(', '),
+);

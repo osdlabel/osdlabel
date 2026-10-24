@@ -93,8 +93,14 @@ export function rasterImageBounds(
   const spill = isLogits(raster.data) ? 0.5 : 0;
   const x0 = Math.max(0, Math.floor(f.originX + (cells.u0 - spill) * f.pixelWidth));
   const y0 = Math.max(0, Math.floor(f.originY + (cells.v0 - spill) * f.pixelHeight));
-  const x1 = Math.min(imageSize.width, Math.ceil(f.originX + (cells.u1 + 1 + spill) * f.pixelWidth));
-  const y1 = Math.min(imageSize.height, Math.ceil(f.originY + (cells.v1 + 1 + spill) * f.pixelHeight));
+  const x1 = Math.min(
+    imageSize.width,
+    Math.ceil(f.originX + (cells.u1 + 1 + spill) * f.pixelWidth),
+  );
+  const y1 = Math.min(
+    imageSize.height,
+    Math.ceil(f.originY + (cells.v1 + 1 + spill) * f.pixelHeight),
+  );
   if (x1 <= x0 || y1 <= y0) return null;
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
@@ -170,17 +176,15 @@ export function rasterToMaskSnapshot(
       }
     }
   }
-  return tighten(
-    {
-      x: box.x,
-      y: box.y,
-      width: box.width,
-      height: box.height,
-      data: out,
-      imageWidth: imageSize.width,
-      imageHeight: imageSize.height,
-    },
-  );
+  return tighten({
+    x: box.x,
+    y: box.y,
+    width: box.width,
+    height: box.height,
+    data: out,
+    imageWidth: imageSize.width,
+    imageHeight: imageSize.height,
+  });
 }
 
 /** Crops a snapshot to the exact bounding box of its set pixels. */
@@ -225,7 +229,10 @@ export interface RasterToPolygonsOptions {
  * then mapped to image space and simplified. Cost is proportional to the
  * raster (256x256 for SAM), independent of how many image pixels it covers.
  */
-export function rasterToPolygons(raster: RasterMask, options?: RasterToPolygonsOptions): PolygonWithHoles[] {
+export function rasterToPolygons(
+  raster: RasterMask,
+  options?: RasterToPolygonsOptions,
+): PolygonWithHoles[] {
   const f = raster.frame;
   const threshold = options?.threshold ?? 0;
   const cellArea = f.pixelWidth * f.pixelHeight;

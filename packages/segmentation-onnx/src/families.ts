@@ -7,7 +7,12 @@ import {
   type ModelFrame,
   type SegmentationPrompt,
 } from '@osdlabel/segmentation';
-import { float32Data, type OrtModuleLike, type OrtSessionLike, type OrtTensorLike } from './ort-like.js';
+import {
+  float32Data,
+  type OrtModuleLike,
+  type OrtSessionLike,
+  type OrtTensorLike,
+} from './ort-like.js';
 import type { PixelNormalization } from './preprocess.js';
 
 /**
@@ -117,7 +122,11 @@ function orderSam4(iou: Float32Array, prompt: SegmentationPrompt): number[] {
  * (single-mask output first) gets {@link orderSam4}; any other count (a
  * multimask-only export returns 3, a single-mask one 1) is ranked by IoU.
  */
-export function orderCandidates(iou: Float32Array, count: number, prompt: SegmentationPrompt): number[] {
+export function orderCandidates(
+  iou: Float32Array,
+  count: number,
+  prompt: SegmentationPrompt,
+): number[] {
   if (count === 4) return orderSam4(iou, prompt);
   return Array.from({ length: count }, (_, i) => i).sort((a, b) => (iou[b] ?? 0) - (iou[a] ?? 0));
 }
@@ -130,7 +139,12 @@ function maskInputFeeds<T extends OrtTensorLike>(
   const data = new Float32Array(LOW_RES * LOW_RES);
   let has = 0;
   // Only a previous result on the same low-res grid can be fed back.
-  if (prev && prev.data instanceof Float32Array && prev.frame.width <= LOW_RES && prev.frame.height <= LOW_RES) {
+  if (
+    prev &&
+    prev.data instanceof Float32Array &&
+    prev.frame.width <= LOW_RES &&
+    prev.frame.height <= LOW_RES
+  ) {
     for (let y = 0; y < prev.frame.height; y++) {
       data.set(prev.data.subarray(y * prev.frame.width, (y + 1) * prev.frame.width), y * LOW_RES);
     }
@@ -155,7 +169,10 @@ function lowResCandidates(
     .filter((i) => i < count)
     .map((i) => ({
       predictedIou: iou[i] ?? 0,
-      mask: { frame: grid, data: cropGrid(planes.subarray(i * plane, (i + 1) * plane), LOW_RES, grid) },
+      mask: {
+        frame: grid,
+        data: cropGrid(planes.subarray(i * plane, (i + 1) * plane), LOW_RES, grid),
+      },
     }));
 }
 

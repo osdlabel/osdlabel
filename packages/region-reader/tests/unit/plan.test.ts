@@ -69,13 +69,19 @@ describe('describeOsdTileSource', () => {
       tileOverlap: 1,
       maxLevel: 17,
       getTileWidth: () => 254,
-      getTileUrl: (l: number, x: number, y: number) => `/synth/gigapixel_files/${l}/${x}_${y}.jpeg?v=2`,
+      getTileUrl: (l: number, x: number, y: number) =>
+        `/synth/gigapixel_files/${l}/${x}_${y}.jpeg?v=2`,
     };
-    expect(describeOsdTileSource(ts)).toEqual({ ...P, tileUrlTemplate: `${P.tileUrlTemplate}?v=2` });
+    expect(describeOsdTileSource(ts)).toEqual({
+      ...P,
+      tileUrlTemplate: `${P.tileUrlTemplate}?v=2`,
+    });
   });
 
   it('describes a plain image source', () => {
-    expect(describeOsdTileSource({ width: 800, height: 600, url: '/a.png', type: 'image' })).toEqual({
+    expect(
+      describeOsdTileSource({ width: 800, height: 600, url: '/a.png', type: 'image' }),
+    ).toEqual({
       kind: 'image',
       width: 800,
       height: 600,
@@ -84,6 +90,8 @@ describe('describeOsdTileSource', () => {
   });
 
   it('refuses sources it cannot describe', () => {
-    expect(describeOsdTileSource({ width: 800, height: 600, maxLevel: 10, getTileUrl: () => '/static' })).toBeNull();
+    expect(
+      describeOsdTileSource({ width: 800, height: 600, maxLevel: 10, getTileUrl: () => '/static' }),
+    ).toBeNull();
   });
 });

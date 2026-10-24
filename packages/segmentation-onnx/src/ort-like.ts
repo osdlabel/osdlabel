@@ -27,13 +27,17 @@ export interface OrtSessionLike<T extends OrtTensorLike = OrtTensorLike> {
 }
 
 export interface OrtModuleLike<T extends OrtTensorLike = OrtTensorLike> {
-  createSession(model: string | Uint8Array, options?: OrtSessionOptionsLike): Promise<OrtSessionLike<T>>;
+  createSession(
+    model: string | Uint8Array,
+    options?: OrtSessionOptionsLike,
+  ): Promise<OrtSessionLike<T>>;
   float32(data: Float32Array, dims: readonly number[]): T;
   int64(data: BigInt64Array, dims: readonly number[]): T;
 }
 
 export function float32Data(t: OrtTensorLike | undefined, name: string): Float32Array {
   if (!t) throw new Error(`model output '${name}' missing`);
-  if (!(t.data instanceof Float32Array)) throw new Error(`model output '${name}' is ${t.type}, not float32`);
+  if (!(t.data instanceof Float32Array))
+    throw new Error(`model output '${name}' is ${t.type}, not float32`);
   return t.data;
 }

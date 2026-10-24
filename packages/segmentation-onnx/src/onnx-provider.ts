@@ -32,7 +32,14 @@ export function createOnnxEncoder<T extends OrtTensorLike>(
       const pyramid = pyramids(view.imageKey);
       if (!pyramid) throw new Error(`no pyramid registered for image '${view.imageKey}'`);
       const frame = modelFrame(view, model.inputSize, model.adapter.layout);
-      const pixels = await readRegion(pyramid, view.region, frame.contentWidth, frame.contentHeight, io, signal);
+      const pixels = await readRegion(
+        pyramid,
+        view.region,
+        frame.contentWidth,
+        frame.contentHeight,
+        io,
+        signal,
+      );
       throwIfAborted(signal);
       const { embedding, timings } = await model.encode(pixels, frame);
       return {
@@ -53,9 +60,16 @@ export function createOnnxEncoder<T extends OrtTensorLike>(
 }
 
 /** The per-prompt half: runs the decoder on a cached embedding. */
-export function createOnnxDecoder<T extends OrtTensorLike>(model: OnnxSamModel<T>): SegmentationDecoder<SamEmbedding> {
+export function createOnnxDecoder<T extends OrtTensorLike>(
+  model: OnnxSamModel<T>,
+): SegmentationDecoder<SamEmbedding> {
   return {
-    capabilities: { box: true, negativePoints: true, multimask: true, maskInput: model.family !== 'efficientsam' },
+    capabilities: {
+      box: true,
+      negativePoints: true,
+      multimask: true,
+      maskInput: model.family !== 'efficientsam',
+    },
     async decode(encoded, prompt, signal) {
       throwIfAborted(signal);
       return model.decode(encoded.embedding, prompt);
@@ -70,5 +84,9 @@ export function createOnnxSamProvider<T extends OrtTensorLike>(
   io: TileIO,
   options?: ComposeOptions,
 ): SegmentationProvider {
-  return composeSegmentationProvider(createOnnxEncoder(model, pyramids, io), createOnnxDecoder(model), options);
+  return composeSegmentationProvider(
+    createOnnxEncoder(model, pyramids, io),
+    createOnnxDecoder(model),
+    options,
+  );
 }

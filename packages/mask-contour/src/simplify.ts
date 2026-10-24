@@ -12,7 +12,13 @@ function segmentDistanceSq(p: Vec2, a: Vec2, b: Vec2): number {
 }
 
 /** Iterative Douglas–Peucker over the open chain points[first..last]; marks kept vertices. */
-function douglasPeucker(points: Ring, first: number, last: number, tolSq: number, keep: Uint8Array): void {
+function douglasPeucker(
+  points: Ring,
+  first: number,
+  last: number,
+  tolSq: number,
+  keep: Uint8Array,
+): void {
   const stack: number[] = [first, last];
   while (stack.length > 0) {
     const hi = stack.pop()!;

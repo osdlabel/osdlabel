@@ -1,13 +1,13 @@
 import { Polygon, Rect, type FabricObject } from 'fabric';
-import {
-  createAnnotationId,
-  generateId,
-  type Point,
-  type ToolType,
-} from '@osdlabel/annotation';
+import { createAnnotationId, generateId, type Point, type ToolType } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
-import { BaseTool, getFabricOptions, type ToolCallbacks, type ToolOverlay } from '@osdlabel/fabric-annotations';
+import {
+  BaseTool,
+  getFabricOptions,
+  type ToolCallbacks,
+  type ToolOverlay,
+} from '@osdlabel/fabric-annotations';
 import { MaskCapacityExceededError, type MaskSnapshot } from '@osdlabel/mask';
 import { signedArea, type PolygonWithHoles } from '@osdlabel/mask-contour';
 import {
@@ -130,7 +130,12 @@ export class SegmentationTool extends BaseTool {
     this.type = toolType;
   }
 
-  activate(overlay: ToolOverlay, imageId: ImageId, callbacks: ToolCallbacks, shortcuts: KeyboardShortcutMap): void {
+  activate(
+    overlay: ToolOverlay,
+    imageId: ImageId,
+    callbacks: ToolCallbacks,
+    shortcuts: KeyboardShortcutMap,
+  ): void {
     super.activate(overlay, imageId, callbacks, shortcuts);
     this.prepare();
   }
@@ -139,9 +144,11 @@ export class SegmentationTool extends BaseTool {
   prepare(): Promise<void> {
     const target = this.config.getTarget();
     if (!target || !this.config.provider.prepare) return Promise.resolve();
-    return this.config.provider.prepare(target, new AbortController().signal).catch((error: unknown) => {
-      this.config.onEvent?.({ type: 'error', error });
-    });
+    return this.config.provider
+      .prepare(target, new AbortController().signal)
+      .catch((error: unknown) => {
+        this.config.onEvent?.({ type: 'error', error });
+      });
   }
 
   /** The current best candidate (for tests and the harness). */
@@ -159,7 +166,11 @@ export class SegmentationTool extends BaseTool {
   onPointerMove(_event: PointerEvent, imagePoint: Point): void {
     if (!this.overlay || !this.down) return;
     const s = this.overlay.imageToScreen(imagePoint);
-    if (!this.dragging && Math.hypot(s.x - this.down.screen.x, s.y - this.down.screen.y) < DRAG_THRESHOLD_PX) return;
+    if (
+      !this.dragging &&
+      Math.hypot(s.x - this.down.screen.x, s.y - this.down.screen.y) < DRAG_THRESHOLD_PX
+    )
+      return;
     this.dragging = true;
     const r = rectOf(this.down.image, imagePoint);
     if (!this.boxPreview) {
@@ -192,7 +203,11 @@ export class SegmentationTool extends BaseTool {
         this.boxPreview = null;
       }
     } else {
-      this.points.push({ x: imagePoint.x, y: imagePoint.y, label: event.altKey || event.shiftKey ? 0 : 1 });
+      this.points.push({
+        x: imagePoint.x,
+        y: imagePoint.y,
+        label: event.altKey || event.shiftKey ? 0 : 1,
+      });
     }
     this.down = null;
     this.dragging = false;
@@ -246,7 +261,10 @@ export class SegmentationTool extends BaseTool {
         result,
         latency,
         previewBuild,
-        previewVertices: polys.reduce((s, p) => s + p.outer.length + p.holes.reduce((h, r) => h + r.length, 0), 0),
+        previewVertices: polys.reduce(
+          (s, p) => s + p.outer.length + p.holes.reduce((h, r) => h + r.length, 0),
+          0,
+        ),
       });
       this.drawPreview(polys);
     } catch (error) {
@@ -255,7 +273,10 @@ export class SegmentationTool extends BaseTool {
     }
   }
 
-  private previewPolygons(candidate: MaskCandidate, target: SegmentationTarget): PolygonWithHoles[] {
+  private previewPolygons(
+    candidate: MaskCandidate,
+    target: SegmentationTarget,
+  ): PolygonWithHoles[] {
     // Simplify to about one screen pixel: invisible, and keeps Fabric cheap.
     const tolerance = 1 / Math.max(target.viewportScale, 1e-9);
     return rasterToPolygons(candidate.mask, { tolerance });
@@ -316,7 +337,12 @@ export class SegmentationTool extends BaseTool {
           ...(this.config.maxPixels !== undefined ? { maxPixels: this.config.maxPixels } : {}),
         });
         const convert = performance.now() - t0;
-        this.config.onCommitMask({ imageId: this.imageId, contextId, snapshot, predictedIou: best.predictedIou });
+        this.config.onCommitMask({
+          imageId: this.imageId,
+          contextId,
+          snapshot,
+          predictedIou: best.predictedIou,
+        });
         let pixels = 0;
         for (let i = 0; i < snapshot.data.length; i++) pixels += snapshot.data[i]!;
         this.config.onEvent?.({
@@ -341,7 +367,9 @@ export class SegmentationTool extends BaseTool {
     const t0 = performance.now();
     // Commit at a quarter of a raster pixel: the polygon is the annotation now.
     const f = best.mask.frame;
-    const polys = rasterToPolygons(best.mask, { tolerance: 0.25 * Math.min(f.pixelWidth, f.pixelHeight) });
+    const polys = rasterToPolygons(best.mask, {
+      tolerance: 0.25 * Math.min(f.pixelWidth, f.pixelHeight),
+    });
     const convert = performance.now() - t0;
     const main = polys[0];
     if (!main) return null;

@@ -41,7 +41,15 @@ export function traceIsoContours(grid: ScalarGrid, level = 0): Contour[] {
   const next = new Int32Array(2 * W * H).fill(-1);
   const px = new Float32Array(2 * W * H);
   const py = new Float32Array(2 * W * H);
-  const crossing = (id: number, ax: number, ay: number, bx: number, by: number, fa: number, fb: number): number => {
+  const crossing = (
+    id: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    fa: number,
+    fb: number,
+  ): number => {
     const t = (level - fa) / (fb - fa);
     px[id] = ax + (bx - ax) * t - 0.5;
     py[id] = ay + (by - ay) * t - 0.5;
@@ -71,18 +79,42 @@ export function traceIsoContours(grid: ScalarGrid, level = 0): Contour[] {
         next[from] = to;
       };
       switch (code) {
-        case 0b1000: link(top(), left()); break; // a
-        case 0b0100: link(right(), top()); break; // b
-        case 0b0010: link(bottom(), right()); break; // c
-        case 0b0001: link(left(), bottom()); break; // d
-        case 0b1100: link(right(), left()); break; // a b
-        case 0b0110: link(bottom(), top()); break; // b c
-        case 0b0011: link(left(), right()); break; // c d
-        case 0b1001: link(top(), bottom()); break; // a d
-        case 0b1110: link(bottom(), left()); break; // not d
-        case 0b1101: link(right(), bottom()); break; // not c
-        case 0b1011: link(top(), right()); break; // not b
-        case 0b0111: link(left(), top()); break; // not a
+        case 0b1000:
+          link(top(), left());
+          break; // a
+        case 0b0100:
+          link(right(), top());
+          break; // b
+        case 0b0010:
+          link(bottom(), right());
+          break; // c
+        case 0b0001:
+          link(left(), bottom());
+          break; // d
+        case 0b1100:
+          link(right(), left());
+          break; // a b
+        case 0b0110:
+          link(bottom(), top());
+          break; // b c
+        case 0b0011:
+          link(left(), right());
+          break; // c d
+        case 0b1001:
+          link(top(), bottom());
+          break; // a d
+        case 0b1110:
+          link(bottom(), left());
+          break; // not d
+        case 0b1101:
+          link(right(), bottom());
+          break; // not c
+        case 0b1011:
+          link(top(), right());
+          break; // not b
+        case 0b0111:
+          link(left(), top());
+          break; // not a
         case 0b1010: {
           // a, c inside (saddle)
           if ((a + b + c + d) / 4 > level) {

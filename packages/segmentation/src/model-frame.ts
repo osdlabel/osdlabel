@@ -83,7 +83,8 @@ export function modelGridFrame(frame: ModelFrame, gridSize: number): RasterFrame
 
 /** Copies the top-left `frame.width x frame.height` window out of a square model plane. */
 export function cropGrid(plane: Float32Array, gridSize: number, frame: RasterFrame): Float32Array {
-  if (frame.width === gridSize && frame.height === gridSize) return plane.slice(0, gridSize * gridSize);
+  if (frame.width === gridSize && frame.height === gridSize)
+    return plane.slice(0, gridSize * gridSize);
   const out = new Float32Array(frame.width * frame.height);
   for (let y = 0; y < frame.height; y++) {
     out.set(plane.subarray(y * gridSize, y * gridSize + frame.width), y * frame.width);

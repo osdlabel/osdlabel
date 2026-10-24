@@ -50,16 +50,36 @@ export function stats(samples) {
     return s[lo] + (s[hi] - s[lo]) * (i - lo);
   };
   const r = (x) => Math.round(x * 100) / 100;
-  return { n: s.length, median: r(q(0.5)), min: r(s[0] ?? NaN), max: r(s[s.length - 1] ?? NaN), p90: r(q(0.9)), samples: samples.map(r) };
+  return {
+    n: s.length,
+    median: r(q(0.5)),
+    min: r(s[0] ?? NaN),
+    max: r(s[s.length - 1] ?? NaN),
+    p90: r(q(0.9)),
+    samples: samples.map(r),
+  };
 }
 
 export async function runNativeCase(spec, files, threads, encoderReps, decoderReps) {
   const loadBefore = os.loadavg()[0];
-  const model = await OnnxSamModel.load(nodeOrt(threads), { family: spec.family, inputSize: spec.inputSize, ...files });
+  const model = await OnnxSamModel.load(nodeOrt(threads), {
+    family: spec.family,
+    inputSize: spec.inputSize,
+    ...files,
+  });
   const S = spec.inputSize;
-  const view = { imageKey: 'bench', imageSize: { width: S, height: S }, region: { x: 0, y: 0, width: S, height: S }, scale: 1 };
+  const view = {
+    imageKey: 'bench',
+    imageSize: { width: S, height: S },
+    region: { x: 0, y: 0, width: S, height: S },
+    scale: 1,
+  };
   const frame = modelFrame(view, S, model.adapter.layout);
-  const pixels = { width: frame.contentWidth, height: frame.contentHeight, data: noiseImage(frame.contentWidth, frame.contentHeight) };
+  const pixels = {
+    width: frame.contentWidth,
+    height: frame.contentHeight,
+    data: noiseImage(frame.contentWidth, frame.contentHeight),
+  };
   const t0 = performance.now();
   let { embedding } = await model.encode(pixels, frame);
   const firstEncode = performance.now() - t0;
@@ -93,7 +113,13 @@ export async function runNativeCase(spec, files, threads, encoderReps, decoderRe
   const decCpu = cpuMs(process.cpuUsage(decCpu0));
   await model.release();
   return {
-    config: { model: spec.id, runtime: `onnxruntime-node ${ort.env.versions?.node ?? ''}`.trim(), threads, encoderReps, decoderReps },
+    config: {
+      model: spec.id,
+      runtime: `onnxruntime-node ${ort.env.versions?.node ?? ''}`.trim(),
+      threads,
+      encoderReps,
+      decoderReps,
+    },
     load: model.loadTimings,
     firstEncode,
     preprocess: stats(pre),

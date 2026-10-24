@@ -37,7 +37,10 @@ function discRaster(radiusCells = 5): RasterMask {
       data[v * n + u] = Math.hypot(u + 0.5 - 8, v + 0.5 - 8) < radiusCells ? 6 : -6;
     }
   }
-  return { frame: { originX: 100, originY: 50, pixelWidth: 4, pixelHeight: 4, width: n, height: n }, data };
+  return {
+    frame: { originX: 100, originY: 50, pixelWidth: 4, pixelHeight: 4, width: n, height: n },
+    data,
+  };
 }
 
 function resultFor(raster: RasterMask, iou = 0.9): SegmentationResult {
@@ -46,7 +49,12 @@ function resultFor(raster: RasterMask, iou = 0.9): SegmentationResult {
       { mask: raster, predictedIou: iou },
       { mask: discRaster(2), predictedIou: iou - 0.3 },
     ],
-    view: { imageKey: 'img', imageSize: IMAGE, region: { x: 0, y: 0, width: 400, height: 300 }, scale: 1 },
+    view: {
+      imageKey: 'img',
+      imageSize: IMAGE,
+      region: { x: 0, y: 0, width: 400, height: 300 },
+      scale: 1,
+    },
   };
 }
 
@@ -62,7 +70,13 @@ function scriptedProvider(): SegmentationProvider & { readonly calls: Deferred[]
   const calls: Deferred[] = [];
   return {
     calls,
-    capabilities: { box: true, negativePoints: true, multimask: true, maskInput: true, inputSize: 1024 },
+    capabilities: {
+      box: true,
+      negativePoints: true,
+      multimask: true,
+      maskInput: true,
+      inputSize: 1024,
+    },
     segment(_target, prompt, signal) {
       return new Promise<SegmentationResult>((resolve, reject) => {
         calls.push({ prompt, signal, resolve, reject });
@@ -133,7 +147,8 @@ function setup(config: Partial<SegmentationToolConfig> = {}) {
   return { tool, canvas, provider, events, commits, added, canAdd };
 }
 
-const pointer = (init: MouseEventInit = {}): PointerEvent => new MouseEvent('pointerup', init) as PointerEvent;
+const pointer = (init: MouseEventInit = {}): PointerEvent =>
+  new MouseEvent('pointerup', init) as PointerEvent;
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
 function click(tool: SegmentationTool, p: Point, init: MouseEventInit = {}): void {

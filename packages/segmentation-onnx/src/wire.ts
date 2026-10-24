@@ -92,7 +92,12 @@ export function float16ToFloat32(src: Uint16Array): Float32Array {
 // --------------------------------------------------------------- framing ---
 
 export function encodeWire<TMeta>(
-  blobs: readonly { name: string; dims: readonly number[]; data: Float32Array | Uint8Array; dtype?: WireDType }[],
+  blobs: readonly {
+    name: string;
+    dims: readonly number[];
+    data: Float32Array | Uint8Array;
+    dtype?: WireDType;
+  }[],
   meta: TMeta,
 ): Uint8Array {
   const parts: Uint8Array[] = [];
@@ -114,7 +119,9 @@ export function encodeWire<TMeta>(
     if (padded > bytes.byteLength) parts.push(new Uint8Array(padded - bytes.byteLength));
     offset += padded;
   }
-  const header = new TextEncoder().encode(JSON.stringify({ blobs: headers, meta } satisfies WireHeader<TMeta>));
+  const header = new TextEncoder().encode(
+    JSON.stringify({ blobs: headers, meta } satisfies WireHeader<TMeta>),
+  );
   const headerPadded = Math.ceil((4 + header.byteLength) / 4) * 4;
   const out = new Uint8Array(headerPadded + offset);
   new DataView(out.buffer).setUint32(0, header.byteLength, true);
@@ -130,13 +137,19 @@ export function encodeWire<TMeta>(
 export function decodeWire<TMeta>(buffer: ArrayBuffer): { blobs: WireBlob[]; meta: TMeta } {
   const view = new DataView(buffer);
   const headerLength = view.getUint32(0, true);
-  const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, headerLength))) as WireHeader<TMeta>;
+  const header = JSON.parse(
+    new TextDecoder().decode(new Uint8Array(buffer, 4, headerLength)),
+  ) as WireHeader<TMeta>;
   const base = Math.ceil((4 + headerLength) / 4) * 4;
   const blobs = header.blobs.map((b): WireBlob => {
     const start = base + b.offset;
     switch (b.dtype) {
       case 'float32':
-        return { name: b.name, dims: b.dims, data: new Float32Array(buffer.slice(start, start + b.byteLength)) };
+        return {
+          name: b.name,
+          dims: b.dims,
+          data: new Float32Array(buffer.slice(start, start + b.byteLength)),
+        };
       case 'float16':
         return {
           name: b.name,
@@ -144,7 +157,11 @@ export function decodeWire<TMeta>(buffer: ArrayBuffer): { blobs: WireBlob[]; met
           data: float16ToFloat32(new Uint16Array(buffer.slice(start, start + b.byteLength))),
         };
       case 'uint8':
-        return { name: b.name, dims: b.dims, data: new Uint8Array(buffer.slice(start, start + b.byteLength)) };
+        return {
+          name: b.name,
+          dims: b.dims,
+          data: new Uint8Array(buffer.slice(start, start + b.byteLength)),
+        };
     }
   });
   return { blobs, meta: header.meta };

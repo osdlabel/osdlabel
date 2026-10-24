@@ -44,7 +44,13 @@ export interface E2eInit {
 
 /** Ground truth for a synthetic object, to check the whole coordinate pipeline. */
 export type GroundTruth =
-  | { readonly kind: 'ellipse'; readonly x: number; readonly y: number; readonly rx: number; readonly ry: number }
+  | {
+      readonly kind: 'ellipse';
+      readonly x: number;
+      readonly y: number;
+      readonly rx: number;
+      readonly ry: number;
+    }
   | { readonly kind: 'none' };
 
 const IMAGES = {
@@ -78,7 +84,12 @@ function frameStatsSince(t0: number): unknown {
   const gaps: number[] = [];
   for (let i = 1; i < ts.length; i++) gaps.push(ts[i]! - ts[i - 1]!);
   const s = stats(gaps);
-  return { frames: ts.length, maxGap: s.max, p90Gap: s.p90, longFrames: gaps.filter((g) => g > 50).length };
+  return {
+    frames: ts.length,
+    maxGap: s.max,
+    p90Gap: s.p90,
+    longFrames: gaps.filter((g) => g > 50).length,
+  };
 }
 
 function emit(e: SegmentationToolEvent): void {
@@ -114,7 +125,9 @@ function getTarget(): SegmentationTarget | null {
 function waitOpen(v: OpenSeadragon.Viewer): Promise<void> {
   return new Promise((resolve, reject) => {
     v.addOnceHandler('open', () => resolve());
-    v.addOnceHandler('open-failed', (e) => reject(new Error(String((e as { message?: string }).message))));
+    v.addOnceHandler('open-failed', (e) =>
+      reject(new Error(String((e as { message?: string }).message))),
+    );
   });
 }
 
@@ -124,8 +137,9 @@ function waitOpen(v: OpenSeadragon.Viewer): Promise<void> {
  * here: OSD keeps refining towards higher levels.
  */
 async function waitTilesSettled(timeoutMs = 20_000): Promise<boolean> {
-  const loader = (viewer as unknown as { imageLoader?: { jobsInProgress: number; jobQueue: unknown[] } })
-    ?.imageLoader;
+  const loader = (
+    viewer as unknown as { imageLoader?: { jobsInProgress: number; jobQueue: unknown[] } }
+  )?.imageLoader;
   if (!loader) return false;
   const t0 = performance.now();
   let quiet = 0;
@@ -174,7 +188,13 @@ async function init(cfg: E2eInit): Promise<unknown> {
   if (cfg.mode === 'remote-all') {
     provider = createRemoteSegmentationProvider({
       url: '/api/sam/segment',
-      capabilities: { box: true, negativePoints: true, multimask: true, maskInput: false, inputSize: spec.inputSize },
+      capabilities: {
+        box: true,
+        negativePoints: true,
+        multimask: true,
+        maskInput: false,
+        inputSize: spec.inputSize,
+      },
       fetch: (input, init) => {
         const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};
         return fetch(input, { ...init, body: JSON.stringify({ ...body, model: cfg.model }) });
@@ -228,7 +248,11 @@ async function init(cfg: E2eInit): Promise<unknown> {
     onEvent: emit,
     onCommitMask: (c) => {
       const t0 = performance.now();
-      const ann = createMaskAnnotation(c.snapshot, { imageId: c.imageId, contextId: c.contextId, toolType: 'segmentation' });
+      const ann = createMaskAnnotation(c.snapshot, {
+        imageId: c.imageId,
+        contextId: c.contextId,
+        toolType: 'segmentation',
+      });
       const t1 = performance.now();
       const raw = ann.rawAnnotationData;
       if (raw.format !== 'osdlabel-mask') return;
@@ -236,20 +260,41 @@ async function init(cfg: E2eInit): Promise<unknown> {
       const t2 = performance.now();
       if (obj) overlay?.canvas.add(obj);
       overlay?.canvas.requestRenderAll();
-      committed.push({ id: ann.id, createMs: t1 - t0, renderBuildMs: t2 - t1, countsBytes: raw.data.counts.length });
+      committed.push({
+        id: ann.id,
+        createMs: t1 - t0,
+        renderBuildMs: t2 - t1,
+        countsBytes: raw.data.counts.length,
+      });
     },
   });
   overlay.setMode('paint');
   tool.activate(overlay, imageId, callbacks, {} as never);
   const ov = overlay;
   const toImage = (p: Point): Point => ov.screenToImage(p);
-  ov.canvas.on('mouse:down', (opt) => tool?.onPointerDown(opt.e as PointerEvent, getScenePointFromEvent(toImage, opt)));
-  ov.canvas.on('mouse:move', (opt) => tool?.onPointerMove(opt.e as PointerEvent, getScenePointFromEvent(toImage, opt)));
-  ov.canvas.on('mouse:up', (opt) => tool?.onPointerUp(opt.e as PointerEvent, getScenePointFromEvent(toImage, opt)));
-  return { info, imageSize: imageSize(), pyramid: absolute, crossOriginIsolated: globalThis.crossOriginIsolated };
+  ov.canvas.on('mouse:down', (opt) =>
+    tool?.onPointerDown(opt.e as PointerEvent, getScenePointFromEvent(toImage, opt)),
+  );
+  ov.canvas.on('mouse:move', (opt) =>
+    tool?.onPointerMove(opt.e as PointerEvent, getScenePointFromEvent(toImage, opt)),
+  );
+  ov.canvas.on('mouse:up', (opt) =>
+    tool?.onPointerUp(opt.e as PointerEvent, getScenePointFromEvent(toImage, opt)),
+  );
+  return {
+    info,
+    imageSize: imageSize(),
+    pyramid: absolute,
+    crossOriginIsolated: globalThis.crossOriginIsolated,
+  };
 }
 
-async function view(p: { cx: number; cy: number; zoom: number; waitTiles?: boolean }): Promise<unknown> {
+async function view(p: {
+  cx: number;
+  cy: number;
+  zoom: number;
+  waitTiles?: boolean;
+}): Promise<unknown> {
   const v = viewer!;
   const vp = v.viewport;
   vp.zoomTo(vp.imageToViewportZoom(p.zoom), undefined, true);
@@ -275,10 +320,14 @@ function eventsSince(i: number): unknown[] {
         cached: result.cached,
         timings: result.timings,
         view: result.view,
-        candidates: result.candidates.map((c) => ({ predictedIou: c.predictedIou, frame: c.mask.frame })),
+        candidates: result.candidates.map((c) => ({
+          predictedIou: c.predictedIou,
+          frame: c.mask.frame,
+        })),
       };
     }
-    if (e.type === 'capacity') return { type: e.type, requested: e.error.requestedPixels, max: e.error.maxPixels };
+    if (e.type === 'capacity')
+      return { type: e.type, requested: e.error.requestedPixels, max: e.error.maxPixels };
     if (e.type === 'error') return { type: e.type, error: String(e.error) };
     return e;
   });
@@ -317,7 +366,9 @@ function analyze(gt: GroundTruth): unknown {
   const f = best.mask.frame;
 
   let t0 = performance.now();
-  const polys = rasterToPolygons(best.mask, { tolerance: 0.25 * Math.min(f.pixelWidth, f.pixelHeight) });
+  const polys = rasterToPolygons(best.mask, {
+    tolerance: 0.25 * Math.min(f.pixelWidth, f.pixelHeight),
+  });
   out['polygonMs'] = performance.now() - t0;
   out['polygonRings'] = polys.length;
   out['polygonVertices'] = polys[0]?.outer.length ?? 0;
@@ -341,7 +392,10 @@ function analyze(gt: GroundTruth): unknown {
     out['canonicalBytes'] = canonical.counts.length;
     if (snap.width * snap.height <= 64 * 1024 * 1024) {
       t0 = performance.now();
-      const obj = buildMaskFabricObject({ format: 'osdlabel-mask', data: { ...canonical } }, { id: 'probe' });
+      const obj = buildMaskFabricObject(
+        { format: 'osdlabel-mask', data: { ...canonical } },
+        { id: 'probe' },
+      );
       out['renderBuildMs'] = performance.now() - t0;
       out['renderCanvasPixels'] = snap.width * snap.height;
       void obj;
@@ -364,7 +418,10 @@ function analyze(gt: GroundTruth): unknown {
         const truth = fillRings([ellipseRing(gt)], w, h, x0, y0);
         const mask = new Uint8Array(w * h);
         for (let r = 0; r < snap.height; r++) {
-          mask.set(snap.data.subarray(r * snap.width, (r + 1) * snap.width), (snap.y - y0 + r) * w + (snap.x - x0));
+          mask.set(
+            snap.data.subarray(r * snap.width, (r + 1) * snap.width),
+            (snap.y - y0 + r) * w + (snap.x - x0),
+          );
         }
         out['groundTruthIoU'] = binaryIou(mask, truth);
         // The same for the polygon, which is what a coarse-zoom commit stores.
@@ -387,7 +444,11 @@ declare global {
       mark(): number;
       waitPainted(from: number, timeoutMs?: number): Promise<unknown[]>;
       analyze(gt: GroundTruth): unknown;
-      commit(output: 'mask' | 'polygon'): { output: string | null; events: unknown[]; committed: unknown };
+      commit(output: 'mask' | 'polygon'): {
+        output: string | null;
+        events: unknown[];
+        committed: unknown;
+      };
       cancel(): void;
       prepare(): Promise<number>;
       cacheStats(): Promise<unknown>;

@@ -55,9 +55,11 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
     crossOriginIsolated: globalThis.crossOriginIsolated,
     hardwareConcurrency: navigator.hardwareConcurrency,
     userAgent: navigator.userAgent,
-    webgpu: cfg.encoderEp === 'webgpu' || cfg.decoderEp === 'webgpu' ? await webgpuAdapterInfo() : null,
+    webgpu:
+      cfg.encoderEp === 'webgpu' || cfg.decoderEp === 'webgpu' ? await webgpuAdapterInfo() : null,
   };
-  const build: ExecutionProvider = cfg.encoderEp === 'webgpu' || cfg.decoderEp === 'webgpu' ? 'webgpu' : 'wasm';
+  const build: ExecutionProvider =
+    cfg.encoderEp === 'webgpu' || cfg.decoderEp === 'webgpu' ? 'webgpu' : 'wasm';
   const { ort } = await loadOrt(build, cfg.threads);
   const model = await OnnxSamModel.load(
     ort,
@@ -80,9 +82,14 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
     scale: 1,
   };
   const frame = modelFrame(view, S, model.adapter.layout);
-  const pixels = { width: frame.contentWidth, height: frame.contentHeight, data: noiseImage(frame.contentWidth, frame.contentHeight) };
+  const pixels = {
+    width: frame.contentWidth,
+    height: frame.contentHeight,
+    data: noiseImage(frame.contentWidth, frame.contentHeight),
+  };
 
-  if (cfg.encoderEp === 'webgpu' && cfg.decoderEp === 'webgpu') throw new Error('measure WebGPU one half at a time');
+  if (cfg.encoderEp === 'webgpu' && cfg.decoderEp === 'webgpu')
+    throw new Error('measure WebGPU one half at a time');
   const t0 = performance.now();
   let { embedding } = await model.encode(pixels, frame);
   const firstEncode = performance.now() - t0;
@@ -112,7 +119,11 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
   const firstDecodeAt = performance.now();
   for (let i = 0; i < (cfg.decoderWarmups ?? 3); i++) {
     await model.decode(embedding, click);
-    if (i === 0) window.__benchProgress = { ...window.__benchProgress, firstDecode: performance.now() - firstDecodeAt };
+    if (i === 0)
+      window.__benchProgress = {
+        ...window.__benchProgress,
+        firstDecode: performance.now() - firstDecodeAt,
+      };
   }
   const firstDecode = performance.now() - firstDecodeAt;
   await cpuMark('decode-start');
@@ -142,7 +153,9 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
 
 declare global {
   interface Window {
-    __runModelBench?: (cfg: ModelBenchConfig) => Promise<ModelBenchResult | { config: ModelBenchConfig; error: string }>;
+    __runModelBench?: (
+      cfg: ModelBenchConfig,
+    ) => Promise<ModelBenchResult | { config: ModelBenchConfig; error: string }>;
     /** Partial results, readable by the runner when a configuration times out. */
     __benchProgress?: Record<string, unknown>;
     /**
@@ -167,4 +180,5 @@ window.__runModelBench = async (cfg) => {
 };
 
 const status = document.getElementById('status');
-if (status) status.textContent = `ready (crossOriginIsolated=${String(globalThis.crossOriginIsolated)})`;
+if (status)
+  status.textContent = `ready (crossOriginIsolated=${String(globalThis.crossOriginIsolated)})`;

@@ -14,8 +14,19 @@ import {
 
 const IMAGE = { width: 100_000, height: 80_000 };
 
-function target(x: number, y: number, w: number, h: number, viewportScale: number): SegmentationTarget {
-  return { imageKey: 'img', imageSize: IMAGE, viewport: { x, y, width: w, height: h }, viewportScale };
+function target(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  viewportScale: number,
+): SegmentationTarget {
+  return {
+    imageKey: 'img',
+    imageSize: IMAGE,
+    viewport: { x, y, width: w, height: h },
+    viewportScale,
+  };
 }
 
 describe('planEncodeView', () => {
@@ -62,16 +73,24 @@ describe('canReuse', () => {
   const view = planEncodeView(t0);
 
   it('reuses within the margin', () => {
-    expect(canReuse(view, target(41_000, 31_000, 16_000, 9_000, 1 / 16), null)).toEqual({ reuse: true });
+    expect(canReuse(view, target(41_000, 31_000, 16_000, 9_000, 1 / 16), null)).toEqual({
+      reuse: true,
+    });
   });
 
   it('never reuses across variants, and treats "no variant" as its own variant', () => {
     const ct = planEncodeView({ ...t0, variant: 'wl=40/400' });
     expect(ct.variant).toBe('wl=40/400');
     expect(canReuse(ct, { ...t0, variant: 'wl=40/400' }, null)).toEqual({ reuse: true });
-    expect(canReuse(ct, { ...t0, variant: 'wl=-600/1500' }, null)).toEqual({ reuse: false, reason: 'other-variant' });
+    expect(canReuse(ct, { ...t0, variant: 'wl=-600/1500' }, null)).toEqual({
+      reuse: false,
+      reason: 'other-variant',
+    });
     expect(canReuse(ct, t0, null)).toEqual({ reuse: false, reason: 'other-variant' });
-    expect(canReuse(view, { ...t0, variant: 'wl=40/400' }, null)).toEqual({ reuse: false, reason: 'other-variant' });
+    expect(canReuse(view, { ...t0, variant: 'wl=40/400' }, null)).toEqual({
+      reuse: false,
+      reason: 'other-variant',
+    });
   });
 
   it('re-encodes when panned beyond the margin', () => {
@@ -113,7 +132,14 @@ const decoder: SegmentationDecoder<string> = {
         {
           predictedIou: 0.9,
           mask: {
-            frame: { originX: encoded.view.region.x, originY: encoded.view.region.y, pixelWidth: 1, pixelHeight: 1, width: 1, height: 1 },
+            frame: {
+              originX: encoded.view.region.x,
+              originY: encoded.view.region.y,
+              pixelWidth: 1,
+              pixelHeight: 1,
+              width: 1,
+              height: 1,
+            },
             data: new Uint8Array([1]),
           },
         },
@@ -134,7 +160,11 @@ describe('composeSegmentationProvider', () => {
     expect(log).toHaveLength(1);
     expect(r1.cached).toBe(false);
     expect(r2.cached).toBe(true);
-    await provider.segment(target(60_000, 30_000, 16_000, 9_000, 1 / 16), { points: [{ x: 66_000, y: 34_000, label: 1 }] }, signal);
+    await provider.segment(
+      target(60_000, 30_000, 16_000, 9_000, 1 / 16),
+      { points: [{ x: 66_000, y: 34_000, label: 1 }] },
+      signal,
+    );
     expect(log).toHaveLength(2);
   });
 
@@ -142,7 +172,10 @@ describe('composeSegmentationProvider', () => {
     const log: EncodeView[] = [];
     const provider = composeSegmentationProvider(fakeEncoder(log), decoder);
     const signal = new AbortController().signal;
-    const at = (variant: string): SegmentationTarget => ({ ...target(40_000, 30_000, 16_000, 9_000, 1 / 16), variant });
+    const at = (variant: string): SegmentationTarget => ({
+      ...target(40_000, 30_000, 16_000, 9_000, 1 / 16),
+      variant,
+    });
     const p = { points: [{ x: 48_000, y: 34_000, label: 1 as const }] };
     await provider.segment(at('wl=40/400;z=12'), p, signal);
     await provider.segment(at('wl=40/400;z=12'), p, signal);

@@ -33,7 +33,9 @@ interface EncodeMeta {
  * returns the embedding; the browser's decoder then answers every click
  * locally. Same contract as the in-browser encoder, so the tool cannot tell.
  */
-export function createRemoteEncoder(options: RemoteEncoderOptions): SegmentationEncoder<SamEmbedding> {
+export function createRemoteEncoder(
+  options: RemoteEncoderOptions,
+): SegmentationEncoder<SamEmbedding> {
   const doFetch = options.fetch ?? fetch;
   const adapter = adapterFor(options.family);
   return {
@@ -54,7 +56,8 @@ export function createRemoteEncoder(options: RemoteEncoderOptions): Segmentation
       const t2 = performance.now();
       const tensors = adapter.embeddingNames.map((name) => {
         const b = blobs.find((x) => x.name === name);
-        if (!b || !(b.data instanceof Float32Array)) throw new Error(`remote embedding lacks '${name}'`);
+        if (!b || !(b.data instanceof Float32Array))
+          throw new Error(`remote embedding lacks '${name}'`);
         return { name, dims: b.dims, data: b.data };
       });
       const embedding: SamEmbedding = {
@@ -97,7 +100,9 @@ export interface RemoteProviderOptions {
  * result is the same {@link MaskCandidate} rasters, so the tool and the
  * mask/polygon conversion are unchanged.
  */
-export function createRemoteSegmentationProvider(options: RemoteProviderOptions): SegmentationProvider {
+export function createRemoteSegmentationProvider(
+  options: RemoteProviderOptions,
+): SegmentationProvider {
   const doFetch = options.fetch ?? fetch;
   return {
     capabilities: options.capabilities,

@@ -52,7 +52,9 @@ function embedding(family: 'sam1' | 'efficientsam' | 'sam2'): SamEmbedding {
   return {
     family,
     frame: modelFrame(view, 1024, family === 'sam1' ? 'letterbox' : 'stretch'),
-    tensors: [{ name: 'image_embeddings', dims: [1, 256, 64, 64], data: new Float32Array(256 * 64 * 64) }],
+    tensors: [
+      { name: 'image_embeddings', dims: [1, 256, 64, 64], data: new Float32Array(256 * 64 * 64) },
+    ],
   };
 }
 
@@ -67,9 +69,14 @@ describe('preprocess', () => {
 
 describe('SAM1 decoder feeds', () => {
   it('maps image-space prompts into the letterboxed model frame with a pad point', () => {
-    const feeds = SAM1.decoderFeeds(ort, session(['image_embeddings', 'point_coords']), embedding('sam1'), {
-      points: [{ x: 10_000 + 8192, y: 20_000 + 4608, label: 1 }],
-    });
+    const feeds = SAM1.decoderFeeds(
+      ort,
+      session(['image_embeddings', 'point_coords']),
+      embedding('sam1'),
+      {
+        points: [{ x: 10_000 + 8192, y: 20_000 + 4608, label: 1 }],
+      },
+    );
     const coords = feeds['point_coords']!.data as Float32Array;
     expect(Array.from(coords)).toEqual([512, 288, 0, 0]);
     expect(Array.from(feeds['point_labels']!.data as Float32Array)).toEqual([1, -1]);
@@ -77,9 +84,14 @@ describe('SAM1 decoder feeds', () => {
   });
 
   it('keeps the full graph upsample at model size, never image size', () => {
-    const feeds = SAM1.decoderFeeds(ort, session(['image_embeddings', 'orig_im_size']), embedding('sam1'), {
-      box: { x: 10_000, y: 20_000, width: 1600, height: 1600 },
-    });
+    const feeds = SAM1.decoderFeeds(
+      ort,
+      session(['image_embeddings', 'orig_im_size']),
+      embedding('sam1'),
+      {
+        box: { x: 10_000, y: 20_000, width: 1600, height: 1600 },
+      },
+    );
     expect(Array.from(feeds['orig_im_size']!.data as Float32Array)).toEqual([576, 1024]);
     expect(Array.from(feeds['point_labels']!.data as Float32Array)).toEqual([2, 3]);
   });
@@ -145,14 +157,16 @@ describe('wire format', () => {
     expect(meta.hello).toBe('world');
     expect(Array.from(blobs[0]!.data)).toEqual(Array.from(a));
     const half = blobs[1]!.data as Float32Array;
-    for (let i = 0; i < a.length; i++) expect(Math.abs(half[i]! - a[i]!)).toBeLessThan(Math.abs(a[i]!) * 1e-3 + 1e-6);
+    for (let i = 0; i < a.length; i++)
+      expect(Math.abs(half[i]! - a[i]!)).toBeLessThan(Math.abs(a[i]!) * 1e-3 + 1e-6);
     expect(Array.from(blobs[2]!.data)).toEqual([1, 0, 1]);
   });
 
   it('float16 keeps SAM embedding magnitudes within 0.1% relative error', () => {
     const x = Float32Array.from({ length: 1000 }, (_, i) => Math.sin(i) * 3);
     const y = float16ToFloat32(float32ToFloat16(x));
-    for (let i = 0; i < x.length; i++) expect(Math.abs(y[i]! - x[i]!)).toBeLessThanOrEqual(Math.abs(x[i]!) * 1e-3 + 1e-4);
+    for (let i = 0; i < x.length; i++)
+      expect(Math.abs(y[i]! - x[i]!)).toBeLessThanOrEqual(Math.abs(x[i]!) * 1e-3 + 1e-4);
   });
 });
 
@@ -162,12 +176,20 @@ describe('remote encoder', () => {
     let posted: unknown = null;
     const fakeFetch: typeof fetch = async (_url, init) => {
       posted = JSON.parse(String(init?.body));
-      const body = encodeWire([{ name: 'image_embeddings', dims: [1, 256, 64, 64], data: emb, dtype: 'float16' }], {
-        timings: { serverEncode: 12 },
-      });
+      const body = encodeWire(
+        [{ name: 'image_embeddings', dims: [1, 256, 64, 64], data: emb, dtype: 'float16' }],
+        {
+          timings: { serverEncode: 12 },
+        },
+      );
       return new Response(body.slice().buffer);
     };
-    const enc = createRemoteEncoder({ url: '/api/sam/encode', family: 'sam1', inputSize: 1024, fetch: fakeFetch });
+    const enc = createRemoteEncoder({
+      url: '/api/sam/encode',
+      family: 'sam1',
+      inputSize: 1024,
+      fetch: fakeFetch,
+    });
     const out = await enc.encode(view, new AbortController().signal);
     expect(posted).toMatchObject({ view: { imageKey: 'img' }, dtype: 'float16' });
     expect(out.embedding.tensors[0]!.data[10]).toBe(0.25);
@@ -195,7 +217,13 @@ describe('worker RPC', () => {
     const [main, worker] = channel();
     let aborted = false;
     const provider: SegmentationProvider = {
-      capabilities: { box: true, negativePoints: true, multimask: true, maskInput: false, inputSize: 1024 },
+      capabilities: {
+        box: true,
+        negativePoints: true,
+        multimask: true,
+        maskInput: false,
+        inputSize: 1024,
+      },
       async segment(target, prompt, signal) {
         if (prompt.points?.[0]?.label === 0) throw new Error('nope');
         if (prompt.points?.[0]?.x === 99) {
@@ -204,24 +232,53 @@ describe('worker RPC', () => {
           throw new DOMException('Aborted', 'AbortError');
         }
         return {
-          view: { imageKey: target.imageKey, imageSize: target.imageSize, region: target.viewport, scale: 1 },
+          view: {
+            imageKey: target.imageKey,
+            imageSize: target.imageSize,
+            region: target.viewport,
+            scale: 1,
+          },
           candidates: [
             {
               predictedIou: 0.9,
-              mask: { frame: { originX: 0, originY: 0, pixelWidth: 1, pixelHeight: 1, width: 1, height: 1 }, data: new Float32Array([1]) },
+              mask: {
+                frame: {
+                  originX: 0,
+                  originY: 0,
+                  pixelWidth: 1,
+                  pixelHeight: 1,
+                  width: 1,
+                  height: 1,
+                },
+                data: new Float32Array([1]),
+              },
             },
           ],
         };
       },
     };
-    serveSegmentationWorker<{ model: string }>(worker, async () => ({ provider, info: { ok: true } }));
+    serveSegmentationWorker<{ model: string }>(worker, async () => ({
+      provider,
+      info: { ok: true },
+    }));
     const client = new WorkerSegmentationProvider<{ model: string }>(main);
     expect(await client.init({ model: 'x' })).toEqual({ ok: true });
     expect(client.capabilities.inputSize).toBe(1024);
-    const target = { imageKey: 'a', imageSize: { width: 10, height: 10 }, viewport: { x: 0, y: 0, width: 10, height: 10 }, viewportScale: 1 };
-    const r = await client.segment(target, { points: [{ x: 1, y: 1, label: 1 }] }, new AbortController().signal);
+    const target = {
+      imageKey: 'a',
+      imageSize: { width: 10, height: 10 },
+      viewport: { x: 0, y: 0, width: 10, height: 10 },
+      viewportScale: 1,
+    };
+    const r = await client.segment(
+      target,
+      { points: [{ x: 1, y: 1, label: 1 }] },
+      new AbortController().signal,
+    );
     expect(r.candidates[0]!.predictedIou).toBe(0.9);
-    await expect(client.segment(target, { points: [{ x: 1, y: 1, label: 0 }] }, new AbortController().signal)).rejects.toThrow('nope');
+    await expect(
+      client.segment(target, { points: [{ x: 1, y: 1, label: 0 }] }, new AbortController().signal),
+    ).rejects.toThrow('nope');
     const ctrl = new AbortController();
     const p = client.segment(target, { points: [{ x: 99, y: 1, label: 1 }] }, ctrl.signal);
     ctrl.abort();

@@ -125,7 +125,12 @@ export type ReuseVerdict =
   | { readonly reuse: true }
   | {
       readonly reuse: false;
-      readonly reason: 'other-image' | 'other-variant' | 'panned-out' | 'prompt-outside' | 'too-coarse';
+      readonly reason:
+        | 'other-image'
+        | 'other-variant'
+        | 'panned-out'
+        | 'prompt-outside'
+        | 'too-coarse';
     };
 
 /**

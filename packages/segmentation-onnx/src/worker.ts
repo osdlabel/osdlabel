@@ -28,9 +28,24 @@ export type ToWorker<TConfig> =
   | { readonly type: 'dispose'; readonly imageKey?: SegmentationImageKey | undefined };
 
 export type FromWorker =
-  | { readonly type: 'ready'; readonly id: number; readonly capabilities: ProviderCapabilities; readonly info: unknown }
-  | { readonly type: 'result'; readonly id: number; readonly result: SegmentationResult | null; readonly value?: unknown }
-  | { readonly type: 'error'; readonly id: number; readonly name: string; readonly message: string };
+  | {
+      readonly type: 'ready';
+      readonly id: number;
+      readonly capabilities: ProviderCapabilities;
+      readonly info: unknown;
+    }
+  | {
+      readonly type: 'result';
+      readonly id: number;
+      readonly result: SegmentationResult | null;
+      readonly value?: unknown;
+    }
+  | {
+      readonly type: 'error';
+      readonly id: number;
+      readonly name: string;
+      readonly message: string;
+    };
 
 /** The bits of a worker / `self` the RPC needs. */
 export interface MessagePortLike {
@@ -60,7 +75,12 @@ export function serveSegmentationWorker<TConfig>(
   const inflight = new Map<number, AbortController>();
   const fail = (id: number, e: unknown): void => {
     const err = e instanceof Error ? e : new Error(String(e));
-    scope.postMessage({ type: 'error', id, name: err.name, message: err.message } satisfies FromWorker);
+    scope.postMessage({
+      type: 'error',
+      id,
+      name: err.name,
+      message: err.message,
+    } satisfies FromWorker);
   };
 
   scope.addEventListener('message', (event: MessageEvent) => {
@@ -89,7 +109,12 @@ export function serveSegmentationWorker<TConfig>(
       case 'configure':
         try {
           const value = hosted?.configure?.(msg.message);
-          scope.postMessage({ type: 'result', id: msg.id, result: null, value } satisfies FromWorker);
+          scope.postMessage({
+            type: 'result',
+            id: msg.id,
+            result: null,
+            value,
+          } satisfies FromWorker);
         } catch (e) {
           fail(msg.id, e);
         }
@@ -106,7 +131,9 @@ export function serveSegmentationWorker<TConfig>(
         const work =
           msg.type === 'segment'
             ? h.provider.segment(msg.target, msg.prompt, controller.signal)
-            : (h.provider.prepare?.(msg.target, controller.signal) ?? Promise.resolve()).then(() => null);
+            : (h.provider.prepare?.(msg.target, controller.signal) ?? Promise.resolve()).then(
+                () => null,
+              );
         work.then(
           (result) => {
             inflight.delete(msg.id);
@@ -165,7 +192,10 @@ export class WorkerSegmentationProvider<TConfig> implements SegmentationProvider
     return this.caps;
   }
 
-  private request(build: (id: number) => ToWorker<TConfig>, signal?: AbortSignal): Promise<FromWorker> {
+  private request(
+    build: (id: number) => ToWorker<TConfig>,
+    signal?: AbortSignal,
+  ): Promise<FromWorker> {
     const id = this.nextId++;
     return new Promise<FromWorker>((resolve, reject) => {
       if (signal?.aborted) {
@@ -200,7 +230,11 @@ export class WorkerSegmentationProvider<TConfig> implements SegmentationProvider
     await this.request((id) => ({ type: 'prepare', id, target }), signal);
   }
 
-  async segment(target: SegmentationTarget, prompt: SegmentationPrompt, signal: AbortSignal): Promise<SegmentationResult> {
+  async segment(
+    target: SegmentationTarget,
+    prompt: SegmentationPrompt,
+    signal: AbortSignal,
+  ): Promise<SegmentationResult> {
     const msg = await this.request((id) => ({ type: 'segment', id, target, prompt }), signal);
     if (msg.type !== 'result' || !msg.result) throw new Error('unexpected segment reply');
     return msg.result;

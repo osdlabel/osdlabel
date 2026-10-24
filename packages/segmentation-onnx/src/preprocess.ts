@@ -11,7 +11,11 @@ const STD = [0.229, 0.224, 0.225] as const;
  * is the mean colour). `imagenet` is (x/255 - mean) / std; `unit` is x/255
  * for models that normalise internally (EfficientSAM).
  */
-export function rgbaToChw(image: RgbaImage, inputSize: number, normalization: PixelNormalization): Float32Array {
+export function rgbaToChw(
+  image: RgbaImage,
+  inputSize: number,
+  normalization: PixelNormalization,
+): Float32Array {
   if (image.width > inputSize || image.height > inputSize) {
     throw new RangeError(`image ${image.width}x${image.height} exceeds model input ${inputSize}`);
   }
