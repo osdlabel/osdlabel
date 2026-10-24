@@ -11,7 +11,7 @@
  *
  * Flags:
  *   --quick              small volume (256x256x200) and fewer reps
- *   --only <list>        subset of: bench,mpr,niivue
+ *   --only <list>        subset of: bench,mpr,niivue,bundle
  *   --headed             run a visible browser (desktop reproduction)
  *   --chromium <path>    browser binary (default: $POC_CHROMIUM, then
  *                        /opt/pw-browsers/chromium if present, else
@@ -33,6 +33,7 @@ import { chromium } from 'playwright';
 import { findPidByMarker, sampleProcessMemory, MiB } from './proc-mem.mjs';
 import { printSummary } from './summary.mjs';
 import { crossViewCheck } from './cross-view-check.mjs';
+import { bundleSizes } from './bundle-size.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -43,7 +44,7 @@ const arg = (f, d) => {
 };
 
 const quick = flag('--quick');
-const only = new Set(String(arg('--only', 'bench,mpr,niivue')).split(','));
+const only = new Set(String(arg('--only', 'bench,mpr,niivue,bundle')).split(','));
 const port = Number(arg('--port', '5637'));
 const defaultChromium = fs.existsSync('/opt/pw-browsers/chromium')
   ? '/opt/pw-browsers/chromium'
@@ -213,13 +214,33 @@ async function main() {
         await page.close();
       }
     }
-    // NIIVUE_SECTION
+    if (only.has('niivue')) {
+      const page = await context.newPage();
+      log('niivue');
+      await open(page, 'niivue.html');
+      result.memory.push(mem('niivue:start'));
+      const setup = await call(page, 'setup');
+      result.memory.push(mem('niivue:setup'));
+      log(' rotate');
+      const rotate = await call(page, 'rotate', quick ? 30 : 120);
+      log(' shared labels');
+      const labels = await call(page, 'sharedLabels');
+      result.memory.push(mem('niivue:labels'));
+      const accuracy = await call(page, 'overlayAccuracy');
+      await page.screenshot({ path: path.join(path.dirname(outFile), `niivue-${stamp}.png`) });
+      result.niivue = { setup, rotate, labels, accuracy, contexts: await call(page, 'contexts') };
+      await page.close();
+    }
   } finally {
     await context.close();
     await browser.close();
     await server.close();
   }
 
+  if (only.has('bundle')) {
+    log('bundle sizes');
+    result.bundle = await bundleSizes(APP);
+  }
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, JSON.stringify(result, null, 2));
   log('wrote', path.relative(process.cwd(), outFile));

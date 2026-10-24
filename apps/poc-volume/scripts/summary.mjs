@@ -88,6 +88,18 @@ export function printSummary(r) {
   }
   if (r.niivue)
     console.log('\nniivue:', JSON.stringify(r.niivue.summary ?? r.niivue, null, 0).slice(0, 2000));
+  if (r.bundle) {
+    table(
+      'Bundle size (production, minified)',
+      Object.entries(r.bundle).map(([k, v]) => ({ k, ...v })),
+      [
+        ['entry', (x) => x.k],
+        ['min KiB', (x) => f(x.minifiedBytes / 1024, 0)],
+        ['gzip KiB', (x) => f(x.gzipBytes / 1024, 0)],
+        ['error', (x) => x.error ?? ''],
+      ],
+    );
+  }
   table('Process memory (MiB PSS)', r.memory, [
     ['label', (x) => x.label],
     ['renderer', (x) => f(x.byType?.renderer?.pssMiB, 0)],
