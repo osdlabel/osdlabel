@@ -28,6 +28,7 @@ export function allEnabled(overrides: Partial<ConstraintStatus> = {}): Constrain
     polyline: { ...enabled },
     freeHandPath: { ...enabled },
     segmentationBrush: { ...enabled },
+    segmentation: { ...enabled },
     ...overrides,
   };
 }

@@ -6,7 +6,7 @@
  */
 import { modelFrame, type SegmentationPrompt } from '@osdlabel/segmentation';
 import { OnnxSamModel, embeddingBytes } from '@osdlabel/segmentation-onnx';
-import { findSpec } from './model-specs.js';
+import { findSpec, modelUrl } from './model-specs.js';
 import { loadOrt, webgpuAdapterInfo, type ExecutionProvider } from './ort-runtime.js';
 import { stats, type Stats } from './stats.js';
 
@@ -60,8 +60,8 @@ async function run(cfg: ModelBenchConfig): Promise<ModelBenchResult> {
     {
       family: spec.family,
       inputSize: spec.inputSize,
-      encoder: `/models/${spec.encoder}`,
-      decoder: `/models/${spec.decoder}`,
+      encoder: await modelUrl(spec.encoder),
+      decoder: await modelUrl(spec.decoder, spec.decoderFallback),
     },
     {
       encoderSession: { executionProviders: [cfg.encoderEp] },

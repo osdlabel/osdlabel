@@ -11,6 +11,7 @@ import { FabricOverlay } from '@osdlabel/fabric-osd';
 import { encodeCanonical } from '@osdlabel/mask';
 import { binaryIou, fillRings, type Ring } from '@osdlabel/mask-contour';
 import { describeOsdTileSource, type TilePyramid } from '@osdlabel/region-reader';
+import { stats } from './stats.js';
 import {
   rasterImageBounds,
   rasterToMaskSnapshot,
@@ -20,15 +21,19 @@ import {
 } from '@osdlabel/segmentation';
 import { SegmentationTool, type SegmentationToolEvent } from '@osdlabel/segmentation-fabric';
 import {
+  OnnxSamModel,
   WorkerSegmentationProvider,
+  createOnnxSamProvider,
   createRemoteSegmentationProvider,
 } from '@osdlabel/segmentation-onnx';
+import { browserTileIO } from '@osdlabel/region-reader';
+import { loadOrt } from './ort-runtime.js';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createMaskAnnotation, getScenePointFromEvent, processToolAddAnnotation } from 'osdlabel';
-import { findSpec } from './model-specs.js';
+import { findSpec, modelUrl } from './model-specs.js';
 import type { SamWorkerConfig } from './sam-worker.js';
 
-type Mode = 'local' | 'remote-encoder' | 'remote-all';
+type Mode = 'local' | 'local-main' | 'remote-encoder' | 'remote-all';
 
 export interface E2eInit {
   readonly image: 'synth' | 'sample';
@@ -58,6 +63,23 @@ let provider: SegmentationProvider | null = null;
 let workerProvider: WorkerSegmentationProvider<SamWorkerConfig> | null = null;
 let imageKey = 'synth';
 const committed: unknown[] = [];
+
+/** rAF timestamps: the main thread's responsiveness while inference runs. */
+const frames: number[] = [];
+function frameLoop(t: number): void {
+  frames.push(t);
+  if (frames.length > 20_000) frames.splice(0, 10_000);
+  requestAnimationFrame(frameLoop);
+}
+requestAnimationFrame(frameLoop);
+
+function frameStatsSince(t0: number): unknown {
+  const ts = frames.filter((t) => t >= t0);
+  const gaps: number[] = [];
+  for (let i = 1; i < ts.length; i++) gaps.push(ts[i]! - ts[i - 1]!);
+  const s = stats(gaps);
+  return { frames: ts.length, maxGap: s.max, p90Gap: s.p90, longFrames: gaps.filter((g) => g > 50).length };
+}
 
 function emit(e: SegmentationToolEvent): void {
   // Drop the raster payloads from what the runner reads back.
@@ -158,14 +180,25 @@ async function init(cfg: E2eInit): Promise<unknown> {
         return fetch(input, { ...init, body: JSON.stringify({ ...body, model: cfg.model }) });
       },
     });
+  } else if (cfg.mode === 'local-main') {
+    // Everything on the main thread: the comparison that justifies the worker.
+    const { ort } = await loadOrt('wasm', cfg.threads);
+    const model = await OnnxSamModel.load(ort, {
+      family: spec.family,
+      inputSize: spec.inputSize,
+      encoder: await modelUrl(spec.encoder),
+      decoder: await modelUrl(spec.decoder, spec.decoderFallback),
+    });
+    provider = createOnnxSamProvider(model, () => absolute, browserTileIO());
+    info = { load: model.loadTimings };
   } else {
     const worker = new Worker(new URL('./sam-worker.ts', import.meta.url), { type: 'module' });
     workerProvider = new WorkerSegmentationProvider<SamWorkerConfig>(worker);
     info = await workerProvider.init({
       family: spec.family,
       inputSize: spec.inputSize,
-      encoderUrl: new URL(`/models/${spec.encoder}`, location.href).href,
-      decoderUrl: new URL(`/models/${spec.decoder}`, location.href).href,
+      encoderUrl: await modelUrl(spec.encoder),
+      decoderUrl: await modelUrl(spec.decoder, spec.decoderFallback),
       ep: 'wasm',
       threads: cfg.threads,
       mode: cfg.mode,
@@ -255,11 +288,14 @@ function eventsSince(i: number): unknown[] {
 async function waitPainted(from: number, timeoutMs = 300_000): Promise<unknown[]> {
   const t0 = performance.now();
   while (performance.now() - t0 < timeoutMs) {
-    if (events.slice(from).some((e) => e.type === 'painted' || e.type === 'error')) return eventsSince(from);
+    if (events.slice(from).some((e) => e.type === 'painted' || e.type === 'error')) {
+      return [...eventsSince(from), { type: 'frames', ...(frameStatsSince(markedAt) as object) }];
+    }
     await new Promise((r) => setTimeout(r, 10));
   }
   return [...eventsSince(from), { type: 'timeout' }];
 }
+let markedAt = 0;
 
 function ellipseRing(gt: Extract<GroundTruth, { kind: 'ellipse' }>, n = 256): Ring {
   return Array.from({ length: n }, (_, i) => {
@@ -365,7 +401,10 @@ window.__e2e = {
   init,
   view,
   toScreen,
-  mark: () => events.length,
+  mark: () => {
+    markedAt = performance.now();
+    return events.length;
+  },
   waitPainted,
   analyze,
   commit(output) {

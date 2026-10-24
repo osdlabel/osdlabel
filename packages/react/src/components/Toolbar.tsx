@@ -11,6 +11,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
   polyline: 'Polyline',
   freeHandPath: 'Free Draw',
   segmentationBrush: 'Brush',
+  segmentation: 'SAM',
 };
 
 export default function Toolbar() {

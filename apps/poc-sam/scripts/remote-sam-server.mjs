@@ -13,6 +13,7 @@
 // Inference uses onnxruntime-node (native CPU), with the same model adapters
 // the browser uses (@osdlabel/segmentation-onnx), so the numbers isolate
 // topology rather than code differences.
+import fs from 'node:fs';
 import path from 'node:path';
 import ort from 'onnxruntime-node';
 import { planRegionRead } from '@osdlabel/region-reader';
@@ -22,6 +23,8 @@ import {
   createOnnxDecoder,
   embeddingBytes,
   encodeWire,
+  float16ToFloat32,
+  float32ToFloat16,
 } from '@osdlabel/segmentation-onnx';
 import { SYNTH, decodePng, tileBytes } from './synth-tiles.mjs';
 
@@ -141,7 +144,9 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
           family: spec.family,
           inputSize: spec.inputSize,
           encoder: path.join(modelsDir, spec.encoder),
-          decoder: path.join(modelsDir, spec.decoder),
+          decoder: fs.existsSync(path.join(modelsDir, spec.decoder))
+            ? path.join(modelsDir, spec.decoder)
+            : path.join(modelsDir, 'sam_vit_h_4b8939.decoder.onnx'),
         }),
       );
     }
@@ -214,6 +219,35 @@ export function remoteSamMiddleware(prefix, { modelsDir, threads = 4 }) {
             candidates: result.candidates.map((c) => ({ predictedIou: c.predictedIou, frame: c.mask.frame })),
           },
         );
+      } else if (route === 'f16check') {
+        // Does shipping the embedding as float16 change the mask?
+        const model = await getModel(modelId);
+        const { embedding } = await encodeView(model, body.view);
+        const half = {
+          ...embedding,
+          tensors: embedding.tensors.map((t) => ({ ...t, data: float16ToFloat32(float32ToFloat16(t.data)) })),
+        };
+        const a = await model.decode(embedding, body.prompt);
+        const b = await model.decode(half, body.prompt);
+        const perCandidate = a.candidates.map((ca, i) => {
+          const x = ca.mask.data;
+          const y = b.candidates[i].mask.data;
+          let inter = 0;
+          let union = 0;
+          let maxDiff = 0;
+          for (let k = 0; k < x.length; k++) {
+            const p = x[k] > 0;
+            const q = y[k] > 0;
+            if (p && q) inter++;
+            if (p || q) union++;
+            maxDiff = Math.max(maxDiff, Math.abs(x[k] - y[k]));
+          }
+          return { iou: union ? inter / union : 1, maxLogitDiff: maxDiff, iouPred: [ca.predictedIou, b.candidates[i].predictedIou] };
+        });
+        const json = JSON.stringify({ perCandidate });
+        res.setHeader('Content-Type', 'application/json');
+        res.end(json);
+        return;
       } else {
         res.statusCode = 404;
         res.end();

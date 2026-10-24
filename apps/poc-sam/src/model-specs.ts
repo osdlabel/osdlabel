@@ -14,6 +14,8 @@ export interface ModelSpec {
   readonly inputSize: number;
   readonly encoder: string;
   readonly decoder: string;
+  /** Used when `decoder` is missing (the low-res decoder needs Python to derive). */
+  readonly decoderFallback?: string;
   /** Parameter count of the image encoder, for the report. */
   readonly encoderParams: string;
 }
@@ -27,6 +29,7 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     inputSize: 1024,
     encoder: 'mobile_sam.encoder.onnx',
     decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
+    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
     encoderParams: '5.7M',
   },
   {
@@ -57,6 +60,7 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     inputSize: 1024,
     encoder: 'edge_sam.encoder.rand.onnx',
     decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
+    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
     encoderParams: '5.5M',
   },
   {
@@ -67,6 +71,7 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     inputSize: 256,
     encoder: 'litemedsam.encoder.rand.onnx',
     decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
+    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
     encoderParams: '5.7M',
   },
   {
@@ -87,6 +92,7 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     inputSize: 1024,
     encoder: 'sam_vit_b.encoder.rand.onnx',
     decoder: 'sam_vit_h_4b8939.decoder.lowres.onnx',
+    decoderFallback: 'sam_vit_h_4b8939.decoder.onnx',
     encoderParams: '89M',
   },
 ];
@@ -95,4 +101,12 @@ export function findSpec(id: string): ModelSpec {
   const spec = MODEL_SPECS.find((s) => s.id === id);
   if (!spec) throw new Error(`unknown model ${id}`);
   return spec;
+}
+
+/** The URL of the first model file the server has. */
+export async function modelUrl(file: string, fallback?: string): Promise<string> {
+  const primary = new URL(`/models/${file}`, location.href).href;
+  if (!fallback) return primary;
+  const res = await fetch(primary, { method: 'HEAD' });
+  return res.ok ? primary : new URL(`/models/${fallback}`, location.href).href;
 }

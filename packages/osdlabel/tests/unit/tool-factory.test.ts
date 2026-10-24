@@ -15,6 +15,9 @@ import {
 import type { SegmentationBrushToolConfig } from '@osdlabel/fabric-annotations';
 import { createAnnotationTool } from '../../src/tool-factory.js';
 
+/** Stands in for a tool implemented outside fabric-annotations (the SAM tool). */
+class InjectedTool extends SelectTool {}
+
 const brushConfig: SegmentationBrushToolConfig = {
   getBrushRadius: () => 5,
   getImageSize: () => ({ width: 100, height: 100 }),
@@ -37,6 +40,8 @@ const EXPECTED: Record<ToolType | 'select', new (...args: never[]) => unknown> =
   freeHandPath: FreeHandPathTool,
   // Needs its config, or the factory returns null by design — see below.
   segmentationBrush: SegmentationBrushTool,
+  // Implemented outside fabric-annotations and injected through `toolFactories`.
+  segmentation: InjectedTool,
   select: SelectTool,
 };
 
@@ -47,8 +52,13 @@ describe('createAnnotationTool', () => {
   it.each(Object.entries(EXPECTED))('returns a %s tool instance', (type, Expected) => {
     const tool = createAnnotationTool(type as ToolType | 'select', {
       segmentationBrush: brushConfig,
+      toolFactories: { segmentation: () => new InjectedTool() },
     });
     expect(tool).toBeInstanceOf(Expected);
+  });
+
+  it('returns null for an injectable tool nobody injected', () => {
+    expect(createAnnotationTool('segmentation')).toBeNull();
   });
 
   it('returns null for an unrecognized type', () => {

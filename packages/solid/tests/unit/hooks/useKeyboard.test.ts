@@ -51,6 +51,7 @@ function makeConstraintStatus(overrides: Partial<ConstraintStatus> = {}): Constr
     polyline: { ...allEnabled },
     freeHandPath: { ...allEnabled },
     segmentationBrush: { ...allEnabled },
+    segmentation: { ...allEnabled },
     ...overrides,
   };
 }

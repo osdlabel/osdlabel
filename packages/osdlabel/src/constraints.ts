@@ -16,6 +16,7 @@ const ALL_TOOL_TYPES: readonly ToolType[] = [
   'polyline',
   'freeHandPath',
   'segmentationBrush',
+  'segmentation',
 ] as const;
 
 /**

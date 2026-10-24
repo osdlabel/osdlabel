@@ -53,6 +53,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
     polyline: { enabled: true, currentCount: 0, maxCount: null },
     freeHandPath: { enabled: true, currentCount: 0, maxCount: null },
     segmentationBrush: { enabled: true, currentCount: 0, maxCount: null },
+    segmentation: { enabled: true, currentCount: 0, maxCount: null },
   });
 
   const base: MockAnnotator = {

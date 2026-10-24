@@ -71,9 +71,11 @@ const MODEL_FILES = {
   sam2_tiny: ['sam2.1_hiera_tiny.encoder.rand.onnx', 'sam2.1_hiera_tiny.decoder.rand.onnx'],
   sam_vit_b: ['sam_vit_b.encoder.rand.onnx', 'sam_vit_h_4b8939.decoder.lowres.onnx'],
 };
-const available = Object.keys(MODEL_FILES).filter((m) =>
-  MODEL_FILES[m].every((f) => fs.existsSync(path.join(MODELS_DIR, f))),
-);
+const LOWRES = 'sam_vit_h_4b8939.decoder.lowres.onnx';
+const exists = (f) =>
+  fs.existsSync(path.join(MODELS_DIR, f)) ||
+  (f === LOWRES && fs.existsSync(path.join(MODELS_DIR, 'sam_vit_h_4b8939.decoder.onnx')));
+const available = Object.keys(MODEL_FILES).filter((m) => MODEL_FILES[m].every(exists));
 const MODELS = list('--models', available.join(',')).filter((m) => {
   if (!available.includes(m)) {
     console.warn(`skip ${m}: model files missing (run fetch-models / export_models.py)`);
@@ -202,12 +204,14 @@ function printStep(rec) {
   const t = r?.timings ?? {};
   const a = rec.analysis ?? {};
   const commit = rec.commitMask?.events?.find((e) => e.type === 'commit');
+  const fr = rec.events?.find((e) => e.type === 'frames');
   const cap = rec.commitMask?.events?.find((e) => e.type === 'capacity');
   console.log(
     `  ${rec.id} ${r?.cached ? 'HIT ' : 'MISS'} click->painted ${fmt(p?.latency).padStart(6)} ms | ` +
       `read ${fmt((t.readFetch ?? 0) + (t.readComposite ?? 0) + (t.readback ?? 0)).padStart(4)} (tiles ${fmt(t.tiles)}, L${fmt(t.level)}) ` +
       `pre ${fmt(t.preprocess).padStart(3)} enc ${fmt(t.encode ?? t.serverEncode).padStart(5)} dec ${fmt(t.decode, 1).padStart(5)} ` +
-      `rt ${fmt(t.roundTrip).padStart(4)} preview ${fmt(r?.previewBuild, 1)} | scale ${r ? (r.view.scale).toFixed(4) : '-'} | ` +
+      `rt ${fmt(t.roundTrip).padStart(4)}${t.wireBytes ? ` (${fmt(t.wireBytes / 1024)} KiB)` : ''} preview ${fmt(r?.previewBuild, 1)} | ` +
+      `main-thread max frame gap ${fmt(fr?.maxGap)} ms | scale ${r ? (r.view.scale).toFixed(4) : '-'} | ` +
       `GT IoU ${fmt(a.groundTruthIoU, 3)}${rec.altGroundTruthIoU !== undefined ? `/${fmt(rec.altGroundTruthIoU, 3)}` : ''} ` +
       `poly ${fmt(a.polygonVertices)}v ${fmt(a.polygonMs, 1)}ms IoU(poly,mask) ${fmt(a.polygonVsMaskIoU, 4)} | ` +
       `mask box ${fmt((a.maskBoxPixels ?? 0) / 1e6, 2)} Mpx ${fmt(a.maskMs, 1)}ms rle ${fmt(a.canonicalBytes)}B render ${fmt(a.renderBuildMs, 1)}ms | ` +
@@ -303,12 +307,30 @@ async function main() {
           results.e2e.push(await runScenario(openPage, { mode: 'local', model, threads }, scenarioSteps()));
         }
       }
+      // The same inference on the main thread, to show what the worker buys.
+      const mainSteps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5'].includes(s.id));
+      results.e2e.push(await runScenario(openPage, { mode: 'local-main', model: E2E_MODELS[0], threads: 4 }, mainSteps));
     }
     if (SUITES.includes('remote')) {
       results.remote = [];
       const steps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5', 'S7'].includes(s.id));
       for (const mode of ['remote-encoder', 'remote-all']) {
         results.remote.push(await runScenario(openPage, { mode, model: E2E_MODELS[0], threads: 4 }, steps));
+      }
+      // float16 embeddings on the wire: does the mask change?
+      results.f16check = [];
+      for (const rec of results.remote[0].steps) {
+        const r = rec.events?.find((e) => e.type === 'result');
+        const step = steps.find((s) => s.id === rec.id);
+        if (!r || !step) continue;
+        const res = await fetch(`${base}/api/sam/f16check`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ view: r.view, prompt: { points: [{ ...step.click, label: 1 }] }, model: E2E_MODELS[0] }),
+        });
+        const j = await res.json();
+        results.f16check.push({ id: rec.id, ...j });
+        console.log(`  f16 check ${rec.id}: mask IoU f32 vs f16 per candidate ${j.perCandidate.map((c) => c.iou.toFixed(4)).join(', ')}; max |logit diff| ${Math.max(...j.perCandidate.map((c) => c.maxLogitDiff)).toFixed(3)}`);
       }
     }
   } finally {

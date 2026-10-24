@@ -24,7 +24,7 @@ export interface CreateMaskAnnotationOptions {
    */
   readonly fill?: string | undefined;
   /** Tool recorded on the annotation. Defaults to `'segmentationBrush'`. */
-  readonly toolType?: 'segmentationBrush' | undefined;
+  readonly toolType?: 'segmentationBrush' | 'segmentation' | undefined;
 }
 
 /**

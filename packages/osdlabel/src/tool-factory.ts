@@ -50,6 +50,12 @@ export interface CreateAnnotationToolOptions {
    * returns null so the tool degrades gracefully.
    */
   readonly segmentationBrush?: SegmentationBrushToolConfig | undefined;
+  /**
+   * Factories for tools that live outside `@osdlabel/fabric-annotations`
+   * (e.g. the model-assisted `'segmentation'` tool). Injected, so `osdlabel`
+   * does not depend on the packages that implement them.
+   */
+  readonly toolFactories?: Partial<Record<ToolType, () => AnnotationTool | null>> | undefined;
 }
 
 /**
@@ -81,6 +87,8 @@ export function createAnnotationTool(
       return options?.segmentationBrush
         ? new SegmentationBrushTool(options.segmentationBrush)
         : null;
+    case 'segmentation':
+      return options?.toolFactories?.segmentation?.() ?? null;
     case 'select':
       return new SelectTool(vertexEdit);
     default:

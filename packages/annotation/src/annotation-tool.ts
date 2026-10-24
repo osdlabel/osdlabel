@@ -7,4 +7,6 @@ export type ToolType =
   | 'point'
   | 'polyline'
   | 'freeHandPath'
-  | 'segmentationBrush';
+  | 'segmentationBrush'
+  /** Model-assisted (SAM-style) segmentation; produces a mask (PoC: claude/poc-sam). */
+  | 'segmentation';
