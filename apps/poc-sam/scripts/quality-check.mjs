@@ -1,23 +1,31 @@
 /* global performance -- Node >= 16 global. */
 /**
- * Mask quality across model variants (H7 int8, H2 refinement), natively.
+ * Mask quality across model variants (H7 int8) and refinement across a view
+ * change (H2 / review finding B3), on onnxruntime-web's WASM kernels.
  *
- *   node scripts/quality-check.mjs [--models mobile_sam,mobile_sam_int8_lr,...]
- *        [--steps S2,R1,R2,R3] [--threads 4] [--previous-mask resample|drop]
- *        [--out results/quality-<stamp>.json]
+ *   node scripts/quality-check.mjs [--models mobile_sam,mobile_sam_enc_int8,...]
+ *        [--steps S2,R1,R2,R3] [--runtime web|node] [--threads 1]
+ *        [--previous-mask resample|drop] [--out results/quality-<stamp>.json]
  *
  * Walks the e2e scenario (scripts/scenario.mjs) through the same provider the
  * browser uses — composeSegmentationProvider over the @osdlabel/segmentation-onnx
- * adapters, with the synthetic DZI read server-side — once per model variant,
- * keeping the tool's prompt semantics (points accumulate across `keep` steps,
- * and the previous best candidate is fed back as mask_input). Per step it
- * records the cache verdict, the encoded view, the ranked candidates and the
- * best candidate's ground-truth IoU; then it compares every variant's best mask
- * with the first (reference) variant's, in image space.
+ * adapters, with the synthetic DZI read in this process — once per model
+ * variant, keeping the tool's prompt semantics (points accumulate across
+ * `keep` steps, and the previous best candidate is fed back as mask_input).
+ * Per step it records the cache verdict, the encoded view, the ranked
+ * candidates and the best candidate's ground-truth IoU. Then:
  *
- * onnxruntime-node runs the graphs; ORT-web runs the same graphs and kernels
- * compiled to WASM, so quantisation error should match up to float summation
- * order. That is an assumption, not a measurement.
+ * - every variant's best mask against its fp32 reference (model-table.json
+ *   `reference`, else the first model), in image space, on the same prompts;
+ * - every refinement step (a step after a `keep` step) against the step
+ *   before it: IoU and centroid shift of the two best masks, and how the
+ *   previous logits line up with the new embedding's grid when resampled
+ *   (what the decoder is fed now) or copied cell for cell (what it was fed
+ *   before the fix).
+ *
+ * `--runtime web` (default) runs onnxruntime-web's WASM build in Node: the
+ * same kernels the browser runs, so int8 rounding matches the browser's
+ * (native x86 int8 kernels differ). `--runtime node` uses onnxruntime-node.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -29,6 +37,7 @@ import {
   modelFrame,
   rankCandidates,
   rasterToMaskSnapshot,
+  resampleLogits,
 } from '@osdlabel/segmentation';
 import { OnnxSamModel, createOnnxDecoder, embeddingBytes } from '@osdlabel/segmentation-onnx';
 import { MODELS_DIR, modelById, modelPaths } from './model-table.mjs';
@@ -41,11 +50,23 @@ const arg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
   return i === -1 ? fallback : process.argv[i + 1];
 };
-const MODELS = arg('--models', 'mobile_sam,mobile_sam_int8_lr,mobile_sam_int8mm,mobile_sam_qdq')
+const REQUESTED = arg(
+  '--models',
+  'mobile_sam,mobile_sam_enc_int8,mobile_sam_enc_int8mm,mobile_sam_enc_qdq,mobile_sam_dec_int8,mobile_sam_fulldec,mobile_sam_int8',
+)
   .split(',')
   .filter(Boolean);
+/** Each variant is compared with its fp32 reference, which must run first. */
+const referenceOf = (id) => modelById(id).reference ?? REQUESTED[0];
+const MODELS = [];
+for (const id of REQUESTED) {
+  const ref = referenceOf(id);
+  if (ref !== id && !MODELS.includes(ref)) MODELS.push(ref);
+  if (!MODELS.includes(id)) MODELS.push(id);
+}
+const RUNTIME = arg('--runtime', 'web');
 const STEPS = arg('--steps', null)?.split(',') ?? null;
-const THREADS = Number(arg('--threads', '4'));
+const THREADS = Number(arg('--threads', RUNTIME === 'web' ? '1' : '4'));
 /** 'resample' (default) or 'drop': a previous mask from another grid (see PreviousMaskAlignment). */
 const PREVIOUS_MASK = arg('--previous-mask', 'resample');
 const OUT = arg(
@@ -59,6 +80,79 @@ const OUT = arg(
 );
 const IMAGE = { width: SYNTH.width, height: SYNTH.height };
 const CAP = 128 * 1024 * 1024;
+
+/** onnxruntime-web (WASM, in Node) adapted to OrtModuleLike: the browser's kernels. */
+async function webOrt(threads) {
+  const ort = await import('onnxruntime-web');
+  ort.env.wasm.numThreads = threads;
+  ort.env.logLevel = 'error';
+  return {
+    async createSession(model) {
+      const s = await ort.InferenceSession.create(model, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all',
+      });
+      return {
+        inputNames: s.inputNames,
+        outputNames: s.outputNames,
+        run: (feeds, fetches) => (fetches ? s.run(feeds, fetches) : s.run(feeds)),
+        release: () => s.release(),
+      };
+    },
+    float32: (data, dims) => new ort.Tensor('float32', data, dims),
+    int64: (data, dims) => new ort.Tensor('int64', data, dims),
+  };
+}
+
+/** Foreground centroid of a snapshot, in image px. */
+function centroid(snap) {
+  let n = 0;
+  let sx = 0;
+  let sy = 0;
+  for (let r = 0; r < snap.height; r++) {
+    for (let c = 0; c < snap.width; c++) {
+      if (!snap.data[r * snap.width + c]) continue;
+      n++;
+      sx += c;
+      sy += r;
+    }
+  }
+  return n ? { x: snap.x + sx / n + 0.5, y: snap.y + sy / n + 0.5, pixels: n } : null;
+}
+
+/**
+ * A refinement step against the step it refines: do the two best masks agree
+ * (IoU, centroid shift), and how does the previous result line up with the
+ * new embedding's low-res grid — resampled (what the decoder is fed now) or
+ * copied cell for cell from index (0, 0) (what maskInputFeeds did before the
+ * fix, whenever the previous grid fitted 256 x 256)?
+ */
+function refinementAlignment(prevBest, prevSnap, best, snap) {
+  const out = { bestMaskIoU: snapIou(snap, prevSnap) };
+  const c0 = prevSnap ? centroid(prevSnap) : null;
+  const c1 = snap ? centroid(snap) : null;
+  if (c0 && c1) {
+    out.centroidShiftPx = Math.hypot(c1.x - c0.x, c1.y - c0.y);
+    out.previousCellPx = prevBest.mask.frame.pixelWidth;
+    out.newCellPx = best.mask.frame.pixelWidth;
+  }
+  const P = prevBest.mask;
+  const G = best.mask.frame; // the new embedding's grid (content crop)
+  const resampled = { frame: G, data: resampleLogits(P.data, P.frame, G) };
+  const copied = {
+    frame: { ...G, width: P.frame.width, height: P.frame.height },
+    data: P.data,
+  };
+  const rs = snapshotOf({ mask: resampled });
+  const cp = snapshotOf({ mask: copied });
+  out.previousResampledIoU = snapIou(rs, prevSnap);
+  out.previousCopiedIoU = snapIou(cp, prevSnap);
+  const cr = rs ? centroid(rs) : null;
+  const cc = cp ? centroid(cp) : null;
+  if (c0 && cr) out.previousResampledShiftPx = Math.hypot(cr.x - c0.x, cr.y - c0.y);
+  if (c0 && cc) out.previousCopiedShiftPx = Math.hypot(cc.x - c0.x, cc.y - c0.y);
+  return out;
+}
 
 function ellipseRing(gt, n = 256) {
   return Array.from({ length: n }, (_, i) => {
@@ -141,7 +235,7 @@ async function runModel(id) {
   const files = modelPaths(spec, MODELS_DIR);
   if (!files) throw new Error(`model files for ${id} missing`);
   const model = await OnnxSamModel.load(
-    nodeOrt(THREADS),
+    RUNTIME === 'web' ? await webOrt(THREADS) : nodeOrt(THREADS),
     { family: spec.family, inputSize: spec.inputSize, ...files },
     { previousMask: PREVIOUS_MASK },
   );
@@ -167,6 +261,7 @@ async function runModel(id) {
   const out = [];
   let points = [];
   let best = null;
+  let bestSnap = null;
   let target = null;
   for (const step of steps) {
     if (step.view) target = targetForView(step.view, IMAGE);
@@ -177,8 +272,11 @@ async function runModel(id) {
     };
     const result = await provider.segment(target, prompt, signal);
     const ranked = rankCandidates(result.candidates, 'iou');
+    const prevBest = prompt.previous ? best : null;
+    const prevSnap = bestSnap;
     best = ranked[0] ?? null;
     const snap = best ? snapshotOf(best) : null;
+    bestSnap = snap;
     const r = result.view.region;
     out.push({
       id: step.id,
@@ -199,12 +297,16 @@ async function runModel(id) {
         step.gt.kind === 'ellipse' ? ranked.map((c) => gtIou(snapshotOf(c), step.gt)) : undefined,
       // How many of the prompt's (positive) points each candidate covers.
       candidatesCoverPoints: ranked.map((c) => points.filter((p) => logitAt(c.mask, p) > 0).length),
+      refinement:
+        prevBest && best ? refinementAlignment(prevBest, prevSnap, best, snap) : undefined,
       _ranked: ranked,
+      _cands: result.candidates,
       _snap: snap,
     });
     if (!step.keep) {
       points = [];
       best = null;
+      bestSnap = null;
     }
   }
   return { model: id, steps: out, cacheEntries: provider.cache.size };
@@ -233,21 +335,24 @@ async function main() {
     }
   }
   // Every variant against the reference (the first model).
-  const ref = runs[0];
   const comparisons = [];
-  for (const run of runs.slice(1)) {
+  for (const run of runs) {
+    const refId = referenceOf(run.model);
+    const ref = runs.find((r) => r.model === refId);
+    if (!ref || ref === run) continue;
     const rows = run.steps.map((s, i) => {
       const r = ref.steps[i];
       return {
         id: s.id,
         bestMaskIoU: snapIou(s._snap, r._snap),
-        candidateGridIoU: s._ranked.map((c, k) => (r._ranked[k] ? gridIou(c, r._ranked[k]) : null)),
+        // Per decoder output (not per rank, which can differ between the two).
+        candidateGridIoU: s._cands.map((c, k) => (r._cands[k] ? gridIou(c, r._cands[k]) : null)),
         groundTruthIoU: [r.groundTruthIoU, s.groundTruthIoU],
       };
     });
     comparisons.push({ model: run.model, reference: ref.model, rows });
     console.log(
-      `\n${run.model} vs ${ref.model}: best-mask IoU (image space) | per-candidate low-res IoU | GT IoU ref -> variant`,
+      `\n${run.model} vs ${ref.model}: best-mask IoU (image space) | low-res IoU per decoder output | GT IoU ref -> variant`,
     );
     for (const row of rows) {
       console.log(
@@ -256,9 +361,26 @@ async function main() {
       );
     }
   }
+  // Refinement across a view change: each refinement step against the one before.
+  for (const run of runs) {
+    const rows = run.steps.filter((s) => s.refinement);
+    if (!rows.length) continue;
+    console.log(
+      `\n${run.model} refinement: best mask vs previous step's (IoU, centroid shift) | previous logits on the new grid: resampled vs copied cell for cell (IoU with the previous mask, centroid shift)`,
+    );
+    for (const s of rows) {
+      const a = s.refinement;
+      console.log(
+        `  ${s.id.padEnd(3)} IoU ${f(a.bestMaskIoU)} shift ${f(a.centroidShiftPx, 1)} px (cells: prev ${f(a.previousCellPx, 1)} px, new ${f(a.newCellPx, 1)} px) | ` +
+          `resampled IoU ${f(a.previousResampledIoU)} shift ${f(a.previousResampledShiftPx, 1)} px | copied IoU ${f(a.previousCopiedIoU)} shift ${f(a.previousCopiedShiftPx, 1)} px`,
+      );
+    }
+  }
   const strip = (run) => ({
     ...run,
-    steps: run.steps.map(({ _ranked, _snap, ...rest }) => rest),
+    steps: run.steps.map((s) =>
+      Object.fromEntries(Object.entries(s).filter(([k]) => !k.startsWith('_'))),
+    ),
   });
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(
@@ -269,7 +391,7 @@ async function main() {
           at: new Date().toISOString(),
           threads: THREADS,
           previousMask: PREVIOUS_MASK,
-          runtime: 'onnxruntime-node',
+          runtime: RUNTIME === 'web' ? 'onnxruntime-web (WASM, Node)' : 'onnxruntime-node',
           loadavg: os.loadavg(),
           cpus: os.cpus().length,
         },

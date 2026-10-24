@@ -20,7 +20,8 @@
     "encoder": "mobile_sam.encoder.int8.onnx",
     "decoder": "sam_vit_h_4b8939.decoder.int8.onnx",
     "encoderParams": "5.7M",
-    "source": "mobile_sam quantised by scripts/export_models.py (onnxruntime dynamic int8)"
+    "source": "mobile_sam quantised by scripts/export_models.py (onnxruntime dynamic int8)",
+    "reference": "mobile_sam_fulldec"
   },
   {
     "id": "mobile_sam_fulldec",
@@ -32,6 +33,54 @@
     "decoder": "sam_vit_h_4b8939.decoder.onnx",
     "encoderParams": "5.7M",
     "source": "npm @geti-ui/smart-tools 1.7.0 (Apache-2.0)"
+  },
+  {
+    "id": "mobile_sam_enc_int8",
+    "label": "MobileSAM encoder int8 (dynamic, all default ops incl. Conv) + fp32 low-res decoder",
+    "family": "sam1",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "mobile_sam.encoder.int8.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.onnx",
+    "encoderParams": "5.7M",
+    "reference": "mobile_sam",
+    "source": "mobile_sam quantised by scripts/export_models.py quantize (onnxruntime quantize_dynamic, QUInt8 weights)"
+  },
+  {
+    "id": "mobile_sam_enc_int8mm",
+    "label": "MobileSAM encoder int8 (dynamic, MatMul only; Conv stays fp32) + fp32 low-res decoder",
+    "family": "sam1",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "mobile_sam.encoder.int8mm.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.onnx",
+    "encoderParams": "5.7M",
+    "reference": "mobile_sam",
+    "source": "scripts/quantize_variants.py (quantize_dynamic, op_types MatMul, QInt8 weights)"
+  },
+  {
+    "id": "mobile_sam_enc_qdq",
+    "label": "MobileSAM encoder int8 (static QDQ, per-channel) + fp32 low-res decoder",
+    "family": "sam1",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "mobile_sam.encoder.qdq.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.onnx",
+    "encoderParams": "5.7M",
+    "reference": "mobile_sam",
+    "source": "scripts/quantize_variants.py (quantize_static QDQ, QInt8 per-channel weights, QUInt8 activations, MinMax on 12 synthetic views from scripts/calib-inputs.mjs)"
+  },
+  {
+    "id": "mobile_sam_dec_int8",
+    "label": "MobileSAM fp32 encoder + low-res SAM decoder int8 (dynamic)",
+    "family": "sam1",
+    "weights": "real",
+    "inputSize": 1024,
+    "encoder": "mobile_sam.encoder.onnx",
+    "decoder": "sam_vit_h_4b8939.decoder.lowres.int8.onnx",
+    "encoderParams": "5.7M",
+    "reference": "mobile_sam",
+    "source": "scripts/quantize_variants.py (quantize_dynamic of the low-res decoder, QUInt8 weights: the full int8 decoder's recipe)"
   },
   {
     "id": "efficient_sam_ti",
