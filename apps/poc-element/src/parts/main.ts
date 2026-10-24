@@ -19,6 +19,7 @@
  * attribute selectors and the `osdlabel-*` classes in light DOM, `::part()`
  * from outside a shadow root.
  */
+import './page.css';
 import { OSDLABEL_STOCK_RULES } from 'osdlabel';
 import { mark, startInteractiveProbe } from '../shared/probe.js';
 

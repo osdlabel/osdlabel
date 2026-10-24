@@ -138,3 +138,105 @@ for (const binding of LIGHT_BINDINGS) {
     });
   }
 }
+
+/**
+ * Under a strict `style-src 'self'` CSP, `<style>` elements and `style`
+ * attributes are blocked; CSSOM inline styles and adopted constructed sheets
+ * are not (scripts/csp-probe.mjs). The stock toolbar and the element's
+ * `:host` styles use only the latter, so both still apply.
+ */
+const STRICT_CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; " +
+  "connect-src 'self'; worker-src 'self' blob:";
+
+/** Computed styles of every element under the annotator root, keyed by tree path. */
+const annotatorStyleSignature = (page: Page) =>
+  page.evaluate(() => {
+    const PROPS = [
+      'display',
+      'position',
+      'flex-direction',
+      'background-color',
+      'color',
+      'padding-top',
+      'font-size',
+      'border-top-style',
+      'width',
+      'height',
+    ];
+    const find = (root: Document | ShadowRoot): Element | null => {
+      const hit = root.querySelector('[data-testid="annotator-root"]');
+      if (hit) return hit;
+      for (const el of root.querySelectorAll('*')) {
+        if (el.shadowRoot) {
+          const inner = find(el.shadowRoot);
+          if (inner) return inner;
+        }
+      }
+      return null;
+    };
+    const out: Record<string, { readonly toolbar: boolean; readonly values: string }> = {};
+    const walk = (el: Element, path: string, inToolbar: boolean): void => {
+      const cs = getComputedStyle(el);
+      const toolbar = inToolbar || (el.getAttribute('part') ?? '').split(' ').includes('toolbar');
+      out[path] = { toolbar, values: PROPS.map((p) => cs.getPropertyValue(p)).join('|') };
+      [...el.children].forEach((c, i) => walk(c, `${path}/${i}`, toolbar));
+    };
+    const root = find(document);
+    if (root) walk(root, '0', false);
+    return out;
+  });
+
+for (const binding of BINDINGS) {
+  test(`${binding}: styled under a strict style-src CSP`, async ({ page }) => {
+    // Reference: the same page without CSP.
+    await page.goto(`/parts.html?binding=${binding}`);
+    await waitInteractive(page);
+    const reference = await annotatorStyleSignature(page);
+
+    const violations: string[] = [];
+    page.on('console', (m) => {
+      if (m.text().includes('Content Security Policy')) violations.push(m.text());
+    });
+    await page.route('**/parts.html*', async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        headers: { ...response.headers(), 'content-security-policy': STRICT_CSP },
+      });
+    });
+    await page.goto(`/parts.html?binding=${binding}`);
+    await waitInteractive(page);
+    const rect = page.getByTestId('tool-rectangle');
+    expect(await css(page.getByTestId('tool-navigate'), 'background-color')).toBe(
+      'rgb(33, 150, 243)',
+    );
+    expect(await css(rect, 'padding-top')).toBe('4px');
+    expect(await css(rect, 'border-top-left-radius')).toBe('4px');
+    if (binding === 'element-shadow') {
+      // :host{display:block} from the element's adopted host sheet.
+      const display = await page.evaluate(
+        () => getComputedStyle(document.querySelector('osdlabel-annotator')!).display,
+      );
+      expect(display).toBe('block');
+    }
+
+    // What the CSP changed elsewhere in the annotator: Solid compiles static
+    // style objects into its templates' HTML `style` attributes, which the
+    // CSP blocks; React sets every style through the CSSOM.
+    const underCsp = await annotatorStyleSignature(page);
+    const paths = Object.keys(reference);
+    const differing = paths.filter((p) => underCsp[p]?.values !== reference[p]!.values);
+    const toolbarDiffering = differing.filter((p) => reference[p]!.toolbar);
+    test.info().annotations.push({
+      type: 'csp effect',
+      description: JSON.stringify({
+        cspViolations: violations.length,
+        elements: paths.length,
+        elementsRestyledByCsp: differing.length,
+        toolbarElementsRestyledByCsp: toolbarDiffering.length,
+      }),
+    });
+    expect(toolbarDiffering).toEqual([]);
+  });
+}

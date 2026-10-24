@@ -1,0 +1,10 @@
+/* A stylesheet file, not a <style> block: the CSP test blocks inline styles. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+.host-status {
+  font: 12px/1.4 monospace;
+  padding: 4px 8px;
+}

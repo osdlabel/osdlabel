@@ -88,6 +88,38 @@ const HOST_CSS =
   ':host{display:block;position:relative}:host([hidden]){display:none}' +
   '.osdlabel-mount{width:100%;height:100%}';
 
+/** One constructed host sheet per document, shared by every instance's shadow root. */
+const hostSheets = new WeakMap<Document, CSSStyleSheet | null>();
+
+/**
+ * Installs HOST_CSS in a shadow root: adopted as a constructed sheet, which a
+ * strict `style-src 'self'` CSP allows (measured, scripts/csp-probe.mjs),
+ * where a `<style>` element is blocked; `<style>` only as a fallback.
+ */
+function installHostStyles(shadow: ShadowRoot): void {
+  const doc = shadow.ownerDocument;
+  let sheet = hostSheets.get(doc);
+  if (sheet === undefined) {
+    sheet = null;
+    if ('adoptedStyleSheets' in doc && typeof CSSStyleSheet.prototype.replaceSync === 'function') {
+      try {
+        sheet = new CSSStyleSheet();
+        sheet.replaceSync(HOST_CSS);
+      } catch {
+        sheet = null;
+      }
+    }
+    hostSheets.set(doc, sheet);
+  }
+  if (sheet) {
+    shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, sheet];
+    return;
+  }
+  const style = doc.createElement('style');
+  style.textContent = HOST_CSS;
+  shadow.append(style);
+}
+
 /** Reads the provider value out from inside the Solid tree, and forwards UI changes as DOM events. */
 function Bridge(props: {
   readonly onApi: (api: AnnotatorApi | undefined) => void;
@@ -371,9 +403,7 @@ export function createAnnotatorElementClass(
       if (this.#root) return this.#root;
       if (shadowMode === 'open') {
         const shadow = this.shadowRoot ?? this.attachShadow({ mode: 'open' });
-        const style = document.createElement('style');
-        style.textContent = HOST_CSS;
-        shadow.append(style);
+        installHostStyles(shadow);
         this.#root = shadow;
       } else {
         if (!this.style.display) this.style.display = 'block';
