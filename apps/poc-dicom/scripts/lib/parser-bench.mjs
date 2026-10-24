@@ -23,6 +23,69 @@ export function listFiles(dataDir) {
   return out;
 }
 
+/** A readable message for whatever a reader threw (dicom-parser throws `{ exception, dataSet }`). */
+function errorText(err) {
+  if (err && typeof err === 'object' && 'exception' in err) return String(err.exception);
+  return String(err?.message ?? err);
+}
+
+/**
+ * Correctness against pydicom, in both modes each reader offers:
+ *
+ *   header: stop at Pixel Data (`untilTag`), which is all the mapping needs and
+ *           the only mode that makes sense for a Range-fetched header prefix;
+ *   full:   parse everything. A file that is a Range prefix (us-ceus) is cut
+ *           mid-element, so here each reader is allowed its own documented
+ *           recovery: @osdlabel/dicom returns `truncated: true`, dicom-parser
+ *           throws `{ exception, dataSet }` with the elements parsed so far
+ *           (`recovered` counts those), dcmjs runs with `ignoreErrors`.
+ *
+ * An earlier version ran only full mode, without recovery, and counted
+ * dicom-parser's throw on the Range prefix as a failure; that was a harness
+ * artifact, not a dicom-parser limitation.
+ */
+function checkCorrectness(files, truth) {
+  const out = { header: {}, full: {} };
+  for (const mode of ['header', 'full'])
+    for (const r of READERS)
+      out[mode][r.name] = { files: 0, ok: 0, recovered: 0, failures: [], errors: [] };
+
+  for (const file of files) {
+    const bytes = new Uint8Array(fs.readFileSync(file.path));
+    const t = truth?.[file.key];
+    for (const mode of ['header', 'full']) {
+      for (const reader of READERS) {
+        const c = out[mode][reader.name];
+        c.files++;
+        let parsed;
+        let recovered = false;
+        try {
+          parsed = reader.parse(bytes, mode === 'header');
+        } catch (err) {
+          const partial = mode === 'full' ? reader.recover?.(err) : undefined;
+          if (partial === undefined) {
+            c.errors.push({ file: file.key, error: errorText(err).slice(0, 160) });
+            continue;
+          }
+          parsed = partial;
+          recovered = true;
+          c.recovered++;
+        }
+        try {
+          const rec = reader.extract(parsed);
+          if (!t) continue;
+          const mm = compareWithTruth(rec, t);
+          if (mm.length === 0) c.ok++;
+          else c.failures.push({ file: file.key, recovered, mismatches: mm.slice(0, 4) });
+        } catch (err) {
+          c.errors.push({ file: file.key, error: errorText(err).slice(0, 160) });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Times `parse + extract` (the time to answer the mapping's questions), per
  * reader, header-only and full. Reps alternate readers to share drift.
@@ -30,27 +93,9 @@ export function listFiles(dataDir) {
 export function runParserBench({ dataDir, truth, reps = 7 }) {
   const files = listFiles(dataDir);
   const perRole = {};
-  const correctness = {};
-  for (const r of READERS) correctness[r.name] = { files: 0, ok: 0, failures: [], errors: [] };
-
-  for (const file of files) {
-    const bytes = new Uint8Array(fs.readFileSync(file.path));
-    const t = truth?.[file.key];
-    for (const reader of READERS) {
-      const c = correctness[reader.name];
-      c.files++;
-      try {
-        const rec = reader.extract(reader.parse(bytes, false));
-        if (t) {
-          const mm = compareWithTruth(rec, t);
-          if (mm.length === 0) c.ok++;
-          else c.failures.push({ file: file.key, mismatches: mm.slice(0, 4) });
-        }
-      } catch (err) {
-        c.errors.push({ file: file.key, error: String(err?.message ?? err).slice(0, 160) });
-      }
-    }
-  }
+  const correctnessByMode = checkCorrectness(files, truth);
+  // `correctness` (the headline) is header mode: what the adapter's mapping actually reads.
+  const correctness = correctnessByMode.header;
 
   // Timing: per role, all files of the role, each rep runs every reader.
   const roles = [...new Set(files.map((f) => f.role))];
@@ -92,5 +137,5 @@ export function runParserBench({ dataDir, truth, reps = 7 }) {
       ms: Object.fromEntries(Object.entries(res).map(([k, v]) => [k, +median(v).toFixed(3)])),
     };
   }
-  return { reps, correctness, perRole };
+  return { reps, correctness, correctnessByMode, perRole };
 }

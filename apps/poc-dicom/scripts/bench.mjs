@@ -405,13 +405,20 @@ console.table(
     ]),
   ),
 );
-console.log('== H1 parsers: files correct vs pydicom; median ms per role (parse + extract) ==');
+console.log(
+  '== H1 parsers: files correct vs pydicom, header mode and full mode (recovered = partial dataset after a throw); median ms per role (parse + extract) ==',
+);
 console.table(
-  Object.fromEntries(
-    Object.entries(results.h1.parsers.correctness).map(([k, c]) => [
-      k,
-      { files: c.files, correct: c.ok, mismatched: c.failures.length, threw: c.errors.length },
-    ]),
+  Object.entries(results.h1.parsers.correctnessByMode).flatMap(([mode, byReader]) =>
+    Object.entries(byReader).map(([k, c]) => ({
+      reader: k,
+      mode,
+      files: c.files,
+      correct: c.ok,
+      recovered: c.recovered,
+      mismatched: c.failures.length,
+      threw: c.errors.length,
+    })),
   ),
 );
 console.table(

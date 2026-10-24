@@ -94,6 +94,12 @@ export const dicomParserReader = {
   parse(bytes, headerOnly) {
     return dicomParser.parseDicom(bytes, headerOnly ? { untilTag: 'x7fe00010' } : {});
   },
+  /** dicom-parser's documented partial result: it throws `{ exception, dataSet }`. */
+  recover(err) {
+    return err && typeof err === 'object' && 'dataSet' in err && err.dataSet
+      ? err.dataSet
+      : undefined;
+  },
   extract(ds) {
     const rec = {};
     for (const f of FIELDS) {
