@@ -43,6 +43,8 @@ const compact = {
         loadAvg: r.env.loadAvg,
       }
     : undefined,
+  // H1 model costs are already medians of small numbers: kept as measured.
+  model: (r.model ?? []).map((x) => ({ config: x.name, error: x.error, ...x.result })),
   strategies: (r.strategies ?? []).map((x) => ({
     config: x.name,
     error: x.error,

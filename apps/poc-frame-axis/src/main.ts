@@ -44,6 +44,8 @@ import { analyzeDisplayLog } from './instrument/display-log.js';
 import { summarize, roundDeep } from './instrument/stats.js';
 import { runCine } from './cine.js';
 import type { CineOptions } from './cine.js';
+import { modelBench } from './model-bench.js';
+import type { ModelBenchOptions } from './model-bench.js';
 
 export interface SetupOptions {
   readonly strategy: StrategyName;
@@ -643,6 +645,7 @@ window.__poc = {
   redraw,
   teardown,
   cine: (opts: CineOptions) => runCine(cell, opts),
+  model: (opts: ModelBenchOptions) => modelBench(opts),
   /** Objects currently on the Fabric canvas (sanity). */
   objectCount: () =>
     need()

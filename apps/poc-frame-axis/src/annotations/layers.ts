@@ -195,7 +195,9 @@ export class VisibilityLayer extends BaseLayer {
       this.byIndex.set(f, objs);
       all.push(...objs);
     }
-    if (all.length > 0) this.overlay.canvas.add(...all);
+    // In chunks: one spread of 60 000 objects (300 frames x 200) overflows the
+    // call stack ("Maximum call stack size exceeded").
+    for (let i = 0; i < all.length; i += 1000) this.overlay.canvas.add(...all.slice(i, i + 1000));
   }
   show(index: number): void {
     for (const o of this.byIndex.get(this.current) ?? []) o.visible = false;

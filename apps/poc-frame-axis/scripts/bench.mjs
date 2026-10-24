@@ -9,7 +9,7 @@
  * results/latest.json), and prints summary tables.
  *
  * Options:
- *   --groups env,strategies,layers,cine,solid   which parts to run (default: all)
+ *   --groups env,model,strategies,layers,cine,solid   which parts to run (default: all)
  *   --quick                 fewer steps / shorter scrolls (smoke run)
  *   --chromium <path>       browser binary (default: $BENCH_CHROMIUM, else
  *                           /opt/pw-browsers/chromium if present, else Playwright's own)
@@ -18,6 +18,7 @@
  *   --channel chrome        use the installed Google Chrome instead of a binary path
  *   --port <n>              harness server port (default 5531)
  *   --out <dir>             results directory (default results/<timestamp>)
+ *   --only <regex>          run only the configurations whose name matches
  *
  * Memory is the PSS of every process in the browser's tree (Linux /proc only;
  * reported as null elsewhere), sampled before setup, after setup and after the
@@ -39,7 +40,7 @@ const opt = (name, fallback) => {
   return i === -1 ? fallback : argv[i + 1];
 };
 const QUICK = flag('--quick');
-const GROUPS = (opt('--groups', 'env,strategies,layers,cine,solid') ?? '').split(',');
+const GROUPS = (opt('--groups', 'env,model,strategies,layers,cine,solid') ?? '').split(',');
 const PORT = Number(opt('--port', '5531'));
 const OUT = path.resolve(
   opt('--out', path.join(APP, 'results', new Date().toISOString().replace(/[:.]/g, '-'))),
@@ -51,6 +52,7 @@ const CHROMIUM =
   (fs.existsSync(DEFAULT_CHROMIUM) ? DEFAULT_CHROMIUM : undefined);
 const CHANNEL = opt('--channel');
 const HEADED = flag('--headed');
+const ONLY = opt('--only') ? new RegExp(opt('--only')) : undefined;
 
 // ── memory (Linux /proc) ──────────────────────────────────────────────────
 function childrenOf(pid) {
@@ -202,6 +204,7 @@ async function groupStrategies(browser, pid) {
   for (const drawer of ['webgl', 'canvas']) {
     for (const strategy of drawer === 'webgl' ? [...strategies, 'mutable-noinval'] : strategies) {
       const name = `${strategy}/${drawer}`;
+      if (ONLY && !ONLY.test(name)) continue;
       process.stdout.write(`  strategies ${name} ... `);
       const t = Date.now();
       const r = await runConfig(
@@ -226,6 +229,7 @@ async function groupStrategies(browser, pid) {
   // The pixel path: pre-decoded ImageBitmaps instead of gray8 + LUT.
   for (const drawer of ['webgl', 'canvas']) {
     const name = `mutable-bitmap/${drawer}`;
+    if (ONLY && !ONLY.test(name)) continue;
     process.stdout.write(`  strategies ${name} ... `);
     const t = Date.now();
     out.push(
@@ -268,6 +272,7 @@ async function groupLayers(browser, pid) {
         const layer = layerName === 'cache-nocache' ? 'cache' : layerName;
         const objectCaching = layerName !== 'cache-nocache';
         const name = `${layerName}/${n}/${drawer}`;
+        if (ONLY && !ONLY.test(name)) continue;
         process.stdout.write(`  layers ${name} ... `);
         const t = Date.now();
         out.push(
@@ -317,6 +322,7 @@ async function groupCine(browser, pid) {
       ];
   for (const v of variants) {
     const name = `cine/${v.source}${v.videoTimes ? `-${v.videoTimes}` : ''}/${v.drawer}/${v.fps}`;
+    if (ONLY && !ONLY.test(name)) continue;
     process.stdout.write(`  ${name} ... `);
     const t = Date.now();
     const { context, page } = await openPage(browser);
@@ -345,6 +351,33 @@ async function groupCine(browser, pid) {
   return out;
 }
 
+async function groupModel(browser) {
+  // H1 model costs (pure JS in the page): frame-axis vs one ImageId per slice.
+  const out = [];
+  const sizes = QUICK ? [10] : [10, 50];
+  for (const perFrame of sizes) {
+    const name = `model/300x${perFrame}`;
+    if (ONLY && !ONLY.test(name)) continue;
+    process.stdout.write(`  ${name} ... `);
+    const t = Date.now();
+    const { context, page } = await openPage(browser);
+    try {
+      out.push({
+        name,
+        loadAvgBefore: load(),
+        result: await call(page, 'model', { frames: 300, perFrame, reps: QUICK ? 5 : 15 }),
+      });
+    } catch (err) {
+      out.push({ name, error: String(err?.message ?? err) });
+      console.error(`  ${name}: ${String(err?.message ?? err)}`);
+    } finally {
+      await context.close().catch(() => {});
+    }
+    console.log(`${((Date.now() - t) / 1000).toFixed(1)}s`);
+  }
+  return out;
+}
+
 async function groupSolid(browser, pid) {
   const out = [];
   const base = { frames: 300, width: 512, height: 512, drawer: 'canvas', model: 'frame-axis' };
@@ -365,6 +398,7 @@ async function groupSolid(browser, pid) {
     const name =
       `solid/${v.model === 'image-per-slice' ? 'per-slice/' : ''}${v.drawer}/${v.annotationsPerFrame}` +
       (v.objectCaching ? '' : '/nocache');
+    if (ONLY && !ONLY.test(name)) continue;
     process.stdout.write(`  ${name} ... `);
     const t = Date.now();
     const { context, page } = await openPage(browser, 'solid.html');
@@ -422,6 +456,31 @@ function summary(results) {
   if (results.env) {
     console.log('\nEnvironment');
     console.log(JSON.stringify(results.env, null, 2));
+  }
+  if (results.model) {
+    console.log(
+      '\nH1 — model costs (median ms unless noted): frame axis vs one ImageId per slice.',
+    );
+    table(results.model, [
+      ['config', (r) => r.name],
+      ['index ms', (r) => r.result?.indexMs ?? '-'],
+      ['step idx us', (r) => r.result?.stepUs?.frameAxisIndexed ?? '-'],
+      ['step naive us', (r) => r.result?.stepUs?.frameAxisNaiveFilter ?? '-'],
+      ['step slice us', (r) => r.result?.stepUs?.perSlice ?? '-'],
+      ['cstr frame', (r) => r.result?.constraints?.perSliceLimit?.frameAxisPerFrameMs ?? '-'],
+      ['cstr slice', (r) => r.result?.constraints?.perSliceLimit?.perSlicePerImageMs ?? '-'],
+      ['cstr series(fa)', (r) => r.result?.constraints?.perSeriesLimit?.frameAxisPerImageMs ?? '-'],
+      [
+        'cstr series(ps)',
+        (r) => r.result?.constraints?.perSeriesLimit?.perSliceGlobalOverSeriesMs ?? '-',
+      ],
+      ['JSON KB fa', (r) => f1((r.result?.serialization?.frameAxis?.bytes ?? NaN) / 1024)],
+      ['JSON KB ps', (r) => f1((r.result?.serialization?.perSlice?.bytes ?? NaN) / 1024)],
+      ['deser fa', (r) => r.result?.serialization?.frameAxis?.deserializeMs ?? '-'],
+      ['deser ps', (r) => r.result?.serialization?.perSlice?.deserializeMs ?? '-'],
+      ['reconcile rev', (r) => r.result?.reconcile?.reversedMs ?? '-'],
+      ['err', (r) => (r.error ? 'ERR' : '')],
+    ]);
   }
   if (results.strategies) {
     console.log(
@@ -534,6 +593,7 @@ try {
     results.env.loadAvg = load();
     await context.close();
   }
+  if (GROUPS.includes('model')) results.model = await groupModel(browser);
   if (GROUPS.includes('strategies')) results.strategies = await groupStrategies(browser, pid);
   if (GROUPS.includes('layers')) results.layers = await groupLayers(browser, pid);
   if (GROUPS.includes('cine')) results.cine = await groupCine(browser, pid);
