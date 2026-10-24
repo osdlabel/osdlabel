@@ -136,7 +136,7 @@ export function printSummary(r) {
       ],
     );
     console.log(
-      `label memory: dense ${f(L.memory.denseBytes / 2 ** 20, 1)} MiB (pre-touch ${f(L.pretouchMs, 0)} ms), slice masks ${f(L.memory.sliceMaskBytesSpan / 2 ** 20, 2)} MiB in ${L.memory.sliceMasksAllocated} masks; painted ${L.paintedVoxels} voxels, representation mismatches ${L.voxelMismatches}, algorithm mismatches ${L.algorithmMismatches}`,
+      `label memory: dense ${f(L.memory.denseBytes / 2 ** 20, 1)} MiB (pre-touch ${f(L.pretouchMs, 0)} ms), slice masks ${f(L.memory.sliceMaskBytesSpan / 2 ** 20, 2)} MiB in ${L.memory.sliceMasksAllocated} masks, bricked ${f((L.memory.brickedBytes ?? NaN) / 2 ** 20, 2)} MiB in ${L.memory.bricksAllocated ?? '-'} of ${L.memory.brickSlots ?? '-'} bricks; painted ${L.paintedVoxels} voxels, representation mismatches ${L.voxelMismatches}, brick mismatches ${L.brickMismatches ?? '-'}, algorithm mismatches ${L.algorithmMismatches}`,
     );
   }
   for (const m of r.mpr ?? []) {

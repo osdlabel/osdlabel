@@ -12,6 +12,7 @@ import {
 } from '@osdlabel/spatial';
 import {
   allocateLabelVolume,
+  BrickedLabelVolume,
   allocateScalarVolume,
   applyWindowLut,
   buildWindowLut,
@@ -361,6 +362,67 @@ describe('label maps (dense label volume)', () => {
     // Measured 0.949 here: about one view pixel in twenty misses its voxel.
     expect(coverage).toBeLessThan(1);
     expect(coverage).toBeGreaterThan(0.5);
+  });
+});
+
+describe('sparse bricked label volume', () => {
+  const g: VolumeGrid = { ...grid, dimensions: [70, 40, 36] };
+  const frames: readonly PlaneFrame[] = [
+    orthogonalPlane(g, 'axial', 12),
+    orthogonalPlane(g, 'coronal', 20),
+    orthogonalPlane(g, 'sagittal', 33),
+    centredPlane(
+      volumeCentre(g),
+      rotateAbout([1, 0, 0], [0, 0, 1], 0.3),
+      [0, 0.3, -1],
+      0.7,
+      60,
+      60,
+      1.6,
+    ),
+  ];
+
+  it("holds exactly the dense map's voxels and reslices identically", () => {
+    const dense = allocateLabelVolume(g);
+    const bricked = new BrickedLabelVolume(g);
+    expect(bricked.bricksPerAxis).toEqual([3, 2, 2]);
+    // Strokes that cross brick boundaries along every axis.
+    for (const f of frames)
+      for (const [cx, cy, r] of [
+        [f.width / 2, f.height / 2, 9],
+        [31.6, 30.2, 5],
+        [3, 4, 4],
+      ] as const) {
+        const a = fillDisc(dense, f, { x: cx, y: cy }, r, 1);
+        expect(bricked.fillDisc(f, { x: cx, y: cy }, r, 1)).toBe(a);
+      }
+    const [nx, ny, nz] = g.dimensions;
+    let set = 0;
+    for (let k = 0; k < nz; k++)
+      for (let j = 0; j < ny; j++)
+        for (let i = 0; i < nx; i++) {
+          const v = dense.slices[k]![j * nx + i]!;
+          if (v) set++;
+          expect(bricked.get(i, j, k)).toBe(v);
+        }
+    expect(set).toBeGreaterThan(500);
+    for (const f of frames) {
+      const m = planeIndexMapping(g, f);
+      const a = new Uint8Array(f.width * f.height);
+      const b = new Uint8Array(f.width * f.height);
+      resliceLabels(dense, m, f.width, f.height, a);
+      bricked.reslice(m, f.width, f.height, b);
+      expect(b).toEqual(a);
+    }
+  });
+
+  it('allocates only the bricks a stroke touches, and erasing allocates none', () => {
+    const bricked = new BrickedLabelVolume(g);
+    bricked.fillDisc(frames[0]!, { x: 10, y: 10 }, 3, 0);
+    expect(bricked.allocatedBricks()).toBe(0);
+    bricked.fillDisc(frames[0]!, { x: 10, y: 10 }, 3, 2);
+    expect(bricked.allocatedBricks()).toBe(1);
+    expect(bricked.byteLength()).toBe(32 ** 3 + 12 * 8);
   });
 });
 

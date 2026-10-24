@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createAnnotationId, type AnnotationId } from '@osdlabel/annotation';
 import type { Decoration, DecorationContext, DecorationProvider } from '@osdlabel/decoration';
-import type { ImageSource, PixelSpacing } from '@osdlabel/viewer-api';
+import { createImageId, type ImageSource, type PixelSpacing } from '@osdlabel/viewer-api';
 import type { OsdFields } from 'osdlabel';
 import { renderAnnotator, type AnnotatorHarness } from '../render-annotator.js';
 import { unmountAll } from '../mount.js';
@@ -239,6 +239,20 @@ describe('ViewerCell live decoration updates', () => {
 
     expect(seen).toHaveLength(1);
     expect(seen[0]!.pixelSpacing).toEqual(spacing);
+    expect(movingSubscriptions()).toHaveLength(1);
+  });
+
+  it('a provider sees an image id changed after subscription', () => {
+    const h = setup([recordingProvider('a')]);
+    const next = createImageId('vol:ct:axial:11');
+
+    // Same tile source, new id: what a volume host does on every scroll step.
+    h.rerender({}, cell({ id: next, tileSource: 'x.png' }));
+    seen = [];
+    dragFrame();
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.imageId).toBe(next);
     expect(movingSubscriptions()).toHaveLength(1);
   });
 

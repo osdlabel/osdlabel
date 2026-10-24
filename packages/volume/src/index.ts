@@ -16,6 +16,8 @@ export { LUT_OFFSET, buildWindowLut, applyWindowLut } from './window-lut.js';
 
 export { fillSheppLoganPhantom } from './phantom.js';
 
+export { BrickedLabelVolume, BRICK_SHIFT } from './bricked-label-volume.js';
+
 export type { LabelVolume } from './label-volume.js';
 export {
   allocateLabelVolume,

@@ -11,6 +11,7 @@ import { planeIndexMapping, type PlaneFrame, type Point2 } from '@osdlabel/spati
 import {
   allocateLabelVolume,
   applyWindowLut,
+  BrickedLabelVolume,
   buildWindowLut,
   fillDisc,
   paintDisc,
@@ -333,7 +334,7 @@ function glDispose(): void {
  *   a file) and lazily committed (fresh, only painted pages touched).
  */
 type LabelAlgorithm = 'voxel' | 'span';
-type Representation = 'dense' | 'slice-masks';
+type Representation = 'dense' | 'slice-masks' | 'bricked';
 const ALGORITHMS: readonly LabelAlgorithm[] = ['voxel', 'span'];
 
 function rotated<T>(xs: readonly T[], by: number): T[] {
@@ -357,6 +358,8 @@ function labels(
   interface Pair {
     readonly dense: LabelVolume;
     readonly stack: SliceMaskStack;
+    /** Sparse 32^3 bricks, painted through the span enumerator only. */
+    readonly bricked: BrickedLabelVolume;
   }
   const paint = (
     alg: LabelAlgorithm,
@@ -365,7 +368,9 @@ function labels(
     f: PlaneFrame,
     c: Point2,
   ): void => {
-    if (rep === 'dense') {
+    if (rep === 'bricked') {
+      pair.bricked.fillDisc(f, c, radius, 1);
+    } else if (rep === 'dense') {
       if (alg === 'voxel') paintDisc(pair.dense, f, c, radius, 1);
       else fillDisc(pair.dense, f, c, radius, 1);
     } else if (alg === 'voxel') pair.stack.paintDiscVoxels(f, c, radius);
@@ -382,7 +387,16 @@ function labels(
     for (let i = 0; i < stamps; i++) paint(alg, rep, pair, f, strokeAt(f, pos, i));
     return (performance.now() - t0) / stamps;
   };
-  const reps2: readonly Representation[] = ['dense', 'slice-masks'];
+  // Bricks are compared through the span enumerator only (their natural writer).
+  const repsFor = (alg: LabelAlgorithm): readonly Representation[] =>
+    alg === 'span' ? ['dense', 'slice-masks', 'bricked'] : ['dense', 'slice-masks'];
+  const orderOf = (alg: LabelAlgorithm, t: number): Representation[] =>
+    rotated(repsFor(alg), t >> 1);
+  const newPair = (dense: LabelVolume): Pair => ({
+    dense,
+    stack: new SliceMaskStack(grid),
+    bricked: new BrickedLabelVolume(grid),
+  });
   const rows: Record<string, unknown>[] = [];
 
   // ── cold: the first stroke into fresh structures ──
@@ -396,8 +410,8 @@ function labels(
   for (let t = 0; t < coldTrials; t++) {
     for (const kind of rotated(KINDS, t)) {
       for (const alg of t % 2 ? [...ALGORITHMS].reverse() : ALGORITHMS) {
-        const fresh: Pair = { dense: allocateLabelVolume(grid), stack: new SliceMaskStack(grid) };
-        for (const rep of (t >> 1) % 2 ? [...reps2].reverse() : reps2) {
+        const fresh: Pair = newPair(allocateLabelVolume(grid));
+        for (const rep of orderOf(alg, t)) {
           push(cold, `${kind}|${alg}|${rep}`, stroke(alg, rep, fresh, frameOf(kind), 0));
         }
       }
@@ -414,19 +428,19 @@ function labels(
       sl.fill(1);
       sl.fill(0);
     }
-    pairs.set(alg, { dense, stack: new SliceMaskStack(grid) });
+    pairs.set(alg, newPair(dense));
   }
   const pretouchMs = performance.now() - tTouch;
   for (const alg of ALGORITHMS)
     for (const kind of KINDS)
       for (let pos = 0; pos < warmup; pos++)
-        for (const rep of reps2) stroke(alg, rep, pairs.get(alg)!, frameOf(kind), pos);
+        for (const rep of repsFor(alg)) stroke(alg, rep, pairs.get(alg)!, frameOf(kind), pos);
   const warm = new Map<string, number[]>();
   for (let r = 0; r < reps; r++) {
     const pos = warmup + r;
     for (const kind of rotated(KINDS, r)) {
       for (const alg of r % 2 ? [...ALGORITHMS].reverse() : ALGORITHMS) {
-        for (const rep of (r >> 1) % 2 ? [...reps2].reverse() : reps2) {
+        for (const rep of orderOf(alg, r)) {
           push(
             warm,
             `${kind}|${alg}|${rep}`,
@@ -438,7 +452,7 @@ function labels(
   }
   for (const kind of KINDS)
     for (const alg of ALGORITHMS)
-      for (const rep of reps2) {
+      for (const rep of repsFor(alg)) {
         rows.push({
           op: 'paint-stamp',
           state: 'warm',
@@ -482,6 +496,8 @@ function labels(
         runLib();
         runDense();
       }
+      // Untimed: keep the bricked map holding the span pair's voxels.
+      for (let i = 0; i < stamps; i++) pair.bricked.fillDisc(f, strokeAt(f, pos, i), radius, 1);
     }
     rows.push({
       op: 'paint-stamp',
@@ -506,6 +522,7 @@ function labels(
   // ── agreement: every representation and algorithm holds the same voxels ──
   const nx = grid.dimensions[0];
   let mismatches = 0;
+  let brickMismatches = 0;
   let painted = 0;
   const a = pairs.get('voxel')!;
   const b = pairs.get('span')!;
@@ -522,6 +539,7 @@ function labels(
       // The stampCircle reference strokes went into the span pair only, at
       // positions no other stroke used, so compare those rows by span pair.
       if (ss[o] !== (ms ? ms.get(i, j) : 0)) mismatches++;
+      if (ss[o] !== b.bricked.get(i, j, k)) brickMismatches++;
       if (v !== (mv ? mv.get(i, j) : 0)) mismatches++;
     }
   }
@@ -564,6 +582,7 @@ function labels(
       ['dense', () => resliceLabels(b.dense, m, f.width, f.height, out)],
       ['dense-lazily-committed', () => resliceLabels(lazy, m, f.width, f.height, out)],
       ['slice-masks', () => b.stack.reslice(m, f.width, f.height, out)],
+      ['bricked', () => b.bricked.reslice(m, f.width, f.height, out)],
     ];
     for (const [, fn] of variants) for (let w = 0; w < 3; w++) fn();
     const samples = new Map<string, number[]>();
@@ -596,12 +615,16 @@ function labels(
     pretouchMs,
     paintedVoxels: painted,
     voxelMismatches: mismatches,
+    brickMismatches,
     algorithmMismatches,
     memory: {
       denseBytes,
       sliceMaskBytesVoxel: a.stack.byteLength(),
       sliceMaskBytesSpan: b.stack.byteLength(),
       sliceMasksAllocated: b.stack.masks.size,
+      brickedBytes: b.bricked.byteLength(),
+      bricksAllocated: b.bricked.allocatedBricks(),
+      brickSlots: b.bricked.bricks.length,
       bitPackedDenseBytes: Math.ceil(denseBytes / 8),
     },
   };
