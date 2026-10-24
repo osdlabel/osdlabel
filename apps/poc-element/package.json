@@ -1,0 +1,50 @@
+{
+  "name": "@osdlabel/poc-element",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PoC harness: <osdlabel-annotator> in vanilla, Vue 3, Svelte 5 and Angular hosts; shadow-DOM probes; theming prototype; size and TTI benchmark.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "inventory": "node scripts/inventory-styles.mjs",
+    "bench": "node scripts/bench.mjs"
+  },
+  "dependencies": {
+    "@angular/common": "22.2.3",
+    "@angular/compiler": "22.2.3",
+    "@angular/core": "22.2.3",
+    "@angular/platform-browser": "22.2.3",
+    "@osdlabel/element": "workspace:*",
+    "@osdlabel/react": "workspace:*",
+    "@osdlabel/solid": "workspace:*",
+    "fabric": "catalog:",
+    "openseadragon": "catalog:",
+    "osdlabel": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "rxjs": "7.8.2",
+    "solid-js": "catalog:",
+    "svelte": "5.57.2",
+    "tslib": "2.8.1",
+    "vue": "3.5.44"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitejs/plugin-vue": "6.0.10",
+    "bootstrap": "5.3.8",
+    "playwright": "^1.60.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:",
+    "vitest": "catalog:"
+  }
+}

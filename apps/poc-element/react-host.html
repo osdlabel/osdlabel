@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-host="react-host">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React 19 host (custom element, not @osdlabel/react) — osdlabel element PoC</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .host-status {
+        font: 12px/1.4 monospace;
+        padding: 4px 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="host-status">
+      React 19 host (custom element, not @osdlabel/react): annotations=<span
+        data-testid="host-annotation-count"
+        >0</span
+      >
+      selected=<span data-testid="host-selected">none</span> tool=<span data-testid="host-tool"
+        >none</span
+      >
+    </div>
+    <div id="app"></div>
+    <script type="module" src="./src/react-host/main.ts"></script>
+  </body>
+</html>

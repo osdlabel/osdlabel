@@ -1,0 +1,22 @@
+import { defineOsdlabelAnnotator, type OsdlabelAnnotatorElement } from '@osdlabel/element';
+import { CONTEXTS, FIRST_IMAGE_ID, IMAGES } from '../shared/fixtures.js';
+import { HOST_EVENT_NAMES, mark, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
+
+mark('host-script');
+startInteractiveProbe();
+
+// Plain DOM: define, create, set properties, listen.
+defineOsdlabelAnnotator();
+const el = document.createElement('osdlabel-annotator') as OsdlabelAnnotatorElement;
+el.setAttribute('test-mode', '');
+el.style.height = '520px';
+el.images = IMAGES;
+el.contexts = CONTEXTS;
+el.addEventListener('osdlabelready', () => {
+  mark('element-ready');
+  el.assignImageToCell(0, FIRST_IMAGE_ID);
+});
+for (const name of HOST_EVENT_NAMES) {
+  el.addEventListener(name, (e) => reportHostEvent(name, (e as CustomEvent<unknown>).detail));
+}
+document.getElementById('app')!.append(el);

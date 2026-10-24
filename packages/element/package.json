@@ -1,0 +1,56 @@
+{
+  "name": "@osdlabel/element",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: <osdlabel-annotator>, a framework-neutral custom element built from the SolidJS binding.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./solid-element-variant": {
+      "types": "./dist/solid-element-variant.d.ts",
+      "import": "./dist/solid-element-variant.js",
+      "default": "./dist/solid-element-variant.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "rm -rf dist && vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "fabric": "catalog:peers",
+    "openseadragon": "catalog:peers"
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/annotation-context": "workspace:*",
+    "@osdlabel/decoration": "workspace:*",
+    "@osdlabel/solid": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*",
+    "osdlabel": "workspace:*",
+    "solid-element": "1.9.1",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "fabric": "catalog:",
+    "jsdom": "catalog:",
+    "openseadragon": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:",
+    "vitest": "catalog:"
+  }
+}

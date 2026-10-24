@@ -1,0 +1,3 @@
+results/*
+!results/representative.json
+.bench-build/
