@@ -1,0 +1,37 @@
+export type { FrameAxis, FrameAxisUnit, FrameIndex } from './frame-axis.js';
+export {
+  createConstantRateAxis,
+  createSliceAxis,
+  createTimestampAxis,
+  extentOf,
+  frameAt,
+  midpointOf,
+  positionOf,
+} from './frame-axis.js';
+export type {
+  HoldPolicy,
+  InterpolationMode,
+  Keyframe,
+  Track,
+  TrackBase,
+  TrackId,
+  Visibility,
+} from './track.js';
+export {
+  createTrack,
+  createTrackId,
+  findKeyframe,
+  removeKeyframe,
+  upsertKeyframe,
+} from './track.js';
+export type { Correspondence } from './contour-correspondence.js';
+export {
+  polygonCorrespondence,
+  polylineCorrespondence,
+  signedArea,
+} from './contour-correspondence.js';
+export { correspondenceFor, interpolateGeometry, isInterpolable } from './interpolate-geometry.js';
+export type { TrackSample } from './sample-track.js';
+export { CorrespondenceCache, sampleTrack } from './sample-track.js';
+export type { FrameMaterializer, TrackDocument } from './materialize.js';
+export { createFrameMaterializer, toTrackDocument } from './materialize.js';
