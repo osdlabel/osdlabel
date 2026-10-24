@@ -1,11 +1,11 @@
-// Merges benchmark result files into results/representative.json (the one
-// run committed to git), dropping per-sample arrays and keeping their stats.
+// Writes results/representative.json (the one run committed to git) from ONE
+// benchmark result file: every suite as measured, per-sample timing arrays
+// dropped (their stats are kept) and floats rounded. It no longer merges runs:
+// a merge mixed rows measured hours apart, and kept frame statistics taken
+// before the main-thread measurement was fixed.
 //
-//   node scripts/representative.mjs results/run-a.json [results/run-b.json ...]
+//   node scripts/representative.mjs results/run-<stamp>.json
 //   pnpm exec prettier --write results/representative.json   (so `pnpm format` is a no-op)
-//
-// Later files' e2e / remote runs are appended; their H1 rows replace earlier
-// rows of the same configuration.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,12 +13,15 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(HERE, '..', 'results', 'representative.json');
 
+const isNumbers = (v) => Array.isArray(v) && v.every((x) => typeof x === 'number');
 const strip = (v) => {
   if (Array.isArray(v)) return v.map(strip);
   if (v && typeof v === 'object') {
     const o = {};
     for (const [k, x] of Object.entries(v)) {
-      if (k === 'samples') continue;
+      // Stats.samples (raw timings); the responsiveness suite's records, also
+      // called samples, are objects and stay.
+      if (k === 'samples' && isNumbers(x)) continue;
       o[k] = strip(x);
     }
     return o;
@@ -26,23 +29,11 @@ const strip = (v) => {
   return typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v;
 };
 
-const key = (r) => JSON.stringify(r.config);
-const merged = { sources: [], native: [], models: [], e2e: [], remote: [], f16check: [] };
-for (const file of process.argv.slice(2)) {
-  const r = JSON.parse(fs.readFileSync(file, 'utf8'));
-  merged.sources.push({ file: path.basename(file), meta: r.meta });
-  for (const k of ['native', 'models']) {
-    for (const row of r[k] ?? []) {
-      const i = merged[k].findIndex((x) => key(x) === key(row));
-      if (i === -1) merged[k].push(row);
-      else merged[k][i] = row;
-    }
-  }
-  for (const run of r.e2e ?? []) merged.e2e.push({ ...run, source: path.basename(file) });
-  for (const run of r.remote ?? []) merged.remote.push({ ...run, source: path.basename(file) });
-  merged.f16check.push(...(r.f16check ?? []));
-}
-fs.writeFileSync(OUT, `${JSON.stringify(strip(merged))}\n`);
+const files = process.argv.slice(2);
+if (files.length !== 1)
+  throw new Error('usage: node scripts/representative.mjs <one results file>');
+const run = JSON.parse(fs.readFileSync(files[0], 'utf8'));
+fs.writeFileSync(OUT, `${JSON.stringify(strip({ source: path.basename(files[0]), ...run }))}\n`);
 console.log(
   `wrote ${path.relative(process.cwd(), OUT)} (${(fs.statSync(OUT).size / 1024).toFixed(0)} KiB)`,
 );

@@ -246,7 +246,7 @@ export function printSummary(results, modelTable = []) {
     ]);
 
     console.log(
-      '\nH1  CPU time per call, ms (all threads / processes; robust to machine load). For t=1, CPU ~= idle-machine wall time.',
+      '\nH1  CPU time per call, ms (all threads / processes). Less load-sensitive than wall time but not load-robust: t=1 CPU varied up to 2x between runs on this VM.',
     );
     const cpuRows = models.map((m) => {
       const pick = (arr, pred) => (arr ?? []).find((r) => !r.error && pred(r.config))?.cpu ?? {};
