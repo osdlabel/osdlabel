@@ -7,27 +7,10 @@
  */
 import fs from 'node:fs';
 
-function children(pid) {
-  try {
-    const tasks = fs.readdirSync(`/proc/${pid}/task`);
-    const out = [];
-    for (const t of tasks) {
-      try {
-        const c = fs.readFileSync(`/proc/${pid}/task/${t}/children`, 'utf8').trim();
-        if (c) out.push(...c.split(/\s+/).map(Number));
-      } catch {
-        // task vanished
-      }
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
-
 function typeOf(pid) {
   try {
-    const cmd = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0');
+    // Chromium rewrites its argv into one space-separated string (setproctitle).
+    const cmd = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split(/[\0 ]/);
     const t = cmd.find((a) => a.startsWith('--type='));
     if (!t) return 'browser';
     const type = t.slice(7);
@@ -56,6 +39,20 @@ function rollup(pid) {
 
 export function sampleProcessMemory(rootPid) {
   if (process.platform !== 'linux' || !rootPid) return null;
+  // Parent map from /proc/*/stat (field 4 is the ppid; the comm field may
+  // contain spaces, so parse after its closing parenthesis).
+  const kids = new Map();
+  for (const d of fs.readdirSync('/proc')) {
+    if (!/^\d+$/.test(d)) continue;
+    try {
+      const st = fs.readFileSync(`/proc/${d}/stat`, 'utf8');
+      const ppid = Number(st.slice(st.lastIndexOf(')') + 2).split(' ')[1]);
+      if (!kids.has(ppid)) kids.set(ppid, []);
+      kids.get(ppid).push(Number(d));
+    } catch {
+      // exited
+    }
+  }
   const seen = new Set();
   const stack = [rootPid];
   const byType = {};
@@ -63,7 +60,7 @@ export function sampleProcessMemory(rootPid) {
     const pid = stack.pop();
     if (seen.has(pid)) continue;
     seen.add(pid);
-    stack.push(...children(pid));
+    stack.push(...(kids.get(pid) ?? []));
     const type = typeOf(pid);
     const mem = rollup(pid);
     if (!type || !mem) continue;

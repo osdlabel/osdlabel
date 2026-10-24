@@ -96,12 +96,15 @@ export function stats(samples: readonly number[]): Stats {
 export interface ContextCounter {
   readonly created: () => number;
   readonly lost: () => number;
+  /** Contexts created and not lost or explicitly released (WEBGL_lose_context). */
+  readonly live: () => number;
   readonly byKind: () => Record<string, number>;
 }
 
 export function installContextCounter(): ContextCounter {
   const seen = new WeakSet<object>();
   const kinds: Record<string, number> = {};
+  const live = new Set<object>();
   let created = 0;
   let lost = 0;
   const wrap = <T extends { getContext: (...args: never[]) => unknown }>(proto: T): void => {
@@ -116,7 +119,25 @@ export function installContextCounter(): ContextCounter {
           kinds[kind] = (kinds[kind] ?? 0) + 1;
           this.addEventListener('webglcontextlost', () => {
             lost++;
+            live.delete(ctx);
           });
+          live.add(ctx);
+          // Libraries probe support with a throwaway context and release it
+          // through WEBGL_lose_context (OSD's WebGLDrawer.isSupported does);
+          // count those as released, not as live budget.
+          const gl = ctx as WebGLRenderingContext;
+          const getExt = gl.getExtension.bind(gl);
+          gl.getExtension = ((name: string) => {
+            const ext = getExt(name);
+            if (name === 'WEBGL_lose_context' && ext) {
+              const lose = (ext as WEBGL_lose_context).loseContext.bind(ext);
+              (ext as WEBGL_lose_context).loseContext = () => {
+                live.delete(ctx);
+                lose();
+              };
+            }
+            return ext;
+          }) as typeof gl.getExtension;
         }
       }
       return ctx;
@@ -125,7 +146,12 @@ export function installContextCounter(): ContextCounter {
   };
   wrap(HTMLCanvasElement.prototype);
   if (typeof OffscreenCanvas !== 'undefined') wrap(OffscreenCanvas.prototype);
-  return { created: () => created, lost: () => lost, byKind: () => ({ ...kinds }) };
+  return {
+    created: () => created,
+    lost: () => lost,
+    live: () => live.size,
+    byKind: () => ({ ...kinds }),
+  };
 }
 
 /** `performance.measureUserAgentSpecificMemory` where available (cross-origin isolated only). */

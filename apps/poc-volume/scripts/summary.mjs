@@ -77,7 +77,13 @@ export function printSummary(r) {
       ['fabric', (x) => f(x.phases.fabric.median)],
       ['decor', (x) => f(x.phases.decorations.median)],
     ]);
-    if (m.crossView) console.log('cross-view check:', JSON.stringify(m.crossView));
+    if (m.crossView) {
+      console.log(`cross-view check: ${m.crossView.passed} passed, ${m.crossView.failed} failed`);
+      for (const c of m.crossView.checks)
+        console.log(
+          `  ${c.ok ? 'PASS' : 'FAIL'} ${c.name}${c.ok ? '' : ' ' + JSON.stringify(c.detail)}`,
+        );
+    }
     if (m.contexts) console.log('contexts:', JSON.stringify(m.contexts));
   }
   if (r.niivue)

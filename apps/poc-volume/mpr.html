@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="data:," />
+    <title>osdlabel volume PoC: MPR cells</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #000;
+      }
+      #grid {
+        display: grid;
+        grid-template-columns: 512px 512px;
+        grid-template-rows: 512px 512px;
+        gap: 4px;
+      }
+      .cell {
+        position: relative;
+        width: 512px;
+        height: 512px;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="grid"></div>
+    <script type="module" src="./src/mpr-page.ts"></script>
+  </body>
+</html>

@@ -32,6 +32,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { findPidByMarker, sampleProcessMemory, MiB } from './proc-mem.mjs';
 import { printSummary } from './summary.mjs';
+import { crossViewCheck } from './cross-view-check.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -134,12 +135,12 @@ async function main() {
     viewport: { width: 1100, height: 1100 },
     deviceScaleFactor: 1,
   });
-  const open = async (page, file) => {
+  const open = async (page, file, extra = '') => {
     page.on('pageerror', (e) => log('pageerror', file, e.message));
     page.on('console', (m) => {
       if (m.type() === 'error') log('console.error', file, m.text().slice(0, 300));
     });
-    await page.goto(`${base}/${file}${query}`);
+    await page.goto(`${base}/${file}${query}${extra ? `&${extra}` : ''}`);
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, {
       timeout: 120000,
     });
@@ -173,7 +174,45 @@ async function main() {
       result.benchContexts = await call(page, 'contexts');
       await page.close();
     }
-    // MPR_SECTION
+    if (only.has('mpr')) {
+      result.mpr = [];
+      const frames = quick ? 30 : 120;
+      for (const drawer of ['canvas', 'webgl']) {
+        const page = await context.newPage();
+        log('mpr', drawer);
+        await open(page, `mpr.html`, `drawer=${drawer}`);
+        const setup = await call(page, 'setup');
+        result.memory.push(mem(`mpr-${drawer}:setup`));
+        const loops = [];
+        const plan = [
+          ['pan-zoom-axial', 'cpu'],
+          ['scroll-axial', 'cpu'],
+          ['scroll-coronal', 'cpu'],
+          ['rotate-oblique', 'cpu'],
+          ['rotate-oblique', 'workers'],
+          ['scroll-axial', 'workers'],
+          ['rotate-oblique', 'gl'],
+          ['scroll-axial', 'gl'],
+        ];
+        for (const [scenario, method] of plan) {
+          log(' loop', scenario, method);
+          loops.push(await call(page, 'loop', scenario, method, frames));
+        }
+        result.memory.push(mem(`mpr-${drawer}:after-loops`));
+        const crossView = await crossViewCheck(page, call, dims);
+        if (drawer === 'canvas') {
+          await page.screenshot({ path: path.join(path.dirname(outFile), `mpr-${stamp}.png`) });
+        }
+        result.mpr.push({
+          drawer,
+          setup,
+          loops,
+          crossView,
+          contexts: await call(page, 'contexts'),
+        });
+        await page.close();
+      }
+    }
     // NIIVUE_SECTION
   } finally {
     await context.close();

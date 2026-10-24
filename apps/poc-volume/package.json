@@ -14,15 +14,18 @@
   "dependencies": {
     "@niivue/niivue": "1.0.0-rc.37",
     "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/annotation-context": "workspace:*",
     "@osdlabel/decoration": "workspace:*",
     "@osdlabel/fabric-annotations": "workspace:*",
     "@osdlabel/fabric-osd": "workspace:*",
     "@osdlabel/mask": "workspace:*",
     "@osdlabel/mpr": "workspace:*",
+    "@osdlabel/osd-helper": "workspace:*",
     "@osdlabel/spatial": "workspace:*",
     "@osdlabel/viewer-api": "workspace:*",
     "@osdlabel/volume": "workspace:*",
     "fabric": "catalog:",
+    "osdlabel": "workspace:*",
     "openseadragon": "catalog:"
   },
   "devDependencies": {

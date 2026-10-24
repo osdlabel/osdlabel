@@ -435,6 +435,9 @@ importers:
       '@osdlabel/annotation':
         specifier: workspace:*
         version: link:../../packages/annotation
+      '@osdlabel/annotation-context':
+        specifier: workspace:*
+        version: link:../../packages/annotation-context
       '@osdlabel/decoration':
         specifier: workspace:*
         version: link:../../packages/decoration
@@ -450,6 +453,9 @@ importers:
       '@osdlabel/mpr':
         specifier: workspace:*
         version: link:../../packages/mpr
+      '@osdlabel/osd-helper':
+        specifier: workspace:*
+        version: link:../../packages/osd-helper
       '@osdlabel/spatial':
         specifier: workspace:*
         version: link:../../packages/spatial
@@ -465,6 +471,9 @@ importers:
       openseadragon:
         specifier: 'catalog:'
         version: 5.0.1
+      osdlabel:
+        specifier: workspace:*
+        version: link:../../packages/osdlabel
     devDependencies:
       '@types/openseadragon':
         specifier: 'catalog:'
