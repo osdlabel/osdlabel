@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import solidPlugin from 'vite-plugin-solid';
 
 /**
  * PoC dev server. Serves bench.html / mpr.html / niivue.html with the
@@ -12,6 +13,8 @@ const REPO = path.resolve(HERE, '..', '..');
 
 export default {
   root: HERE,
+  // Only solid.html's page is JSX; the plugin leaves the .ts pages alone.
+  plugins: [solidPlugin()],
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',

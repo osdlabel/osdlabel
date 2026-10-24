@@ -3,6 +3,8 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
     "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker.ImportScripts"],
     "types": ["vite/client"],
     "strict": true,

@@ -456,6 +456,9 @@ importers:
       '@osdlabel/osd-helper':
         specifier: workspace:*
         version: link:../../packages/osd-helper
+      '@osdlabel/solid':
+        specifier: workspace:*
+        version: link:../../packages/solid
       '@osdlabel/spatial':
         specifier: workspace:*
         version: link:../../packages/spatial
@@ -474,6 +477,9 @@ importers:
       osdlabel:
         specifier: workspace:*
         version: link:../../packages/osdlabel
+      solid-js:
+        specifier: 'catalog:'
+        version: 1.9.13
     devDependencies:
       '@types/openseadragon':
         specifier: 'catalog:'
@@ -487,6 +493,9 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0)
+      vite-plugin-solid:
+        specifier: 'catalog:'
+        version: 2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
       vitest:
         specifier: 'catalog:'
         version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))

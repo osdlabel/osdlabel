@@ -11,7 +11,7 @@
  *
  * Flags:
  *   --quick              small volume (256x256x200) and fewer reps
- *   --only <list>        subset of: bench,mpr,niivue,bundle
+ *   --only <list>        subset of: bench,mpr,solid,niivue,bundle
  *   --headed             run a visible browser (desktop reproduction)
  *   --chromium <path>    browser binary (default: $POC_CHROMIUM, then
  *                        /opt/pw-browsers/chromium if present, else
@@ -34,6 +34,7 @@ import { findPidByMarker, sampleProcessMemory, MiB } from './proc-mem.mjs';
 import { printSummary } from './summary.mjs';
 import { crossViewCheck } from './cross-view-check.mjs';
 import { bundleSizes } from './bundle-size.mjs';
+import { solidCheck } from './solid-check.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -44,7 +45,7 @@ const arg = (f, d) => {
 };
 
 const quick = flag('--quick');
-const only = new Set(String(arg('--only', 'bench,mpr,niivue,bundle')).split(','));
+const only = new Set(String(arg('--only', 'bench,mpr,solid,niivue,bundle')).split(','));
 const port = Number(arg('--port', '5637'));
 const defaultChromium = fs.existsSync('/opt/pw-browsers/chromium')
   ? '/opt/pw-browsers/chromium'
@@ -213,6 +214,14 @@ async function main() {
         });
         await page.close();
       }
+    }
+    if (only.has('solid')) {
+      const page = await context.newPage();
+      log('solid ViewerCells');
+      await open(page, 'solid.html');
+      result.solid = await solidCheck(page, call, dims, quick ? 30 : 120);
+      result.memory.push(mem('solid:after'));
+      await page.close();
     }
     if (only.has('niivue')) {
       const page = await context.newPage();

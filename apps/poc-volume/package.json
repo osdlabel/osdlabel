@@ -21,18 +21,21 @@
     "@osdlabel/mask": "workspace:*",
     "@osdlabel/mpr": "workspace:*",
     "@osdlabel/osd-helper": "workspace:*",
+    "@osdlabel/solid": "workspace:*",
     "@osdlabel/spatial": "workspace:*",
     "@osdlabel/viewer-api": "workspace:*",
     "@osdlabel/volume": "workspace:*",
     "fabric": "catalog:",
+    "openseadragon": "catalog:",
     "osdlabel": "workspace:*",
-    "openseadragon": "catalog:"
+    "solid-js": "catalog:"
   },
   "devDependencies": {
     "@types/openseadragon": "catalog:",
     "playwright": "^1.60.0",
     "typescript": "catalog:",
     "vite": "catalog:",
+    "vite-plugin-solid": "catalog:",
     "vitest": "catalog:"
   }
 }
