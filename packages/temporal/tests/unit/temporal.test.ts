@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Geometry, Point, PolygonGeometry } from '@osdlabel/annotation';
+import type { Annotation, Geometry, Point, PolygonGeometry } from '@osdlabel/annotation';
+import { createAnnotationId } from '@osdlabel/annotation';
 import {
   createConstantRateAxis,
   createFrameMaterializer,
@@ -10,6 +11,7 @@ import {
   frameAt,
   interpolateGeometry,
   frameRefOf,
+  groupKeyframeAnnotations,
   midpointOf,
   nearestFrame,
   reconcileFrame,
@@ -21,7 +23,7 @@ import {
   signedArea,
   upsertKeyframe,
 } from '../../src/index.js';
-import type { Keyframe, TrackBase } from '../../src/index.js';
+import type { Keyframe, KeyframeFields, TrackBase } from '../../src/index.js';
 
 const rect = (x: number, y: number, w: number, h: number, rotation = 0): Geometry => ({
   type: 'rectangle',
@@ -315,5 +317,59 @@ describe('createFrameMaterializer', () => {
     expect(f4[1]).toBe(f3[1]);
     expect(f4[0]).not.toBe(f3[0]);
     expect(builds).toBe(3);
+  });
+});
+
+describe('groupKeyframeAnnotations', () => {
+  const axis = createConstantRateAxis(300, 30000, 1001);
+  const ann = (
+    id: string,
+    trackId: string,
+    frame: number,
+    geometry: Geometry,
+    updatedAt = '2026-01-01',
+    visibility: Keyframe['visibility'] = 'visible',
+  ): Annotation<KeyframeFields> => ({
+    id: createAnnotationId(id),
+    geometry,
+    toolType: 'rectangle',
+    createdAt: '2026-01-01',
+    updatedAt,
+    trackId: createTrackId(trackId),
+    frame: frameRefOf(axis, frame),
+    visibility,
+  });
+
+  it('groups by track, resolves frames by time and keeps the source annotation as payload', () => {
+    const a0 = ann('a0', 't1', 10, rect(0, 0, 10, 10));
+    const a1 = ann('a1', 't1', 40, rect(30, 0, 10, 10), '2026-01-01', 'occluded');
+    const b0 = ann('b0', 't2', 5, rect(5, 5, 1, 1));
+    const { tracks, conflicts, mismatched } = groupKeyframeAnnotations([a1, b0, a0], axis);
+    expect(conflicts).toEqual([]);
+    expect(mismatched).toEqual([]);
+    const t1 = tracks.find((t) => t.id === 't1')!;
+    expect(t1.keyframes.map((k) => k.frame)).toEqual([10, 40]);
+    expect(t1.keyframes[1]!.visibility).toBe('occluded');
+    expect(t1.keyframes[0]!.payload).toBe(a0);
+    const mid = sampleTrack(t1, 25)!;
+    expect(mid.geometry.type === 'rectangle' && mid.geometry.origin.x).toBeCloseTo(15);
+    // Read back on an axis that truncates µs, with a time stored as truncated
+    // milliseconds: still the same frame.
+    const truncAxis = createTimestampAxis(axis.positions.map(Math.trunc), 33367);
+    const c = {
+      ...a0,
+      frame: { index: 10, timeUs: Math.floor(axis.positions[10]! / 1000) * 1000 },
+    };
+    expect(groupKeyframeAnnotations([c], truncAxis).tracks[0]!.keyframes[0]!.frame).toBe(10);
+  });
+
+  it('reports a frame collision (later updatedAt wins) and a geometry-type mismatch', () => {
+    const old = ann('old', 't1', 10, rect(0, 0, 10, 10), '2026-01-01');
+    const neu = ann('new', 't1', 10, rect(1, 1, 10, 10), '2026-02-01');
+    const circ = ann('c', 't1', 20, { type: 'circle', center: { x: 0, y: 0 }, radius: 1 });
+    const g = groupKeyframeAnnotations([neu, old, circ], axis);
+    expect(g.conflicts).toEqual([{ trackId: 't1', frame: 10, annotationIds: ['old', 'new'] }]);
+    expect(g.tracks[0]!.keyframes[0]!.payload).toBe(neu);
+    expect(g.mismatched).toEqual([circ]);
   });
 });

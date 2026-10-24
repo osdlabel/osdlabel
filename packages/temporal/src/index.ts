@@ -40,3 +40,5 @@ export type { TrackSample } from './sample-track.js';
 export { CorrespondenceCache, sampleTrack } from './sample-track.js';
 export type { FrameMaterializer, TrackDocument } from './materialize.js';
 export { createFrameMaterializer, toTrackDocument } from './materialize.js';
+export type { GroupedKeyframes, KeyframeConflict, KeyframeFields } from './keyframe-annotations.js';
+export { groupKeyframeAnnotations } from './keyframe-annotations.js';

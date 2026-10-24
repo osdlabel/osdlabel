@@ -441,9 +441,15 @@ importers:
       '@osdlabel/fabric-osd':
         specifier: workspace:*
         version: link:../../packages/fabric-osd
+      '@osdlabel/mask':
+        specifier: workspace:*
+        version: link:../../packages/mask
       '@osdlabel/temporal':
         specifier: workspace:*
         version: link:../../packages/temporal
+      '@osdlabel/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       '@osdlabel/video':
         specifier: workspace:*
         version: link:../../packages/video

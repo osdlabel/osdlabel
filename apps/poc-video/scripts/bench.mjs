@@ -299,12 +299,26 @@ async function main() {
 
   if (only.has('h3')) {
     process.stderr.write('H3 temporal interpolation cost and keyframe storage (Node)...\n');
-    result.h3 = { node: await runTemporalBench(), keyframes: await runKeyframeAnnotationsBench() };
+    result.h3 = { node: await runTemporalBench() };
   }
 
+  // The config inline (configFile: false) with no file watching and no HMR:
+  // an edit, a rebuild or a config change during a long run must not reload
+  // the page under test or restart the server mid-run (a config edit killed
+  // one H1 run this way). Passing `watch: null` over the config file does not
+  // work: Vite's config merge skips null overrides.
+  const { default: viteConfig } = await import('../vite.config.mjs');
   const server = await createServer({
-    configFile: path.join(APP_DIR, 'vite.config.mjs'),
-    server: { port, strictPort: true, host: 'localhost' },
+    ...viteConfig,
+    configFile: false,
+    server: {
+      ...viteConfig.server,
+      port,
+      strictPort: true,
+      host: 'localhost',
+      hmr: false,
+      watch: null,
+    },
   });
   await server.listen();
   const base = `http://localhost:${port}`;
@@ -349,6 +363,7 @@ async function main() {
       });
     }
     if (only.has('h3')) {
+      result.h3.keyframes = await runKeyframeAnnotationsBench(browser, base);
       result.h3.harness = await runH3Harness(browser, base);
     }
   } finally {

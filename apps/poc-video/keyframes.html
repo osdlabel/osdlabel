@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Keyframe storage</title>
+    <style>
+      body {
+        font:
+          13px system-ui,
+          sans-serif;
+        margin: 16px;
+        background: #fff;
+        color: #111;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Keyframes as annotations vs TrackDocument</h1>
+    <p>
+      Driven by <code>scripts/bench.mjs</code> through <code>window.__keyframes</code>. By hand:
+      <code>await __keyframes.run()</code> in the console.
+    </p>
+    <script type="module" src="/src/keyframes-page.ts"></script>
+  </body>
+</html>

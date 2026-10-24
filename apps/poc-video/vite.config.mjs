@@ -28,6 +28,7 @@ export default {
         seek: path.join(HERE, 'seek.html'),
         render: path.join(HERE, 'render.html'),
         tracks: path.join(HERE, 'tracks.html'),
+        keyframes: path.join(HERE, 'keyframes.html'),
       },
     },
   },
