@@ -4,24 +4,32 @@
  * plane, with no MPR-specific component.
  *
  * The mapping onto osdlabel's existing model:
- * - one `ImageId` per plane position (`vol:axial:200`). Scrolling swaps the
+ * - one `ImageId` per plane position, from @osdlabel/mpr's reversible scheme
+ *   (`vol:phantom:axial:200`; oblique planes would carry their quantized
+ *   frame). Scrolling swaps the
  *   cell's `imageSource.id` while its `tileSource` stays the same instance, so
  *   ViewerCell does not reopen the image, and the annotation store's per-image
  *   buckets are exactly "the annotations on this plane".
- * - a host registry maps each such id to its `PlaneFrame`; annotations need
- *   no extra field (the plane is a property of the image they belong to).
+ * - the id decodes back to its `PlaneFrame` (parsePlaneImageId), so there is
+ *   no host registry to persist; annotations need no extra field (the plane
+ *   is a property of the image they belong to).
  * - shared decoration providers find their view through the new
  *   `DecorationContext.imageId` and read the other planes' annotations from
  *   the store; Solid tracks those reads, so they re-run on any change.
  * - the host writes reslices into the plane canvas and redraws through the
  *   new `FabricOverlay.viewer`.
+ *
+ * Query: &cells=N (default 3; kinds cycle axial, coronal, sagittal),
+ * &cellPx= (CSS size of each cell; default 512 for up to 3 cells, else 256) and
+ * &osdDrawer=canvas, which sets OpenSeadragon.DEFAULT_SETTINGS.drawer before
+ * any ViewerCell opens (the context-budget stopgap: no library change).
  */
+import OpenSeadragon from 'openseadragon';
 import { createEffect, createSignal, For, type JSX } from 'solid-js';
 import { render } from 'solid-js/web';
 import { AnnotatorProvider, ViewerCell, useAnnotator } from '@osdlabel/solid';
 import {
   createAnnotationContextId,
-  createImageId,
   type AnnotationContext,
   type DecorationProvider,
   type FabricOverlay,
@@ -29,20 +37,35 @@ import {
   type ImageSource,
   type OsdFields,
 } from 'osdlabel';
-import { projectAnnotations, referenceLineDecorations, type PlanarAnnotation } from '@osdlabel/mpr';
+import {
+  parsePlaneImageId,
+  planeImageId,
+  projectAnnotations,
+  referenceLineDecorations,
+  type PlanarAnnotation,
+} from '@osdlabel/mpr';
 import { orthogonalPlane, planeIndexMapping, type PlaneFrame } from '@osdlabel/spatial';
 import { applyWindowLut, buildWindowLut, reslice } from '@osdlabel/volume';
 import { createCanvasTileSource, invalidateTile } from './canvas-tile-source.js';
 import { installGlMemoryTracker } from './gl-memory.js';
 import { planeFor, type PlaneKind } from './planes.js';
-import { buildVolume, installContextCounter, nextFrame, stats } from './volume-setup.js';
+import { buildVolume, installContextCounter, nextFrame, param, stats } from './volume-setup.js';
 
+const osdDrawer = param('osdDrawer', 'default');
+if (osdDrawer === 'canvas') OpenSeadragon.DEFAULT_SETTINGS.drawer = 'canvas';
+const cellCount = Math.max(1, Number(param('cells', '3')));
+const cellPx = Number(param('cellPx', cellCount > 3 ? '256' : '512'));
 const contexts = installContextCounter();
 const glMemory = installGlMemoryTracker();
 const built = buildVolume();
 const grid = built.volume.grid;
 const lut = buildWindowLut(40, 400);
-const KINDS: readonly PlaneKind[] = ['axial', 'coronal', 'sagittal'];
+const BASE_KINDS: readonly PlaneKind[] = ['axial', 'coronal', 'sagittal'];
+const KINDS: readonly PlaneKind[] = Array.from(
+  { length: cellCount },
+  (_, i) => BASE_KINDS[i % BASE_KINDS.length]!,
+);
+const SERIES = 'phantom';
 const COLORS: Record<string, string> = {
   axial: '#4aa3ff',
   coronal: '#5fd35f',
@@ -53,7 +76,7 @@ const CONTEXTS: readonly AnnotationContext[] = [
   { id: CONTEXT_ID, label: 'Volume', tools: [{ type: 'rectangle' }, { type: 'point' }] },
 ];
 
-/** imageId -> the plane that image is. The host's half of the model. */
+/** imageId -> the plane that image is: a cache of parsePlaneImageId, not a registry. */
 const planeOf = new Map<ImageId, PlaneFrame>();
 const kindOf = new Map<ImageId, PlaneKind>();
 
@@ -70,10 +93,14 @@ interface PlaneCell {
 }
 
 function idFor(kind: PlaneKind, index: number): ImageId {
-  const id = createImageId(`vol:${kind}:${index}`);
+  const o = kind === 'oblique' ? 'axial' : kind;
+  const id = planeImageId(SERIES, orthogonalPlane(grid, o, index), grid);
   if (!planeOf.has(id)) {
-    planeOf.set(id, orthogonalPlane(grid, kind === 'oblique' ? 'axial' : kind, index));
-    kindOf.set(id, kind);
+    // Decode rather than remember: what a reload of saved annotations does.
+    const parsed = parsePlaneImageId(id, (s) => (s === SERIES ? grid : undefined));
+    if (!parsed) throw new Error(`undecodable plane id ${id}`);
+    planeOf.set(id, parsed.plane);
+    kindOf.set(id, parsed.orientation ?? o);
   }
   return id;
 }
@@ -213,6 +240,25 @@ function Harness(): JSX.Element {
           ).length,
         };
       }),
+    idFor: (kind: PlaneKind, index: number) => idFor(kind, index),
+    /** Every stored image id, decoded independently of the page's cache. */
+    decodeStoredIds: () =>
+      Object.keys(annotator.annotationState.byImage).map((id) => {
+        const parsed = parsePlaneImageId(id, (s) => (s === SERIES ? grid : undefined));
+        const expected =
+          parsed?.orientation !== undefined && parsed.index !== undefined
+            ? orthogonalPlane(grid, parsed.orientation, parsed.index)
+            : undefined;
+        return {
+          id,
+          form: parsed?.form ?? null,
+          matchesGridSlice:
+            parsed !== null &&
+            expected !== undefined &&
+            JSON.stringify(parsed.plane) === JSON.stringify(expected),
+        };
+      }),
+    config: () => ({ cells: cellCount, osdDrawer, cellPx }),
     store: () =>
       Object.fromEntries(
         Object.entries(annotator.annotationState.byImage).map(([k, v]) => [
@@ -255,13 +301,20 @@ function Harness(): JSX.Element {
     contexts: () => ({
       created: contexts.created(),
       live: contexts.live(),
+      lost: contexts.lost(),
       byKind: contexts.byKind(),
     }),
     glMemory: () => glMemory.snapshot(),
   };
 
   return (
-    <div style={{ display: 'grid', 'grid-template-columns': '512px 512px', gap: '4px' }}>
+    <div
+      style={{
+        display: 'grid',
+        'grid-template-columns': `repeat(${cellPx > 256 ? 2 : 4}, ${cellPx}px)`,
+        gap: '4px',
+      }}
+    >
       <For each={cells}>
         {(c, i) => {
           const source = (): ImageSource => ({
@@ -270,7 +323,7 @@ function Harness(): JSX.Element {
           });
           return (
             <div
-              style={{ position: 'relative', width: '512px', height: '512px' }}
+              style={{ position: 'relative', width: `${cellPx}px`, height: `${cellPx}px` }}
               data-cell={c.kind}
             >
               <ViewerCell

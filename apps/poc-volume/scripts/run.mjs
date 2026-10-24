@@ -19,6 +19,9 @@
  *                        Playwright's own)
  *   --port <n>           first dev server port to try (default 5637)
  *   --out <file>         output path (default results/<timestamp>.json)
+ *   --mpr-reps <n>       repetitions of every canvas-drawer MPR loop and sweep
+ *                        cell, interleaved round by round (default 3; 1 with
+ *                        --quick)
  *
  * The packages it imports must be built first (`pnpm exec turbo run build
  * --filter=@osdlabel/poc-volume^...`); `pnpm exec turbo run bench
@@ -32,10 +35,10 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { findPidByMarker, sampleProcessMemory, MiB } from './proc-mem.mjs';
-import { printSummary } from './summary.mjs';
+import { aggregateLoops, printSummary } from './summary.mjs';
 import { crossViewCheck } from './cross-view-check.mjs';
 import { bundleSizes } from './bundle-size.mjs';
-import { solidCheck } from './solid-check.mjs';
+import { solidCheck, solidDrawerMatrix } from './solid-check.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -54,6 +57,7 @@ const defaultChromium = fs.existsSync('/opt/pw-browsers/chromium')
 const executablePath = arg('--chromium', process.env.POC_CHROMIUM ?? defaultChromium);
 const dims = quick ? { nx: 256, ny: 256, nz: 200 } : { nx: 512, ny: 512, nz: 400 };
 const reps = quick ? 8 : 30;
+const mprReps = Number(arg('--mpr-reps', quick ? '1' : '3'));
 const query = `?nx=${dims.nx}&ny=${dims.ny}&nz=${dims.nz}`;
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -121,6 +125,7 @@ async function main() {
       quick,
       dims,
       reps,
+      mprReps,
       chromium: browser.version(),
       executablePath: executablePath ?? 'playwright-default',
       headless: !flag('--headed'),
@@ -194,23 +199,44 @@ async function main() {
         const setup = await call(page, 'setup');
         result.memory.push(mem(`mpr-${drawer}:setup`));
         const loops = [];
-        const plan = [
-          ['pan-zoom-axial', 'cpu'],
-          ['scroll-axial', 'cpu'],
-          ['scroll-coronal', 'cpu'],
-          ['scroll-sagittal', 'cpu'],
-          ['crosshair', 'cpu'],
-          ['rotate-oblique', 'cpu'],
-          ['rotate-oblique', 'workers'],
-          ['scroll-axial', 'workers'],
-          ['scroll-sagittal', 'workers'],
-          ['crosshair', 'workers'],
-          ['rotate-oblique', 'gl'],
-          ['scroll-axial', 'gl'],
-        ];
-        for (const [scenario, method] of plan) {
-          log(' loop', scenario, method);
-          loops.push(await call(page, 'loop', scenario, method, frames));
+        // The canvas drawer is the recommended path: every loop runs mprReps
+        // times, round by round with the plan order rotated each round, so
+        // fps is reported as a median and a range. The WebGL drawer is
+        // SwiftShader-bound here and runs once.
+        const plan =
+          drawer === 'canvas'
+            ? [
+                ['pan-zoom-axial', 'cpu'],
+                ['scroll-axial', 'cpu'],
+                ['scroll-coronal', 'cpu'],
+                ['scroll-sagittal', 'cpu'],
+                ['scroll-sagittal', 'cpu-transposed'],
+                ['crosshair', 'cpu'],
+                ['crosshair', 'cpu-transposed'],
+                ['rotate-oblique', 'cpu'],
+                ['rotate-oblique', 'workers'],
+                ['scroll-axial', 'workers'],
+                ['scroll-sagittal', 'workers'],
+                ['crosshair', 'workers'],
+                ['rotate-oblique', 'gl'],
+                ['scroll-axial', 'gl'],
+              ]
+            : [
+                ['pan-zoom-axial', 'cpu'],
+                ['scroll-axial', 'cpu'],
+                ['scroll-coronal', 'cpu'],
+                ['scroll-sagittal', 'cpu'],
+                ['crosshair', 'cpu'],
+                ['rotate-oblique', 'cpu'],
+                ['rotate-oblique', 'gl'],
+              ];
+        const rounds = drawer === 'canvas' ? mprReps : 1;
+        for (let round = 0; round < rounds; round++) {
+          const order = plan.map((_, i) => plan[(i + round * 5) % plan.length]);
+          for (const [scenario, method] of order) {
+            log(' loop', round, scenario, method);
+            loops.push({ round, ...(await call(page, 'loop', scenario, method, frames)) });
+          }
         }
         // Annotation-count sweep (canvas drawer only: the WebGL drawer is
         // SwiftShader-bound). Extra axial polygons spread over the volume;
@@ -219,12 +245,23 @@ async function main() {
         // DecorationLayer can skip unchanged lines.
         const sweep = [];
         if (drawer === 'canvas') {
+          const cellsOf = [
+            ['scroll-axial', 'cpu', 'all'],
+            ['scroll-axial', 'cpu', 'changed'],
+            ['crosshair', 'cpu', 'all'],
+            ['crosshair', 'cpu', 'changed'],
+            ['crosshair', 'cpu-transposed', 'changed'],
+          ];
           for (const extra of quick ? [0, 250] : [0, 100, 250, 500]) {
             const total = await call(page, 'setExtraAnnotations', extra);
-            for (const scenario of ['scroll-axial', 'crosshair']) {
-              for (const mode of ['all', 'changed']) {
-                log(' sweep', total, scenario, mode);
-                sweep.push(await call(page, 'loop', scenario, 'cpu', frames, mode));
+            for (let round = 0; round < mprReps; round++) {
+              const order = cellsOf.map((_, i) => cellsOf[(i + round * 2) % cellsOf.length]);
+              for (const [scenario, method, mode] of order) {
+                log(' sweep', total, round, scenario, method, mode);
+                sweep.push({
+                  round,
+                  ...(await call(page, 'loop', scenario, method, frames, mode)),
+                });
               }
             }
           }
@@ -240,6 +277,8 @@ async function main() {
           setup,
           loops,
           sweep,
+          loopSummary: aggregateLoops(loops),
+          sweepSummary: aggregateLoops(sweep),
           crossView,
           contexts: await call(page, 'contexts'),
           glMemory: await call(page, 'glMemory'),
@@ -255,6 +294,15 @@ async function main() {
       result.solid.glMemory = await call(page, 'glMemory');
       result.memory.push(mem('solid:after'));
       await page.close();
+      log('solid drawer matrix');
+      result.solidDrawers = await solidDrawerMatrix(
+        context,
+        open,
+        call,
+        quick ? [3, 8] : [3, 8, 16, 20],
+        quick ? 30 : 60,
+      );
+      result.memory.push(mem('solid:drawer-matrix'));
     }
     if (only.has('niivue')) {
       const page = await context.newPage();
@@ -270,11 +318,15 @@ async function main() {
       result.memory.push(mem('niivue:labels'));
       const accuracy = await call(page, 'overlayAccuracy');
       await page.screenshot({ path: path.join(path.dirname(outFile), `niivue-${stamp}.png`) });
+      log(' + shared WebGL2 reslicer (composed GPU bill)');
+      const composed = await call(page, 'addReslicer', 'r16f');
+      result.memory.push(mem('niivue:+reslicer'));
       result.niivue = {
         setup,
         rotate,
         labels,
         accuracy,
+        composed,
         contexts: await call(page, 'contexts'),
         glMemory: await call(page, 'glMemory'),
       };

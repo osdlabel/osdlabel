@@ -14,14 +14,17 @@ import {
   buildWindowLut,
   fillDisc,
   paintDisc,
+  permuteVolume,
   reslice,
+  SAGITTAL_MAJOR,
   resliceLabels,
+  volumeByteLength,
   type Interpolation,
   type LabelVolume,
 } from '@osdlabel/volume';
 import { installGlMemoryTracker } from './gl-memory.js';
 import { GlReslicer, type GlTextureFormat } from './gl-reslicer.js';
-import { planeFor, type PlaneKind } from './planes.js';
+import { obliquePlane, planeFor, type PlaneKind } from './planes.js';
 import { ReslicePool } from './reslice-pool.js';
 import { SliceMaskStack } from './slice-mask-stack.js';
 import {
@@ -104,6 +107,64 @@ function cpu(reps: number): Record<string, unknown>[] {
       rows.push({ method: 'cpu-main', kind, interpolation, size: size(f), path, ...s });
     }
   }
+  // Scrolling: a different plane every rep (cold-ish caches), slice-major vs
+  // a sagittal-major copy of the same volume for the sagittal view, in
+  // alternating order. The copy costs the volume's bytes again.
+  const tCopy = performance.now();
+  const transposed = permuteVolume(volume, SAGITTAL_MAJOR);
+  const copyMs = performance.now() - tCopy;
+  const [nx, ny, nz] = grid.dimensions;
+  const scrollFrame = (kind: PlaneKind, r: number): PlaneFrame => {
+    const n = kind === 'axial' ? nz : kind === 'coronal' ? ny : nx;
+    return kind === 'oblique'
+      ? obliquePlane(grid, 30, 20 + r)
+      : planeFor(grid, kind, Math.floor(n / 4) + ((r * 7) % Math.floor(n / 2)));
+  };
+  const scrollSamples = new Map<string, number[]>();
+  const add = (key: string, v: number): void => {
+    const a = scrollSamples.get(key);
+    if (a) a.push(v);
+    else scrollSamples.set(key, [v]);
+  };
+  const sizes = new Map<string, string>();
+  for (let r = -3; r < reps; r++) {
+    for (const kind of KINDS) {
+      const f = scrollFrame(kind, r);
+      const out = new Int16Array(f.width * f.height);
+      const variants: [string, () => void][] = [
+        [
+          'slice-major',
+          () => void reslice(volume, planeIndexMapping(grid, f), f.width, f.height, out),
+        ],
+      ];
+      if (kind === 'sagittal') {
+        variants.push([
+          'sagittal-major-copy',
+          () =>
+            void reslice(transposed, planeIndexMapping(transposed.grid, f), f.width, f.height, out),
+        ]);
+      }
+      for (const [name, fn] of rotated(variants, r < 0 ? 0 : r)) {
+        const t0 = performance.now();
+        fn();
+        if (r >= 0) add(`${kind}|${name}`, performance.now() - t0);
+        sizes.set(`${kind}|${name}`, size(f));
+      }
+    }
+  }
+  for (const [key, samples] of scrollSamples) {
+    const [kind, storage] = key.split('|') as [string, string];
+    rows.push({
+      method: storage === 'slice-major' ? 'cpu-main-scroll' : 'cpu-main-scroll-sagittal-copy',
+      kind,
+      interpolation: 'linear',
+      size: sizes.get(key),
+      storage,
+      ...stats(samples),
+      ...(storage === 'slice-major' ? {} : { copyMs, copyBytes: volumeByteLength(transposed) }),
+    });
+  }
+
   // Display conversion costs for one 512x512 plane.
   const f = planeFor(grid, 'axial');
   const src = new Int16Array(f.width * f.height);

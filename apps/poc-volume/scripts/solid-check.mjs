@@ -43,8 +43,13 @@ export async function solidCheck(page, call, dims, frames) {
   await page.waitForTimeout(400);
 
   const store = await call(page, 'store');
-  const axialId = `vol:axial:${kAx}`;
-  const coronalId = `vol:coronal:${jCor}`;
+  const axialId = await call(page, 'idFor', 'axial', kAx);
+  const coronalId = await call(page, 'idFor', 'coronal', jCor);
+  check(
+    'plane image ids use the reversible orthogonal form',
+    axialId === `vol:phantom:axial:${kAx}` && coronalId === `vol:phantom:coronal:${jCor}`,
+    { axialId, coronalId },
+  );
   check(
     'rectangle stored under the axial plane image id',
     (store[axialId] ?? []).some((a) => a.geometry.type === 'rectangle'),
@@ -54,6 +59,12 @@ export async function solidCheck(page, call, dims, frames) {
     'point stored under the coronal plane image id',
     (store[coronalId] ?? []).some((a) => a.geometry.type === 'point'),
     Object.keys(store),
+  );
+  const decoded = await call(page, 'decodeStoredIds');
+  check(
+    'every stored image id decodes to the grid slice it was drawn on',
+    decoded.length >= 2 && decoded.every((d) => d.form === 'orthogonal' && d.matchesGridSlice),
+    decoded,
   );
   const seen = await call(page, 'inspect');
   for (const i of [1, 2]) {
@@ -100,4 +111,48 @@ export async function solidCheck(page, call, dims, frames) {
     scroll,
     contexts: await call(page, 'contexts'),
   };
+}
+
+/**
+ * The context-budget stopgap: N stock ViewerCells with OSD's default (WebGL)
+ * drawer vs OpenSeadragon.DEFAULT_SETTINGS.drawer = 'canvas'. Records the
+ * WebGL contexts created / live / lost and the scroll fps of cell 0 (whose
+ * scroll re-runs every cell's providers through Solid's tracking).
+ */
+export async function solidDrawerMatrix(context, open, call, counts, frames) {
+  const rows = [];
+  for (const osdDrawer of ['default', 'canvas']) {
+    for (const cells of counts) {
+      const page = await context.newPage();
+      const errors = [];
+      page.on('pageerror', (e) => errors.push(e.message.slice(0, 200)));
+      try {
+        // Same 256 px cells for every N, so fps compares across N.
+        await open(page, 'solid.html', `cells=${cells}&osdDrawer=${osdDrawer}&cellPx=256`);
+        await page.waitForFunction(() => window.__poc.ready(), null, { timeout: 120000 });
+        await call(page, 'paintAll');
+        await page.waitForTimeout(500);
+        const afterSetup = await call(page, 'contexts');
+        const scroll = await call(page, 'scroll', frames);
+        rows.push({
+          osdDrawer,
+          cells,
+          contextsAfterSetup: afterSetup,
+          contexts: await call(page, 'contexts'),
+          fps: scroll.fps,
+          frameMs: scroll.frameMs,
+          resliceAndRedrawMs: scroll.resliceAndRedrawMs,
+          setImageSourceSyncMs: scroll.setImageSourceSyncMs,
+          providerRunsPerFrame: scroll.providerRunsPerFrame,
+          glMemory: await call(page, 'glMemory'),
+          pageErrors: errors,
+        });
+      } catch (e) {
+        rows.push({ osdDrawer, cells, error: String(e).slice(0, 300), pageErrors: errors });
+      } finally {
+        await page.close();
+      }
+    }
+  }
+  return rows;
 }

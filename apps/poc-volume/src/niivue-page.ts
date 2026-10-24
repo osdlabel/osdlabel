@@ -37,6 +37,7 @@ import {
 } from '@osdlabel/spatial';
 import { buildWindowLut, paintDisc, resliceLabels, type LabelVolume } from '@osdlabel/volume';
 import { installGlMemoryTracker } from './gl-memory.js';
+import { GlReslicer, type GlTextureFormat } from './gl-reslicer.js';
 import { createCell, renderPlane, type MprCell } from './mpr-cell.js';
 import { planeFor, type PlaneKind } from './planes.js';
 import { seedAnnotations } from './seed-annotations.js';
@@ -489,6 +490,28 @@ async function overlayAccuracy(): Promise<Record<string, unknown>> {
   return { centrePatientMm: centre, results };
 }
 
+/**
+ * The composed layout's GPU bill: add the optional shared WebGL2 reslicer
+ * (its own context, its own 3D texture) beside Niivue on this page, and
+ * report the tracked allocations before and after. WebGL textures cannot be
+ * shared across contexts, so the reslicer cannot sample Niivue's texture.
+ */
+let reslicer: GlReslicer | null = null;
+function addReslicer(format: GlTextureFormat): Record<string, unknown> {
+  const before = glMemory.snapshot();
+  reslicer?.dispose();
+  reslicer = new GlReslicer(1024, 1024);
+  const upload = reslicer.upload(built.volume, format);
+  return {
+    format,
+    upload,
+    glMemoryBefore: before,
+    glMemoryAfter: glMemory.snapshot(),
+    contexts: { created: contexts.created(), live: contexts.live(), lost: contexts.lost() },
+    volumeBytes: built.buffer.byteLength,
+  };
+}
+
 declare global {
   interface Window {
     __poc: Record<string, (...args: never[]) => unknown>;
@@ -500,6 +523,7 @@ window.__poc = {
   rotate: (frames: number) => rotate(frames),
   sharedLabels,
   overlayAccuracy,
+  addReslicer: (format: GlTextureFormat) => addReslicer(format),
   contexts: () => ({
     created: contexts.created(),
     live: contexts.live(),

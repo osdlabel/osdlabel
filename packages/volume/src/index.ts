@@ -25,4 +25,3 @@ export {
   paintDisc,
   resliceLabels,
 } from './label-volume.js';
-

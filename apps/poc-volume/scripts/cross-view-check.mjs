@@ -215,6 +215,16 @@ export async function crossViewCheck(page, call, dims) {
   await call(page, 'setSlice', 'axial', kAx);
   await page.waitForTimeout(200);
 
+  // 4. Reversible plane ids: every cell's plane (three grid slices and the
+  //    oblique) encodes to an id that decodes to the same plane and size and
+  //    re-encodes to the same id, so a saved annotation reloads onto it.
+  const ids = await call(page, 'planeIds');
+  check(
+    'plane ids of all four cells decode to their planes and re-encode identically',
+    ids.length === 4 && ids.every((x) => x.samePlane && x.sameSize && x.reencodes),
+    ids,
+  );
+
   return {
     passed: checks.filter((c) => c.ok).length,
     failed: checks.filter((c) => !c.ok).length,

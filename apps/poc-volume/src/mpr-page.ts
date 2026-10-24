@@ -37,11 +37,19 @@ import {
 import {
   createCrossViewProvider,
   createReferenceLineProvider,
+  parsePlaneImageId,
+  planeImageId,
   type PlanarAnnotation,
 } from '@osdlabel/mpr';
 import { isSamePlane, orthogonalPlane, type PlaneFrame } from '@osdlabel/spatial';
 import { createImageId } from '@osdlabel/viewer-api';
-import { buildWindowLut } from '@osdlabel/volume';
+import {
+  buildWindowLut,
+  permuteVolume,
+  SAGITTAL_MAJOR,
+  volumeByteLength,
+  type ScalarVolume,
+} from '@osdlabel/volume';
 import { DEFAULT_KEYBOARD_SHORTCUTS, getScenePointFromEvent } from 'osdlabel';
 import { installGlMemoryTracker } from './gl-memory.js';
 import { GlReslicer } from './gl-reslicer.js';
@@ -87,6 +95,13 @@ let obliqueSpin = 20;
 let obliqueTilt = 30;
 let pool: ReslicePool | undefined;
 let gl: GlReslicer | undefined;
+/** Sagittal-major copy of the volume, built on first use by 'cpu-transposed'. */
+let transposed: { volume: ScalarVolume; buildMs: number } | undefined;
+/**
+ * Loop methods: the cell reslicers plus 'cpu-transposed', which is 'cpu' with
+ * the sagittal cell reading a sagittal-major copy (memory for speed).
+ */
+type LoopMethod = ResliceMethod | 'cpu-transposed';
 let nextAnnotation = 1;
 /** Bumped whenever `annotations` changes; keys the cross-view memo. */
 let annotationVersion = 0;
@@ -317,11 +332,21 @@ const scrollIndex = (n: number, f: number): number => Math.floor(n / 4) + (f % M
 
 async function loop(
   scenario: Scenario,
-  method: ResliceMethod,
+  method: LoopMethod,
   frames: number,
   mode: DecorationMode = 'all',
 ): Promise<Record<string, unknown>> {
   decorationMode = mode;
+  if (method === 'cpu-transposed' && !transposed) {
+    const t = performance.now();
+    const volume = permuteVolume(built.volume, SAGITTAL_MAJOR);
+    transposed = { volume, buildMs: performance.now() - t };
+  }
+  const cellMethod: ResliceMethod = method === 'cpu-transposed' ? 'cpu' : method;
+  const volumeFor = (k: PlaneKind): ScalarVolume =>
+    method === 'cpu-transposed' && k === 'sagittal' && transposed
+      ? transposed.volume
+      : built.volume;
   if (method === 'workers' && !pool) {
     pool = new ReslicePool(Number(param('workers', '3')), built.volume.grid, built.buffer);
     await pool.ready;
@@ -395,12 +420,16 @@ async function loop(
     const parts =
       method === 'workers'
         ? await Promise.all(
-            moved.map((k) => renderPlane(cell(k), built.volume, method, lut, WINDOW, { pool, gl })),
+            moved.map((k) =>
+              renderPlane(cell(k), volumeFor(k), cellMethod, lut, WINDOW, { pool, gl }),
+            ),
           )
         : await (async () => {
             const acc: Awaited<ReturnType<typeof renderPlane>>[] = [];
             for (const k of moved) {
-              acc.push(await renderPlane(cell(k), built.volume, method, lut, WINDOW, { pool, gl }));
+              acc.push(
+                await renderPlane(cell(k), volumeFor(k), cellMethod, lut, WINDOW, { pool, gl }),
+              );
             }
             return acc;
           })();
@@ -470,11 +499,40 @@ async function loop(
     },
     decorationsPerFrame: decorationCount,
     nativeObjectsInTarget: nativeCount,
+    ...(method === 'cpu-transposed' && transposed
+      ? {
+          sagittalCopyBuildMs: transposed.buildMs,
+          sagittalCopyBytes: volumeByteLength(transposed.volume),
+        }
+      : {}),
     size: moved.map((k) => `${cell(k).frame.width}x${cell(k).frame.height}`).join('+'),
   };
 }
 
 // ── inspection for the cross-view check ─────────────────────────────────
+
+/**
+ * Each cell's current plane through the reversible ImageId scheme: the id,
+ * its form, and whether decoding it gives the same plane back and re-encoding
+ * gives the same id (what reloading a saved annotation relies on).
+ */
+function planeIds(): Record<string, unknown>[] {
+  const g = built.volume.grid;
+  return [...cells].map(([k, c]) => {
+    const id = planeImageId('phantom', c.frame, g);
+    const parsed = parsePlaneImageId(id, (series) => (series === 'phantom' ? g : undefined));
+    return {
+      kind: k,
+      id,
+      form: parsed?.form ?? null,
+      samePlane: parsed ? isSamePlane(parsed.plane, c.frame, 1e-3) : false,
+      sameSize: parsed
+        ? parsed.plane.width === c.frame.width && parsed.plane.height === c.frame.height
+        : false,
+      reencodes: parsed ? planeImageId('phantom', parsed.plane, g) === id : false,
+    };
+  });
+}
 
 function inspect(): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -591,8 +649,9 @@ declare global {
 
 window.__poc = {
   setup,
-  loop: (scenario: Scenario, method: ResliceMethod, frames: number, mode?: DecorationMode) =>
+  loop: (scenario: Scenario, method: LoopMethod, frames: number, mode?: DecorationMode) =>
     loop(scenario, method, frames, mode ?? 'all'),
+  planeIds,
   setExtraAnnotations: (n: number) => setExtraAnnotations(n),
   activateTool: (k: PlaneKind, type: 'rectangle' | 'point' | 'polyline') => activateTool(k, type),
   deactivateTool: () => {
