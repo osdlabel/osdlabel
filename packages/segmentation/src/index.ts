@@ -29,7 +29,11 @@ export type { ComposeOptions } from './compose.js';
 export { composeSegmentationProvider } from './compose.js';
 export type { InputLayout, ModelFrame } from './model-frame.js';
 export { modelFrame, imageToModel, modelToImage, modelGridFrame, cropGrid } from './model-frame.js';
-export type { CandidateRanking, RasterToSnapshotOptions, RasterToPolygonsOptions } from './raster.js';
+export type {
+  CandidateRanking,
+  RasterToSnapshotOptions,
+  RasterToPolygonsOptions,
+} from './raster.js';
 export {
   stabilityScore,
   rankCandidates,
@@ -38,3 +42,15 @@ export {
   rasterToPolygons,
   tighten,
 } from './raster.js';
+// DRAFT: the stateful session contract stacks, volumes and video need (research).
+export type {
+  FrameIndex,
+  SegmentationObjectId,
+  SessionCapabilities,
+  FramePrompt,
+  FrameResult,
+  PropagateRequest,
+  SegmentationSession,
+  SeriesTarget,
+  SegmentationSessionBackend,
+} from './session.js';
