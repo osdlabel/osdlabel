@@ -60,7 +60,9 @@ export async function crossViewCheck(page, call, dims) {
   check('rectangle committed by RectangleTool', rect, rect?.geometry);
   check('point committed by PointTool', point, point?.geometry);
   if (rect) {
-    const geom = rect.geometry;
+    // RectangleGeometry is { origin, width, height, rotation } (rotation 0 here).
+    const g0 = rect.geometry;
+    const geom = { x: g0.origin.x, y: g0.origin.y, width: g0.width, height: g0.height };
     for (const cell of ['coronal', 'sagittal']) {
       const segs = find(cell, rect.id);
       const seg = segs[0];
@@ -91,7 +93,7 @@ export async function crossViewCheck(page, call, dims) {
         Math.abs(geom.y - r1.y) < 1 &&
         Math.abs(geom.x + geom.width - r2.x) < 1 &&
         Math.abs(geom.y + geom.height - r2.y) < 1,
-      { geom, r1, r2 },
+      { geom: g0, r1, r2 },
     );
     // Oblique cell: map the segment's ends to patient space with the cell's
     // own frame (origin = centre of pixel (0,0)) and check, with plain
@@ -112,13 +114,22 @@ export async function crossViewCheck(page, call, dims) {
       x: (P[0] - gridOrigin[0]) / s + 0.5,
       y: (P[1] - gridOrigin[1]) / s + 0.5,
     });
-    const onEdge = (q) =>
-      Math.min(
-        Math.abs(q.x - geom.x),
-        Math.abs(q.x - geom.x - geom.width),
-        Math.abs(q.y - geom.y),
-        Math.abs(q.y - geom.y - geom.height),
+    // Distance to the rectangle's boundary (its four edge SEGMENTS, so a point
+    // on an edge's extension line does not pass).
+    const onEdge = (q) => {
+      const x0 = geom.x;
+      const x1 = geom.x + geom.width;
+      const y0 = geom.y;
+      const y1 = geom.y + geom.height;
+      const cx = Math.min(Math.max(q.x, x0), x1);
+      const cy = Math.min(Math.max(q.y, y0), y1);
+      return Math.min(
+        Math.hypot(q.x - x0, q.y - cy),
+        Math.hypot(q.x - x1, q.y - cy),
+        Math.hypot(q.x - cx, q.y - y0),
+        Math.hypot(q.x - cx, q.y - y1),
       );
+    };
     const ends = obl[0]?.type === 'line' ? [obl[0].start, obl[0].end].map(toPatient) : [];
     const mid = ends.length === 2 ? ends[0].map((v, a) => (v + ends[1][a]) / 2) : null;
     const endInfo = ends.map((P) => ({

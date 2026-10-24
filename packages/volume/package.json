@@ -25,7 +25,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@osdlabel/mask": "workspace:*",
     "@osdlabel/spatial": "workspace:*"
   },
   "devDependencies": {

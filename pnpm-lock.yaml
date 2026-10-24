@@ -639,6 +639,9 @@ importers:
       '@osdlabel/spatial':
         specifier: workspace:*
         version: link:../spatial
+      '@osdlabel/viewer-api':
+        specifier: workspace:*
+        version: link:../viewer-api
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -907,9 +910,6 @@ importers:
 
   packages/volume:
     dependencies:
-      '@osdlabel/mask':
-        specifier: workspace:*
-        version: link:../mask
       '@osdlabel/spatial':
         specifier: workspace:*
         version: link:../spatial

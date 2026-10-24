@@ -27,7 +27,8 @@
   "dependencies": {
     "@osdlabel/annotation": "workspace:*",
     "@osdlabel/decoration": "workspace:*",
-    "@osdlabel/spatial": "workspace:*"
+    "@osdlabel/spatial": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:",

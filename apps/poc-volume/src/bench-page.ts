@@ -16,7 +16,6 @@ import {
   paintDisc,
   reslice,
   resliceLabels,
-  SliceMaskStack,
   type Interpolation,
   type LabelVolume,
 } from '@osdlabel/volume';
@@ -24,6 +23,7 @@ import { installGlMemoryTracker } from './gl-memory.js';
 import { GlReslicer, type GlTextureFormat } from './gl-reslicer.js';
 import { planeFor, type PlaneKind } from './planes.js';
 import { ReslicePool } from './reslice-pool.js';
+import { SliceMaskStack } from './slice-mask-stack.js';
 import {
   buildVolume,
   installContextCounter,

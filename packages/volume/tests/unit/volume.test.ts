@@ -19,11 +19,13 @@ import {
   fillDisc,
   fillSheppLoganPhantom,
   forEachSpanInDisc,
+  permuteGrid,
+  permuteVolume,
+  SAGITTAL_MAJOR,
   forEachVoxelInDisc,
   paintDisc,
   reslice,
   resliceLabels,
-  SliceMaskStack,
   volumeByteLength,
   type ScalarVolume,
 } from '../../src/index.js';
@@ -155,6 +157,51 @@ describe('storage', () => {
   });
 });
 
+describe('permuted copies', () => {
+  const vol = ramp();
+
+  it('keeps every voxel at the same patient position', () => {
+    const p = permuteVolume(vol, SAGITTAL_MAJOR);
+    expect(p.grid.dimensions).toEqual([10, 8, 12]);
+    expect(p.slices.length).toBe(12);
+    const [nx, ny] = grid.dimensions;
+    for (const [i, j, k] of [
+      [0, 0, 0],
+      [11, 9, 7],
+      [3, 4, 5],
+    ] as const) {
+      // Source (i, j, k) is copy (j, k, i).
+      expect(p.slices[i]![k * ny + j]).toBe(vol.slices[k]![j * nx + i]);
+      expect(p.slices[i]![k * ny + j]).toBe(i + 10 * j + 100 * k);
+    }
+    expect(permuteGrid(grid, [0, 1, 2])).toEqual(grid);
+    expect(() => permuteGrid(grid, [0, 0, 2])).toThrow(RangeError);
+  });
+
+  it('reslices the sagittal view identically, through the in-slice path', () => {
+    const p = permuteVolume(vol, SAGITTAL_MAJOR);
+    for (const f of [
+      orthogonalPlane(grid, 'sagittal', 5),
+      orthogonalPlane(grid, 'sagittal', 0),
+      centredPlane(volumeCentre(grid), [1, 0.2, 0], [0, 0.1, -1], 0.6, 16, 16, 0.6),
+    ]) {
+      const a = new Int16Array(f.width * f.height);
+      const b = new Int16Array(f.width * f.height);
+      const pathA = reslice(vol, planeIndexMapping(grid, f), f.width, f.height, a);
+      const pathB = reslice(p, planeIndexMapping(p.grid, f), f.width, f.height, b);
+      expect(b).toEqual(a);
+      expect(pathB).toBe(pathA);
+    }
+    // In the copy the coronal / axial x axis runs along its slice axis, which
+    // the separable path does not take: the copy serves the sagittal view only.
+    const cor = orthogonalPlane(grid, 'coronal', 4);
+    const out = new Int16Array(cor.width * cor.height);
+    expect(reslice(p, planeIndexMapping(p.grid, cor), cor.width, cor.height, out)).toBe(
+      'trilinear',
+    );
+  });
+});
+
 describe('window LUT', () => {
   it('maps a window to grey RGBA', () => {
     const lut = buildWindowLut(40, 400);
@@ -179,7 +226,7 @@ describe('phantom', () => {
   });
 });
 
-describe('label maps: dense volume vs per-slice masks', () => {
+describe('label maps (dense label volume)', () => {
   const g: VolumeGrid = { ...grid, dimensions: [40, 40, 30] };
   const planes: readonly [string, PlaneFrame][] = [
     ['axial', orthogonalPlane(g, 'axial', 12)],
@@ -202,28 +249,14 @@ describe('label maps: dense volume vs per-slice masks', () => {
   ];
 
   for (const [name, frame] of planes) {
-    it(`paints the same voxels from the ${name} view`, () => {
+    it(`paints a disc from the ${name} view that reslices back with no holes`, () => {
       const dense = allocateLabelVolume(g);
-      const stack = new SliceMaskStack(g);
       const centre = { x: frame.width / 2 + 0.3, y: frame.height / 2 - 0.2 };
       const changed = paintDisc(dense, frame, centre, 6, 1);
-      stack.paintDisc(frame, centre, 6);
       expect(changed).toBeGreaterThan(50);
-      expect(stack.voxelCount()).toBe(changed);
-      for (let k = 0; k < 30; k++) {
-        const m = stack.masks.get(k);
-        for (let j = 0; j < 40; j++)
-          for (let i = 0; i < 40; i++) {
-            expect(m ? m.get(i, j) : 0).toBe(dense.slices[k]![j * 40 + i]);
-          }
-      }
-      // Both reslice the painted disc back into the view it was drawn on.
       const mapping = planeIndexMapping(g, frame);
       const a = new Uint8Array(frame.width * frame.height);
-      const b = new Uint8Array(frame.width * frame.height);
       resliceLabels(dense, mapping, frame.width, frame.height, a);
-      stack.reslice(mapping, frame.width, frame.height, b);
-      expect(b).toEqual(a);
       // Every view pixel well inside the brush shows the label (no holes).
       expect(discCoverage(a, frame, centre, 5)).toBe(1);
     });
@@ -276,39 +309,19 @@ describe('label maps: dense volume vs per-slice masks', () => {
   });
 
   for (const [name, frame] of planes) {
-    it(`span and voxel painters agree in both representations (${name})`, () => {
+    it(`span and voxel painters agree (${name})`, () => {
       const centre = { x: frame.width / 2 + 0.3, y: frame.height / 2 - 0.2 };
       const voxels = allocateLabelVolume(g);
       const spans = allocateLabelVolume(g);
       const changed = paintDisc(voxels, frame, centre, 6, 1);
       expect(fillDisc(spans, frame, centre, 6, 1)).toBe(changed);
-      const s1 = new SliceMaskStack(g);
-      const s2 = new SliceMaskStack(g);
-      s1.paintDiscVoxels(frame, centre, 6);
-      s2.paintDiscSpans(frame, centre, 6);
-      expect(s1.voxelCount()).toBe(changed);
-      expect(s2.voxelCount()).toBe(changed);
-      for (let k = 0; k < 30; k++) {
-        expect(spans.slices[k]).toEqual(voxels.slices[k]);
-        const m1 = s1.masks.get(k);
-        const m2 = s2.masks.get(k);
-        for (let j = 0; j < 40; j++)
-          for (let i = 0; i < 40; i++) {
-            const v = voxels.slices[k]![j * 40 + i];
-            expect(m1 ? m1.get(i, j) : 0).toBe(v);
-            expect(m2 ? m2.get(i, j) : 0).toBe(v);
-          }
-      }
+      for (let k = 0; k < 30; k++) expect(spans.slices[k]).toEqual(voxels.slices[k]);
     });
 
-    it(`hoisted label reslices match a per-pixel lookup (${name})`, () => {
+    it(`the hoisted label reslice matches a per-pixel lookup (${name})`, () => {
       const dense = allocateLabelVolume(g);
-      const stack = new SliceMaskStack(g);
       // Paint from every view so the reslice crosses several slices.
-      for (const [, f] of planes) {
-        paintDisc(dense, f, { x: 18.2, y: 21.7 }, 7, 1);
-        stack.paintDiscVoxels(f, { x: 18.2, y: 21.7 }, 7);
-      }
+      for (const [, f] of planes) paintDisc(dense, f, { x: 18.2, y: 21.7 }, 7, 1);
       const m = planeIndexMapping(g, frame);
       const want = new Uint8Array(frame.width * frame.height);
       const [nx, ny, nz] = g.dimensions;
@@ -324,11 +337,8 @@ describe('label maps: dense volume vs per-slice masks', () => {
         }
       expect(want.some((v) => v === 1)).toBe(true);
       const a = new Uint8Array(want.length);
-      const b = new Uint8Array(want.length);
       resliceLabels(dense, m, frame.width, frame.height, a);
-      stack.reslice(m, frame.width, frame.height, b);
       expect(a).toEqual(want);
-      expect(b).toEqual(want);
     });
   }
 

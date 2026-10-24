@@ -6,6 +6,9 @@ export {
   volumeByteLength,
 } from './scalar-volume.js';
 
+export type { AxisOrder } from './permute.js';
+export { SAGITTAL_MAJOR, permuteGrid, permuteVolume } from './permute.js';
+
 export type { Interpolation, ResliceOptions, ReslicePath } from './reslice.js';
 export { reslice } from './reslice.js';
 
@@ -23,4 +26,3 @@ export {
   resliceLabels,
 } from './label-volume.js';
 
-export { SliceMaskStack } from './slice-mask-stack.js';

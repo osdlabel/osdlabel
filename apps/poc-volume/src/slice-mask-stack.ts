@@ -8,9 +8,12 @@ import {
   type Point2,
   type VolumeGrid,
 } from '@osdlabel/spatial';
-import { forEachSpanInDisc, forEachVoxelInDisc } from './label-volume.js';
+import { forEachSpanInDisc, forEachVoxelInDisc } from '@osdlabel/volume';
 
 /**
+ * Benchmark comparison class, kept in the PoC app so @osdlabel/volume does not
+ * depend on @osdlabel/mask (per-slice masks stay an export format there).
+ *
  * The alternative 3D label-map representation: one `@osdlabel/mask` 2D buffer
  * per axial slice, created on first paint. This is what reusing PR #149's
  * per-image masks for a volume looks like — the mask package needs no change,
