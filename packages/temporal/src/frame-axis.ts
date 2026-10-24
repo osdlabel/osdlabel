@@ -122,19 +122,50 @@ export function frameAt(axis: FrameAxis, position: number): FrameIndex {
 
 /**
  * The frame whose position is nearest `position` (ties go to the earlier
- * frame). Use this, not {@link frameAt}, to turn a *stored* frame time back
- * into an index: a time written by another writer (index / fps, milliseconds,
- * a float round trip) lands a hair before the frame's timestamp often enough
- * that "last frame at or before" re-attaches it to the previous frame
- * (`apps/poc-video` axis study: 6-9 of 300 frames for a float seconds round
- * trip, 102-154 for nominal-rate or millisecond times; 0 with this lookup).
- * {@link frameAt} stays the right answer for "what is on screen at t".
+ * frame). Kept as the named alternative to {@link reconcileFrame}; do not use
+ * it to resolve stored times. It is right only for writers that store a
+ * frame's *start* time plus noise. A writer that stores a time inside the
+ * frame (a paused `currentTime`, a seek target at the frame's midpoint) lands
+ * past the midpoint half the time and is re-attached to the *next* frame:
+ * `apps/poc-video` axis study, 922 of 3,600 frames wrong for table-midpoint
+ * times and about 1,750 for times uniform in the frame's span, where
+ * {@link reconcileFrame} gets 0 and about 3%.
  */
 export function nearestFrame(axis: FrameAxis, position: number): FrameIndex {
   const p = axis.positions;
   const i = frameAt(axis, position);
   const next = p[i + 1];
   return next !== undefined && next - position < position - p[i]! ? i + 1 : i;
+}
+
+/** Cap of {@link reconcileFrame}'s tolerance on a time axis: 1 ms, in microseconds. */
+export const RECONCILE_TOLERANCE_CAP_US = 1000;
+
+/**
+ * Resolve a *stored* frame time to a frame: the frame on screen at
+ * `position + tolerance`, where the tolerance is a quarter of the frame
+ * containing `position`, capped at {@link RECONCILE_TOLERANCE_CAP_US} on a
+ * time axis (uncapped on a slice axis unless `cap` says otherwise).
+ *
+ * The contract it serves: a stored time is the frame's START presentation
+ * timestamp (`FrameRef.timeUs`, integer microseconds). The tolerance absorbs
+ * what happens to a start time on its way through other writers and readers
+ * (millisecond rounding or truncation, a float seconds round trip, nominal
+ * `i / fps`, one demuxer truncating to microseconds where another rounds),
+ * all of which land a hair *before* the start and make plain
+ * {@link frameAt} slip back one frame. Unlike {@link nearestFrame} it still
+ * answers "the frame on screen" for a time inside a frame, except within the
+ * tolerance of the next frame's start (1 ms of a 33 ms frame, about 3%).
+ */
+export function reconcileFrame(
+  axis: FrameAxis,
+  position: number,
+  cap: number = axis.unit === 'microseconds'
+    ? RECONCILE_TOLERANCE_CAP_US
+    : Number.POSITIVE_INFINITY,
+): FrameIndex {
+  const j = frameAt(axis, position);
+  return frameAt(axis, position + Math.min(cap, extentOf(axis, j) / 4));
 }
 
 /** Start position of frame `i`. */

@@ -10,10 +10,10 @@ function lerpPoint(a: Point, b: Point, t: number): Point {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
-/** Degrees, along the shorter way round (350 -> 10 passes through 0). */
+/** Degrees, along the shorter way round (350 -> 10 passes through 0), in [0, 360). */
 function lerpAngle(a: number, b: number, t: number): number {
   const d = ((((b - a) % 360) + 540) % 360) - 180;
-  return a + d * t;
+  return (((a + d * t) % 360) + 360) % 360;
 }
 
 function lerpPoints(from: readonly Point[], to: readonly Point[], t: number): Point[] {

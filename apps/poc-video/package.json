@@ -19,11 +19,13 @@
     "@osdlabel/fabric-annotations": "workspace:*",
     "@osdlabel/fabric-osd": "workspace:*",
     "@osdlabel/temporal": "workspace:*",
+    "@osdlabel/video": "workspace:*",
     "@osdlabel/viewer-api": "workspace:*",
     "fabric": "catalog:",
     "mediabunny": "1.62.1",
     "openseadragon": "catalog:",
-    "osdlabel": "workspace:*"
+    "osdlabel": "workspace:*",
+    "valibot": "catalog:"
   },
   "devDependencies": {
     "@types/openseadragon": "catalog:",

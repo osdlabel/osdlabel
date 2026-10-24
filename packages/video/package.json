@@ -1,0 +1,47 @@
+{
+  "name": "@osdlabel/video",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: frame-exact video decoding (WebCodecs) over a small Demuxer interface, with a mediabunny adapter. Decode only: no rendering, no OSD, no Fabric.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./mediabunny": {
+      "types": "./dist/mediabunny/index.d.ts",
+      "import": "./dist/mediabunny/index.js",
+      "default": "./dist/mediabunny/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "mediabunny": "1.62.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "mediabunny": "1.62.1"
+  },
+  "peerDependenciesMeta": {
+    "mediabunny": {
+      "optional": true
+    }
+  }
+}

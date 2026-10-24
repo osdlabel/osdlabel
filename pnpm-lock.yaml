@@ -444,6 +444,9 @@ importers:
       '@osdlabel/temporal':
         specifier: workspace:*
         version: link:../../packages/temporal
+      '@osdlabel/video':
+        specifier: workspace:*
+        version: link:../../packages/video
       '@osdlabel/viewer-api':
         specifier: workspace:*
         version: link:../../packages/viewer-api
@@ -459,6 +462,9 @@ importers:
       osdlabel:
         specifier: workspace:*
         version: link:../../packages/osdlabel
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.1(typescript@5.9.3)
     devDependencies:
       '@types/openseadragon':
         specifier: 'catalog:'
@@ -849,6 +855,18 @@ importers:
       fabric:
         specifier: 'catalog:'
         version: 7.4.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
+
+  packages/video:
+    devDependencies:
+      mediabunny:
+        specifier: 1.62.1
+        version: 1.62.1
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

@@ -9,8 +9,11 @@ import {
   createTrackId,
   frameAt,
   interpolateGeometry,
+  frameRefOf,
   midpointOf,
   nearestFrame,
+  reconcileFrame,
+  resolveFrameRef,
   polygonCorrespondence,
   polylineCorrespondence,
   removeKeyframe,
@@ -65,6 +68,45 @@ describe('frame axis', () => {
     expect(nearestFrame(axis, 50001)).toBe(2);
     expect(nearestFrame(axis, -1)).toBe(0);
     expect(nearestFrame(axis, 1e9)).toBe(3);
+  });
+  it('reconciles stored start times with a capped tolerance, not to the nearest frame', () => {
+    // ffprobe-exact 29.97 fps starts (fractional µs) as a reader's axis.
+    const exact = createConstantRateAxis(300, 30000, 1001);
+    // Another demuxer truncates to integer µs; this one keeps the fraction:
+    // plain at-or-before slips back, the tolerance does not.
+    expect(frameAt(exact, Math.trunc(exact.positions[2]!))).toBe(1);
+    expect(reconcileFrame(exact, Math.trunc(exact.positions[2]!))).toBe(2);
+    // Millisecond truncation (up to 1 ms early) and the float seconds round trip.
+    expect(reconcileFrame(exact, Math.floor(exact.positions[7]! / 1000) * 1000)).toBe(7);
+    expect(reconcileFrame(exact, (exact.positions[7]! / 1e6) * 1e6)).toBe(7);
+    // A time inside the frame (a paused currentTime) stays on that frame,
+    // where nearestFrame jumps to the next one past the midpoint...
+    const late = exact.positions[7]! + 0.7 * (exact.positions[8]! - exact.positions[7]!);
+    expect(reconcileFrame(exact, late)).toBe(7);
+    expect(nearestFrame(exact, late)).toBe(8);
+    expect(reconcileFrame(exact, midpointOf(exact, 7))).toBe(7);
+    // ...except within the 1 ms tolerance of the next frame's start.
+    expect(reconcileFrame(exact, exact.positions[8]! - 999)).toBe(8);
+    expect(reconcileFrame(exact, exact.positions[8]! - 1001)).toBe(7);
+    // The tolerance is a quarter frame when frames are shorter than 4 ms.
+    const fast = createConstantRateAxis(10, 1000);
+    expect(reconcileFrame(fast, 1000 - 251)).toBe(0);
+    expect(reconcileFrame(fast, 1000 - 249)).toBe(1);
+    // Clamped at both ends.
+    expect(reconcileFrame(exact, -5e6)).toBe(0);
+    expect(reconcileFrame(exact, 1e12)).toBe(299);
+  });
+  it('stores a frame as its start in integer µs and resolves it on another axis', () => {
+    const exact = createConstantRateAxis(300, 30000, 1001);
+    const ref = frameRefOf(exact, 123);
+    expect(ref).toEqual({ index: 123, timeUs: Math.round(exact.positions[123]!) });
+    // The reader's demuxer truncates to µs; same frame.
+    const trunc = createTimestampAxis(exact.positions.map(Math.trunc), 33367);
+    expect(resolveFrameRef(trunc, ref)).toBe(123);
+    // Without a time, the index (clamped) is the authority.
+    expect(resolveFrameRef(trunc, { index: 999 })).toBe(299);
+    const slices = createSliceAxis([0, 2.5, 5], 2.5);
+    expect(frameRefOf(slices, 1)).toEqual({ index: 1 });
   });
   it('builds a slice axis and rejects non-increasing positions', () => {
     expect(createSliceAxis([-10, -7.5, -5], 2.5).kind).toBe('space');
@@ -137,7 +179,10 @@ describe('sampleTrack', () => {
 
   it('rotates along the short arc', () => {
     const g = interpolateGeometry(rect(0, 0, 1, 1, 350), rect(0, 0, 1, 1, 10), 0.5);
-    expect(g.type === 'rectangle' && g.rotation).toBeCloseTo(360);
+    // Normalised to [0, 360): the midpoint of 350 -> 10 is 0, not 360.
+    expect(g.type === 'rectangle' && g.rotation).toBeCloseTo(0);
+    const q = interpolateGeometry(rect(0, 0, 1, 1, 350), rect(0, 0, 1, 1, 10), 0.75);
+    expect(q.type === 'rectangle' && q.rotation).toBeCloseTo(5);
   });
 
   it('holds masks at the nearest keyframe, or the previous one on request', () => {

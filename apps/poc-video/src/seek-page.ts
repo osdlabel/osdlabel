@@ -3,15 +3,32 @@
  *
  * Two ways to put frame `i` on screen:
  *   - HTMLVideoElement: set `currentTime` (several policies for which time to
- *     ask for), wait for `seeked` and the next `requestVideoFrameCallback`.
- *   - WebCodecs: `WebCodecsFrameSource.getFrame(i)` (demux with mediabunny,
- *     decode from the preceding key packet).
+ *     ask for), wait for `seeked`, then up to {@link RVFC_WINDOW_MS} for the
+ *     `requestVideoFrameCallback` of the presented frame.
+ *   - WebCodecs: `@osdlabel/video`'s `WebCodecsFrameSource.getFrame(i)` over
+ *     the mediabunny demuxer adapter (decode from the preceding key packet),
+ *     or mediabunny's own `VideoSampleSink.getSample(t)` (`sinkRun`).
  * Either way the burned-in barcode says which frame actually arrived.
+ *
+ * `playPauseRun` collects the times an app would store if it saved
+ * `video.currentTime` when the user paused playback, with the frame that was
+ * on screen, for the frame-axis writer study.
  */
 import { createTimestampAxis, frameAt } from '@osdlabel/temporal';
+import type { WebCodecsFrameSource } from '@osdlabel/video';
+import { MediabunnyDemuxer, MediabunnySampleFrameSource } from '@osdlabel/video/mediabunny';
 import type { Manifest, VideoInfo } from './lib/manifest.js';
 import { FrameProbe, loadManifest, mediaUrl } from './lib/manifest.js';
-import { WebCodecsFrameSource } from './lib/webcodecs-frame-source.js';
+import { openFrameSource } from './lib/open-frame-source.js';
+import { mulberry32 } from './lib/rng.js';
+
+/**
+ * How long after `seeked` to wait for the presented-frame callback. The
+ * window opens at `seeked`, not when the seek is issued: the first harness
+ * armed it before setting `currentTime`, so any seek slower than ~250 ms was
+ * counted as "no callback" and its barcode was read at `seeked` (review B2).
+ */
+const RVFC_WINDOW_MS = 250;
 
 export type SeekPolicy = 'boundary' | 'mid' | 'table-start' | 'table-mid' | 'increment';
 
@@ -28,13 +45,19 @@ export interface VideoOpResult {
   readonly requestedTime: number;
   /** Barcode read right after `seeked`. */
   readonly gotSeeked: number;
-  /** Barcode read after the presented-frame callback (or a 250 ms timeout). */
+  /** Barcode read after the presented-frame callback (or {@link RVFC_WINDOW_MS} after `seeked`). */
   readonly got: number;
+  /** `video.currentTime` read at `seeked`: the time an app storing currentTime would write. */
+  readonly currentTime: number;
   readonly msSeeked: number;
   readonly msFrame: number;
   readonly rvfcFired: boolean;
+  /** When the callback ran, relative to `seeked` (negative: before it); null if it did not. */
+  readonly msRvfcAfterSeeked: number | null;
   /** Frame whose pts matches rVFC metadata.mediaTime (nearest), -1 if no callback. */
   readonly mediaTimeFrame: number;
+  /** rVFC metadata.mediaTime, seconds (-1 if no callback). */
+  readonly mediaTime: number;
   readonly mediaTimeErrUs: number;
 }
 
@@ -106,23 +129,30 @@ function timeFor(v: VideoInfo, op: VideoOp): number {
 async function seekOp(v: VideoInfo, op: VideoOp): Promise<VideoOpResult> {
   const t = timeFor(v, op);
   let meta: VideoFrameCallbackMetadata | null = null;
-  const rvfc = new Promise<void>((resolve) => {
-    const handle = video.requestVideoFrameCallback((_now, m) => {
-      meta = m;
-      resolve();
-    });
-    setTimeout(() => {
-      video.cancelVideoFrameCallback(handle);
-      resolve();
-    }, 250);
+  let rvfcAt = -1;
+  let done: () => void = () => {};
+  const rvfc = new Promise<void>((resolve) => (done = resolve));
+  // Requested before the seek so a presentation that beats `seeked` is caught.
+  const handle = video.requestVideoFrameCallback((_now, m) => {
+    meta = m;
+    rvfcAt = performance.now();
+    done();
   });
   const t0 = performance.now();
   const seeked = once(video, 'seeked');
   video.currentTime = t;
   await seeked;
-  const msSeeked = performance.now() - t0;
+  const tSeeked = performance.now();
+  const msSeeked = tSeeked - t0;
+  const currentTime = video.currentTime;
   const gotSeeked = probe.read(video, v).value;
+  // The window opens now, at `seeked` (B2).
+  const timer = setTimeout(() => {
+    video.cancelVideoFrameCallback(handle);
+    done();
+  }, RVFC_WINDOW_MS);
   await rvfc;
+  clearTimeout(timer);
   const msFrame = performance.now() - t0;
   const got = probe.read(video, v).value;
   const m = meta as VideoFrameCallbackMetadata | null;
@@ -133,10 +163,13 @@ async function seekOp(v: VideoInfo, op: VideoOp): Promise<VideoOpResult> {
     requestedTime: t,
     gotSeeked,
     got,
+    currentTime,
     msSeeked,
     msFrame,
     rvfcFired: m !== null,
+    msRvfcAfterSeeked: m === null ? null : rvfcAt - tSeeked,
     mediaTimeFrame: near.frame,
+    mediaTime: m === null ? -1 : m.mediaTime,
     mediaTimeErrUs: near.errUs,
   };
 }
@@ -150,40 +183,64 @@ async function videoElementRun(name: string, ops: readonly VideoOp[]): Promise<V
   return out;
 }
 
-async function webcodecsRun(
-  name: string,
-  targets: readonly number[],
-  cacheFrames: number,
-): Promise<{
+interface WebCodecsRunResult {
   results: WebCodecsOpResult[];
   demuxMs: number;
-  stats: WebCodecsFrameSource['stats'];
+  stats: WebCodecsFrameSource['stats'] | null;
   peakCacheBytes: number;
   peakCacheFrames: number;
   frameBytes: number;
   tableMaxErrUs: number;
   codec: string;
-}> {
+}
+
+/**
+ * Frame requests through one of two decode paths over the same mediabunny
+ * demux: `@osdlabel/video`'s WebCodecsFrameSource (`kind: 'webcodecs'`), or
+ * mediabunny's VideoSampleSink.getSample at the frame's own timestamp
+ * (`kind: 'sink'`, no cache).
+ */
+async function decodeRun(
+  name: string,
+  targets: readonly number[],
+  cacheFrames: number,
+  kind: 'webcodecs' | 'sink',
+): Promise<WebCodecsRunResult> {
   const v = (await getManifest())[name];
   if (v === undefined) throw new Error(`unknown video ${name}`);
-  const src = await WebCodecsFrameSource.open(mediaUrl(v), {
-    cacheFrames,
-    cacheBytes: 2 * 1024 ** 3,
-  });
+  let wc: WebCodecsFrameSource | null = null;
+  let demuxer: MediabunnyDemuxer;
+  let getFrame: (i: number) => Promise<VideoFrame>;
+  let timestampsUs: readonly number[];
+  if (kind === 'webcodecs') {
+    const opened = await openFrameSource(mediaUrl(v), {
+      cacheFrames,
+      cacheBytes: 2 * 1024 ** 3,
+    });
+    wc = opened.source;
+    demuxer = opened.demuxer;
+    const src = opened.source;
+    getFrame = (i) => src.getFrame(i);
+    timestampsUs = src.timestampsUs;
+  } else {
+    demuxer = await MediabunnyDemuxer.open(mediaUrl(v));
+    const sink = new MediabunnySampleFrameSource(demuxer);
+    getFrame = (i) => sink.getFrame(i);
+    timestampsUs = sink.timestampsUs;
+  }
   try {
     // Does the demuxer's table agree with ffprobe's ground truth?
     let tableMaxErrUs = 0;
     for (let i = 0; i < v.frameCount; i++) {
-      const a = src.table.frames[i]?.timestampUs ?? NaN;
-      tableMaxErrUs = Math.max(tableMaxErrUs, Math.abs(a - v.ptsUs[i]!));
+      tableMaxErrUs = Math.max(tableMaxErrUs, Math.abs((timestampsUs[i] ?? NaN) - v.ptsUs[i]!));
     }
     const results: WebCodecsOpResult[] = [];
     let frameBytes = 0;
     for (const target of targets) {
-      const resets = src.stats.resets;
-      const hits = src.stats.cacheHits;
+      const resets = wc?.stats.resets ?? 0;
+      const hits = wc?.stats.cacheHits ?? 0;
       const t0 = performance.now();
-      const frame = await src.getFrame(target);
+      const frame = await getFrame(target);
       const ms = performance.now() - t0;
       frameBytes = frame.allocationSize();
       const got = probe.read(frame, v).value;
@@ -192,23 +249,80 @@ async function webcodecsRun(
         target,
         got,
         ms,
-        reset: src.stats.resets > resets,
-        hit: src.stats.cacheHits > hits,
+        reset: wc !== null && wc.stats.resets > resets,
+        hit: wc !== null && wc.stats.cacheHits > hits,
       });
     }
     return {
       results,
-      demuxMs: src.demuxMs,
-      stats: { ...src.stats },
-      peakCacheBytes: src.cache.peakBytes,
-      peakCacheFrames: src.cache.peakEntries,
+      demuxMs: demuxer.demuxMs,
+      stats: wc === null ? null : { ...wc.stats },
+      peakCacheBytes: wc?.cache.peakBytes ?? 0,
+      peakCacheFrames: wc?.cache.peakEntries ?? 0,
       frameBytes,
       tableMaxErrUs,
-      codec: src.config.codec,
+      codec: demuxer.decoderConfig.codec,
     };
   } finally {
-    src.close();
+    wc?.close();
+    demuxer.close();
   }
+}
+
+const webcodecsRun = (
+  name: string,
+  targets: readonly number[],
+  cacheFrames: number,
+): Promise<WebCodecsRunResult> => decodeRun(name, targets, cacheFrames, 'webcodecs');
+const sinkRun = (name: string, targets: readonly number[]): Promise<WebCodecsRunResult> =>
+  decodeRun(name, targets, 0, 'sink');
+
+export interface PauseSample {
+  /** `video.currentTime` after the pause: what an app saving currentTime stores. */
+  readonly currentTime: number;
+  /** Barcode on screen after the pause: the frame the user saw. */
+  readonly got: number;
+  /** rVFC mediaTime of the last frame presented before the pause, seconds (-1 if none). */
+  readonly lastMediaTime: number;
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+const twoFrames = (): Promise<void> =>
+  new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+/**
+ * Play from a random position, pause after a random 80-480 ms, and record
+ * `currentTime` with the frame on screen. `n` pauses per video.
+ */
+async function playPauseRun(name: string, n: number, seed = 11): Promise<PauseSample[]> {
+  const v = (await getManifest())[name];
+  if (v === undefined) throw new Error(`unknown video ${name}`);
+  await openVideo(v);
+  const rnd = mulberry32(seed);
+  const dur = v.ptsUs[v.frameCount - 1]! / 1e6;
+  const out: PauseSample[] = [];
+  let lastMediaTime: number;
+  let playing = false;
+  const onFrame = (_now: number, m: VideoFrameCallbackMetadata): void => {
+    lastMediaTime = m.mediaTime;
+    if (playing) video.requestVideoFrameCallback(onFrame);
+  };
+  for (let k = 0; k < n; k++) {
+    const seeked = once(video, 'seeked');
+    video.currentTime = rnd() * (dur - 1);
+    await seeked;
+    lastMediaTime = -1;
+    playing = true;
+    video.requestVideoFrameCallback(onFrame);
+    await video.play();
+    await sleep(80 + rnd() * 400);
+    playing = false;
+    video.pause();
+    await twoFrames();
+    await sleep(50);
+    out.push({ currentTime: video.currentTime, got: probe.read(video, v).value, lastMediaTime });
+  }
+  return out;
 }
 
 async function selfTest(name = 'h264-720p-30-g30-bf'): Promise<unknown> {
@@ -233,6 +347,8 @@ declare global {
       manifest: () => Promise<Manifest>;
       videoElementRun: typeof videoElementRun;
       webcodecsRun: typeof webcodecsRun;
+      sinkRun: typeof sinkRun;
+      playPauseRun: typeof playPauseRun;
       selfTest: typeof selfTest;
       env: () => Record<string, unknown>;
     };
@@ -243,6 +359,8 @@ window.__seek = {
   manifest: getManifest,
   videoElementRun,
   webcodecsRun,
+  sinkRun,
+  playPauseRun,
   selfTest,
   env: () => ({
     userAgent: navigator.userAgent,

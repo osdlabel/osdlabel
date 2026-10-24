@@ -8,21 +8,33 @@
  * 2. Generates the synthetic videos (scripts/gen-videos.py) if media/ lacks them.
  * 3. Serves the pages with Vite (cross-origin isolated, http://localhost).
  * 4. Runs, in one Chromium:
- *      H1  seek accuracy + latency: HTMLVideoElement policies vs WebCodecs
- *      H2  1080p playback through OSD (canvas + WebGL drawer) vs a
- *          CSS-transformed <video> under the same Fabric overlay
- *      H3  temporal tracks: interpolation cost (Node), frame-axis time
- *          lookup study (Node), and the scrub harness
+ *      H1  seek accuracy + latency: HTMLVideoElement policies vs
+ *          @osdlabel/video's WebCodecsFrameSource vs mediabunny's
+ *          VideoSampleSink; then paused-playback currentTime samples
+ *      H2  1080p60 playback through each host (OSD canvas drawer with a
+ *          tile copy or drawing the frame directly, OSD WebGL drawer, a
+ *          CSS-transformed element under the overlay), 3 reps per cell
+ *      H3  temporal tracks: interpolation cost (Node), the frame-axis writer
+ *          study (Node, with H1's browser times), keyframes-as-annotations
+ *          vs TrackDocument (Node), and the scrub harness
  * 5. Writes results/run-<stamp>.json and prints summary tables.
+ *
+ * Modules that import workspace packages are loaded with `import()` after
+ * the build step, so a clean checkout runs (review: the static imports ran
+ * before the build and failed with ERR_MODULE_NOT_FOUND).
  *
  * Flags:
  *   --only h1,h2,h3        which parts (default all)
- *   --videos a,b           H1 subset of media names (default all in manifest)
+ *   --videos a,b           H1 subset of media names (default: the 12-video H1 matrix)
  *   --n 40                 ops per H1 pattern
+ *   --pauses 40            paused-playback samples per H1 video (0 to skip)
  *   --h2-seconds 6         seconds per H2 cell
+ *   --h2-reps 3            repetitions per H2 cell
+ *   --h2-video name        H2 source (default h264-1080p-60-g60-bf)
  *   --h2-combos a/b,c/d    H2 subset, e.g. osd-canvas/video,css/video
+ *   --h2-motions m,n       H2 motions (default static,panzoom,fastpan)
  *   --h1-cells a/b,...     H1 video-element subset, e.g. forward/increment@boundary
- *   --h1-no-webcodecs      skip the WebCodecs cells of H1
+ *   --h1-no-webcodecs      skip the WebCodecs and VideoSampleSink cells of H1
  *   --chromium <path>      browser binary (default /opt/pw-browsers/chromium,
  *                          or BENCH_CHROMIUM). Use your desktop Chrome on real
  *                          hardware, e.g. --chromium "/Applications/Google
@@ -38,11 +50,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
-import { runTemporalBench } from './temporal-bench.mjs';
-import { runAxisStudy } from './axis-study.mjs';
-import { runH2 } from './render-bench.mjs';
-import { runH3Harness } from './tracks-bench.mjs';
-import { summarizeH1, printTable } from './summarize.mjs';
+import { summarizeH1, poolH1, printTable } from './summarize.mjs';
 import { mulberry32 } from './rng.mjs';
 
 const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,6 +81,9 @@ function randomTargets(n, frameCount, seed) {
 }
 
 const range = (from, n, step) => Array.from({ length: n }, (_, k) => from + k * step);
+
+/** Media generated for H2 only (600 frames at 60 fps), not part of the 12-video H1 matrix. */
+const H2_ONLY = new Set(['h264-1080p-60-g60-bf']);
 
 async function runH1(page, manifest, names, n, { cells = null, skipWebcodecs = false } = {}) {
   const out = {};
@@ -155,8 +166,30 @@ async function runH1(page, manifest, names, n, { cells = null, skipWebcodecs = f
       };
       process.stderr.write('.');
     }
+    // mediabunny's own VideoSampleSink.getSample(t), no cache, same targets.
+    process.stderr.write(' sink');
+    cell.sink = {};
+    for (const pattern of ['random', 'forward', 'backward']) {
+      const targets = patterns[pattern];
+      const pre = pattern === 'random' ? [] : [targets[0] - (pattern === 'forward' ? 1 : -1)];
+      const res = await page.evaluate(
+        ([nm, t]) => window.__seek.sinkRun(nm, t),
+        [name, [...pre, ...targets]],
+      );
+      cell.sink[pattern] = { ...res, results: res.results.slice(pre.length) };
+      process.stderr.write('.');
+    }
     process.stderr.write('\n');
     out[name] = cell;
+  }
+  return out;
+}
+
+async function runPauses(page, names, n) {
+  const out = {};
+  for (const name of names) {
+    process.stderr.write(`pauses ${name}\n`);
+    out[name] = await page.evaluate(([nm, k]) => window.__seek.playPauseRun(nm, k), [name, n]);
   }
   return out;
 }
@@ -166,6 +199,8 @@ async function main() {
   const n = Number(arg('--n', '40'));
   const port = Number(arg('--port', '5420'));
   const h2Seconds = Number(arg('--h2-seconds', '6'));
+  const h2Reps = Number(arg('--h2-reps', '3'));
+  const pauses = Number(arg('--pauses', '40'));
   const executablePath = arg(
     '--chromium',
     process.env.BENCH_CHROMIUM ?? '/opt/pw-browsers/chromium',
@@ -194,8 +229,31 @@ async function main() {
     process.stderr.write('generating synthetic videos (first run only, a few minutes)...\n');
     execFileSync('python3', [path.join(APP_DIR, 'scripts', 'gen-videos.py')], { stdio: 'inherit' });
   }
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  const names = arg('--videos', null)?.split(',') ?? Object.keys(manifest);
+  let manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const needed = [...H2_ONLY].filter((nm) => manifest[nm] === undefined);
+  if (needed.length > 0) {
+    process.stderr.write(`generating ${needed.join(', ')}...\n`);
+    execFileSync(
+      'python3',
+      [path.join(APP_DIR, 'scripts', 'gen-videos.py'), '--only', needed.join(',')],
+      {
+        stdio: 'inherit',
+      },
+    );
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  }
+  const names =
+    arg('--videos', null)?.split(',') ?? Object.keys(manifest).filter((nm) => !H2_ONLY.has(nm));
+  // Loaded after the build, and only for the parts that run: these import
+  // @osdlabel/* dist/ (and mediabunny).
+  const h3 = only.has('h3');
+  const { runTemporalBench } = h3 ? await import('./temporal-bench.mjs') : {};
+  const { runAxisStudy } = h3 ? await import('./axis-study.mjs') : {};
+  const { runKeyframeAnnotationsBench } = h3
+    ? await import('./keyframe-annotations-bench.mjs')
+    : {};
+  const { runH2 } = only.has('h2') ? await import('./render-bench.mjs') : {};
+  const { runH3Harness } = h3 ? await import('./tracks-bench.mjs') : {};
 
   const result = {
     meta: {
@@ -218,12 +276,30 @@ async function main() {
           return null;
         }
       })(),
+      // Uncommitted changes under the measured code (review: a run recorded a
+      // head whose measured code had uncommitted edits).
+      gitDirty: (() => {
+        try {
+          return execFileSync(
+            'git',
+            ['status', '--porcelain', '--', 'apps/poc-video', 'packages'],
+            {
+              cwd: REPO_ROOT,
+            },
+          )
+            .toString()
+            .split('\n')
+            .filter((l) => l.length > 0 && !l.includes('apps/poc-video/results/'));
+        } catch {
+          return null;
+        }
+      })(),
     },
   };
 
   if (only.has('h3')) {
-    process.stderr.write('H3 temporal interpolation cost (Node)...\n');
-    result.h3 = { node: await runTemporalBench(), axis: runAxisStudy(manifest) };
+    process.stderr.write('H3 temporal interpolation cost and keyframe storage (Node)...\n');
+    result.h3 = { node: await runTemporalBench(), keyframes: await runKeyframeAnnotationsBench() };
   }
 
   const server = await createServer({
@@ -253,12 +329,23 @@ async function main() {
         cells: arg('--h1-cells', null)?.split(',') ?? null,
         skipWebcodecs: flag('--h1-no-webcodecs'),
       });
+      if (pauses > 0) result.h1Pauses = await runPauses(page, names, pauses);
       await page.close();
+    }
+    if (only.has('h3')) {
+      process.stderr.write('H3 frame-axis writer study (Node)...\n');
+      result.h3.axis = await runAxisStudy(manifest, MEDIA_DIR, {
+        h1: result.h1 ?? null,
+        pauses: result.h1Pauses ?? null,
+      });
     }
     if (only.has('h2')) {
       result.h2 = await runH2(browser, base, {
         seconds: h2Seconds,
+        reps: h2Reps,
+        video: arg('--h2-video', 'h264-1080p-60-g60-bf'),
         combos: arg('--h2-combos', null)?.split(',') ?? null,
+        motions: arg('--h2-motions', null)?.split(',') ?? null,
       });
     }
     if (only.has('h3')) {
@@ -274,7 +361,10 @@ async function main() {
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
   const stamp = result.meta.startedAt.replace(/[:.]/g, '-');
   const file = path.join(RESULTS_DIR, `run-${stamp}.json`);
-  if (result.h1) result.h1Summary = summarizeH1(result.h1);
+  if (result.h1) {
+    result.h1Summary = summarizeH1(result.h1);
+    result.h1Pooled = poolH1(result.h1);
+  }
   fs.writeFileSync(file, JSON.stringify(result, null, 1));
   printTable(result);
   process.stderr.write(`\nwrote ${path.relative(process.cwd(), file)}\n`);

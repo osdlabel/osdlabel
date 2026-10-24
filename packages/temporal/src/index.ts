@@ -8,7 +8,11 @@ export {
   midpointOf,
   nearestFrame,
   positionOf,
+  reconcileFrame,
+  RECONCILE_TOLERANCE_CAP_US,
 } from './frame-axis.js';
+export type { FrameRef } from './frame-ref.js';
+export { frameRefOf, resolveFrameRef } from './frame-ref.js';
 export type {
   HoldPolicy,
   InterpolationMode,

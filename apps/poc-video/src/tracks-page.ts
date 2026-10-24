@@ -48,7 +48,7 @@ import {
 import type { Keyframe, TrackBase, TrackSample, Visibility } from '@osdlabel/temporal';
 import { createCanvasTileSource } from './lib/canvas-tile-source.js';
 import { FrameProbe, loadManifest, mediaUrl } from './lib/manifest.js';
-import { WebCodecsFrameSource } from './lib/webcodecs-frame-source.js';
+import { openFrameSource } from './lib/open-frame-source.js';
 
 type Mode = 'rectangle' | 'select' | 'navigation';
 
@@ -145,7 +145,7 @@ const videoName = params.get('video') ?? 'h264-720p-30-g30-bf';
 async function main(): Promise<void> {
   const v = (await loadManifest())[videoName];
   if (v === undefined) throw new Error(`unknown video ${videoName}`);
-  const src = await WebCodecsFrameSource.open(mediaUrl(v), {
+  const { source: src } = await openFrameSource(mediaUrl(v), {
     cacheFrames: 32,
     cacheBytes: 512 * 1024 ** 2,
   });

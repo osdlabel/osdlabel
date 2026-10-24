@@ -49,6 +49,9 @@ VARIANTS = [
     ("vp9-720p-2997-g250", "vp9", "webm", 1280, 720, "30000/1001", 250, 0, 300, False),
     ("vp9-1080p-30-g30", "vp9", "webm", 1920, 1080, "30", 30, 0, 300, False),
     ("av1-720p-30-g30", "av1", "mp4", 1280, 720, "30", 30, 0, 300, False),
+    # H2 render-path source: 60 fps so a 30 fps cap in the source cannot hide
+    # a host's headroom (600 frames = a 10 s loop). Not part of the H1 matrix.
+    ("h264-1080p-60-g60-bf", "h264", "mp4", 1920, 1080, "60", 60, 3, 600, False),
 ]
 
 

@@ -36,7 +36,8 @@ import type { TrackBase } from '@osdlabel/temporal';
 import { createCanvasTileSource, uploadToWebglTile } from './lib/canvas-tile-source.js';
 import type { VideoInfo } from './lib/manifest.js';
 import { loadManifest, mediaUrl } from './lib/manifest.js';
-import { WebCodecsFrameSource } from './lib/webcodecs-frame-source.js';
+import type { WebCodecsFrameSource } from '@osdlabel/video';
+import { openFrameSource } from './lib/open-frame-source.js';
 import { mulberry32 } from './lib/rng.js';
 
 type Host = 'osd-canvas' | 'osd-webgl' | 'css';
@@ -356,10 +357,12 @@ async function main(): Promise<void> {
     };
     video.requestVideoFrameCallback(onFrame);
   } else {
-    wc = await WebCodecsFrameSource.open(mediaUrl(v), {
-      cacheFrames: 6,
-      cacheBytes: 256 * 1024 ** 2,
-    });
+    wc = (
+      await openFrameSource(mediaUrl(v), {
+        cacheFrames: 6,
+        cacheBytes: 256 * 1024 ** 2,
+      })
+    ).source;
   }
 
   // WebCodecs playback: a decode-ahead queue and a wall clock.

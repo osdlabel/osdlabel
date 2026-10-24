@@ -1,4 +1,4 @@
-import { ALL_FORMATS, EncodedPacketSink, Input, UrlSource } from 'mediabunny';
+import type { Demuxer } from './demuxer.js';
 import type { FrameTable, PacketInfo } from './frame-table.js';
 import { buildFrameTable, frameOfTimestamp, startKeyFor } from './frame-table.js';
 import { LruCache } from './lru-cache.js';
@@ -24,15 +24,20 @@ export interface FrameSourceStats {
 const MAX_QUEUE = 8;
 
 /**
- * Frame-exact random access to a video file: demux once with mediabunny
- * (MP4 and WebM), then decode with WebCodecs `VideoDecoder` from the key
- * packet preceding the requested frame. Frames are addressed by presentation
- * index, never by time, so there is no rounding to land on a neighbour.
+ * Frame-exact random access to a demuxed video track with WebCodecs
+ * `VideoDecoder`, decoding from the key packet preceding the requested frame.
+ * Frames are addressed by presentation index, never by time, so there is no
+ * rounding to land on a neighbour.
+ *
+ * Decode only: it hands out `VideoFrame`s and never draws them. Showing a
+ * frame (an OSD tile, a canvas under an overlay) is the caller's concern.
  *
  * Decoding continues forward from where the last request left off when it
  * can (stepping forward or playing costs one frame each); stepping back or
  * jumping restarts at the nearest key packet, and an LRU of decoded frames
- * absorbs repeat visits.
+ * absorbs repeat visits. One decode from a keyframe fills the LRU with every
+ * frame it passes, which is what makes back-stepping cheap; without the
+ * cache, a back-step is a GOP decode like an `HTMLVideoElement` seek.
  */
 export class WebCodecsFrameSource {
   readonly stats: FrameSourceStats = {
@@ -44,6 +49,9 @@ export class WebCodecsFrameSource {
     flushes: 0,
   };
   readonly cache: LruCache<number, VideoFrame>;
+  readonly table: FrameTable;
+  /** Presentation timestamps of frames `0..n-1`, integer microseconds: the source of a frame axis. */
+  readonly timestampsUs: readonly number[];
 
   private readonly _decoder: VideoDecoder;
   /** prefix max of decode index over presentation order */
@@ -59,21 +67,19 @@ export class WebCodecsFrameSource {
   private _busy: Promise<unknown> = Promise.resolve();
 
   private constructor(
-    readonly table: FrameTable,
-    private readonly _chunks: readonly EncodedVideoChunk[],
-    readonly config: VideoDecoderConfig,
-    readonly width: number,
-    readonly height: number,
-    readonly demuxMs: number,
+    readonly demuxer: Demuxer,
     options: FrameSourceOptions,
   ) {
+    const infos: PacketInfo[] = demuxer.packets.map((p, j) => ({ ...p, decodeIndex: j }));
+    this.table = buildFrameTable(infos);
+    this.timestampsUs = this.table.frames.map((f) => f.timestampUs);
     this.cache = new LruCache<number, VideoFrame>(options.cacheFrames, options.cacheBytes, (f) =>
       f.close(),
     );
-    this._needDecode = new Array<number>(table.frameCount);
+    this._needDecode = new Array<number>(this.table.frameCount);
     let m = -1;
-    for (let i = 0; i < table.frameCount; i++) {
-      m = Math.max(m, table.frames[i]!.decodeIndex);
+    for (let i = 0; i < this.table.frameCount; i++) {
+      m = Math.max(m, this.table.frames[i]!.decodeIndex);
       this._needDecode[i] = m;
     }
     this._decoder = new VideoDecoder({
@@ -86,42 +92,24 @@ export class WebCodecsFrameSource {
     this._decoder.addEventListener('dequeue', () => this._wake());
   }
 
-  static async open(url: string, options: FrameSourceOptions): Promise<WebCodecsFrameSource> {
-    const t0 = performance.now();
-    const input = new Input({ source: new UrlSource(url), formats: ALL_FORMATS });
-    const track = await input.getPrimaryVideoTrack();
-    if (track === null) throw new Error(`${url}: no video track`);
-    const config = await track.getDecoderConfig();
-    if (config === null) throw new Error(`${url}: codec not decodable`);
-    const support = await VideoDecoder.isConfigSupported(config);
-    if (support.supported !== true) throw new Error(`${url}: ${config.codec} not supported`);
-    const sink = new EncodedPacketSink(track);
-    const chunks: EncodedVideoChunk[] = [];
-    const infos: PacketInfo[] = [];
-    for await (const packet of sink.packets()) {
-      const chunk = packet.toEncodedVideoChunk();
-      infos.push({
-        timestampUs: chunk.timestamp,
-        durationUs: chunk.duration ?? 0,
-        key: chunk.type === 'key',
-        decodeIndex: chunks.length,
-      });
-      chunks.push(chunk);
+  /** Check the codec is decodable here, then build the source. */
+  static async create(
+    demuxer: Demuxer,
+    options: FrameSourceOptions,
+  ): Promise<WebCodecsFrameSource> {
+    const support = await VideoDecoder.isConfigSupported(demuxer.decoderConfig);
+    if (support.supported !== true) {
+      throw new Error(`${demuxer.decoderConfig.codec} is not decodable in this browser`);
     }
-    const demuxMs = performance.now() - t0;
-    return new WebCodecsFrameSource(
-      buildFrameTable(infos),
-      chunks,
-      config,
-      track.displayWidth,
-      track.displayHeight,
-      demuxMs,
-      options,
-    );
+    return new WebCodecsFrameSource(demuxer, options);
   }
 
   get frameCount(): number {
     return this.table.frameCount;
+  }
+
+  get config(): VideoDecoderConfig {
+    return this.demuxer.decoderConfig;
   }
 
   /**
@@ -134,6 +122,7 @@ export class WebCodecsFrameSource {
     return run;
   }
 
+  /** Close the decoder and the cached frames; the demuxer stays the caller's. */
   close(): void {
     this.cache.clear();
     if (this._decoder.state !== 'closed') this._decoder.close();
@@ -163,8 +152,7 @@ export class WebCodecsFrameSource {
   }
 
   private _feed(): void {
-    const chunk = this._chunks[this._nextDecode++]!;
-    this._decoder.decode(chunk);
+    this._decoder.decode(this.demuxer.chunk(this._nextDecode++));
     this.stats.packetsFed++;
   }
 
@@ -181,13 +169,13 @@ export class WebCodecsFrameSource {
     if (!canContinue) {
       this.stats.resets++;
       if (this._decoder.state === 'configured') this._decoder.reset();
-      this._decoder.configure(this.config);
+      this._decoder.configure(this.demuxer.decoderConfig);
       this._nextDecode = key;
       this._lastOutput = -1;
       this._active = true;
     }
     const need = this._needDecode[i]!;
-    const n = this._chunks.length;
+    const n = this.demuxer.packets.length;
     this._want = i;
     this._got = null;
     while (this._got === null) {
