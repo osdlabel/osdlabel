@@ -43,6 +43,7 @@ import { isSamePlane, orthogonalPlane, type PlaneFrame } from '@osdlabel/spatial
 import { createImageId } from '@osdlabel/viewer-api';
 import { buildWindowLut } from '@osdlabel/volume';
 import { DEFAULT_KEYBOARD_SHORTCUTS, getScenePointFromEvent } from 'osdlabel';
+import { installGlMemoryTracker } from './gl-memory.js';
 import { GlReslicer } from './gl-reslicer.js';
 import {
   createCell,
@@ -65,6 +66,7 @@ import {
 } from './volume-setup.js';
 
 const contexts = installContextCounter();
+const glMemory = installGlMemoryTracker();
 const drawer = (param('drawer', 'canvas') === 'webgl' ? 'webgl' : 'canvas') satisfies Drawer;
 const WINDOW = { center: 40, width: 400 } as const;
 const lut = buildWindowLut(WINDOW.center, WINDOW.width);
@@ -86,6 +88,17 @@ let obliqueTilt = 30;
 let pool: ReslicePool | undefined;
 let gl: GlReslicer | undefined;
 let nextAnnotation = 1;
+/** Bumped whenever `annotations` changes; keys the cross-view memo. */
+let annotationVersion = 0;
+/**
+ * `all`: every cell re-runs every provider each frame (what the first version
+ * measured). `changed`: a cell's cross-view provider is memoised on (its
+ * plane, the annotation list), so only cells whose plane moved recompute;
+ * reference lines (3 per cell, cheap) are always recomputed.
+ */
+type DecorationMode = 'all' | 'changed';
+let decorationMode: DecorationMode = 'all';
+let extraIds = new Set<AnnotationId>();
 
 const cell = (k: PlaneKind): MprCell => {
   const c = cells.get(k);
@@ -133,23 +146,55 @@ function installProviders(): void {
               color: COLORS[o],
             })),
         ),
-        createCrossViewProvider(
-          () => c.frame,
-          () => foreignFor(c),
-          {
-            line: { stroke: '#ffd400', strokeWidth: 2 },
-            marker: { color: '#ffd400', fontSize: 18, fontWeight: 700 },
-            markerText: '+',
-          },
+        memoised(
+          c,
+          createCrossViewProvider(
+            () => c.frame,
+            () => foreignFor(c),
+            {
+              line: { stroke: '#ffd400', strokeWidth: 2 },
+              marker: { color: '#ffd400', fontSize: 18, fontWeight: 700 },
+              markerText: '+',
+            },
+          ),
         ),
       ]),
     );
   }
 }
 
+/** Memoise a cell's cross-view provider on (plane, annotation version) when decorationMode is 'changed'. */
+function memoised(c: MprCell, provider: DecorationProvider): DecorationProvider {
+  let cache: {
+    frame: PlaneFrame;
+    version: number;
+    out: ReturnType<DecorationProvider>;
+  } | null = null;
+  return (ctx) => {
+    if (
+      decorationMode === 'changed' &&
+      cache &&
+      cache.frame === c.frame &&
+      cache.version === annotationVersion
+    ) {
+      return cache.out;
+    }
+    const out = provider(ctx);
+    cache = { frame: c.frame, version: annotationVersion, out };
+    return out;
+  };
+}
+
+/** Time spent in the last updateDecorations calls, split by stage (ms). */
+const decorationSplit = { providers: 0, layer: 0 };
+
 function updateDecorations(c: MprCell): number {
+  const t0 = performance.now();
   const decorations = providers.get(c.key)!({ annotations: [], selectedAnnotationId: null });
+  const t1 = performance.now();
   c.layer.setDecorations(decorations);
+  decorationSplit.providers += t1 - t0;
+  decorationSplit.layer += performance.now() - t1;
   return decorations.length;
 }
 
@@ -157,7 +202,39 @@ function addAnnotation(geometry: Geometry, toolType: ToolType, plane: PlaneFrame
   const id = createAnnotationId(`a${nextAnnotation++}`);
   const now = new Date().toISOString();
   annotations.push({ id, geometry, toolType, plane, createdAt: now, updatedAt: now });
+  annotationVersion++;
   return id;
+}
+
+/**
+ * Replace the extra annotations with `n` axial polygons spread over the
+ * volume (deterministic), for the annotation-count sweep. Returns the total
+ * annotation count.
+ */
+function setExtraAnnotations(n: number): number {
+  for (let i = annotations.length - 1; i >= 0; i--) {
+    if (extraIds.has(annotations[i]!.id)) annotations.splice(i, 1);
+  }
+  extraIds = new Set();
+  annotationVersion++;
+  const g = built.volume.grid;
+  const [nx, ny, nz] = g.dimensions;
+  const frac = (x: number): number => x - Math.floor(x);
+  for (let i = 0; i < n; i++) {
+    const k = Math.floor(nz * (0.1 + 0.8 * frac(i * 0.754877666)));
+    const cx = nx * (0.3 + 0.4 * frac(i * 0.569840291));
+    const cy = ny * (0.3 + 0.4 * frac(i * 0.618033989));
+    const r = nx * 0.06;
+    const points = Array.from({ length: 7 }, (_, j) => ({
+      x: cx + r * Math.cos((j / 7) * 2 * Math.PI),
+      y: cy + r * Math.sin((j / 7) * 2 * Math.PI) * (j % 2 ? 0.7 : 1),
+    }));
+    extraIds.add(
+      addAnnotation({ type: 'polygon', points }, 'polyline', orthogonalPlane(g, 'axial', k)),
+    );
+  }
+  refreshAll();
+  return annotations.length;
 }
 
 function refreshAll(): void {
@@ -227,13 +304,24 @@ function activateTool(k: PlaneKind, type: 'rectangle' | 'point' | 'polyline'): v
 
 // ── frame loops ──────────────────────────────────────────────────────────
 
-type Scenario = 'scroll-axial' | 'scroll-coronal' | 'rotate-oblique' | 'pan-zoom-axial';
+type Scenario =
+  | 'scroll-axial'
+  | 'scroll-coronal'
+  | 'scroll-sagittal'
+  | 'crosshair'
+  | 'rotate-oblique'
+  | 'pan-zoom-axial';
+
+/** Slice index for frame `f` of a scroll through the middle half of an axis. */
+const scrollIndex = (n: number, f: number): number => Math.floor(n / 4) + (f % Math.floor(n / 2));
 
 async function loop(
   scenario: Scenario,
   method: ResliceMethod,
   frames: number,
+  mode: DecorationMode = 'all',
 ): Promise<Record<string, unknown>> {
+  decorationMode = mode;
   if (method === 'workers' && !pool) {
     pool = new ReslicePool(Number(param('workers', '3')), built.volume.grid, built.buffer);
     await pool.ready;
@@ -245,18 +333,28 @@ async function loop(
   }
   const g = built.volume.grid;
   const target: PlaneKind =
-    scenario === 'scroll-axial' || scenario === 'pan-zoom-axial'
+    scenario === 'scroll-axial' || scenario === 'pan-zoom-axial' || scenario === 'crosshair'
       ? 'axial'
       : scenario === 'scroll-coronal'
         ? 'coronal'
-        : 'oblique';
+        : scenario === 'scroll-sagittal'
+          ? 'sagittal'
+          : 'oblique';
   const tc = cell(target);
+  // The linked crosshair moves one point through the volume: all three
+  // orthogonal planes change every frame.
+  const moved: readonly PlaneKind[] =
+    scenario === 'crosshair' ? ['axial', 'coronal', 'sagittal'] : [target];
   const ph = {
+    render: [] as number[],
     reslice: [] as number[],
     upload: [] as number[],
     osdDraw: [] as number[],
     fabric: [] as number[],
     decorations: [] as number[],
+    decoProviders: [] as number[],
+    decoLayer: [] as number[],
+    decoRenderAll: [] as number[],
   };
   const update: number[] = [];
   const stamps: number[] = [];
@@ -276,39 +374,72 @@ async function loop(
       update.push(performance.now() - t0);
       continue;
     }
+    const [nx, ny, nz] = g.dimensions;
     if (scenario === 'scroll-axial') {
-      const nz = g.dimensions[2];
-      tc.frame = orthogonalPlane(g, 'axial', Math.floor(nz / 4) + (f % Math.floor(nz / 2)));
+      tc.frame = orthogonalPlane(g, 'axial', scrollIndex(nz, f));
     } else if (scenario === 'scroll-coronal') {
-      const ny = g.dimensions[1];
-      tc.frame = orthogonalPlane(g, 'coronal', Math.floor(ny / 4) + (f % Math.floor(ny / 2)));
+      tc.frame = orthogonalPlane(g, 'coronal', scrollIndex(ny, f));
+    } else if (scenario === 'scroll-sagittal') {
+      tc.frame = orthogonalPlane(g, 'sagittal', scrollIndex(nx, f));
+    } else if (scenario === 'crosshair') {
+      cell('axial').frame = orthogonalPlane(g, 'axial', scrollIndex(nz, f));
+      cell('coronal').frame = orthogonalPlane(g, 'coronal', scrollIndex(ny, f));
+      cell('sagittal').frame = orthogonalPlane(g, 'sagittal', scrollIndex(nx, f));
     } else {
       obliqueSpin += 1;
       tc.frame = obliquePlane(g, obliqueTilt, obliqueSpin);
     }
-    const p = await renderPlane(tc, built.volume, method, lut, WINDOW, { pool, gl });
-    ph.reslice.push(p.reslice);
-    ph.upload.push(p.upload);
-    ph.osdDraw.push(p.osdDraw);
+    // CPU and GL render the moved planes one after another; workers get all
+    // of them at once (each plane is split into row bands across the pool).
+    const tr = performance.now();
+    const parts =
+      method === 'workers'
+        ? await Promise.all(
+            moved.map((k) => renderPlane(cell(k), built.volume, method, lut, WINDOW, { pool, gl })),
+          )
+        : await (async () => {
+            const acc: Awaited<ReturnType<typeof renderPlane>>[] = [];
+            for (const k of moved) {
+              acc.push(await renderPlane(cell(k), built.volume, method, lut, WINDOW, { pool, gl }));
+            }
+            return acc;
+          })();
+    ph.render.push(performance.now() - tr);
+    ph.reslice.push(parts.reduce((a, p) => a + p.reslice, 0));
+    ph.upload.push(parts.reduce((a, p) => a + p.upload, 0));
+    ph.osdDraw.push(parts.reduce((a, p) => a + p.osdDraw, 0));
     const t1 = performance.now();
-    nativeCount = syncNative(tc);
-    tc.overlay.canvas.renderAll();
+    nativeCount = 0;
+    for (const k of moved) {
+      nativeCount += syncNative(cell(k));
+      cell(k).overlay.canvas.renderAll();
+    }
     const t2 = performance.now();
     decorationCount = 0;
+    decorationSplit.providers = 0;
+    decorationSplit.layer = 0;
+    let renderAllMs = 0;
     for (const c of cells.values()) {
       decorationCount += updateDecorations(c);
+      const tr0 = performance.now();
       c.overlay.canvas.renderAll();
+      renderAllMs += performance.now() - tr0;
     }
     const t3 = performance.now();
     ph.fabric.push(t2 - t1);
     ph.decorations.push(t3 - t2);
+    ph.decoProviders.push(decorationSplit.providers);
+    ph.decoLayer.push(decorationSplit.layer);
+    ph.decoRenderAll.push(renderAllMs);
     update.push(t3 - t0);
   }
   stamps.push(await nextFrame());
+  decorationMode = 'all';
   if (scenario !== 'pan-zoom-axial') {
-    tc.frame =
-      target === 'oblique' ? obliquePlane(g, obliqueTilt, obliqueSpin) : planeFor(g, target);
-    await renderPlane(tc, built.volume, 'cpu', lut, WINDOW, {});
+    for (const k of moved) {
+      cell(k).frame = k === 'oblique' ? obliquePlane(g, obliqueTilt, obliqueSpin) : planeFor(g, k);
+      await renderPlane(cell(k), built.volume, 'cpu', lut, WINDOW, {});
+    }
     refreshAll();
   } else {
     viewport.goHome(true);
@@ -319,20 +450,27 @@ async function loop(
     scenario,
     method,
     drawer,
+    decorationMode: mode,
+    annotations: annotations.length,
+    planesPerFrame: moved.length,
     frames,
     fps: (frames / span) * 1000,
     frameMs: stats(intervals),
     updateMs: stats(update),
     phases: {
+      render: stats(ph.render),
       reslice: stats(ph.reslice),
       upload: stats(ph.upload),
       osdDraw: stats(ph.osdDraw),
       fabric: stats(ph.fabric),
       decorations: stats(ph.decorations),
+      decoProviders: stats(ph.decoProviders),
+      decoLayer: stats(ph.decoLayer),
+      decoRenderAll: stats(ph.decoRenderAll),
     },
     decorationsPerFrame: decorationCount,
     nativeObjectsInTarget: nativeCount,
-    size: `${tc.frame.width}x${tc.frame.height}`,
+    size: moved.map((k) => `${cell(k).frame.width}x${cell(k).frame.height}`).join('+'),
   };
 }
 
@@ -348,6 +486,13 @@ function inspect(): Record<string, unknown> {
     const rect = host.getBoundingClientRect();
     out[k] = {
       frameOrigin: c.frame.origin,
+      frame: {
+        origin: c.frame.origin,
+        rowDirection: c.frame.rowDirection,
+        columnDirection: c.frame.columnDirection,
+        pixelSpacing: c.frame.pixelSpacing,
+        thickness: c.frame.thickness,
+      },
       native: objs.filter((o) => (o as { id?: unknown }).id).length,
       fabricLineObjects: objs.filter((o) => !(o as { id?: unknown }).id).length,
       decorations: decorations.map((d) =>
@@ -446,8 +591,9 @@ declare global {
 
 window.__poc = {
   setup,
-  loop: (scenario: Scenario, method: ResliceMethod, frames: number) =>
-    loop(scenario, method, frames),
+  loop: (scenario: Scenario, method: ResliceMethod, frames: number, mode?: DecorationMode) =>
+    loop(scenario, method, frames, mode ?? 'all'),
+  setExtraAnnotations: (n: number) => setExtraAnnotations(n),
   activateTool: (k: PlaneKind, type: 'rectangle' | 'point' | 'polyline') => activateTool(k, type),
   deactivateTool: () => {
     activeTool?.dispose();
@@ -469,6 +615,7 @@ window.__poc = {
     byKind: contexts.byKind(),
   }),
   uaMemory,
+  glMemory: () => glMemory.snapshot(),
 };
 
 document.documentElement.dataset.ready = '1';

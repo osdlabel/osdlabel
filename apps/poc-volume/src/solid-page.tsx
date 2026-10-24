@@ -33,10 +33,12 @@ import { projectAnnotations, referenceLineDecorations, type PlanarAnnotation } f
 import { orthogonalPlane, planeIndexMapping, type PlaneFrame } from '@osdlabel/spatial';
 import { applyWindowLut, buildWindowLut, reslice } from '@osdlabel/volume';
 import { createCanvasTileSource, invalidateTile } from './canvas-tile-source.js';
+import { installGlMemoryTracker } from './gl-memory.js';
 import { planeFor, type PlaneKind } from './planes.js';
 import { buildVolume, installContextCounter, nextFrame, stats } from './volume-setup.js';
 
 const contexts = installContextCounter();
+const glMemory = installGlMemoryTracker();
 const built = buildVolume();
 const grid = built.volume.grid;
 const lut = buildWindowLut(40, 400);
@@ -255,6 +257,7 @@ function Harness(): JSX.Element {
       live: contexts.live(),
       byKind: contexts.byKind(),
     }),
+    glMemory: () => glMemory.snapshot(),
   };
 
   return (

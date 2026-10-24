@@ -8,7 +8,7 @@ import {
   type Point2,
   type VolumeGrid,
 } from '@osdlabel/spatial';
-import { forEachVoxelInDisc } from './label-volume.js';
+import { forEachSpanInDisc, forEachVoxelInDisc } from './label-volume.js';
 
 /**
  * The alternative 3D label-map representation: one `@osdlabel/mask` 2D buffer
@@ -44,6 +44,9 @@ export class SliceMaskStack {
    * Paint a brush disc drawn on `frame`. A plane parallel to the slices whose
    * pixels coincide with voxels goes through the mask package's own
    * `stampCircle`; any other plane visits voxels and sets them one by one.
+   * Kept as the "what @osdlabel/mask does today" reference; the benchmark
+   * compares representations through {@link paintDiscVoxels} and
+   * {@link paintDiscSpans}, which use the same enumerators as the dense map.
    */
   paintDisc(frame: PlaneFrame, centre: Point2, radiusPx: number): void {
     const n = planeNormal(frame);
@@ -62,14 +65,38 @@ export class SliceMaskStack {
       stampCircle(this.mask(k), centre.x + idx[0], centre.y + idx[1], radiusPx, 1);
       return;
     }
+    this.paintDiscVoxels(frame, centre, radiusPx);
+  }
+
+  /** Same enumerator as the dense `paintDisc`: one `set` per voxel. */
+  paintDiscVoxels(frame: PlaneFrame, centre: Point2, radiusPx: number): void {
     forEachVoxelInDisc(this.grid, frame, centre, radiusPx, (i, j, k) => {
       this.mask(k).set(i, j, 1);
     });
   }
 
-  /** Nearest-neighbour reslice through the stack. */
+  /**
+   * Same enumerator as the dense `fillDisc`: one row run at a time. The mask
+   * API has no run fill, so each run is reserved once (at most one growth)
+   * and then set pixel by pixel, which is what `stampCircle` does inside one
+   * slice.
+   */
+  paintDiscSpans(frame: PlaneFrame, centre: Point2, radiusPx: number): void {
+    forEachSpanInDisc(this.grid, frame, centre, radiusPx, (k, j, iStart, iEnd) => {
+      const m = this.mask(k);
+      m.reserve({ x: iStart, y: j, width: iEnd - iStart + 1, height: 1 });
+      for (let i = iStart; i <= iEnd; i++) m.set(i, j, 1);
+    });
+  }
+
+  /**
+   * Nearest-neighbour reslice through the stack. The per-slice `Map` lookup
+   * is hoisted: it runs only when the sampled k changes.
+   */
   reslice(m: PlaneIndexMapping, width: number, height: number, out: Uint8Array): void {
     const [nx, ny, nz] = this.grid.dimensions;
+    let lastK = -1;
+    let mask: BoundedDenseMaskBuffer | undefined;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = Math.round(m.start[0] + x * m.stepX[0] + y * m.stepY[0]);
@@ -79,7 +106,10 @@ export class SliceMaskStack {
           out[y * width + x] = 0;
           continue;
         }
-        const mask = this.masks.get(k);
+        if (k !== lastK) {
+          lastK = k;
+          mask = this.masks.get(k);
+        }
         out[y * width + x] = mask ? mask.get(i, j) : 0;
       }
     }

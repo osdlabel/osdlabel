@@ -36,6 +36,7 @@ import {
   type Vec3,
 } from '@osdlabel/spatial';
 import { buildWindowLut, paintDisc, resliceLabels, type LabelVolume } from '@osdlabel/volume';
+import { installGlMemoryTracker } from './gl-memory.js';
 import { createCell, renderPlane, type MprCell } from './mpr-cell.js';
 import { planeFor, type PlaneKind } from './planes.js';
 import { seedAnnotations } from './seed-annotations.js';
@@ -49,6 +50,7 @@ import {
 } from './volume-setup.js';
 
 const contexts = installContextCounter();
+const glMemory = installGlMemoryTracker();
 const WINDOW = { center: 40, width: 400 } as const;
 const lut = buildWindowLut(WINDOW.center, WINDOW.width);
 const KINDS2D: readonly PlaneKind[] = ['axial', 'coronal', 'sagittal'];
@@ -272,6 +274,7 @@ async function setup(): Promise<Record<string, unknown>> {
   await nextFrame();
   const t2 = performance.now();
   const held = nv.volumes[0]?.img ?? null;
+  const glAfterVolume = glMemory.snapshot();
   const mem2 = await uaMemory();
   build3DOverlayModel();
   await nextFrame();
@@ -297,6 +300,7 @@ async function setup(): Promise<Record<string, unknown>> {
       byKind: contexts.byKind(),
     },
     uaMemory: { start: mem0, after2DCells: mem1, afterNiivue: mem2 },
+    glMemoryAfterVolume: glAfterVolume,
     overlay3D: { annotations: projected.length, vertices, firstProjectionMs: projMs },
   };
 }
@@ -379,6 +383,7 @@ async function sharedLabels(): Promise<Record<string, unknown>> {
   await nextFrame();
   await nextFrame();
   const refreshMs = performance.now() - tRefresh;
+  const glAfterDrawing = glMemory.snapshot();
   // 2D: put the slices through the blob and composite the label map.
   for (const c of cells.values()) {
     c.frame =
@@ -395,6 +400,12 @@ async function sharedLabels(): Promise<Record<string, unknown>> {
   refresh2D();
   await nextFrame();
   const memAfter = await uaMemory();
+  // Again after a forced GC (the runner passes --expose-gc): does Niivue keep
+  // its RGBA expansion of the drawing on the CPU, or was it transient?
+  const gc = (globalThis as { gc?: () => void }).gc;
+  gc?.();
+  await nextFrame();
+  const memAfterGc = await uaMemory();
   return {
     ok: true,
     createEmptyDrawingMs: tCreate,
@@ -405,6 +416,10 @@ async function sharedLabels(): Promise<Record<string, unknown>> {
     refreshAndTwoFramesMs: refreshMs,
     tint2DPerCellMs: tintMs,
     uaMemoryDeltaBytes: memBefore !== null && memAfter !== null ? memAfter - memBefore : null,
+    uaMemoryDeltaAfterGcBytes:
+      memBefore !== null && memAfterGc !== null ? memAfterGc - memBefore : null,
+    gcAvailable: gc !== undefined,
+    glMemoryAfterDrawing: glAfterDrawing,
   };
 }
 
@@ -492,5 +507,6 @@ window.__poc = {
     byKind: contexts.byKind(),
   }),
   uaMemory,
+  glMemory: () => glMemory.snapshot(),
 };
 document.documentElement.dataset.ready = '1';

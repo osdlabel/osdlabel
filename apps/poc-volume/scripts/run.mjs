@@ -172,7 +172,14 @@ async function main() {
         result.memory.push(mem(`bench:gl-${fmt}-disposed`));
       }
       log('label maps');
-      result.labels = await call(page, 'labels', quick ? 10 : 20, 15, quick ? 3 : 5);
+      result.labels = await call(
+        page,
+        'labels',
+        quick ? 10 : 20,
+        15,
+        quick ? 8 : 24,
+        quick ? 4 : 20,
+      );
       result.memory.push(mem('bench:labels'));
       result.benchContexts = await call(page, 'contexts');
       await page.close();
@@ -191,15 +198,37 @@ async function main() {
           ['pan-zoom-axial', 'cpu'],
           ['scroll-axial', 'cpu'],
           ['scroll-coronal', 'cpu'],
+          ['scroll-sagittal', 'cpu'],
+          ['crosshair', 'cpu'],
           ['rotate-oblique', 'cpu'],
           ['rotate-oblique', 'workers'],
           ['scroll-axial', 'workers'],
+          ['scroll-sagittal', 'workers'],
+          ['crosshair', 'workers'],
           ['rotate-oblique', 'gl'],
           ['scroll-axial', 'gl'],
         ];
         for (const [scenario, method] of plan) {
           log(' loop', scenario, method);
           loops.push(await call(page, 'loop', scenario, method, frames));
+        }
+        // Annotation-count sweep (canvas drawer only: the WebGL drawer is
+        // SwiftShader-bound). Extra axial polygons spread over the volume;
+        // 'all' re-runs every provider in every cell each frame, 'changed'
+        // memoises a cell's cross-view on (plane, annotations) so the
+        // DecorationLayer can skip unchanged lines.
+        const sweep = [];
+        if (drawer === 'canvas') {
+          for (const extra of quick ? [0, 250] : [0, 100, 250, 500]) {
+            const total = await call(page, 'setExtraAnnotations', extra);
+            for (const scenario of ['scroll-axial', 'crosshair']) {
+              for (const mode of ['all', 'changed']) {
+                log(' sweep', total, scenario, mode);
+                sweep.push(await call(page, 'loop', scenario, 'cpu', frames, mode));
+              }
+            }
+          }
+          await call(page, 'setExtraAnnotations', 0);
         }
         result.memory.push(mem(`mpr-${drawer}:after-loops`));
         const crossView = await crossViewCheck(page, call, dims);
@@ -210,8 +239,10 @@ async function main() {
           drawer,
           setup,
           loops,
+          sweep,
           crossView,
           contexts: await call(page, 'contexts'),
+          glMemory: await call(page, 'glMemory'),
         });
         await page.close();
       }
@@ -221,6 +252,7 @@ async function main() {
       log('solid ViewerCells');
       await open(page, 'solid.html');
       result.solid = await solidCheck(page, call, dims, quick ? 30 : 120);
+      result.solid.glMemory = await call(page, 'glMemory');
       result.memory.push(mem('solid:after'));
       await page.close();
     }
@@ -238,7 +270,14 @@ async function main() {
       result.memory.push(mem('niivue:labels'));
       const accuracy = await call(page, 'overlayAccuracy');
       await page.screenshot({ path: path.join(path.dirname(outFile), `niivue-${stamp}.png`) });
-      result.niivue = { setup, rotate, labels, accuracy, contexts: await call(page, 'contexts') };
+      result.niivue = {
+        setup,
+        rotate,
+        labels,
+        accuracy,
+        contexts: await call(page, 'contexts'),
+        glMemory: await call(page, 'glMemory'),
+      };
       await page.close();
     }
   } finally {

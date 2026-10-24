@@ -16,6 +16,8 @@ export { fillSheppLoganPhantom } from './phantom.js';
 export type { LabelVolume } from './label-volume.js';
 export {
   allocateLabelVolume,
+  fillDisc,
+  forEachSpanInDisc,
   forEachVoxelInDisc,
   paintDisc,
   resliceLabels,

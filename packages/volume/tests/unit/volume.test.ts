@@ -16,7 +16,10 @@ import {
   applyWindowLut,
   buildWindowLut,
   contiguousVoxels,
+  fillDisc,
   fillSheppLoganPhantom,
+  forEachSpanInDisc,
+  forEachVoxelInDisc,
   paintDisc,
   reslice,
   resliceLabels,
@@ -223,6 +226,109 @@ describe('label maps: dense volume vs per-slice masks', () => {
       expect(b).toEqual(a);
       // Every view pixel well inside the brush shows the label (no holes).
       expect(discCoverage(a, frame, centre, 5)).toBe(1);
+    });
+  }
+
+  it("the span enumerator visits exactly the voxel enumerator's voxels", () => {
+    // A sheared, rotated grid too, so no axis is aligned with any plane.
+    const sheared: VolumeGrid = {
+      dimensions: [40, 40, 30],
+      spacing: [0.7, 0.9, 1.25],
+      origin: [-14, -18, -18],
+      direction: [
+        rotateAbout([1, 0, 0], [0, 0, 1], 0.2),
+        rotateAbout([0, 1, 0], [0, 0, 1], 0.2),
+        [0, 0.26, 0.966],
+      ],
+    };
+    let rows = 0;
+    for (const gg of [g, sheared]) {
+      const frames: PlaneFrame[] = [
+        ...planes.map(([, f]) => f),
+        centredPlane(volumeCentre(gg), [0.6, 0.8, 0], [0, 0.6, -0.8], 0.5, 40, 40, 0.9),
+        centredPlane(volumeCentre(gg), [0, 1, 0], [0, 0, -1], 0.7, 40, 40, 0.35),
+      ];
+      for (const frame of frames) {
+        for (const [cx, cy, r] of [
+          [20.3, 19.8, 6],
+          [3.1, 37.6, 9.5],
+          [20, 20, 0.6],
+          [11.5, 27.25, 14],
+        ] as const) {
+          const a = new Set<number>();
+          const b = new Set<number>();
+          forEachVoxelInDisc(gg, frame, { x: cx, y: cy }, r, (i, j, k) =>
+            a.add((k * 40 + j) * 40 + i),
+          );
+          forEachSpanInDisc(gg, frame, { x: cx, y: cy }, r, (k, j, i0, i1) => {
+            rows++;
+            expect(i1).toBeGreaterThanOrEqual(i0);
+            for (let i = i0; i <= i1; i++) {
+              expect(b.has((k * 40 + j) * 40 + i)).toBe(false);
+              b.add((k * 40 + j) * 40 + i);
+            }
+          });
+          expect([...b].sort((x, y) => x - y)).toEqual([...a].sort((x, y) => x - y));
+        }
+      }
+    }
+    expect(rows).toBeGreaterThan(500);
+  });
+
+  for (const [name, frame] of planes) {
+    it(`span and voxel painters agree in both representations (${name})`, () => {
+      const centre = { x: frame.width / 2 + 0.3, y: frame.height / 2 - 0.2 };
+      const voxels = allocateLabelVolume(g);
+      const spans = allocateLabelVolume(g);
+      const changed = paintDisc(voxels, frame, centre, 6, 1);
+      expect(fillDisc(spans, frame, centre, 6, 1)).toBe(changed);
+      const s1 = new SliceMaskStack(g);
+      const s2 = new SliceMaskStack(g);
+      s1.paintDiscVoxels(frame, centre, 6);
+      s2.paintDiscSpans(frame, centre, 6);
+      expect(s1.voxelCount()).toBe(changed);
+      expect(s2.voxelCount()).toBe(changed);
+      for (let k = 0; k < 30; k++) {
+        expect(spans.slices[k]).toEqual(voxels.slices[k]);
+        const m1 = s1.masks.get(k);
+        const m2 = s2.masks.get(k);
+        for (let j = 0; j < 40; j++)
+          for (let i = 0; i < 40; i++) {
+            const v = voxels.slices[k]![j * 40 + i];
+            expect(m1 ? m1.get(i, j) : 0).toBe(v);
+            expect(m2 ? m2.get(i, j) : 0).toBe(v);
+          }
+      }
+    });
+
+    it(`hoisted label reslices match a per-pixel lookup (${name})`, () => {
+      const dense = allocateLabelVolume(g);
+      const stack = new SliceMaskStack(g);
+      // Paint from every view so the reslice crosses several slices.
+      for (const [, f] of planes) {
+        paintDisc(dense, f, { x: 18.2, y: 21.7 }, 7, 1);
+        stack.paintDiscVoxels(f, { x: 18.2, y: 21.7 }, 7);
+      }
+      const m = planeIndexMapping(g, frame);
+      const want = new Uint8Array(frame.width * frame.height);
+      const [nx, ny, nz] = g.dimensions;
+      for (let y = 0; y < frame.height; y++)
+        for (let x = 0; x < frame.width; x++) {
+          const i = Math.round(m.start[0] + x * m.stepX[0] + y * m.stepY[0]);
+          const j = Math.round(m.start[1] + x * m.stepX[1] + y * m.stepY[1]);
+          const k = Math.round(m.start[2] + x * m.stepX[2] + y * m.stepY[2]);
+          want[y * frame.width + x] =
+            i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz
+              ? 0
+              : dense.slices[k]![j * nx + i]!;
+        }
+      expect(want.some((v) => v === 1)).toBe(true);
+      const a = new Uint8Array(want.length);
+      const b = new Uint8Array(want.length);
+      resliceLabels(dense, m, frame.width, frame.height, a);
+      stack.reslice(m, frame.width, frame.height, b);
+      expect(a).toEqual(want);
+      expect(b).toEqual(want);
     });
   }
 

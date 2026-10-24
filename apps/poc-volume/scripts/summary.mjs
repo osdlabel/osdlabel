@@ -52,31 +52,48 @@ export function printSummary(r) {
   }
   if (r.labels) {
     const L = r.labels;
-    table('Label maps (ms)', L.rows, [
-      ['op', (x) => x.op],
-      ['plane', (x) => x.kind],
-      ['repr', (x) => x.representation],
-      ['median', (x) => f(x.median, 3)],
-      ['p95', (x) => f(x.p95, 3)],
-    ]);
+    table(
+      `Label maps (ms; paint = per stamp, ${L.reps} warm reps / ${L.coldTrials} cold trials)`,
+      L.rows,
+      [
+        ['op', (x) => x.op],
+        ['state', (x) => x.state ?? '-'],
+        ['plane', (x) => x.kind],
+        ['algorithm', (x) => x.algorithm ?? '-'],
+        ['repr', (x) => x.representation],
+        ['n', (x) => x.n],
+        ['median', (x) => f(x.median, 3)],
+        ['p95', (x) => f(x.p95, 3)],
+      ],
+    );
     console.log(
-      `label memory: dense ${f(L.memory.denseBytes / 2 ** 20, 1)} MiB, slice masks ${f(L.memory.sliceMaskBytes / 2 ** 20, 2)} MiB in ${L.memory.sliceMasksAllocated} masks; painted ${L.paintedVoxels} voxels, mismatches ${L.voxelMismatches}`,
+      `label memory: dense ${f(L.memory.denseBytes / 2 ** 20, 1)} MiB (pre-touch ${f(L.pretouchMs, 0)} ms), slice masks ${f(L.memory.sliceMaskBytesSpan / 2 ** 20, 2)} MiB in ${L.memory.sliceMasksAllocated} masks; painted ${L.paintedVoxels} voxels, representation mismatches ${L.voxelMismatches}, algorithm mismatches ${L.algorithmMismatches}`,
     );
   }
   for (const m of r.mpr ?? []) {
-    table(`MPR frame loop, drawer=${m.drawer} (ms)`, m.loops, [
+    const loopCols = [
       ['scenario', (x) => x.scenario],
-      ['frames', (x) => x.frames],
+      ['method', (x) => x.method],
+      ['deco', (x) => x.decorationMode ?? 'all'],
+      ['ann', (x) => x.annotations ?? '-'],
       ['fps(rAF)', (x) => f(x.fps, 1)],
-      ['frame median', (x) => f(x.frameMs.median)],
       ['frame p95', (x) => f(x.frameMs.p95)],
-      ['update median', (x) => f(x.updateMs.median)],
+      ['update med', (x) => f(x.updateMs.median)],
+      ['update p95', (x) => f(x.updateMs.p95)],
+      ['render', (x) => f(x.phases.render?.median)],
       ['reslice', (x) => f(x.phases.reslice.median)],
       ['upload', (x) => f(x.phases.upload.median)],
       ['osdDraw', (x) => f(x.phases.osdDraw.median)],
       ['fabric', (x) => f(x.phases.fabric.median)],
       ['decor', (x) => f(x.phases.decorations.median)],
-    ]);
+      ['decor p95', (x) => f(x.phases.decorations.p95)],
+      ['providers', (x) => f(x.phases.decoProviders?.median)],
+      ['layer', (x) => f(x.phases.decoLayer?.median)],
+      ['renderAll', (x) => f(x.phases.decoRenderAll?.median)],
+      ['#decor', (x) => x.decorationsPerFrame],
+    ];
+    table(`MPR frame loop, drawer=${m.drawer} (ms)`, m.loops, loopCols);
+    table(`MPR annotation-count sweep, drawer=${m.drawer} (ms)`, m.sweep, loopCols);
     if (m.crossView) {
       console.log(`cross-view check: ${m.crossView.passed} passed, ${m.crossView.failed} failed`);
       for (const c of m.crossView.checks)
@@ -85,6 +102,7 @@ export function printSummary(r) {
         );
     }
     if (m.contexts) console.log('contexts:', JSON.stringify(m.contexts));
+    if (m.glMemory) console.log('GL allocations (bytes):', JSON.stringify(m.glMemory.byFormat));
   }
   if (r.solid) {
     const S = r.solid;
@@ -113,6 +131,15 @@ export function printSummary(r) {
       `rotate: ${f(n.rotate.fps, 2)} fps (SwiftShader), frame median ${f(n.rotate.frameMs.median)} ms; overlay re-projection ${f(n.rotate.reprojectMs.median, 3)} ms for ${n.setup.overlay3D.vertices} vertices`,
     );
     console.log('shared labels:', JSON.stringify(n.labels));
+    const mib = (b) => f(b / 2 ** 20, 0);
+    const gm = (s) =>
+      s
+        ? `${mib(s.liveBytes)} MiB live (${Object.entries(s.byFormat)
+            .map(([k, v]) => `${k} ${mib(v)}`)
+            .join(', ')})`
+        : '-';
+    console.log(`GL allocations after volume: ${gm(n.setup.glMemoryAfterVolume)}`);
+    console.log(`GL allocations after drawing: ${gm(n.labels.glMemoryAfterDrawing)}`);
     console.log(
       'overlay accuracy (px):',
       n.accuracy.results.map((x) => `az ${x.azimuth}: ${f(x.errorPx, 2)}`).join(', '),

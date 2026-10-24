@@ -99,6 +99,8 @@ export class DecorationLayer {
   private readonly _unsubscribeSync: () => void;
   private readonly _textSlots = new Map<string, TextSlot>();
   private readonly _lineObjects = new Map<string, FabricLine>();
+  /** The decoration each line last applied; the same object again is skipped. */
+  private readonly _lineSources = new Map<string, LineDecoration>();
   private readonly _domSlots = new Map<string, DomSlot>();
   private readonly _domSubscribers = new Set<DomDecorationsCallback>();
   private readonly _hostResizeObserver: ResizeObserver | undefined;
@@ -179,6 +181,7 @@ export class DecorationLayer {
       this._overlay.canvas.remove(obj);
     }
     this._lineObjects.clear();
+    this._lineSources.clear();
     this._textSlots.clear();
     for (const slot of this._domSlots.values()) {
       slot.entry.element.remove();
@@ -325,12 +328,17 @@ export class DecorationLayer {
       if (!wanted.has(id)) {
         this._overlay.canvas.remove(obj);
         this._lineObjects.delete(id);
+        this._lineSources.delete(id);
       }
     }
 
     // Add new / update existing
     for (const [id, decoration] of wanted) {
       let obj = this._lineObjects.get(id);
+      // Decorations are immutable: an identical object (a memoised provider's
+      // output) needs no set() or setCoords().
+      if (obj && this._lineSources.get(id) === decoration) continue;
+      this._lineSources.set(id, decoration);
       if (!obj) {
         obj = new FabricLine(
           [decoration.start.x, decoration.start.y, decoration.end.x, decoration.end.y],

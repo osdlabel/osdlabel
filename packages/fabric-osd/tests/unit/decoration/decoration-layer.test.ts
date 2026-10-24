@@ -227,6 +227,41 @@ describe('DecorationLayer', () => {
     layer.destroy();
   });
 
+  it('skips set()/setCoords() for a line decoration it already applied (same object)', () => {
+    const { overlay, canvas } = createMockOverlay();
+    const layer = new DecorationLayer(overlay);
+    const line = (id: string, x: number): Decoration => ({
+      type: 'line',
+      id,
+      relatedAnnotationIds: [annId(id)],
+      start: { x, y: 0 },
+      end: { x, y: 10 },
+    });
+    const a = line('a', 1);
+    const b = line('b', 2);
+    layer.setDecorations([a, b]);
+    expect(canvas.add).toHaveBeenCalledTimes(2);
+    const objects = canvas.add.mock.calls.map((c) => c[0] as { setCoords: () => void; x1: number });
+    const spies = objects.map((o) => vi.spyOn(o, 'setCoords'));
+    // Same objects: nothing to update.
+    layer.setDecorations([a, b]);
+    expect(spies[0]).not.toHaveBeenCalled();
+    expect(spies[1]).not.toHaveBeenCalled();
+    // A new object for 'a' (even with equal content) is applied; 'b' is not.
+    const a2 = line('a', 5);
+    layer.setDecorations([a2, b]);
+    expect(spies[0]).toHaveBeenCalledTimes(1);
+    expect(spies[1]).not.toHaveBeenCalled();
+    expect(objects[0]!.x1).toBe(5);
+    // Removing and re-adding the same object creates and applies a fresh line.
+    layer.setDecorations([b]);
+    expect(canvas.remove).toHaveBeenCalledTimes(1);
+    layer.setDecorations([a2, b]);
+    expect(canvas.add).toHaveBeenCalledTimes(3);
+    expect((canvas.add.mock.calls[2]![0] as { x1: number }).x1).toBe(5);
+    layer.destroy();
+  });
+
   it('destroy removes the host element and unsubscribes', () => {
     const { overlay, hostParent, syncSubscribers } = createMockOverlay();
     const layer = new DecorationLayer(overlay);

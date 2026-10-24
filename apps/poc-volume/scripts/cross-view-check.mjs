@@ -60,23 +60,84 @@ export async function crossViewCheck(page, call, dims) {
   check('rectangle committed by RectangleTool', rect, rect?.geometry);
   check('point committed by PointTool', point, point?.geometry);
   if (rect) {
+    const geom = rect.geometry;
     for (const cell of ['coronal', 'sagittal']) {
       const segs = find(cell, rect.id);
       const seg = segs[0];
       const expectedRow = rowOfK(kAx);
-      // Coronal x is i, sagittal x is j: the rectangle's extent along that axis.
-      const [lo, hi] = cell === 'coronal' ? [r1.x, r2.x] : [r1.y, r2.y];
-      const span = seg ? Math.abs(seg.end.x - seg.start.x) : NaN;
+      // Coronal x is i, sagittal x is j, and both cells put voxel centres at
+      // the same pixel-centre offsets as the axial view, so the segment's ends
+      // are the committed rectangle's edges along that axis, unmirrored and
+      // unshifted (a flipped or offset axis fails this, a span check did not).
+      const [lo, hi] =
+        cell === 'coronal' ? [geom.x, geom.x + geom.width] : [geom.y, geom.y + geom.height];
+      const x0 = seg ? seg.start.x : NaN;
+      const x1 = seg ? seg.end.x : NaN;
       check(
-        `axial rectangle shows as one segment in ${cell}`,
+        `axial rectangle shows as one segment in ${cell}, at its row and edges`,
         segs.length === 1 &&
           seg.type === 'line' &&
           Math.abs(seg.start.y - expectedRow) < 0.01 &&
           Math.abs(seg.end.y - expectedRow) < 0.01 &&
-          Math.abs(span - (hi - lo)) < 3,
-        { segs, expectedRow, expectedSpan: hi - lo, span },
+          Math.abs(Math.min(x0, x1) - lo) < 0.01 &&
+          Math.abs(Math.max(x0, x1) - hi) < 0.01,
+        { segs, expectedRow, expectedX: [lo, hi] },
       );
     }
+    // The drag landed where it was aimed (tool + screen->image mapping).
+    check(
+      'committed rectangle matches the drag targets within 1 px',
+      Math.abs(geom.x - r1.x) < 1 &&
+        Math.abs(geom.y - r1.y) < 1 &&
+        Math.abs(geom.x + geom.width - r2.x) < 1 &&
+        Math.abs(geom.y + geom.height - r2.y) < 1,
+      { geom, r1, r2 },
+    );
+    // Oblique cell: map the segment's ends to patient space with the cell's
+    // own frame (origin = centre of pixel (0,0)) and check, with plain
+    // arithmetic, that they lie in the axial plane and on the rectangle's
+    // boundary, and that the midpoint is inside it.
+    const obl = find('oblique', rect.id);
+    const f = seen.oblique.frame;
+    const toPatient = (p) =>
+      [0, 1, 2].map(
+        (a) =>
+          f.origin[a] +
+          (p.x - 0.5) * f.pixelSpacing.x * f.rowDirection[a] +
+          (p.y - 0.5) * f.pixelSpacing.y * f.columnDirection[a],
+      );
+    const gridOrigin = [(-(nx - 1) * s) / 2, (-(ny - 1) * s) / 2, (-(nz - 1) * sz) / 2];
+    const zAxial = gridOrigin[2] + kAx * sz;
+    const toAxial = (P) => ({
+      x: (P[0] - gridOrigin[0]) / s + 0.5,
+      y: (P[1] - gridOrigin[1]) / s + 0.5,
+    });
+    const onEdge = (q) =>
+      Math.min(
+        Math.abs(q.x - geom.x),
+        Math.abs(q.x - geom.x - geom.width),
+        Math.abs(q.y - geom.y),
+        Math.abs(q.y - geom.y - geom.height),
+      );
+    const ends = obl[0]?.type === 'line' ? [obl[0].start, obl[0].end].map(toPatient) : [];
+    const mid = ends.length === 2 ? ends[0].map((v, a) => (v + ends[1][a]) / 2) : null;
+    const endInfo = ends.map((P) => ({
+      dz: P[2] - zAxial,
+      axial: toAxial(P),
+      edgeDist: onEdge(toAxial(P)),
+    }));
+    const midAx = mid ? toAxial(mid) : null;
+    check(
+      'axial rectangle shows in the oblique cell as one segment in the axial plane, ending on the rectangle',
+      obl.length === 1 &&
+        endInfo.length === 2 &&
+        endInfo.every((e) => Math.abs(e.dz) < 0.01 && e.edgeDist < 0.01) &&
+        midAx.x > geom.x &&
+        midAx.x < geom.x + geom.width &&
+        midAx.y > geom.y &&
+        midAx.y < geom.y + geom.height,
+      { segs: obl, endInfo, midAxial: midAx },
+    );
     check(
       'axial rectangle is a native Fabric object in axial',
       seen.axial.native >= 1 && find('axial', rect.id).length === 0,
