@@ -19,7 +19,7 @@ export const OSDLABEL_THEME_TOKENS = {
   surface: '#1a1a1a',
   /** Status bar background. */
   surfaceSunken: '#111',
-  /** Popover background. */
+  /** Popover background. Reserved: no component reads it yet (GridControls' popover is untokenized). */
   surfaceRaised: '#2a2a2a',
   /** Idle control (button) background. */
   control: '#333',
@@ -27,11 +27,13 @@ export const OSDLABEL_THEME_TOKENS = {
   controlDisabled: '#1a1a1a',
   /** Active tool, pressed toggles, selection. */
   accent: '#2196F3',
+  /** Reserved: no component reads it yet. */
   border: '#444',
   text: '#fff',
   textMuted: '#aaa',
   textSubtle: '#bbb',
   textDisabled: '#666',
+  /** Reserved: no component reads it yet. */
   danger: '#d32f2f',
   fontFamily: 'system-ui, sans-serif',
   fontSizeControl: '13px',
@@ -39,6 +41,7 @@ export const OSDLABEL_THEME_TOKENS = {
   radius: '4px',
   controlPadding: '4px 10px',
   gap: '4px',
+  /** Reserved: no component reads it yet. */
   shadowPopover: '0 4px 6px rgba(0,0,0,0.3)',
 } as const;
 
