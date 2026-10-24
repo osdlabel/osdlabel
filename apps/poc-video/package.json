@@ -6,6 +6,7 @@
   "author": "Guy Or <guydude1@gmail.com>",
   "type": "module",
   "scripts": {
+    "serve": "vite --config vite.config.mjs",
     "gen": "python3 scripts/gen-videos.py",
     "bench": "node scripts/bench.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",

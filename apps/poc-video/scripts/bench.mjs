@@ -20,6 +20,8 @@
  *   --n 40                 ops per H1 pattern
  *   --h2-seconds 6         seconds per H2 cell
  *   --h2-combos a/b,c/d    H2 subset, e.g. osd-canvas/video,css/video
+ *   --h1-cells a/b,...     H1 video-element subset, e.g. forward/increment@boundary
+ *   --h1-no-webcodecs      skip the WebCodecs cells of H1
  *   --chromium <path>      browser binary (default /opt/pw-browsers/chromium,
  *                          or BENCH_CHROMIUM). Use your desktop Chrome on real
  *                          hardware, e.g. --chromium "/Applications/Google
@@ -70,7 +72,7 @@ function randomTargets(n, frameCount, seed) {
 
 const range = (from, n, step) => Array.from({ length: n }, (_, k) => from + k * step);
 
-async function runH1(page, manifest, names, n) {
+async function runH1(page, manifest, names, n, { cells = null, skipWebcodecs = false } = {}) {
   const out = {};
   for (const name of names) {
     const v = manifest[name];
@@ -94,16 +96,22 @@ async function runH1(page, manifest, names, n) {
     };
     process.stderr.write(`H1 ${name}: video element`);
     for (const [pattern, targets] of Object.entries(patterns)) {
+      // `increment` steps currentTime by 1/fps from the previous position;
+      // `@mid` starts mid-frame (a seek that already landed well), `@boundary`
+      // starts at i/fps (what a naive player does after loading).
       const policies =
         pattern === 'random'
           ? ['boundary', 'mid', 'table-mid']
-          : ['boundary', 'mid', 'table-mid', 'increment'];
-      for (const policy of policies) {
+          : ['boundary', 'mid', 'table-mid', 'increment@mid', 'increment@boundary'];
+      for (const key of policies) {
+        if (cells !== null && !cells.includes(`${pattern}/${key}`)) continue;
+        const [policy, start = 'table-mid'] = key.split('@');
+        const startPolicy = start === 'mid' ? 'table-mid' : start;
         // Position one frame before the walk (not measured), then walk.
         const pre =
           pattern === 'random'
             ? []
-            : [{ target: targets[0] - (pattern === 'forward' ? 1 : -1), policy: 'table-mid' }];
+            : [{ target: targets[0] - (pattern === 'forward' ? 1 : -1), policy: startPolicy }];
         const ops = [
           ...pre,
           ...targets.map((target) => ({
@@ -116,9 +124,14 @@ async function runH1(page, manifest, names, n) {
           ([nm, o]) => window.__seek.videoElementRun(nm, o),
           [name, ops],
         );
-        cell.videoElement[`${pattern}/${policy}`] = res.slice(pre.length);
+        cell.videoElement[`${pattern}/${key}`] = res.slice(pre.length);
         process.stderr.write('.');
       }
+    }
+    if (skipWebcodecs) {
+      process.stderr.write('\n');
+      out[name] = cell;
+      continue;
     }
     process.stderr.write(' webcodecs');
     const wcCells = [
@@ -233,7 +246,10 @@ async function main() {
       await page.goto(`${base}/seek.html`);
       await page.waitForFunction(() => window.__seek !== undefined);
       result.meta.env = await page.evaluate(() => window.__seek.env());
-      result.h1 = await runH1(page, manifest, names, n);
+      result.h1 = await runH1(page, manifest, names, n, {
+        cells: arg('--h1-cells', null)?.split(',') ?? null,
+        skipWebcodecs: flag('--h1-no-webcodecs'),
+      });
       await page.close();
     }
     if (only.has('h2')) {

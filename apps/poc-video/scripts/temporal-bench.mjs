@@ -12,6 +12,7 @@ import {
   interpolateGeometry,
   sampleTrack,
   signedArea,
+  toTrackDocument,
 } from '@osdlabel/temporal';
 import { mulberry32 } from './rng.mjs';
 import { quantile } from './summarize.mjs';
@@ -244,7 +245,19 @@ export async function runTemporalBench() {
       buildTracks([['polygon-unequal', 1000]], 3),
     ),
   ];
-  return { rows, area: areaStudy(), node: process.version };
+  // Wire size of the mixed set (1,000 tracks x 10 keyframes), as plain JSON.
+  const mixed = buildTracks(MIX, 1);
+  const json = JSON.stringify(toTrackDocument(mixed));
+  const t0 = performance.now();
+  JSON.parse(json);
+  const parseMs = performance.now() - t0;
+  const serialization = {
+    tracks: mixed.length,
+    keyframes: mixed.reduce((a, t) => a + t.keyframes.length, 0),
+    jsonBytes: json.length,
+    parseMs: r3(parseMs),
+  };
+  return { rows, area: areaStudy(), serialization, node: process.version };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
