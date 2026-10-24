@@ -18,7 +18,8 @@ import {
   type OsdlabelAnnotatorElement,
   type SelectedAnnotationChangeDetail,
 } from '@osdlabel/element';
-import { CONTEXTS, FIRST_IMAGE_ID, IMAGES } from '../shared/fixtures.js';
+import type { OsdAnnotation } from 'osdlabel';
+import { CONTEXTS, FIRST_IMAGE_ID, IMAGES, sampleAnnotations } from '../shared/fixtures.js';
 import { mark, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
 
 mark('host-script');
@@ -31,6 +32,8 @@ class AppComponent {
   readonly count = signal(0);
   readonly geometry = signal('none');
   readonly selected = signal<string | null>(null);
+  /** Controlled: bound back as `[annotations]`, updated from annotationschange. */
+  readonly annotations = signal<readonly OsdAnnotation[]>([]);
 
   onReady(e: Event): void {
     mark('element-ready');
@@ -38,6 +41,7 @@ class AppComponent {
   }
   onAnnotations(e: Event): void {
     const detail = (e as CustomEvent<AnnotationsChangeDetail>).detail;
+    this.annotations.set(detail.annotations);
     this.count.set(detail.annotations.length);
     this.geometry.set(detail.annotations.map((a) => a.geometry.type).join(',') || 'none');
     reportHostEvent('annotationschange', detail);
@@ -46,6 +50,9 @@ class AppComponent {
     const detail = (e as CustomEvent<SelectedAnnotationChangeDetail>).detail;
     this.selected.set(detail.annotationId);
     reportHostEvent('selectedannotationchange', detail);
+  }
+  loadSample(): void {
+    this.annotations.set(sampleAnnotations());
   }
   onTool(e: Event): void {
     reportHostEvent('activetoolchange', (e as CustomEvent<ActiveToolChangeDetail>).detail);
@@ -62,10 +69,12 @@ Component({
       Angular state: <span data-testid="fw-annotation-count">{{ count() }}</span> /
       <span data-testid="fw-geometry">{{ geometry() }}</span> /
       <span data-testid="fw-selected">{{ selected() ?? 'none' }}</span>
+      <button data-testid="host-load-sample" (click)="loadSample()">load sample</button>
     </p>
     <osdlabel-annotator
       [images]="images"
       [contexts]="contexts"
+      [annotations]="annotations()"
       test-mode
       style="display: block; height: 520px"
       (osdlabelready)="onReady($event)"

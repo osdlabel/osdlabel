@@ -10,7 +10,8 @@ import {
   type OsdlabelAnnotatorElement,
   type SelectedAnnotationChangeDetail,
 } from '@osdlabel/element';
-import { CONTEXTS, FIRST_IMAGE_ID, IMAGES } from '../shared/fixtures.js';
+import type { OsdAnnotation } from 'osdlabel';
+import { CONTEXTS, FIRST_IMAGE_ID, IMAGES, sampleAnnotations } from '../shared/fixtures.js';
 import { mark, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
 
 mark('host-script');
@@ -21,6 +22,8 @@ function App() {
   const [count, setCount] = useState(0);
   const [geometry, setGeometry] = useState('none');
   const [selected, setSelected] = useState<string | null>(null);
+  // Controlled: bound back as a property, updated from annotationschange.
+  const [annotations, setAnnotations] = useState<readonly OsdAnnotation[]>([]);
   return createElement(
     'div',
     null,
@@ -33,10 +36,16 @@ function App() {
       createElement('span', { 'data-testid': 'fw-geometry' }, geometry),
       ' / ',
       createElement('span', { 'data-testid': 'fw-selected' }, selected ?? 'none'),
+      createElement(
+        'button',
+        { 'data-testid': 'host-load-sample', onClick: () => setAnnotations(sampleAnnotations()) },
+        'load sample',
+      ),
     ),
     createElement('osdlabel-annotator', {
       images: IMAGES,
       contexts: CONTEXTS,
+      annotations,
       'test-mode': '',
       style: { display: 'block', height: '520px' },
       onosdlabelready: (e: Event) => {
@@ -45,6 +54,7 @@ function App() {
       },
       onannotationschange: (e: Event) => {
         const detail = (e as CustomEvent<AnnotationsChangeDetail>).detail;
+        setAnnotations(detail.annotations);
         setCount(detail.annotations.length);
         setGeometry(detail.annotations.map((a) => a.geometry.type).join(',') || 'none');
         reportHostEvent('annotationschange', detail);

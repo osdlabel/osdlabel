@@ -14,7 +14,8 @@ import type {
   ToolbarSlotProps,
   ToolbarTool,
 } from 'osdlabel';
-import { groupAnnotationsByImage } from './annotations-io.js';
+import { groupAnnotationsByImage, isSameAnnotationSet } from './annotations-io.js';
+import { toPlainData } from './plain-data.js';
 import {
   BOOLEAN_ATTRIBUTES,
   OBSERVED_ATTRIBUTES,
@@ -165,6 +166,8 @@ export function createAnnotatorElementClass(
       return this.#contexts;
     }
     set contexts(value: readonly AnnotationContext[]) {
+      // Contexts land in a Solid store: copy them out of any host proxies.
+      value = toPlainData(value);
       this.#contexts = value;
       const api = this.#api;
       if (!api) return;
@@ -179,9 +182,15 @@ export function createAnnotatorElementClass(
       return api ? getAllAnnotationsFlat(api.annotationState) : this.#pendingAnnotations;
     }
     set annotations(value: readonly OsdAnnotation[]) {
+      // Annotations land in a Solid store: copy them out of any host proxies.
+      value = toPlainData(value);
       this.#pendingAnnotations = value;
       const api = this.#api;
       if (!api) return;
+      // The controlled-host echo: the list this element just emitted, handed
+      // straight back. Reloading it would rebuild every Fabric object on the
+      // canvas (and drop the user's selection) for no change.
+      if (isSameAnnotationSet(getAllAnnotationsFlat(api.annotationState), value)) return;
       this.#applyingProperty = true;
       try {
         api.actions.loadAnnotations(groupAnnotationsByImage(value));

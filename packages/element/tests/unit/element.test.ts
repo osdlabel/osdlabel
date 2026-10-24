@@ -9,6 +9,8 @@ import {
   createAnnotatorEvent,
   defineOsdlabelAnnotator,
   groupAnnotationsByImage,
+  isSameAnnotationSet,
+  toPlainData,
   onAnnotatorEvent,
   parseBooleanAttribute,
   parseFilmstripPosition,
@@ -67,6 +69,48 @@ describe('groupAnnotationsByImage', () => {
   });
 });
 
+describe('isSameAnnotationSet', () => {
+  it('matches on (image, id, updatedAt), ignoring order and identity', () => {
+    const a = rect('a', 'img1');
+    const b = rect('b', 'img1');
+    expect(isSameAnnotationSet([a, b], [{ ...b }, { ...a }])).toBe(true);
+  });
+
+  it('sees a new revision, a different image, or a different count', () => {
+    const a = rect('a', 'img1');
+    expect(isSameAnnotationSet([a], [{ ...a, updatedAt: '2026-01-02T00:00:00.000Z' }])).toBe(false);
+    expect(isSameAnnotationSet([a], [rect('a', 'img2')])).toBe(false);
+    expect(isSameAnnotationSet([a], [a, rect('b', 'img1')])).toBe(false);
+    expect(isSameAnnotationSet([], [])).toBe(true);
+  });
+
+  it('does not treat duplicates as a set match', () => {
+    const a = rect('a', 'img1');
+    expect(isSameAnnotationSet([a, a], [a, rect('b', 'img1')])).toBe(false);
+  });
+});
+
+describe('toPlainData', () => {
+  it('copies through a proxy into plain objects and arrays', () => {
+    const source = { list: [rect('a', 'img1')], bytes: new Uint8Array([1, 2]) };
+    // A proxy that, like Vue's, re-wraps every object it returns.
+    const wrap = <T extends object>(t: T): T =>
+      new Proxy(t, {
+        get(target, key, receiver) {
+          const v: unknown = Reflect.get(target, key, receiver);
+          return typeof v === 'object' && v !== null && !ArrayBuffer.isView(v) ? wrap(v) : v;
+        },
+      });
+    const copy = toPlainData(wrap(source));
+    expect(copy).toEqual(source);
+    expect(copy.list).not.toBe(source.list);
+    expect(copy.bytes).not.toBe(source.bytes);
+    expect(Array.isArray(copy.list)).toBe(true);
+    expect(toPlainData(null)).toBeNull();
+    expect(toPlainData('x')).toBe('x');
+  });
+});
+
 describe('events', () => {
   it('uses lowercase dash-free names and never the native selectionchange', () => {
     for (const name of Object.values(ANNOTATOR_EVENTS)) {
@@ -112,12 +156,13 @@ describe('defineOsdlabelAnnotator', () => {
     expect(upgraded.images).toBe(images);
   });
 
-  it('holds annotations written before mount and reads them back', () => {
+  it('holds annotations written before mount and reads back a detached copy', () => {
     defineOsdlabelAnnotator({ tagName: 'osdlabel-test-b' });
     const el = document.createElement('osdlabel-test-b') as OsdlabelAnnotatorElement;
     const list = [rect('a', 'img1')];
     el.annotations = list;
-    expect(el.annotations).toBe(list);
+    expect(el.annotations).toEqual(list);
+    expect(el.annotations).not.toBe(list);
     expect(el.activeTool).toBeNull();
     expect(el.selectedAnnotationId).toBeNull();
   });

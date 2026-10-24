@@ -1,5 +1,5 @@
 import { defineOsdlabelAnnotator, type OsdlabelAnnotatorElement } from '@osdlabel/element';
-import { CONTEXTS, FIRST_IMAGE_ID, IMAGES } from '../shared/fixtures.js';
+import { CONTEXTS, FIRST_IMAGE_ID, IMAGES, sampleAnnotations } from '../shared/fixtures.js';
 import { HOST_EVENT_NAMES, mark, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
 
 mark('host-script');
@@ -19,4 +19,10 @@ el.addEventListener('osdlabelready', () => {
 for (const name of HOST_EVENT_NAMES) {
   el.addEventListener(name, (e) => reportHostEvent(name, (e as CustomEvent<unknown>).detail));
 }
-document.getElementById('app')!.append(el);
+const load = document.createElement('button');
+load.dataset['testid'] = 'host-load-sample';
+load.textContent = 'load sample';
+load.onclick = () => {
+  el.annotations = sampleAnnotations();
+};
+document.getElementById('app')!.append(load, el);

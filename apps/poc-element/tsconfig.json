@@ -15,8 +15,15 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "allowJs": true
   },
-  "include": ["src/**/*", "tests/**/*", "vite.config.ts", "playwright.config.ts"],
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "scripts/lib/**/*",
+    "vite.config.ts",
+    "playwright.config.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

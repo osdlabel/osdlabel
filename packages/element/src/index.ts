@@ -21,7 +21,8 @@ export type {
   SelectedAnnotationChangeDetail,
   ToolbarModelChangeDetail,
 } from './element-events.js';
-export { groupAnnotationsByImage } from './annotations-io.js';
+export { groupAnnotationsByImage, isSameAnnotationSet } from './annotations-io.js';
+export { toPlainData } from './plain-data.js';
 export type { AnnotationsByImage } from './annotations-io.js';
 export {
   BOOLEAN_ATTRIBUTES,
