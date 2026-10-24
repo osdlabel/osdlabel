@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, useEffect, type ComponentType, type ReactElement } from 'react';
 import { createAnnotationContextId, type AnnotationContext } from '@osdlabel/annotation-context';
 import { createImageId, type ImageSource } from '@osdlabel/viewer-api';
-import { ANNOTATOR_SLOT_NAMES } from 'osdlabel';
+import { ANNOTATOR_SLOT_NAMES, OSDLABEL_STOCK_CSS } from 'osdlabel';
 import type { AnnotatorSlotName, AnnotatorSlotPropsMap, ToolbarSlotProps } from 'osdlabel';
 import {
   ANNOTATOR_SLOT_RENDERERS,
@@ -51,6 +51,9 @@ function AssignImage() {
 }
 
 afterEach(unmountAll);
+
+/** Unmounts the current annotator, as the afterEach does. */
+const unmountForReinstall = unmountAll;
 
 function mountAnnotator(components?: AnnotatorComponents): HTMLElement {
   return mount(
@@ -116,12 +119,27 @@ describe('Annotator components.Toolbar override', () => {
 });
 
 describe('stock toolbar theming hooks', () => {
-  it('reads colours through --osdlabel-* tokens with the old values as fallbacks', () => {
+  it('styles the toolbar through the layered stock stylesheet, not inline', () => {
     const root = mountAnnotator();
     const navigate = q(root, 'tool-navigate') as HTMLButtonElement;
-    expect(navigate.style.background).toContain('var(--osdlabel-accent, #2196F3)');
+    expect(navigate.getAttribute('style')).toBeNull();
+    expect(navigate.className).toBe('osdlabel-tool-button osdlabel-tool-button-active');
     const rect = q(root, 'tool-rectangle') as HTMLButtonElement;
-    expect(rect.style.background).toContain('var(--osdlabel-control, #333)');
+    expect(rect.getAttribute('style')).toBeNull();
+    expect(rect.className).toBe('osdlabel-tool-button');
+    expect(root.querySelector('[part="toolbar"]')!.className).toBe('osdlabel-toolbar');
+  });
+
+  it('installs the stock stylesheet once per document, with the token fallbacks', () => {
+    // jsdom has no constructable stylesheets, so this exercises the <style>
+    // fallback; in a browser the same call adopts one CSSStyleSheet instead.
+    mountAnnotator();
+    unmountForReinstall();
+    mountAnnotator();
+    const sheets = document.head.querySelectorAll('style[data-osdlabel="stock"]');
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0]!.textContent).toBe(OSDLABEL_STOCK_CSS);
+    expect(sheets[0]!.textContent).toContain('var(--osdlabel-accent, #2196F3)');
   });
 
   it('exposes part names, with a state part on the active button', () => {

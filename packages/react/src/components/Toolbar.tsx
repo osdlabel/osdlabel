@@ -1,9 +1,10 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useAnnotator } from '../state/annotator-context.js';
 import {
+  adoptStockStyles,
   deriveToolbarModel,
+  partClassName,
   preventButtonFocusSteal,
-  themeVar,
   toolButtonPart,
   OSDLABEL_PARTS,
   type ToolbarSlotProps,
@@ -65,48 +66,45 @@ export function useToolbarSlotProps(): ToolbarSlotProps {
   );
 }
 
-const buttonStyle = (b: {
-  readonly active: boolean;
-  readonly enabled: boolean;
-}): CSSProperties => ({
-  padding: themeVar('controlPadding'),
-  border: 'none',
-  borderRadius: themeVar('radius'),
-  cursor: b.enabled ? 'pointer' : 'not-allowed',
-  background: b.active
-    ? themeVar('accent')
-    : b.enabled
-      ? themeVar('control')
-      : themeVar('controlDisabled'),
-  color: b.enabled ? themeVar('text') : themeVar('textDisabled'),
-  fontWeight: b.active ? 'bold' : 'normal',
-  fontSize: themeVar('fontSizeControl'),
-  opacity: b.enabled ? 1 : 0.5,
-});
+/** A toolbar button's `part` value and its class twin, for the given state. */
+function buttonHooks(b: { readonly active: boolean; readonly enabled: boolean }): {
+  readonly part: string;
+  readonly className: string;
+} {
+  const part = toolButtonPart(b);
+  return { part, className: partClassName(part) };
+}
 
-/** The stock toolbar's rendering, from {@link ToolbarSlotProps} alone. */
+/**
+ * The stock toolbar's rendering, from {@link ToolbarSlotProps} alone.
+ *
+ * Styled by the shared `@layer osdlabel` stylesheet (`OSDLABEL_STOCK_CSS`),
+ * not inline, so light-DOM host CSS can override it through the part names
+ * or their `osdlabel-*` class twins; the sheet is adopted into whichever
+ * root (document or shadow root) the toolbar mounts in, before paint.
+ */
 export function ToolbarView(props: ToolbarSlotProps) {
   const { model } = props;
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    if (rootRef.current) adoptStockStyles(rootRef.current);
+  }, []);
+
   return (
     <div
+      ref={rootRef}
       part={OSDLABEL_PARTS.toolbar}
+      className={partClassName(OSDLABEL_PARTS.toolbar)}
       onMouseDown={preventButtonFocusSteal}
-      style={{
-        display: 'flex',
-        gap: themeVar('gap'),
-        alignItems: 'center',
-        flexWrap: 'wrap',
-      }}
     >
       {model.buttons.map((b) => (
         <button
           key={b.key}
           data-testid={`tool-${b.key}`}
-          part={toolButtonPart(b)}
+          {...buttonHooks(b)}
           data-active={b.active}
           disabled={!b.enabled}
           onClick={() => props.onSelectTool(b.tool)}
-          style={buttonStyle(b)}
         >
           {b.countLabel === null ? b.label : `${b.label} ${b.countLabel}`}
         </button>
@@ -114,20 +112,22 @@ export function ToolbarView(props: ToolbarSlotProps) {
 
       {/* Brush options, present only while the brush is the active tool */}
       {model.brush && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: themeVar('gap') }}>
+        <div
+          part={OSDLABEL_PARTS.brushOptions}
+          className={partClassName(OSDLABEL_PARTS.brushOptions)}
+        >
           <label
             htmlFor="brush-radius"
-            style={{
-              color: themeVar('textSubtle'),
-              fontSize: themeVar('fontSizeStatus'),
-              whiteSpace: 'nowrap',
-            }}
+            part={OSDLABEL_PARTS.brushLabel}
+            className={partClassName(OSDLABEL_PARTS.brushLabel)}
           >
             Brush
           </label>
           <input
             id="brush-radius"
             data-testid="brush-radius"
+            part={OSDLABEL_PARTS.brushRadius}
+            className={partClassName(OSDLABEL_PARTS.brushRadius)}
             type="range"
             min={model.brush.min}
             max={model.brush.max}
@@ -140,23 +140,19 @@ export function ToolbarView(props: ToolbarSlotProps) {
             // click-then-arrow-keys does not work; tabbing to it still does,
             // which is the path where the arrow keys are the point.
             onPointerUp={(e) => e.currentTarget.blur()}
-            style={{ width: '90px' }}
           />
           <span
             data-testid="brush-radius-value"
-            style={{
-              color: themeVar('text'),
-              fontSize: themeVar('fontSizeStatus'),
-              minWidth: '34px',
-            }}
+            part={OSDLABEL_PARTS.brushRadiusValue}
+            className={partClassName(OSDLABEL_PARTS.brushRadiusValue)}
           >
             {model.brush.radius}px
           </span>
           <button
             data-testid="brush-eraser"
             aria-pressed={model.brush.erasing}
+            {...buttonHooks({ active: model.brush.erasing, enabled: true })}
             onClick={() => props.onBrushErasingChange(!model.brush!.erasing)}
-            style={buttonStyle({ active: model.brush.erasing, enabled: true })}
           >
             Erase
           </button>
@@ -167,12 +163,9 @@ export function ToolbarView(props: ToolbarSlotProps) {
       {model.convertToRect && (
         <button
           data-testid="convert-to-rect"
+          {...buttonHooks({ active: false, enabled: model.convertToRect.enabled })}
           disabled={!model.convertToRect.enabled}
           onClick={() => props.onConvertToRect()}
-          style={{
-            ...buttonStyle({ active: false, enabled: model.convertToRect.enabled }),
-            fontWeight: undefined,
-          }}
         >
           Convert to Rect
         </button>

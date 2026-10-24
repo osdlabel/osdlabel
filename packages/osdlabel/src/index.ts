@@ -382,7 +382,15 @@ export {
   themeToCustomProperties,
 } from './ui/theme-tokens.js';
 export type { OsdlabelTheme, OsdlabelThemeToken } from './ui/theme-tokens.js';
-export { OSDLABEL_PARTS, toolButtonPart } from './ui/parts.js';
+export { OSDLABEL_PARTS, partClassName, toolButtonPart } from './ui/parts.js';
+export {
+  OSDLABEL_STOCK_CSS,
+  OSDLABEL_STOCK_RULES,
+  OSDLABEL_STYLE_LAYER,
+  adoptStockStyles,
+  stockStyleTarget,
+} from './ui/stock-styles.js';
+export type { StockStyleTarget } from './ui/stock-styles.js';
 export type { OsdlabelPart } from './ui/parts.js';
 export { TOOL_LABELS, deriveToolbarModel } from './ui/toolbar-model.js';
 export type {

@@ -24,9 +24,16 @@
  *         each occupies each position equally. CDP Performance metrics give
  *         the CPU-side split (script, layout, style, task).
  *  css    CSS isolation: the lab page under Bootstrap 5.3 and Tailwind 4
- *         preflight, in shadow and light DOM; computed styles of every element
- *         in the annotator vs the same mode without host CSS, plus whether a
- *         drawn rectangle's image-space geometry changes.
+ *         preflight (unlayered, and inside `@layer base` as Tailwind 4 ships
+ *         it), in shadow and light DOM, the latter with the stock toolbar
+ *         sheet layered or unlayered; computed styles of every element in the
+ *         annotator vs the same mode without host CSS, which of the toolbar's
+ *         stock-set properties host CSS overrode, plus whether a drawn
+ *         rectangle's image-space geometry changes.
+ *  mount  UI mount microbenchmark (no image, so no OSD/WebGL): Solid and React
+ *         bindings vs the element in shadow and light DOM, plus the stock
+ *         stylesheet's construction and adoption costs. Not in the default
+ *         set; add it with --only sizes,tti,css,mount.
  *
  * Chromium: --chromium <path> or POC_CHROMIUM, default /opt/pw-browsers/chromium
  * (the sandbox's). On a desktop pass Chrome's binary, e.g.
@@ -350,33 +357,82 @@ const INHERITED = new Set([
   'color',
 ]);
 
-async function sampleCss(browser, base, mode, css) {
+/**
+ * The properties the stock toolbar sets on its own elements (inline before the
+ * stylesheet prototype, in `@layer osdlabel` after). A host rule changing one
+ * of these on a toolbar element is the stock style losing to host CSS.
+ */
+const TOOLBAR_STOCK_PROPS = [
+  'padding-top',
+  'padding-left',
+  'border-top-style',
+  'border-top-left-radius',
+  'cursor',
+  'background-color',
+  'color',
+  'font-weight',
+  'font-size',
+  'opacity',
+  'display',
+  'column-gap',
+  'align-items',
+  'flex-wrap',
+  'white-space',
+  'min-width',
+];
+
+async function sampleCss(browser, base, mode, css, stock) {
   const context = await browser.newContext({ viewport: { width: 1200, height: 800 } });
   try {
     const page = await context.newPage();
-    await page.goto(`${base}/lab.html?mode=${mode}&css=${css}`);
+    await page.goto(`${base}/lab.html?mode=${mode}&css=${css}${stock ? `&stock=${stock}` : ''}`);
     await page.waitForFunction(() => window.__interactive, null, { timeout: 30_000 });
-    const snapshot = await page.evaluate((props) => {
-      const lab = window.__lab;
-      const root = lab.el.renderRoot.querySelector('[data-testid="annotator-root"]');
-      const sig = [];
-      const walk = (node, p) => {
-        const cs = getComputedStyle(node);
-        const values = {};
-        for (const k of props) values[k] = cs.getPropertyValue(k);
-        sig.push({ path: p, tag: node.tagName.toLowerCase(), props: values });
-        [...node.children].forEach((c, i) => walk(c, `${p}/${i}`));
-      };
-      walk(root, '0');
-      const bar = root.firstElementChild.getBoundingClientRect();
-      const canvas = lab.el.renderRoot.querySelector('canvas.upper-canvas').getBoundingClientRect();
-      return {
-        sig,
-        toolbarBarHeight: bar.height,
-        canvasRect: { x: canvas.x, y: canvas.y, w: canvas.width, h: canvas.height },
-        headStyleNodes: document.head.querySelectorAll('style').length,
-      };
-    }, STYLE_PROPS);
+    const snapshot = await page.evaluate(
+      ([props, toolbarProps]) => {
+        const lab = window.__lab;
+        const renderRoot = lab.el.renderRoot;
+        const root = renderRoot.querySelector('[data-testid="annotator-root"]');
+        const sig = [];
+        const walk = (node, p) => {
+          const cs = getComputedStyle(node);
+          const values = {};
+          for (const k of props) values[k] = cs.getPropertyValue(k);
+          sig.push({ path: p, tag: node.tagName.toLowerCase(), props: values });
+          [...node.children].forEach((c, i) => walk(c, `${p}/${i}`));
+        };
+        walk(root, '0');
+        const toolbarSig = [];
+        const toolbar = renderRoot.querySelector('[part~="toolbar"]');
+        const walkToolbar = (node, p) => {
+          const cs = getComputedStyle(node);
+          const values = {};
+          for (const k of toolbarProps) values[k] = cs.getPropertyValue(k);
+          toolbarSig.push({ path: p, tag: node.tagName.toLowerCase(), props: values });
+          [...node.children].forEach((c, i) => walkToolbar(c, `${p}/${i}`));
+        };
+        if (toolbar) walkToolbar(toolbar, 't');
+        const rectButton = renderRoot.querySelector('[data-testid="tool-rectangle"]');
+        const rb = rectButton ? rectButton.getBoundingClientRect() : null;
+        const bar = root.firstElementChild.getBoundingClientRect();
+        const canvas = renderRoot.querySelector('canvas.upper-canvas').getBoundingClientRect();
+        return {
+          sig,
+          toolbarSig,
+          rectButtonBox: rb ? { w: rb.width, h: rb.height } : null,
+          toolbarBarHeight: bar.height,
+          canvasRect: { x: canvas.x, y: canvas.y, w: canvas.width, h: canvas.height },
+          headStyleNodesAdded: lab.headNodesAfter() - lab.headNodesBefore,
+          documentAdoptedSheets: document.adoptedStyleSheets.length,
+          shadowAdoptedSheets: lab.el.shadowRoot
+            ? lab.el.shadowRoot.adoptedStyleSheets.length
+            : null,
+          shadowStyleNodes: lab.el.shadowRoot
+            ? lab.el.shadowRoot.querySelectorAll('style').length
+            : null,
+        };
+      },
+      [STYLE_PROPS, TOOLBAR_STOCK_PROPS],
+    );
     // Draw the same rectangle (fixed fractions of the canvas) and read its image-space geometry.
     await page.getByTestId('tool-rectangle').click();
     const c = snapshot.canvasRect;
@@ -430,13 +486,29 @@ async function sampleCss(browser, base, mode, css) {
   }
 }
 
+/**
+ * Light-DOM stock-style variants (`lab.html?stock=`): `layer` is the shipped
+ * `@layer osdlabel` sheet; `unlayered` additionally adopts the same rules
+ * without the layer into the document, emulating an unlayered class-selector
+ * sheet. Shadow DOM is measured once: host CSS cannot reach the sheet there.
+ * `--stock-variants none` measures a checkout without the stylesheet.
+ */
+const STOCK_VARIANTS = String(arg('--stock-variants', 'layer,unlayered'))
+  .split(',')
+  .filter((v) => v && v !== 'none');
+const CSS_CONDITIONS = ['none', 'bootstrap', 'tailwind', 'tailwind-layered'];
+
 async function measureCss(browser, base) {
   const out = [];
-  for (const mode of ['shadow', 'light']) {
-    const baseline = await sampleCss(browser, base, mode, 'none');
-    for (const css of ['none', 'bootstrap', 'tailwind']) {
-      const s = css === 'none' ? baseline : await sampleCss(browser, base, mode, css);
+  const runs = [{ mode: 'shadow', stock: null }];
+  if (STOCK_VARIANTS.length === 0) runs.push({ mode: 'light', stock: null });
+  for (const stock of STOCK_VARIANTS) runs.push({ mode: 'light', stock });
+  for (const { mode, stock } of runs) {
+    const baseline = await sampleCss(browser, base, mode, 'none', stock);
+    for (const css of CSS_CONDITIONS) {
+      const s = css === 'none' ? baseline : await sampleCss(browser, base, mode, css, stock);
       const diff = diffStyleSignatures(baseline.sig, s.sig);
+      const toolbarDiff = diffStyleSignatures(baseline.toolbarSig, s.toolbarSig);
       const inheritedOnly = Object.keys(diff.propertyCounts).every((k) => INHERITED.has(k));
       // Neither inherited nor a layout consequence (width/height): only a
       // host rule whose selector matched the element can change these.
@@ -456,7 +528,20 @@ async function measureCss(browser, base) {
           : null;
       out.push({
         mode,
+        stock: stock ?? 'default',
         css,
+        toolbarElements: toolbarDiff.compared,
+        toolbarStockPropsChanged: Object.values(toolbarDiff.propertyCounts).reduce(
+          (a, b) => a + b,
+          0,
+        ),
+        toolbarStockPropertyCounts: toolbarDiff.propertyCounts,
+        rectButtonBox: s.rectButtonBox,
+        rectButtonBoxBaseline: baseline.rectButtonBox,
+        headStyleNodesAdded: s.headStyleNodesAdded,
+        documentAdoptedSheets: s.documentAdoptedSheets,
+        shadowAdoptedSheets: s.shadowAdoptedSheets,
+        shadowStyleNodes: s.shadowStyleNodes,
         elements: diff.compared,
         elementsDiffering: diff.elementsDiffering,
         missingElements: diff.missing,
@@ -469,10 +554,61 @@ async function measureCss(browser, base) {
         pointerToShapeErrorScreenPx: s.pointerErrorPx,
         geometryMaxAbsDeltaImagePx: geometryDelta,
       });
-      console.error(`  css: ${mode}/${css} done`);
+      console.error(`  css: ${mode}${stock ? `/${stock}` : ''}/${css} done`);
     }
   }
   return out;
+}
+
+// ── mount ───────────────────────────────────────────────────────────────────
+
+/**
+ * Mount microbenchmark (mount-bench.html): the UI mount alone, no image, so
+ * no OSD viewer or WebGL; plus the stock stylesheet's construction and
+ * adoption costs. One fresh browser context per page load; `--mount-pages`
+ * loads per variant, variants rotated each load.
+ */
+const MOUNT_VARIANTS = ['solid', 'react', 'element-shadow', 'element-light'];
+const MOUNT_PAGES = Number(arg('--mount-pages', '5'));
+const MOUNT_REPS = Number(arg('--mount-reps', '40'));
+
+async function sampleMount(browser, base, variant) {
+  const context = await browser.newContext({ viewport: { width: 1200, height: 800 } });
+  try {
+    const page = await context.newPage();
+    await page.goto(`${base}/mount-bench.html?variant=${variant}&reps=${MOUNT_REPS}`);
+    await page.waitForFunction(() => window.__mountBench, null, { timeout: 120_000 });
+    return await page.evaluate(() => window.__mountBench);
+  } finally {
+    await context.close();
+  }
+}
+
+async function measureMount(browser, base) {
+  const samples = Object.fromEntries(MOUNT_VARIANTS.map((v) => [v, []]));
+  for (const v of MOUNT_VARIANTS) await sampleMount(browser, base, v); // warm-up pass
+  for (let p = 0; p < MOUNT_PAGES; p++) {
+    const order = MOUNT_VARIANTS.map((_, i) => MOUNT_VARIANTS[(i + p) % MOUNT_VARIANTS.length]);
+    for (const v of order) samples[v].push(await sampleMount(browser, base, v));
+    console.error(`  mount: page ${p + 1}/${MOUNT_PAGES} done`);
+  }
+  return Object.fromEntries(
+    Object.entries(samples).map(([v, xs]) => [
+      v,
+      {
+        firstMountMs: summarize(xs.map((x) => x.firstMountMs)),
+        mountMs: summarize(xs.flatMap((x) => x.mountMs)),
+        mountStyleLayoutMs: summarize(xs.flatMap((x) => x.mountStyleLayoutMs)),
+        sheetConstructUs: summarize(xs.flatMap((x) => x.sheetConstructUs)),
+        adoptStockUs: summarize(xs.flatMap((x) => x.adoptStockUs)),
+        adoptEmptyUs: summarize(xs.flatMap((x) => x.adoptEmptyUs)),
+        toolbarButtons: xs[0]?.toolbarButtons ?? null,
+        crossOriginIsolated: xs.every((x) => x.crossOriginIsolated),
+        pages: xs.length,
+        repsPerPage: MOUNT_REPS,
+      },
+    ]),
+  );
 }
 
 // ── main ────────────────────────────────────────────────────────────────────
@@ -506,7 +642,7 @@ async function main() {
     result.sizes = await measureSizes();
   }
 
-  if (ONLY.has('tti') || ONLY.has('css')) {
+  if (ONLY.has('tti') || ONLY.has('css') || ONLY.has('mount')) {
     const browser = await chromium.launch({
       ...(EXECUTABLE ? { executablePath: EXECUTABLE } : {}),
     });
@@ -520,6 +656,12 @@ async function main() {
         if (ONLY.has('css')) {
           console.error('measuring CSS isolation…');
           result.css = await measureCss(browser, base);
+        }
+        if (ONLY.has('mount')) {
+          console.error(
+            `measuring mounts (${MOUNT_PAGES} pages × ${MOUNT_REPS} reps per variant)…`,
+          );
+          result.mount = await measureMount(browser, base);
         }
       });
     } finally {
@@ -587,10 +729,15 @@ async function main() {
       table(
         [
           'mode',
+          'stock css',
           'host css',
           'elements',
           'differing',
           'props via selectors',
+          'toolbar stock props lost',
+          'rect btn w×h (base)',
+          'head <style> +',
+          'adopted doc/shadow',
           'bar h (base)',
           'rect drawn',
           'pointer err px',
@@ -598,14 +745,58 @@ async function main() {
         ],
         result.css.map((c) => [
           c.mode,
+          c.stock,
           c.css,
           c.elements,
           c.elementsDiffering,
           c.selectorMatchedProperties.join(',') || 'none',
+          `${c.toolbarStockPropsChanged}${
+            c.toolbarStockPropsChanged
+              ? ` (${Object.entries(c.toolbarStockPropertyCounts)
+                  .map(([k, v]) => `${k} ${v}`)
+                  .join(', ')})`
+              : ''
+          }`,
+          c.rectButtonBox
+            ? `${c.rectButtonBox.w.toFixed(0)}×${c.rectButtonBox.h.toFixed(0)} (${c.rectButtonBoxBaseline.w.toFixed(0)}×${c.rectButtonBoxBaseline.h.toFixed(0)})`
+            : '-',
+          c.headStyleNodesAdded,
+          `${c.documentAdoptedSheets}/${c.shadowAdoptedSheets ?? '-'}`,
           `${c.toolbarBarHeight.toFixed(0)} (${c.toolbarBarHeightBaseline.toFixed(0)})`,
           c.rectangleCreated ? 'yes' : 'NO',
           c.pointerToShapeErrorScreenPx === null ? '-' : c.pointerToShapeErrorScreenPx.toFixed(2),
           c.geometryMaxAbsDeltaImagePx === null ? '-' : c.geometryMaxAbsDeltaImagePx.toFixed(2),
+        ]),
+      ),
+    );
+  }
+  if (result.mount) {
+    console.log(
+      `\nUI mount, no image (ms; ${MOUNT_PAGES} page loads × ${MOUNT_REPS} reps), and stock-stylesheet costs (µs)`,
+    );
+    console.log(
+      table(
+        [
+          'variant',
+          'mount med',
+          'p25',
+          'p75',
+          '+style/layout med',
+          'first mount med',
+          'sheet construct µs',
+          'adopt+recalc stock µs',
+          'adopt+recalc empty µs',
+        ],
+        Object.entries(result.mount).map(([v, m]) => [
+          v,
+          m.mountMs.median.toFixed(2),
+          m.mountMs.p25.toFixed(2),
+          m.mountMs.p75.toFixed(2),
+          m.mountStyleLayoutMs.median.toFixed(2),
+          m.firstMountMs.median.toFixed(1),
+          m.sheetConstructUs.median.toFixed(1),
+          m.adoptStockUs.median.toFixed(0),
+          m.adoptEmptyUs.median.toFixed(0),
         ]),
       ),
     );

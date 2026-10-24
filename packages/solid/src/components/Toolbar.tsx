@@ -1,15 +1,15 @@
-import { Index, Show, createMemo, type Component } from 'solid-js';
+import { Index, Show, createMemo, onMount, type Component } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
 import {
+  adoptStockStyles,
   deriveToolbarModel,
+  partClassName,
   preventButtonFocusSteal,
-  themeVar,
   toolButtonPart,
   OSDLABEL_PARTS,
   type ToolbarButtonModel,
   type ToolbarSlotProps,
 } from 'osdlabel';
-import type { JSX } from 'solid-js';
 
 /**
  * The toolbar's model and commands, as an override toolbar receives them.
@@ -57,35 +57,32 @@ export function useToolbarSlotProps(): ToolbarSlotProps {
   };
 }
 
-const buttonStyle = (b: {
-  readonly active: boolean;
-  readonly enabled: boolean;
-}): JSX.CSSProperties => ({
-  padding: themeVar('controlPadding'),
-  border: 'none',
-  'border-radius': themeVar('radius'),
-  cursor: b.enabled ? 'pointer' : 'not-allowed',
-  background: b.active
-    ? themeVar('accent')
-    : b.enabled
-      ? themeVar('control')
-      : themeVar('controlDisabled'),
-  color: b.enabled ? themeVar('text') : themeVar('textDisabled'),
-  'font-weight': b.active ? 'bold' : 'normal',
-  'font-size': themeVar('fontSizeControl'),
-  opacity: b.enabled ? '1' : '0.5',
-});
+/** A toolbar button's class: the class twins of its `part` value. */
+const buttonClass = (b: { readonly active: boolean; readonly enabled: boolean }): string =>
+  partClassName(toolButtonPart(b));
 
-/** The stock toolbar's rendering, from {@link ToolbarSlotProps} alone. */
+/**
+ * The stock toolbar's rendering, from {@link ToolbarSlotProps} alone.
+ *
+ * Styled by the shared `@layer osdlabel` stylesheet (`OSDLABEL_STOCK_CSS`),
+ * not inline, so light-DOM host CSS can override it through the part names
+ * or their `osdlabel-*` class twins; the sheet is adopted into whichever
+ * root (document or shadow root) the toolbar mounts in.
+ */
 export const ToolbarView: Component<ToolbarSlotProps> = (props) => {
+  let root: HTMLDivElement | undefined;
+  onMount(() => {
+    if (root) adoptStockStyles(root);
+  });
+
   const button = (b: () => ToolbarButtonModel) => (
     <button
       data-testid={`tool-${b().key}`}
       part={toolButtonPart(b())}
+      class={buttonClass(b())}
       data-active={b().active}
       disabled={!b().enabled}
       onClick={() => props.onSelectTool(b().tool)}
-      style={buttonStyle(b())}
     >
       {b().countLabel === null ? b().label : `${b().label} ${b().countLabel}`}
     </button>
@@ -93,14 +90,10 @@ export const ToolbarView: Component<ToolbarSlotProps> = (props) => {
 
   return (
     <div
+      ref={root}
       part={OSDLABEL_PARTS.toolbar}
+      class={partClassName(OSDLABEL_PARTS.toolbar)}
       onMouseDown={preventButtonFocusSteal}
-      style={{
-        display: 'flex',
-        gap: themeVar('gap'),
-        'align-items': 'center',
-        'flex-wrap': 'wrap',
-      }}
     >
       {/* Index, not For: the model is re-derived as one object, so keying by
           identity would remount every button on every change. */}
@@ -109,20 +102,22 @@ export const ToolbarView: Component<ToolbarSlotProps> = (props) => {
       {/* Brush options, present only while the brush is the active tool */}
       <Show when={props.model.brush}>
         {(brush) => (
-          <div style={{ display: 'flex', 'align-items': 'center', gap: themeVar('gap') }}>
+          <div
+            part={OSDLABEL_PARTS.brushOptions}
+            class={partClassName(OSDLABEL_PARTS.brushOptions)}
+          >
             <label
               for="brush-radius"
-              style={{
-                color: themeVar('textSubtle'),
-                'font-size': themeVar('fontSizeStatus'),
-                'white-space': 'nowrap',
-              }}
+              part={OSDLABEL_PARTS.brushLabel}
+              class={partClassName(OSDLABEL_PARTS.brushLabel)}
             >
               Brush
             </label>
             <input
               id="brush-radius"
               data-testid="brush-radius"
+              part={OSDLABEL_PARTS.brushRadius}
+              class={partClassName(OSDLABEL_PARTS.brushRadius)}
               type="range"
               min={brush().min}
               max={brush().max}
@@ -135,23 +130,20 @@ export const ToolbarView: Component<ToolbarSlotProps> = (props) => {
               // click-then-arrow-keys does not work; tabbing to it still does,
               // which is the path where the arrow keys are the point.
               onPointerUp={(e) => e.currentTarget.blur()}
-              style={{ width: '90px' }}
             />
             <span
               data-testid="brush-radius-value"
-              style={{
-                color: themeVar('text'),
-                'font-size': themeVar('fontSizeStatus'),
-                'min-width': '34px',
-              }}
+              part={OSDLABEL_PARTS.brushRadiusValue}
+              class={partClassName(OSDLABEL_PARTS.brushRadiusValue)}
             >
               {brush().radius}px
             </span>
             <button
               data-testid="brush-eraser"
               aria-pressed={brush().erasing}
+              part={toolButtonPart({ active: brush().erasing, enabled: true })}
+              class={buttonClass({ active: brush().erasing, enabled: true })}
               onClick={() => props.onBrushErasingChange(!brush().erasing)}
-              style={buttonStyle({ active: brush().erasing, enabled: true })}
             >
               Erase
             </button>
@@ -164,12 +156,10 @@ export const ToolbarView: Component<ToolbarSlotProps> = (props) => {
         {(convert) => (
           <button
             data-testid="convert-to-rect"
+            part={toolButtonPart({ active: false, enabled: convert().enabled })}
+            class={buttonClass({ active: false, enabled: convert().enabled })}
             disabled={!convert().enabled}
             onClick={() => props.onConvertToRect()}
-            style={{
-              ...buttonStyle({ active: false, enabled: convert().enabled }),
-              'font-weight': undefined,
-            }}
           >
             Convert to Rect
           </button>

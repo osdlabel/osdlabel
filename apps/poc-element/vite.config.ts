@@ -21,6 +21,7 @@ export const PAGES = [
   'lab',
   'theme',
   'parts',
+  'mount-bench',
 ] as const;
 
 // COOP/COEP so the pages are cross-origin isolated like the other PoCs'

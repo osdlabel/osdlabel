@@ -4,6 +4,12 @@
  * sets itself (background, padding, colour).
  *
  *   parts.html?binding=solid|react|element-light|element-shadow&override=1
+ *              [&selector=scoped|bare] [&stock=layer|unlayered]
+ *
+ * - selector=scoped (default): host rules qualified by an ancestor class,
+ *   specificity (0,2,0); selector=bare: `[part~="tool-button"]` alone, (0,1,0).
+ * - stock=unlayered: also adopts the stock rules without `@layer osdlabel`
+ *   into the document (light DOM only), emulating an unlayered class sheet.
  *
  * - solid / react: the framework binding's `<Annotator>`, in light DOM.
  * - element-light: `<osdlabel-annotator-light>` (shadow: 'none').
@@ -13,6 +19,7 @@
  * attribute selectors and the `osdlabel-*` classes in light DOM, `::part()`
  * from outside a shadow root.
  */
+import { OSDLABEL_STOCK_RULES } from 'osdlabel';
 import { mark, startInteractiveProbe } from '../shared/probe.js';
 
 mark('host-script');
@@ -25,12 +32,19 @@ const params = new URLSearchParams(location.search);
 const requested = params.get('binding');
 const binding: PartsBinding = BINDINGS.find((b) => b === requested) ?? 'solid';
 const override = params.get('override') === '1';
+const scope = params.get('selector') === 'bare' ? '' : '.host-override ';
+
+if (params.get('stock') === 'unlayered') {
+  const unlayered = new CSSStyleSheet();
+  unlayered.replaceSync(OSDLABEL_STOCK_RULES);
+  document.adoptedStyleSheets = [...document.adoptedStyleSheets, unlayered];
+}
 
 const HOST_OVERRIDE_CSS = `
   /* Light DOM: attribute selectors on the public part names, and a class hook. */
-  .host-override [part~="tool-button"] { background-color: rgb(0, 128, 0); padding: 20px; }
-  .host-override [part~="tool-button-active"] { background-color: rgb(128, 0, 128); }
-  .host-override .osdlabel-tool-button { color: rgb(255, 255, 0); }
+  ${scope}[part~="tool-button"] { background-color: rgb(0, 128, 0); padding: 20px; }
+  ${scope}[part~="tool-button-active"] { background-color: rgb(128, 0, 128); }
+  ${scope}.osdlabel-tool-button { color: rgb(255, 255, 0); }
   /* Shadow DOM: the same overrides through ::part(). */
   osdlabel-annotator.host-override::part(tool-button) {
     background-color: rgb(0, 128, 0); padding: 20px; color: rgb(255, 255, 0);

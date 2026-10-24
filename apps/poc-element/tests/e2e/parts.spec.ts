@@ -92,3 +92,49 @@ for (const binding of BINDINGS) {
     expect(await css(navigate, 'background-color')).toBe('rgb(0, 128, 0)');
   });
 }
+
+/**
+ * The two light-DOM stylesheet designs side by side, with the host rule at
+ * specificity (0,2,0) (`.host-override [part~=…]`) or (0,1,0) (`[part~=…]`).
+ * In `@layer osdlabel` any unlayered host rule wins; an unlayered class sheet
+ * is beaten only by a more specific host rule, since the stock sheet is
+ * adopted after the page's own sheets and wins the tie.
+ */
+const LIGHT_BINDINGS = ['solid', 'react', 'element-light'] as const;
+const STOCK_LOOK = {
+  rectBackground: 'rgb(51, 51, 51)',
+  rectPadding: '4px',
+  rectColor: 'rgb(255, 255, 255)',
+  navigateBackground: 'rgb(33, 150, 243)',
+};
+const OVERRIDDEN = {
+  rectBackground: 'rgb(0, 128, 0)',
+  rectPadding: '20px',
+  rectColor: 'rgb(255, 255, 0)',
+  navigateBackground: 'rgb(128, 0, 128)',
+};
+const VARIANTS = [
+  { stock: 'layer', selector: 'bare', expected: OVERRIDDEN },
+  { stock: 'unlayered', selector: 'scoped', expected: OVERRIDDEN },
+  { stock: 'unlayered', selector: 'bare', expected: STOCK_LOOK },
+] as const;
+
+for (const binding of LIGHT_BINDINGS) {
+  for (const v of VARIANTS) {
+    test(`${binding}: stock=${v.stock}, host selector=${v.selector}`, async ({ page }) => {
+      await page.goto(
+        `/parts.html?binding=${binding}&override=1&stock=${v.stock}&selector=${v.selector}`,
+      );
+      await waitInteractive(page);
+      const rect = page.getByTestId('tool-rectangle');
+      const observed = {
+        rectBackground: await css(rect, 'background-color'),
+        rectPadding: await css(rect, 'padding-top'),
+        rectColor: await css(rect, 'color'),
+        navigateBackground: await css(page.getByTestId('tool-navigate'), 'background-color'),
+      };
+      test.info().annotations.push({ type: 'observed', description: JSON.stringify(observed) });
+      expect(observed).toEqual(v.expected);
+    });
+  }
+}
