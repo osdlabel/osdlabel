@@ -88,10 +88,12 @@ export function aggregateSolid(runs) {
         events: first.realWheel.wheelEventsSent,
         incoherent: first.realWheel.incoherentFrames,
       },
-      loadAvg: [
-        Math.min(...reps.map((r) => r.loadAvgBefore?.[0] ?? Infinity)),
-        Math.max(...reps.map((r) => r.loadAvgAfter?.[0] ?? r.loadAvgBefore?.[0] ?? -Infinity)),
-      ],
+      // 1-minute load average: lowest and highest seen before or after a repetition.
+      loadAvg: (() => {
+        const l = reps.flatMap((r) => [r.loadAvgBefore?.[0], r.loadAvgAfter?.[0]]);
+        const v = l.filter((x) => typeof x === 'number');
+        return v.length ? [Math.min(...v), Math.max(...v)] : null;
+      })(),
     };
   });
 }

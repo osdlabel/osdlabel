@@ -4,23 +4,18 @@
  * data rather than transcribed.
  *
  *   node scripts/summarize.mjs results/<run>/results.json [--out results/representative.json]
- *                              [--extra-solid label=path ...]
+ *
+ * Solid rows are aggregated over their repetitions: median and range per
+ * configuration and pass (see solid-aggregate.mjs).
  */
 import fs from 'node:fs';
+import { aggregateSolid, fmtSpread } from './solid-aggregate.mjs';
 
 const argv = process.argv.slice(2);
 const input = argv[0];
-if (!input)
-  throw new Error('usage: summarize.mjs <results.json> [--out path] [--extra-solid label=path]');
+if (!input) throw new Error('usage: summarize.mjs <results.json> [--out path]');
 const outIdx = argv.indexOf('--out');
 const out = outIdx === -1 ? undefined : argv[outIdx + 1];
-const extras = [];
-for (let i = 0; i < argv.length; i++) {
-  if (argv[i] === '--extra-solid') {
-    const [label, file] = argv[i + 1].split('=');
-    extras.push({ label, data: JSON.parse(fs.readFileSync(file, 'utf8')) });
-  }
-}
 const r = JSON.parse(fs.readFileSync(input, 'utf8'));
 
 const n = (x, d = 1) =>
@@ -90,7 +85,7 @@ const compact = {
     },
   })),
   cine: (r.cine ?? []).map((x) => ({
-    config: x.name,
+    config: x.rep !== undefined ? `${x.name} #${x.rep + 1}` : x.name,
     error: x.error,
     loadAvg: x.loadAvgBefore,
     prepMs: n(x.result?.prepMs, 0),
@@ -106,33 +101,7 @@ const compact = {
     calibratedFrames: x.result?.calibratedFrames,
     encodedBytes: x.result?.encodedBytes,
   })),
-  solid: [{ label: 'optimized (HEAD)', data: r }, ...extras].map(({ label, data }) => ({
-    binding: label,
-    rows: (data.solid ?? []).map((x) => ({
-      config: x.name,
-      error: x.error,
-      loadAvg: x.loadAvgBefore,
-      cold: x.scripted && {
-        fps: n(x.scripted.displayFps),
-        shownPerSec: n(x.scripted.shownSlicesPerSec),
-      },
-      warm: x.scriptedWarm && {
-        fps: n(x.scriptedWarm.displayFps),
-        shownPerSec: n(x.scriptedWarm.shownSlicesPerSec),
-        incoherent: x.scriptedWarm.incoherentFrames,
-        blank: x.scriptedWarm.blankFrames,
-        syncWorkMsP95: n(x.scriptedWarm.applyMs?.p95, 2),
-      },
-      realWheel: x.realWheel && {
-        fps: n(x.realWheel.displayFps),
-        shownPerSec: n(x.realWheel.shownSlicesPerSec),
-        eventsSent: x.realWheel.wheelEventsSent,
-      },
-      viewBefore: x.viewBefore,
-      viewAfter: x.viewAfter,
-      memDeltaMB: x.memory?.deltaMB,
-    })),
-  })),
+  solid: r.solid ? aggregateSolid(r.solid) : [],
 };
 
 if (out) fs.writeFileSync(out, JSON.stringify(compact, null, 1) + '\n');
@@ -249,37 +218,46 @@ console.log(
     ]),
   ),
 );
-for (const b of compact.solid) {
-  console.log(`\n### Solid binding — ${b.binding}\n`);
+if (compact.solid.length > 0) {
+  console.log('\n### Solid binding: median (min-max) over repetitions\n');
+  const c = (row, pass, k) => fmtSpread(row.passes[pass]?.[k]);
   console.log(
     md(
       [
         'config',
-        'cold fps / slices/s',
-        'warm fps / slices/s',
-        'incoherent',
-        'blank',
+        'reps',
+        'cold slices/s',
+        'cold incoherent',
+        'revisit slices/s',
+        'revisit incoherent',
+        'window (W) slices/s',
+        'window incoherent',
+        'revisit fps',
         'sync work p95 ms',
-        'real wheel fps / slices/s (events)',
-        'view before -> after',
-        'mem MB',
+        'edit add ms',
+        'heap MB (window)',
+        'PSS MB',
+        'view kept',
         'load',
       ],
-      b.rows.map((s) => [
-        s.config,
-        s.cold ? `${s.cold.fps} / ${s.cold.shownPerSec}` : null,
-        s.warm ? `${s.warm.fps} / ${s.warm.shownPerSec}` : null,
-        s.warm?.incoherent,
-        s.warm?.blank,
-        s.warm?.syncWorkMsP95,
-        s.realWheel
-          ? `${s.realWheel.fps} / ${s.realWheel.shownPerSec} (${s.realWheel.eventsSent})`
-          : null,
-        s.viewAfter
-          ? `rot ${s.viewBefore?.rotation}°, ${s.viewBefore?.zoomOverHome}x -> rot ${s.viewAfter.rotation}°, ${s.viewAfter.zoomOverHome}x`
-          : null,
-        s.memDeltaMB,
-        lm(s.loadAvg),
+      compact.solid.map((row) => [
+        row.name,
+        row.reps,
+        c(row, 'cold', 'slicesPerSec'),
+        c(row, 'cold', 'incoherent'),
+        c(row, 'revisit', 'slicesPerSec'),
+        c(row, 'revisit', 'incoherent'),
+        `${c(row, 'window', 'slicesPerSec')} (W=${row.passes.window?.window ?? '-'})`,
+        c(row, 'window', 'incoherent'),
+        c(row, 'revisit', 'fps'),
+        c(row, 'revisit', 'syncMsP95'),
+        fmtSpread(row.editAddMsP50),
+        c(row, 'window', 'heapMB'),
+        fmtSpread(row.memDeltaMB),
+        row.viewKept
+          ? 'yes'
+          : `no (${JSON.stringify(row.viewBefore)} -> ${JSON.stringify(row.viewAfter)})`,
+        `${row.loadAvg?.[0]}-${row.loadAvg?.[1]}`,
       ]),
     ),
   );

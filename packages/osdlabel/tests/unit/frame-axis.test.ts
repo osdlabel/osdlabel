@@ -13,7 +13,7 @@ import { VectorObjectCache } from '../../src/vector-object-cache.js';
 import { buildSegmentationBrushConfig } from '../../src/brush-config.js';
 import { createMaskAnnotation } from '../../src/create-mask-annotation.js';
 import { DEFAULT_KEYBOARD_SHORTCUTS, mapKeyEventToActions } from '../../src/keyboard.js';
-import { computeConstraintStatus } from '../../src/constraints.js';
+import { computeConstraintStatus, usesImageScope } from '../../src/constraints.js';
 import {
   createInitialAnnotationState,
   createInitialContextState,
@@ -354,5 +354,36 @@ describe('VectorObjectCache', () => {
     cache.set(p3, {} as never);
     expect(cache.has(p1)).toBe(false);
     expect(cache.has(p2)).toBe(true);
+  });
+
+  it('drops the entry of an object being transformed (deleteObject)', () => {
+    const cache = new VectorObjectCache(4);
+    const p1 = {};
+    const obj = { n: 1 } as never;
+    cache.set(p1, obj);
+    cache.deleteObject(obj);
+    expect(cache.has(p1)).toBe(false);
+    expect(cache.size).toBe(0);
+  });
+});
+
+describe('usesImageScope', () => {
+  const ctxId = createAnnotationContextId('c');
+  const state = (
+    tools: { type: 'rectangle'; countScope?: 'per-image' | 'per-frame' | 'global' }[],
+    imageIds?: ReturnType<typeof createImageId>[],
+  ) => ({
+    contexts: [{ id: ctxId, label: 'c', tools, ...(imageIds ? { imageIds } : {}) }],
+    activeContextId: ctxId,
+    displayedContextIds: [ctxId],
+  });
+  it('is false for a context whose status no image can change', () => {
+    expect(usesImageScope(state([{ type: 'rectangle' }]))).toBe(false);
+    expect(usesImageScope(state([{ type: 'rectangle', countScope: 'global' }]))).toBe(false);
+  });
+  it('is true for a per-image or per-frame limit, or a context listing images', () => {
+    expect(usesImageScope(state([{ type: 'rectangle', countScope: 'per-image' }]))).toBe(true);
+    expect(usesImageScope(state([{ type: 'rectangle', countScope: 'per-frame' }]))).toBe(true);
+    expect(usesImageScope(state([{ type: 'rectangle' }], [createImageId('a')]))).toBe(true);
   });
 });

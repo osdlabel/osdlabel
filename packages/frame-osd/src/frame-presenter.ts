@@ -36,9 +36,17 @@ let nextKey = 0;
  * - canvas drawer: draws from the tile's canvas every draw, so painting into
  *   it is enough.
  * - WebGL drawer: uploads a tile canvas to a texture once and caches the
- *   texture by canvas. OSD has no public "tile content changed" call, so the
- *   presenter raises the drawer's own `image-unloaded` event for the canvas,
- *   which drops the cached texture; the next draw re-uploads it.
+ *   texture by canvas. OSD 5.0.1 has no public "tile content changed" call,
+ *   so the presenter raises the drawer's own `image-unloaded` event for the
+ *   canvas, which drops the cached texture; the next draw re-uploads it.
+ *
+ * OSD 6 (6.0.0, 2026-02) adds that call: `viewer.requestInvalidate()` /
+ * `TiledImage.requestInvalidate()` and the `tile-invalidated` event, and
+ * deprecates the `TileSource` cache hooks and `Tile.getCanvasContext` that
+ * `createCanvasTileSource` relies on. A port would set the tile's data from a
+ * `tile-invalidated` handler; since that pipeline is promise-based, whether a
+ * step's pixels still land in the same paint as its annotations has to be
+ * re-measured there (not done in this PoC).
  */
 export class FramePresenter {
   private readonly _viewer: OpenSeadragon.Viewer;

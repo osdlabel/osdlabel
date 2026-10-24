@@ -353,10 +353,17 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
 
   // Per-frame index over this image's bucket: rebuilt when its annotations
   // change, not when the frame changes, so a frame step is an O(1) lookup.
+  //
+  // Indexed over plain objects, re-run on any annotation write
+  // (`changeCounter`): reading every annotation's fields through the store
+  // proxies cost ~400 ms per edit at 60,000 annotations, against a few ms for
+  // the plain index build. An edit in another image re-indexes too.
   const frameBuckets = createMemo(() => {
     const imageId = props.imageSource?.id;
     if (!imageId || !framed() || sliceIds()) return undefined;
-    return bucketByFrame(Object.values(annotationState.byImage[imageId] ?? {}));
+    void annotationState.changeCounter;
+    const bucket = unwrap(annotationState.byImage[imageId]);
+    return bucketByFrame(Object.values(bucket ?? {}));
   });
 
   // Compute visible annotations for the current cell — used by both the
@@ -371,10 +378,15 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     if (activeContextId) visibleSet.add(activeContextId);
     const buckets = frameBuckets();
     const index = shownFrame();
-    const pool =
-      buckets && index !== undefined
+    // Until its first frame is presented, a multi-frame cell shows only its
+    // series-level annotations: falling back to the whole bucket revived every
+    // frame's objects at mount (60,000 at 200 per slice, overflowing the stack
+    // in `canvas.add(...)`).
+    const pool = buckets
+      ? index !== undefined
         ? annotationsOnFrame(buckets, index)
-        : Object.values(annotationState.byImage[imageId] || {});
+        : buckets.seriesLevel
+      : Object.values(annotationState.byImage[imageId] || {});
     return visibleSet.size > 0 ? pool.filter((a) => visibleSet.has(a.contextId)) : pool;
   };
 
