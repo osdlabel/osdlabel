@@ -121,7 +121,11 @@ export default [
   // `window` inside Playwright `page.evaluate` callbacks, which run in the
   // browser, not in Node.
   {
-    files: ['apps/bench/src/**/*.js', 'apps/bench/scripts/**/*.mjs'],
+    files: [
+      'apps/bench/src/**/*.js',
+      'apps/bench/scripts/**/*.mjs',
+      'apps/poc-video/scripts/**/*.mjs',
+    ],
     languageOptions: {
       globals: {
         ...nodeGlobals,

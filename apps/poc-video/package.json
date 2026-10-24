@@ -1,0 +1,35 @@
+{
+  "name": "@osdlabel/poc-video",
+  "version": "0.0.28",
+  "private": true,
+  "description": "PoC: frame-accurate video annotation (HTMLVideoElement vs WebCodecs seeking, OSD vs non-OSD render path, temporal tracks).",
+  "author": "Guy Or <guydude1@gmail.com>",
+  "type": "module",
+  "scripts": {
+    "gen": "python3 scripts/gen-videos.py",
+    "bench": "node scripts/bench.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/annotation-context": "workspace:*",
+    "@osdlabel/fabric-annotations": "workspace:*",
+    "@osdlabel/fabric-osd": "workspace:*",
+    "@osdlabel/temporal": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*",
+    "fabric": "catalog:",
+    "mediabunny": "1.62.1",
+    "openseadragon": "catalog:",
+    "osdlabel": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "playwright": "^1.60.0",
+    "pngjs": "7.0.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

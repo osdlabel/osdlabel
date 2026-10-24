@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Video seek accuracy</title>
+    <style>
+      body {
+        font:
+          13px system-ui,
+          sans-serif;
+        margin: 16px;
+        background: #fff;
+        color: #111;
+      }
+      video,
+      canvas {
+        border: 1px solid #ccc;
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>H1: frame-accurate seeking</h1>
+    <p>
+      Driven by <code>scripts/bench.mjs</code> through <code>window.__seek</code>. Open it in a
+      desktop Chrome and run <code>await __seek.selfTest()</code> in the console to try it by hand.
+    </p>
+    <video id="video" muted playsinline preload="auto" width="320"></video>
+    <canvas id="probe" width="128" height="16"></canvas>
+    <pre id="log"></pre>
+    <script type="module" src="/src/seek-page.ts"></script>
+  </body>
+</html>

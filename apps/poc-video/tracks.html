@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Video tracks harness</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #111;
+        color: #eee;
+        font:
+          13px system-ui,
+          sans-serif;
+      }
+      #viewer {
+        width: 1280px;
+        height: 720px;
+        max-width: 100vw;
+        background: #000;
+      }
+      #bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 16px;
+        flex-wrap: wrap;
+      }
+      #scrub {
+        flex: 1;
+        min-width: 200px;
+      }
+      button[aria-pressed='true'] {
+        outline: 2px solid #0af;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <div id="bar">
+      <button id="tool-rect" aria-pressed="false">Draw rectangle</button>
+      <button id="tool-select" aria-pressed="false">Move</button>
+      <button id="tool-nav" aria-pressed="true">Pan / zoom</button>
+      <input id="scrub" type="range" min="0" max="299" value="0" />
+      <span id="frame">frame 0</span>
+      <span id="kfs"></span>
+    </div>
+    <script type="module" src="/src/tracks-page.ts"></script>
+  </body>
+</html>

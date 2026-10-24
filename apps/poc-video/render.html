@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Video render paths</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        overflow: hidden;
+      }
+      #viewer {
+        position: fixed;
+        inset: 0;
+        width: 1280px;
+        height: 720px;
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+      #hud {
+        position: fixed;
+        right: 4px;
+        bottom: 4px;
+        color: #fff;
+        font: 11px monospace;
+        z-index: 10;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <div id="hud"></div>
+    <script type="module" src="/src/render-page.ts"></script>
+  </body>
+</html>

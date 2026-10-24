@@ -116,7 +116,14 @@ export function sampleTrack<P>(
   }
 
   const t = (frame - a.frame) / (b.frame - a.frame);
-  const corr = cache !== undefined ? cache.get(a, b) : correspondenceFor(a.geometry, b.geometry);
+  // Only contours need a correspondence; skipping the cache for the rest
+  // avoids a WeakMap lookup per track per frame.
+  const contour = a.geometry.type === 'polygon' || a.geometry.type === 'polyline';
+  const corr = !contour
+    ? null
+    : cache !== undefined
+      ? cache.get(a, b)
+      : correspondenceFor(a.geometry, b.geometry);
   return {
     geometry: interpolateGeometry(a.geometry, b.geometry, t, corr),
     visibility: a.visibility,
