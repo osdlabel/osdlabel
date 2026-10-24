@@ -51,7 +51,12 @@ export interface DefineAnnotatorOptions {
 export interface OsdlabelAnnotatorElement extends HTMLElement {
   images: readonly ImageSource[];
   contexts: readonly AnnotationContext[];
-  /** Flat list, the same shape `annotationschange` carries. Setting it does not fire `annotationschange`. */
+  /**
+   * Flat list, the same shape `annotationschange` carries. Setting it does not
+   * fire `annotationschange`. A write whose (imageId, id, updatedAt) set equals
+   * the current one is ignored as the controlled-pattern echo, so a host edit
+   * must bump `updatedAt` to take effect.
+   */
   annotations: readonly OsdAnnotation[];
   displayedContextIds: readonly AnnotationContextId[];
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -213,19 +218,31 @@ export function createAnnotatorElementClass(
       const api = this.#api;
       return api ? getAllAnnotationsFlat(api.annotationState) : this.#pendingAnnotations;
     }
+    /**
+     * Echo rule: a write whose (imageId, id, updatedAt) set equals the current
+     * annotations is ignored, so the controlled pattern (feeding
+     * `annotationschange` back into this property) neither re-emits nor
+     * rebuilds the canvas. A host that edits an annotation must therefore bump
+     * its `updatedAt` (`updateAnnotation` and every tool do); an edit that
+     * keeps `updatedAt` is dropped (measured: a +200 px move was ignored).
+     */
     set annotations(value: readonly OsdAnnotation[]) {
-      // Annotations land in a Solid store: copy them out of any host proxies.
-      value = toPlainData(value);
-      this.#pendingAnnotations = value;
       const api = this.#api;
-      if (!api) return;
+      if (!api) {
+        // Annotations land in a Solid store: copy them out of any host proxies.
+        this.#pendingAnnotations = toPlainData(value);
+        return;
+      }
       // The controlled-host echo: the list this element just emitted, handed
       // straight back. Reloading it would rebuild every Fabric object on the
-      // canvas (and drop the user's selection) for no change.
+      // canvas (and drop the user's selection) for no change. Compared before
+      // copying: the check reads three fields per annotation through any host
+      // proxies, while the copy is a deep walk of every annotation.
       if (isSameAnnotationSet(getAllAnnotationsFlat(api.annotationState), value)) return;
+      const plain = toPlainData(value);
       this.#applyingProperty = true;
       try {
-        api.actions.loadAnnotations(groupAnnotationsByImage(value));
+        api.actions.loadAnnotations(groupAnnotationsByImage(plain));
       } finally {
         this.#applyingProperty = false;
       }
@@ -242,7 +259,8 @@ export function createAnnotatorElementClass(
       return this.#providers[0]();
     }
     set decorationProviders(value: readonly DecorationProvider<OsdFields>[]) {
-      // The provider reads this once at mount; a later write takes effect on remount.
+      // Live after mount: the Solid provider exposes it through a getter (Angular
+      // binds `[decorationProviders]` only after the element has connected).
       this.#providers[1](() => value);
     }
 
@@ -318,6 +336,10 @@ export function createAnnotatorElementClass(
       // and reconnects it in one task; only tear down if it stays detached.
       queueMicrotask(() => {
         if (this.isConnected || !this.#dispose) return;
+        // Keep the user's edits for a later reconnect, which mounts afresh
+        // from #pendingAnnotations.
+        const api = this.#api;
+        if (api) this.#pendingAnnotations = toPlainData(getAllAnnotationsFlat(api.annotationState));
         this.#dispose();
         this.#dispose = undefined;
       });

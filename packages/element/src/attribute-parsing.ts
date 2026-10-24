@@ -7,7 +7,14 @@
  * providers) cannot round-trip at all.
  */
 
-/** Boolean attributes the element observes, with the default each one has when absent. */
+/**
+ * Boolean attributes the element observes, with the default each one has when absent.
+ *
+ * Every one is live except `test-mode`, which the Solid provider (and each
+ * overlay it creates) reads once at mount: set it before the element connects.
+ * Of the properties, `images`, `contexts`, `annotations`, `displayedContextIds`,
+ * `decorationProviders` and `keyboardShortcuts` are all live after mount.
+ */
 export const BOOLEAN_ATTRIBUTES = {
   'show-filmstrip': true,
   'show-grid-controls': false,

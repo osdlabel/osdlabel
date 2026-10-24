@@ -1,5 +1,16 @@
-import { createAnnotationContextId, createAnnotationFromGeometry, createImageId } from 'osdlabel';
-import type { AnnotationContext, ImageSource, OsdAnnotation } from 'osdlabel';
+import {
+  createAnnotationContextId,
+  createAnnotationFromGeometry,
+  createImageId,
+  createMeasurementProvider,
+} from 'osdlabel';
+import type {
+  AnnotationContext,
+  DecorationProvider,
+  ImageSource,
+  OsdAnnotation,
+  OsdFields,
+} from 'osdlabel';
 
 /** Local images only (the dev app's committed sample data, served as this app's publicDir). */
 export const IMAGES: readonly ImageSource[] = [
@@ -37,3 +48,12 @@ export function sampleAnnotations(): OsdAnnotation[] {
     ),
   ];
 }
+
+/**
+ * The decoration providers every host binds through its own syntax. Angular
+ * applies property bindings after the element is connected, and the vanilla
+ * host assigns them after `append`, so this exercises a write after mount.
+ */
+export const DECORATION_PROVIDERS: readonly DecorationProvider<OsdFields>[] = [
+  createMeasurementProvider<OsdFields>({ area: true }),
+];

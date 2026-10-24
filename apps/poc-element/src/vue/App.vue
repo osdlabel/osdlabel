@@ -7,7 +7,13 @@ import type {
   SelectedAnnotationChangeDetail,
 } from '@osdlabel/element';
 import type { OsdAnnotation } from 'osdlabel';
-import { CONTEXTS, FIRST_IMAGE_ID, IMAGES, sampleAnnotations } from '../shared/fixtures.js';
+import {
+  CONTEXTS,
+  DECORATION_PROVIDERS,
+  FIRST_IMAGE_ID,
+  IMAGES,
+  sampleAnnotations,
+} from '../shared/fixtures.js';
 import { mark, reportHostEvent } from '../shared/probe.js';
 
 const count = ref(0);
@@ -52,6 +58,7 @@ function loadSample(): void {
   <osdlabel-annotator
     :images="IMAGES"
     :contexts="CONTEXTS"
+    :decorationProviders="DECORATION_PROVIDERS"
     :annotations="annotations"
     test-mode
     style="height: 520px"

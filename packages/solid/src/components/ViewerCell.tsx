@@ -37,17 +37,19 @@ export interface ViewerCellProps {
 }
 
 const ViewerCell: Component<ViewerCellProps> = (props) => {
+  // `decorationProviders` is not destructured: the provider exposes it as a
+  // getter, read where it is used so a later change re-runs the decoration effect.
+  const annotator = useAnnotator();
   const {
     uiState,
     annotationState,
     contextState,
     testMode,
-    decorationProviders,
     defaultPixelSpacing,
     renderDomDecoration,
     reportAnnotationRenderError,
     brushOptions,
-  } = useAnnotator();
+  } = annotator;
   let containerRef: HTMLDivElement | undefined;
   let viewer: OpenSeadragon.Viewer | undefined;
   const [overlay, setOverlay] = createSignal<FabricOverlay>();
@@ -311,7 +313,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     void annotationState.changeCounter;
     void contextState.activeContextId;
     void contextState.displayedContextIds;
-    const providers = decorationProviders;
+    const providers = annotator.decorationProviders;
     if (!providers || providers.length === 0) {
       layer.setDecorations([]);
       return;
@@ -336,7 +338,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       getVisibleAnnotations: visibleAnnotations,
       getPixelSpacing: () => props.imageSource?.pixelSpacing ?? defaultPixelSpacing,
       getSelectedAnnotationId: () => uiState.selectedAnnotationId,
-      getProviders: () => decorationProviders ?? [],
+      getProviders: () => annotator.decorationProviders,
       onDecorations: (decorations) => layer.setDecorations(decorations),
     });
     onCleanup(dispose);

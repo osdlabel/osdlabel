@@ -30,6 +30,9 @@
  *         annotator vs the same mode without host CSS, which of the toolbar's
  *         stock-set properties host CSS overrode, plus whether a drawn
  *         rectangle's image-space geometry changes.
+ *  echo   The element's `annotations` setter on the controlled echo, in Node:
+ *         deep copy then compare (before the review) vs compare only (now),
+ *         plain and proxied inputs, n = 100 / 1k / 10k. Not in the default set.
  *  mount  UI mount microbenchmark (no image, so no OSD/WebGL): Solid and React
  *         bindings vs the element in shadow and light DOM, plus the stock
  *         stylesheet's construction and adoption costs. Not in the default
@@ -611,6 +614,115 @@ async function measureMount(browser, base) {
   );
 }
 
+// ── echo ────────────────────────────────────────────────────────────────────
+
+/**
+ * The element's `annotations` setter on the controlled echo (the host hands
+ * back the list it just received), in Node: the old order (deep-copy the
+ * input, then compare) against the new one (compare, copy only on a change).
+ * The store read both orders share (getAllAnnotationsFlat) is not included.
+ * Inputs are plain objects, or wrapped in a Vue-like deep proxy that
+ * re-wraps every object it returns.
+ */
+async function measureEcho() {
+  const elementDist = path.resolve(APP_DIR, '../../packages/element/dist');
+  const { toPlainData } = await import(path.join(elementDist, 'plain-data.js'));
+  const { isSameAnnotationSet } = await import(path.join(elementDist, 'annotations-io.js'));
+  const fabricData = (i) => ({
+    type: 'Rect',
+    version: '7.4.0',
+    originX: 'left',
+    originY: 'top',
+    left: i,
+    top: i,
+    width: 120,
+    height: 80,
+    fill: 'rgba(33,150,243,0.2)',
+    stroke: '#2196F3',
+    strokeWidth: 2,
+    strokeDashArray: null,
+    strokeLineCap: 'butt',
+    strokeDashOffset: 0,
+    strokeLineJoin: 'miter',
+    strokeUniform: true,
+    strokeMiterLimit: 4,
+    scaleX: 1,
+    scaleY: 1,
+    angle: 0,
+    flipX: false,
+    flipY: false,
+    opacity: 1,
+    shadow: null,
+    visible: true,
+    backgroundColor: '',
+    fillRule: 'nonzero',
+    paintFirst: 'fill',
+    globalCompositeOperation: 'source-over',
+    skewX: 0,
+    skewY: 0,
+    rx: 0,
+    ry: 0,
+    id: `a${i}`,
+    selectable: true,
+    hasControls: true,
+  });
+  const annotation = (i) => ({
+    id: `a${i}`,
+    imageId: 'landscape',
+    contextId: 'general',
+    toolType: 'rectangle',
+    geometry: { type: 'rectangle', origin: { x: i, y: i }, width: 120, height: 80, rotation: 0 },
+    rawAnnotationData: { format: 'fabric', fabricVersion: '7.4.0', data: fabricData(i) },
+    createdAt: '2026-10-24T00:00:00.000Z',
+    updatedAt: '2026-10-24T00:00:00.000Z',
+  });
+  const deepProxy = (t) =>
+    new Proxy(t, {
+      get(target, key, receiver) {
+        const v = Reflect.get(target, key, receiver);
+        return typeof v === 'object' && v !== null ? deepProxy(v) : v;
+      },
+    });
+  const time = (fn, reps) => {
+    const out = [];
+    for (let r = 0; r < reps; r++) {
+      const t0 = performance.now();
+      fn();
+      out.push(performance.now() - t0);
+    }
+    return out;
+  };
+  const results = [];
+  for (const n of [100, 1000, 10000]) {
+    const current = Array.from({ length: n }, (_, i) => annotation(i));
+    const echoed = current.map((a) => ({ ...a }));
+    const reps = n >= 10000 ? 15 : 40;
+    for (const input of ['plain', 'proxied']) {
+      const value = input === 'plain' ? echoed : deepProxy(echoed);
+      // Warm up both paths.
+      for (let w = 0; w < 3; w++) {
+        isSameAnnotationSet(current, toPlainData(value));
+        isSameAnnotationSet(current, value);
+      }
+      const copyThenCompare = time(() => {
+        if (!isSameAnnotationSet(current, toPlainData(value))) throw new Error('not an echo');
+      }, reps);
+      const compareOnly = time(() => {
+        if (!isSameAnnotationSet(current, value)) throw new Error('not an echo');
+      }, reps);
+      results.push({
+        n,
+        input,
+        reps,
+        copyThenCompareMs: summarize(copyThenCompare),
+        compareOnlyMs: summarize(compareOnly),
+      });
+      console.error(`  echo: n=${n} ${input} done`);
+    }
+  }
+  return results;
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 function gitSha() {
@@ -640,6 +752,11 @@ async function main() {
   if (ONLY.has('sizes')) {
     console.error('measuring bundle sizes…');
     result.sizes = await measureSizes();
+  }
+
+  if (ONLY.has('echo')) {
+    console.error('measuring the controlled-echo setter path…');
+    result.echo = await measureEcho();
   }
 
   if (ONLY.has('tti') || ONLY.has('css') || ONLY.has('mount')) {
@@ -766,6 +883,22 @@ async function main() {
           c.rectangleCreated ? 'yes' : 'NO',
           c.pointerToShapeErrorScreenPx === null ? '-' : c.pointerToShapeErrorScreenPx.toFixed(2),
           c.geometryMaxAbsDeltaImagePx === null ? '-' : c.geometryMaxAbsDeltaImagePx.toFixed(2),
+        ]),
+      ),
+    );
+  }
+  if (result.echo) {
+    console.log('\nControlled echo in the annotations setter (ms; Node; store read excluded)');
+    console.log(
+      table(
+        ['n', 'input', 'copy→compare med', 'max', 'compare only med', 'max'],
+        result.echo.map((e) => [
+          e.n,
+          e.input,
+          e.copyThenCompareMs.median.toFixed(3),
+          e.copyThenCompareMs.max.toFixed(3),
+          e.compareOnlyMs.median.toFixed(3),
+          e.compareOnlyMs.max.toFixed(3),
         ]),
       ),
     );

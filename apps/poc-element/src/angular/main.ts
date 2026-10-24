@@ -19,7 +19,13 @@ import {
   type SelectedAnnotationChangeDetail,
 } from '@osdlabel/element';
 import type { OsdAnnotation } from 'osdlabel';
-import { CONTEXTS, FIRST_IMAGE_ID, IMAGES, sampleAnnotations } from '../shared/fixtures.js';
+import {
+  CONTEXTS,
+  DECORATION_PROVIDERS,
+  FIRST_IMAGE_ID,
+  IMAGES,
+  sampleAnnotations,
+} from '../shared/fixtures.js';
 import { mark, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
 
 mark('host-script');
@@ -29,6 +35,7 @@ defineOsdlabelAnnotator();
 class AppComponent {
   readonly images = IMAGES;
   readonly contexts = CONTEXTS;
+  readonly decorationProviders = DECORATION_PROVIDERS;
   readonly count = signal(0);
   readonly geometry = signal('none');
   readonly selected = signal<string | null>(null);
@@ -74,6 +81,7 @@ Component({
     <osdlabel-annotator
       [images]="images"
       [contexts]="contexts"
+      [decorationProviders]="decorationProviders"
       [annotations]="annotations()"
       test-mode
       style="display: block; height: 520px"

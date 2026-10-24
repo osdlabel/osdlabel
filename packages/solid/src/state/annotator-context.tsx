@@ -306,7 +306,13 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     brushOptions,
     activeImageId,
     testMode: props.testMode ?? false,
-    decorationProviders: props.decorationProviders ?? [],
+    // A getter, like `shortcuts`: a read inside an effect tracks the prop, so
+    // providers set after mount take effect (as they do in the React
+    // binding). The custom element relies on it: Angular binds `[decorationProviders]`
+    // only after the element has connected and mounted this provider.
+    get decorationProviders() {
+      return props.decorationProviders ?? [];
+    },
     defaultPixelSpacing: props.defaultPixelSpacing,
     renderDomDecoration: props.renderDomDecoration,
     // Reads the prop when called, so a host can swap its handler at any time.

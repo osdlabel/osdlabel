@@ -1,5 +1,11 @@
 import { defineOsdlabelAnnotator, type OsdlabelAnnotatorElement } from '@osdlabel/element';
-import { CONTEXTS, FIRST_IMAGE_ID, IMAGES, sampleAnnotations } from '../shared/fixtures.js';
+import {
+  CONTEXTS,
+  DECORATION_PROVIDERS,
+  FIRST_IMAGE_ID,
+  IMAGES,
+  sampleAnnotations,
+} from '../shared/fixtures.js';
 import { HOST_EVENT_NAMES, mark, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
 
 mark('host-script');
@@ -26,3 +32,5 @@ load.onclick = () => {
   el.annotations = sampleAnnotations();
 };
 document.getElementById('app')!.append(load, el);
+// After connect on purpose: a write to a mounted element must take effect.
+el.decorationProviders = DECORATION_PROVIDERS;

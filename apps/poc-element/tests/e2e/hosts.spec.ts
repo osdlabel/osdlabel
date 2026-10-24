@@ -49,6 +49,18 @@ for (const host of ELEMENT_HOSTS) {
   });
 }
 
+for (const host of ELEMENT_HOSTS) {
+  test(`${host}: decorationProviders bound by the host render a decoration`, async ({ page }) => {
+    await page.goto(`/${host}.html`);
+    await waitInteractive(page);
+    await drawRectangle(page);
+    await expect(page.getByTestId('host-annotation-count')).toHaveText('1');
+    // createMeasurementProvider({ area: true }): one text decoration per rectangle.
+    await expect(page.locator('[data-osdlabel="decoration-text"]')).toHaveCount(1);
+    await expect(page.locator('[data-osdlabel="decoration-text"]').first()).toBeVisible();
+  });
+}
+
 /** Objects with an annotation id on cell 0's Fabric canvas (testMode exposes the overlay). */
 const canvasAnnotationCount = (page: import('@playwright/test').Page) =>
   page.evaluate(() => {
@@ -95,6 +107,41 @@ for (const host of FRAMEWORK_HOSTS) {
     expect(await canvasAnnotationCount(page)).toBe(2);
   });
 }
+
+test('echo rule: a host edit takes effect only when it bumps updatedAt', async ({ page }) => {
+  // The documented contract of the `annotations` setter: a write whose
+  // (imageId, id, updatedAt) set equals the current one is the controlled
+  // echo and is ignored, whatever else changed.
+  await page.goto('/vanilla.html');
+  await waitInteractive(page);
+  await page.getByTestId('host-load-sample').click();
+  await expect(page.getByTestId('status-count')).toContainText('1');
+  const moveBy200 = (bump: boolean) =>
+    page.evaluate((bumpUpdatedAt) => {
+      type Rect = {
+        geometry: { type: string; origin: { x: number; y: number } };
+        updatedAt: string;
+      };
+      const el = document.querySelector('osdlabel-annotator') as HTMLElement & {
+        annotations: readonly Rect[];
+      };
+      const a = JSON.parse(JSON.stringify(el.annotations[0])) as Rect;
+      a.geometry.origin.x += 200;
+      if (bumpUpdatedAt) a.updatedAt = new Date(Date.parse(a.updatedAt) + 1000).toISOString();
+      el.annotations = [a];
+      return (el.annotations[0] as Rect).geometry.origin.x;
+    }, bump);
+  const before = await page.evaluate(
+    () =>
+      (
+        document.querySelector('osdlabel-annotator') as HTMLElement & {
+          annotations: readonly { geometry: { origin: { x: number } } }[];
+        }
+      ).annotations[0]!.geometry.origin.x,
+  );
+  expect(await moveBy200(false)).toBe(before);
+  expect(await moveBy200(true)).toBe(before + 200);
+});
 
 test('solid-element: a bare boolean attribute does not reach the prop as true', async ({
   page,

@@ -11,7 +11,13 @@ import {
   type SelectedAnnotationChangeDetail,
 } from '@osdlabel/element';
 import type { OsdAnnotation } from 'osdlabel';
-import { CONTEXTS, FIRST_IMAGE_ID, IMAGES, sampleAnnotations } from '../shared/fixtures.js';
+import {
+  CONTEXTS,
+  DECORATION_PROVIDERS,
+  FIRST_IMAGE_ID,
+  IMAGES,
+  sampleAnnotations,
+} from '../shared/fixtures.js';
 import { mark, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
 
 mark('host-script');
@@ -45,6 +51,7 @@ function App() {
     createElement('osdlabel-annotator', {
       images: IMAGES,
       contexts: CONTEXTS,
+      decorationProviders: DECORATION_PROVIDERS,
       annotations,
       'test-mode': '',
       style: { display: 'block', height: '520px' },
