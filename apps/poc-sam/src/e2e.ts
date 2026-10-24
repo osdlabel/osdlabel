@@ -20,12 +20,9 @@ import {
   type SegmentationTarget,
 } from '@osdlabel/segmentation';
 import { SegmentationTool, type SegmentationToolEvent } from '@osdlabel/segmentation-fabric';
-import {
-  OnnxSamModel,
-  WorkerSegmentationProvider,
-  createOnnxSamProvider,
-  createRemoteSegmentationProvider,
-} from '@osdlabel/segmentation-onnx';
+import { OnnxSamModel, createOnnxSamProvider } from '@osdlabel/segmentation-onnx';
+import { createRemoteSegmentationProvider } from '@osdlabel/segmentation-remote';
+import { WorkerSegmentationProvider } from '@osdlabel/segmentation-worker';
 import { browserTileIO } from '@osdlabel/region-reader';
 import { loadOrt } from './ort-runtime.js';
 import { createImageId } from '@osdlabel/viewer-api';

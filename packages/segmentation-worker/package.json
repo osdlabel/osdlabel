@@ -1,0 +1,34 @@
+{
+  "name": "@osdlabel/segmentation-worker",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: a provider-agnostic Worker RPC for @osdlabel/segmentation. Any SegmentationProvider built inside a worker is driven from the main thread through the same interface; rasters are transferred, not copied.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/segmentation": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

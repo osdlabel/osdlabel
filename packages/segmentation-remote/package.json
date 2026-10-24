@@ -1,0 +1,34 @@
+{
+  "name": "@osdlabel/segmentation-remote",
+  "version": "0.21.0",
+  "private": true,
+  "description": "PoC: client adapters from @osdlabel/segmentation to segmentation services the app already runs (MONAI Label, nnInteractive, a SAM server). osdlabel ships no server. Includes an optional binary wire format with float16 embeddings and a generic server-encode / browser-decode encoder.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "author": "Guy Or <guydude1@gmail.com>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/segmentation": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

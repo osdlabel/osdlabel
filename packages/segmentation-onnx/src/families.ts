@@ -1,9 +1,11 @@
 import {
   cropGrid,
   imageToModel,
+  modelFrame,
   modelGridFrame,
   sameRasterFrame,
   resampleLogits,
+  type EncodeView,
   type InputLayout,
   type MaskCandidate,
   type ModelFrame,
@@ -324,4 +326,33 @@ export function adapterFor(family: ModelFamily): FamilyAdapter {
     case 'efficientsam':
       return EFFICIENT_SAM;
   }
+}
+
+/**
+ * A SAM embedding from named tensors received from elsewhere (a server that
+ * ran the encoder: `@osdlabel/segmentation-remote`'s `createRemoteEncoder`
+ * takes this as its `toEmbedding`), placed for `view`. Throws when a tensor
+ * the family's decoder needs is missing or not float32.
+ */
+export function samEmbeddingFromTensors(
+  family: ModelFamily,
+  view: EncodeView,
+  inputSize: number,
+  tensors: readonly {
+    readonly name: string;
+    readonly dims: readonly number[];
+    readonly data: ArrayBufferView;
+  }[],
+): SamEmbedding {
+  const adapter = adapterFor(family);
+  return {
+    family,
+    frame: modelFrame(view, inputSize, adapter.layout),
+    tensors: adapter.embeddingNames.map((name) => {
+      const t = tensors.find((x) => x.name === name);
+      if (!t || !(t.data instanceof Float32Array))
+        throw new Error(`embedding lacks a float32 '${name}' tensor`);
+      return { name, dims: t.dims, data: t.data };
+    }),
+  };
 }

@@ -9,11 +9,12 @@ import {
   OnnxSamModel,
   createOnnxDecoder,
   createOnnxEncoder,
-  createRemoteEncoder,
-  serveSegmentationWorker,
-  type MessagePortLike,
+  embeddingBytes,
+  samEmbeddingFromTensors,
   type ModelFamily,
 } from '@osdlabel/segmentation-onnx';
+import { createRemoteEncoder } from '@osdlabel/segmentation-remote';
+import { serveSegmentationWorker, type MessagePortLike } from '@osdlabel/segmentation-worker';
 import { loadOrt, type ExecutionProvider } from './ort-runtime.js';
 
 export interface SamWorkerConfig {
@@ -54,8 +55,12 @@ serveSegmentationWorker<SamWorkerConfig>(scope, async (config) => {
       ? createOnnxEncoder(model, (key) => pyramids.get(key), browserTileIO())
       : createRemoteEncoder({
           url: config.remoteUrl ?? '/api/sam/encode',
-          family: config.family,
           inputSize: config.inputSize,
+          // The composition point: the remote package moves tensors, the ONNX
+          // package knows what a SAM embedding is.
+          toEmbedding: (blobs, view) =>
+            samEmbeddingFromTensors(config.family, view, config.inputSize, blobs),
+          bytesOf: embeddingBytes,
           fetch: (input, init) => {
             // Tell the server which model to run.
             const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {};

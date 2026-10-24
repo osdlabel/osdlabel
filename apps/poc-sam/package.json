@@ -23,6 +23,8 @@
     "@osdlabel/segmentation": "workspace:*",
     "@osdlabel/segmentation-fabric": "workspace:*",
     "@osdlabel/segmentation-onnx": "workspace:*",
+    "@osdlabel/segmentation-remote": "workspace:*",
+    "@osdlabel/segmentation-worker": "workspace:*",
     "@osdlabel/viewer-api": "workspace:*",
     "fabric": "catalog:",
     "onnxruntime-web": "1.30.0",

@@ -2,7 +2,7 @@
   "name": "@osdlabel/segmentation-onnx",
   "version": "0.21.0",
   "private": true,
-  "description": "PoC: SAM-family model adapters for onnxruntime-web (SAM/MobileSAM/EdgeSAM, EfficientSAM, SAM 2), a Worker host/client, and a remote (server-encode) encoder.",
+  "description": "PoC: SAM-family ONNX graph adapters (SAM/MobileSAM/EdgeSAM, EfficientSAM, SAM 2) over an injected onnxruntime, and the WebGPU-vs-WASM execution-provider gate.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -17,14 +17,8 @@
 import ort from 'onnxruntime-node';
 import { planRegionRead } from '@osdlabel/region-reader';
 import { composeSegmentationProvider, modelFrame } from '@osdlabel/segmentation';
-import {
-  OnnxSamModel,
-  createOnnxDecoder,
-  embeddingBytes,
-  encodeWire,
-  float16ToFloat32,
-  float32ToFloat16,
-} from '@osdlabel/segmentation-onnx';
+import { OnnxSamModel, createOnnxDecoder, embeddingBytes } from '@osdlabel/segmentation-onnx';
+import { encodeWire, float16ToFloat32, float32ToFloat16 } from '@osdlabel/segmentation-remote';
 import { SYNTH, decodePng, tileBytes } from './synth-tiles.mjs';
 
 import { modelById, modelPaths } from './model-table.mjs';
