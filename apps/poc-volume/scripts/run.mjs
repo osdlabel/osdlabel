@@ -1,3 +1,4 @@
+/* global window, document -- referenced inside page.evaluate callbacks, which run in the browser */
 /**
  * One-command volume PoC benchmark.
  *

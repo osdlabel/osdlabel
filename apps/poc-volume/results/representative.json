@@ -1,0 +1,3462 @@
+{
+  "meta": {
+    "when": "2026-10-24T05:18:04.543Z",
+    "git": "03955e4",
+    "quick": false,
+    "dims": {
+      "nx": 512,
+      "ny": 512,
+      "nz": 400
+    },
+    "reps": 30,
+    "chromium": "153.0.8010.12",
+    "executablePath": "/opt/pw-browsers/chromium",
+    "headless": true,
+    "host": {
+      "cpus": 4,
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+      "totalMemGiB": 16
+    },
+    "note": "GPU timings are SwiftShader (CPU-emulated) unless meta.gpu says otherwise."
+  },
+  "memory": [
+    {
+      "label": "bench:start",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 184.7,
+          "pssMiB": 53.1
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 114.3,
+          "pssMiB": 24
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 16.4
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 327.6,
+          "pssMiB": 78.6
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 48.7,
+          "pssMiB": 5.6
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 81.7,
+          "pssMiB": 20.3
+        }
+      }
+    },
+    {
+      "label": "bench:volume-built",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 183.4,
+          "pssMiB": 53.9
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 114.5,
+          "pssMiB": 24.8
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.4
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 534.8,
+          "pssMiB": 273.6
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 48.7,
+          "pssMiB": 5.9
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 81,
+          "pssMiB": 20.5
+        }
+      }
+    },
+    {
+      "label": "bench:gl-r16i-uploaded",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 184.3,
+          "pssMiB": 54.3
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 115.3,
+          "pssMiB": 25.3
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.3
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 572.2,
+          "pssMiB": 297.9
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 48.7,
+          "pssMiB": 5.8
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 319.8,
+          "pssMiB": 244.5
+        }
+      }
+    },
+    {
+      "label": "bench:gl-r16i-disposed",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 184.3,
+          "pssMiB": 53.8
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 115.3,
+          "pssMiB": 25.1
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.3
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 572.2,
+          "pssMiB": 294.7
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 48.7,
+          "pssMiB": 5.8
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 319.8,
+          "pssMiB": 244.4
+        }
+      }
+    },
+    {
+      "label": "bench:gl-r16f-uploaded",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 183.7,
+          "pssMiB": 53.1
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 114.8,
+          "pssMiB": 24.6
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.3
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 583.4,
+          "pssMiB": 305.1
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 49.2,
+          "pssMiB": 5.7
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 319.8,
+          "pssMiB": 244.3
+        }
+      }
+    },
+    {
+      "label": "bench:gl-r16f-disposed",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 183.7,
+          "pssMiB": 53.6
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 114.8,
+          "pssMiB": 24.9
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.4
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 583.5,
+          "pssMiB": 309.1
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 49.2,
+          "pssMiB": 5.8
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 319.8,
+          "pssMiB": 244.5
+        }
+      }
+    },
+    {
+      "label": "bench:gl-r32f-uploaded",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 183.6,
+          "pssMiB": 53
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 114.7,
+          "pssMiB": 24.5
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.3
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 580.4,
+          "pssMiB": 302.1
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 49.2,
+          "pssMiB": 5.7
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 519.5,
+          "pssMiB": 443.9
+        }
+      }
+    },
+    {
+      "label": "bench:gl-r32f-disposed",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 183.9,
+          "pssMiB": 53.2
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 114.7,
+          "pssMiB": 24.5
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.3
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 579,
+          "pssMiB": 300.3
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 49.2,
+          "pssMiB": 5.7
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 519.5,
+          "pssMiB": 443.9
+        }
+      }
+    },
+    {
+      "label": "bench:labels",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 183.9,
+          "pssMiB": 53.2
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 114.7,
+          "pssMiB": 24.6
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.4
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 571.2,
+          "pssMiB": 293.1
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 49.2,
+          "pssMiB": 5.8
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 519.5,
+          "pssMiB": 444.1
+        }
+      }
+    },
+    {
+      "label": "mpr-canvas:setup",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 184.5,
+          "pssMiB": 53.4
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 118.2,
+          "pssMiB": 27.7
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.2
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 617.8,
+          "pssMiB": 340.2
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.5,
+          "pssMiB": 5.8
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 122.1,
+          "pssMiB": 41.2
+        }
+      }
+    },
+    {
+      "label": "mpr-canvas:after-loops",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 184.7,
+          "pssMiB": 53.4
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 118.2,
+          "pssMiB": 27.7
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.2
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 722,
+          "pssMiB": 416.9
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.5,
+          "pssMiB": 5.8
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 367.2,
+          "pssMiB": 265.8
+        }
+      }
+    },
+    {
+      "label": "mpr-webgl:setup",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 186,
+          "pssMiB": 54
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 118.9,
+          "pssMiB": 28.4
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.2
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 636.8,
+          "pssMiB": 348.3
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.5,
+          "pssMiB": 5.8
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 192.5,
+          "pssMiB": 105.3
+        }
+      }
+    },
+    {
+      "label": "mpr-webgl:after-loops",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 186.2,
+          "pssMiB": 55.6
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 118.4,
+          "pssMiB": 28.2
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 17.5
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 728.4,
+          "pssMiB": 423.1
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.5,
+          "pssMiB": 6
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 449.7,
+          "pssMiB": 342.7
+        }
+      }
+    },
+    {
+      "label": "solid:after",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 186.1,
+          "pssMiB": 50.5
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 119.7,
+          "pssMiB": 27.6
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 15.4
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.5,
+          "pssMiB": 5.5
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 634.3,
+          "pssMiB": 348.5
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 181.4,
+          "pssMiB": 91.5
+        }
+      }
+    },
+    {
+      "label": "niivue:start",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 189.4,
+          "pssMiB": 53.6
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 122.2,
+          "pssMiB": 30.2
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 15.5
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.7,
+          "pssMiB": 5.5
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 350.8,
+          "pssMiB": 94
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 106.5,
+          "pssMiB": 35.4
+        }
+      }
+    },
+    {
+      "label": "niivue:setup",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 186.4,
+          "pssMiB": 50.5
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 121.5,
+          "pssMiB": 29.3
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 15.5
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.7,
+          "pssMiB": 5.5
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 629.3,
+          "pssMiB": 338.5
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 758.6,
+          "pssMiB": 668.9
+        }
+      }
+    },
+    {
+      "label": "niivue:labels",
+      "byType": {
+        "browser": {
+          "count": 1,
+          "rssMiB": 186.3,
+          "pssMiB": 69.3
+        },
+        "utility:NetworkService": {
+          "count": 1,
+          "rssMiB": 121.5,
+          "pssMiB": 36.4
+        },
+        "zygote": {
+          "count": 2,
+          "rssMiB": 139.1,
+          "pssMiB": 23.2
+        },
+        "utility:StorageService": {
+          "count": 1,
+          "rssMiB": 50.7,
+          "pssMiB": 7.2
+        },
+        "renderer": {
+          "count": 3,
+          "rssMiB": 1443.8,
+          "pssMiB": 767.2
+        },
+        "gpu-process": {
+          "count": 1,
+          "rssMiB": 2366.6,
+          "pssMiB": 1880.3
+        }
+      }
+    }
+  ],
+  "build": {
+    "dims": [512, 512, 400],
+    "spacing": [0.7, 0.7, 1.25],
+    "bytes": 209715200,
+    "allocMs": 0.35000000009313226,
+    "fillMs": 1492.1949999998324,
+    "crossOriginIsolated": true,
+    "uaMemoryBefore": 2543149,
+    "uaMemoryAfter": 212312751
+  },
+  "cpu": [
+    {
+      "method": "cpu-main",
+      "kind": "axial",
+      "interpolation": "linear",
+      "size": "512x512",
+      "path": "gather",
+      "n": 30,
+      "median": 1.2699999995529652,
+      "p95": 5.265000000130385,
+      "mean": 1.7951666666350017,
+      "min": 1.0649999999441206,
+      "max": 6.259999999776483
+    },
+    {
+      "method": "cpu-main",
+      "kind": "axial",
+      "interpolation": "nearest",
+      "size": "512x512",
+      "path": "gather",
+      "n": 30,
+      "median": 1.444999999832362,
+      "p95": 6.0499999998137355,
+      "mean": 2.1031666667045403,
+      "min": 1.0749999997206032,
+      "max": 6.615000000223517
+    },
+    {
+      "method": "cpu-main",
+      "kind": "coronal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "path": "separable",
+      "n": 30,
+      "median": 3.1799999997019768,
+      "p95": 10.535000000149012,
+      "mean": 3.84299999998572,
+      "min": 3.0049999998882413,
+      "max": 15.194999999832362
+    },
+    {
+      "method": "cpu-main",
+      "kind": "coronal",
+      "interpolation": "nearest",
+      "size": "512x714",
+      "path": "gather",
+      "n": 30,
+      "median": 1.720000000204891,
+      "p95": 5.875,
+      "mean": 2.345166666681568,
+      "min": 1.5449999999254942,
+      "max": 7.234999999869615
+    },
+    {
+      "method": "cpu-main",
+      "kind": "sagittal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "path": "separable",
+      "n": 30,
+      "median": 15.875,
+      "p95": 35.85499999998137,
+      "mean": 19.589500000032906,
+      "min": 8.395000000018626,
+      "max": 76.66000000014901
+    },
+    {
+      "method": "cpu-main",
+      "kind": "sagittal",
+      "interpolation": "nearest",
+      "size": "512x714",
+      "path": "gather",
+      "n": 30,
+      "median": 13.904999999795109,
+      "p95": 56.31499999994412,
+      "mean": 19.334166666679085,
+      "min": 5.745000000111759,
+      "max": 113.56499999994412
+    },
+    {
+      "method": "cpu-main",
+      "kind": "oblique",
+      "interpolation": "linear",
+      "size": "512x512",
+      "path": "trilinear",
+      "n": 30,
+      "median": 7.540000000037253,
+      "p95": 14,
+      "mean": 8.382000000045325,
+      "min": 7.189999999944121,
+      "max": 15
+    },
+    {
+      "method": "cpu-main",
+      "kind": "oblique",
+      "interpolation": "nearest",
+      "size": "512x512",
+      "path": "nearest",
+      "n": 30,
+      "median": 3.915000000037253,
+      "p95": 8.370000000111759,
+      "mean": 4.641166666724408,
+      "min": 2.8200000002980232,
+      "max": 13.919999999925494
+    },
+    {
+      "method": "window-lut",
+      "kind": "axial",
+      "size": "512x512",
+      "n": 30,
+      "median": 0.3249999997206032,
+      "p95": 0.5,
+      "mean": 0.3373333333215366,
+      "min": 0.23499999986961484,
+      "max": 0.5050000003539026
+    },
+    {
+      "method": "putImageData",
+      "kind": "axial",
+      "size": "512x512",
+      "n": 30,
+      "median": 0.07500000018626451,
+      "p95": 0.35999999986961484,
+      "mean": 0.10116666667163372,
+      "min": 0.06499999994412065,
+      "max": 0.4199999999254942
+    }
+  ],
+  "workers": [
+    {
+      "method": "cpu-workers-1",
+      "kind": "axial",
+      "interpolation": "linear",
+      "size": "512x512",
+      "poolReadyMs": 120.11000000033528,
+      "mismatches": 0,
+      "n": 30,
+      "median": 1.2949999999254942,
+      "p95": 1.959999999962747,
+      "mean": 1.400833333314707,
+      "min": 0.9949999996460974,
+      "max": 3.5
+    },
+    {
+      "method": "cpu-workers-1",
+      "kind": "coronal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "poolReadyMs": 120.11000000033528,
+      "mismatches": 0,
+      "n": 30,
+      "median": 3.4499999997206032,
+      "p95": 43.03500000014901,
+      "mean": 8.530166666690882,
+      "min": 2.330000000074506,
+      "max": 62.85000000009313
+    },
+    {
+      "method": "cpu-workers-1",
+      "kind": "sagittal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "poolReadyMs": 120.11000000033528,
+      "mismatches": 0,
+      "n": 30,
+      "median": 8.984999999869615,
+      "p95": 10.864999999757856,
+      "mean": 8.419333333335818,
+      "min": 6.449999999720603,
+      "max": 12.59000000031665
+    },
+    {
+      "method": "cpu-workers-1",
+      "kind": "oblique",
+      "interpolation": "linear",
+      "size": "512x512",
+      "poolReadyMs": 120.11000000033528,
+      "mismatches": 0,
+      "n": 30,
+      "median": 7.84499999973923,
+      "p95": 10.28000000026077,
+      "mean": 8.838833333350097,
+      "min": 7.495000000111759,
+      "max": 29.91000000014901
+    },
+    {
+      "method": "cpu-workers-2",
+      "kind": "axial",
+      "interpolation": "linear",
+      "size": "512x512",
+      "poolReadyMs": 293.804999999702,
+      "mismatches": 0,
+      "n": 30,
+      "median": 2.1600000001490116,
+      "p95": 16.014999999664724,
+      "mean": 3.425833333345751,
+      "min": 1.2949999999254942,
+      "max": 19.520000000018626
+    },
+    {
+      "method": "cpu-workers-2",
+      "kind": "coronal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "poolReadyMs": 293.804999999702,
+      "mismatches": 0,
+      "n": 30,
+      "median": 3.7749999999068677,
+      "p95": 36.56499999994412,
+      "mean": 10.066500000003725,
+      "min": 2.0600000000558794,
+      "max": 72.24500000011176
+    },
+    {
+      "method": "cpu-workers-2",
+      "kind": "sagittal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "poolReadyMs": 293.804999999702,
+      "mismatches": 0,
+      "n": 30,
+      "median": 8.555000000167638,
+      "p95": 26.83999999985099,
+      "mean": 10.500166666662942,
+      "min": 6.3250000001862645,
+      "max": 42.07000000029802
+    },
+    {
+      "method": "cpu-workers-2",
+      "kind": "oblique",
+      "interpolation": "linear",
+      "size": "512x512",
+      "poolReadyMs": 293.804999999702,
+      "mismatches": 0,
+      "n": 30,
+      "median": 10.320000000298023,
+      "p95": 38.39999999990687,
+      "mean": 14.611666666669771,
+      "min": 7.78499999968335,
+      "max": 48.424999999813735
+    },
+    {
+      "method": "cpu-workers-4",
+      "kind": "axial",
+      "interpolation": "linear",
+      "size": "512x512",
+      "poolReadyMs": 429.7050000000745,
+      "mismatches": 0,
+      "n": 30,
+      "median": 1.3149999999441206,
+      "p95": 10.849999999627471,
+      "mean": 3.5474999999782693,
+      "min": 1.1550000002607703,
+      "max": 48.955000000074506
+    },
+    {
+      "method": "cpu-workers-4",
+      "kind": "coronal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "poolReadyMs": 429.7050000000745,
+      "mismatches": 0,
+      "n": 30,
+      "median": 3.044999999925494,
+      "p95": 5.560000000055879,
+      "mean": 3.614333333338921,
+      "min": 1.9699999997392297,
+      "max": 13.649999999906868
+    },
+    {
+      "method": "cpu-workers-4",
+      "kind": "sagittal",
+      "interpolation": "linear",
+      "size": "512x714",
+      "poolReadyMs": 429.7050000000745,
+      "mismatches": 0,
+      "n": 30,
+      "median": 4.495000000111759,
+      "p95": 7.805000000167638,
+      "mean": 4.932000000029802,
+      "min": 3.845000000204891,
+      "max": 8.604999999981374
+    },
+    {
+      "method": "cpu-workers-4",
+      "kind": "oblique",
+      "interpolation": "linear",
+      "size": "512x512",
+      "poolReadyMs": 429.7050000000745,
+      "mismatches": 0,
+      "n": 30,
+      "median": 6.449999999720603,
+      "p95": 12.045000000391155,
+      "mean": 6.958666666628172,
+      "min": 3.815000000409782,
+      "max": 14.130000000353903
+    }
+  ],
+  "gl": {
+    "r16i": {
+      "upload": {
+        "format": "r16i",
+        "ms": 776.0999999996275,
+        "gpuBytes": 209715200,
+        "stagingBytes": 0,
+        "sharedViewAccepted": true,
+        "error": null
+      },
+      "info": {
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "max3DTextureSize": 2048,
+        "maxTextureSize": 8192,
+        "floatLinear": true,
+        "norm16": false
+      },
+      "rows": [
+        {
+          "method": "webgl2-r16i",
+          "kind": "axial",
+          "size": "512x512",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.03500000014901161,
+            "mean": 0.008833333306635419,
+            "min": 0,
+            "max": 0.18000000016763806
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.004999999888241291,
+            "p95": 0.02000000001862645,
+            "mean": 0.06199999998013179,
+            "min": 0,
+            "max": 1.7050000000745058
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 18.824999999720603,
+            "p95": 98.04000000003725,
+            "mean": 32.05849999999627,
+            "min": 10.285000000149012,
+            "max": 123.52000000001863
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.6899999999441206,
+            "p95": 1.4399999999441206,
+            "mean": 0.7763333333345751,
+            "min": 0.4599999999627471,
+            "max": 2.760000000242144
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 12.845000000204891,
+            "p95": 15.135000000242144,
+            "mean": 12.492333333349476,
+            "min": 9.089999999850988,
+            "max": 20.265000000130385
+          },
+          "maxGreyDiffVsCpu": 0,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r16i",
+          "kind": "coronal",
+          "size": "512x714",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.01500000013038516,
+            "mean": 0.006333333331470689,
+            "min": 0,
+            "max": 0.13999999966472387
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.004999999888241291,
+            "p95": 0.009999999776482582,
+            "mean": 0.0033333333364377418,
+            "min": 0,
+            "max": 0.01000000024214387
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 25.324999999720603,
+            "p95": 52.22500000009313,
+            "mean": 27.565666666642453,
+            "min": 12.104999999981374,
+            "max": 61.14999999990687
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.8549999999813735,
+            "p95": 0.9899999997578561,
+            "mean": 0.8690000000099342,
+            "min": 0.6699999999254942,
+            "max": 1.7350000003352761
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 25.899999999906868,
+            "p95": 64.77000000001863,
+            "mean": 28.934833333346372,
+            "min": 17.12999999988824,
+            "max": 85.37000000011176
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r16i",
+          "kind": "sagittal",
+          "size": "512x714",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.024999999906867743,
+            "mean": 0.002833333316569527,
+            "min": 0,
+            "max": 0.029999999795109034
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.004999999888241291,
+            "p95": 0.009999999776482582,
+            "mean": 0.0034999999993791183,
+            "min": 0,
+            "max": 0.009999999776482582
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 50.56999999983236,
+            "p95": 120.79999999981374,
+            "mean": 57.59466666661513,
+            "min": 21.524999999906868,
+            "max": 196.9550000000745
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.9950000001117587,
+            "p95": 1.6399999996647239,
+            "mean": 1.0543333333451301,
+            "min": 0.7199999997392297,
+            "max": 2.3200000002980232
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 22.450000000186265,
+            "p95": 34.294999999925494,
+            "mean": 24.23766666664742,
+            "min": 16.52999999979511,
+            "max": 62.90500000026077
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r16i",
+          "kind": "oblique",
+          "size": "512x512",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.005000000353902578,
+            "mean": 0.0018333333389212688,
+            "min": 0,
+            "max": 0.024999999906867743
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.005000000353902578,
+            "p95": 0.0800000000745058,
+            "mean": 0.019666666677221657,
+            "min": 0,
+            "max": 0.2050000000745058
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 8.809999999590218,
+            "p95": 23.34500000020489,
+            "mean": 11.550999999962126,
+            "min": 7.444999999832362,
+            "max": 24.204999999608845
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.6899999999441206,
+            "p95": 0.8399999998509884,
+            "mean": 0.6771666666492819,
+            "min": 0.4199999999254942,
+            "max": 0.8649999997578561
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 19.069999999832362,
+            "p95": 37.97999999998137,
+            "mean": 21.154500000023592,
+            "min": 12.06499999994412,
+            "max": 48.205000000074506
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        }
+      ],
+      "contextsCreated": 1,
+      "contextsLost": 0
+    },
+    "r16f": {
+      "upload": {
+        "format": "r16f",
+        "ms": 1305.5400000000373,
+        "gpuBytes": 209715200,
+        "stagingBytes": 1048576,
+        "sharedViewAccepted": null,
+        "error": null
+      },
+      "info": {
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "max3DTextureSize": 2048,
+        "maxTextureSize": 8192,
+        "floatLinear": true,
+        "norm16": false
+      },
+      "rows": [
+        {
+          "method": "webgl2-r16f",
+          "kind": "axial",
+          "size": "512x512",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.1299999998882413,
+            "mean": 0.02000000000310441,
+            "min": 0,
+            "max": 0.3700000001117587
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.004999999888241291,
+            "p95": 0.024999999906867743,
+            "mean": 0.00566666666418314,
+            "min": 0,
+            "max": 0.03000000026077032
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 12.649999999906868,
+            "p95": 18.639999999664724,
+            "mean": 12.607333333324641,
+            "min": 6.15999999968335,
+            "max": 24.514999999664724
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.6949999998323619,
+            "p95": 0.9200000003911555,
+            "mean": 0.720666666685914,
+            "min": 0.5350000001490116,
+            "max": 1.2949999999254942
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 12.229999999981374,
+            "p95": 57.799999999813735,
+            "mean": 16.51850000002111,
+            "min": 9.100000000093132,
+            "max": 64.46000000042841
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r16f",
+          "kind": "coronal",
+          "size": "512x714",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.004999999888241291,
+            "mean": 0.000999999993170301,
+            "min": 0,
+            "max": 0.005000000353902578
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.005000000353902578,
+            "p95": 0.060000000055879354,
+            "mean": 0.01583333333643774,
+            "min": 0,
+            "max": 0.08999999985098839
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 18.484999999869615,
+            "p95": 53.739999999757856,
+            "mean": 21.581000000005588,
+            "min": 10.724999999627471,
+            "max": 61.135000000242144
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.8549999999813735,
+            "p95": 0.9750000000931323,
+            "mean": 0.8619999999956538,
+            "min": 0.6899999999441206,
+            "max": 1.3799999998882413
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 19.834999999962747,
+            "p95": 29.75,
+            "mean": 21.751833333354444,
+            "min": 13.779999999795109,
+            "max": 48.00499999988824
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r16f",
+          "kind": "sagittal",
+          "size": "512x714",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.005000000353902578,
+            "mean": 0.00683333333581686,
+            "min": 0,
+            "max": 0.18000000016763806
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.024999999906867743,
+            "p95": 0.0400000000372529,
+            "mean": 0.028666666677842536,
+            "min": 0.02000000001862645,
+            "max": 0.10000000009313226
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 15.140000000130385,
+            "p95": 38.364999999757856,
+            "mean": 18.583499999996274,
+            "min": 10.305000000167638,
+            "max": 44.85499999998137
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.8799999998882413,
+            "p95": 1.3250000001862645,
+            "mean": 0.9646666666803261,
+            "min": 0.6950000002980232,
+            "max": 2.014999999664724
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 23.649999999906868,
+            "p95": 39.27000000001863,
+            "mean": 24.124999999953435,
+            "min": 14.105000000447035,
+            "max": 45.989999999757856
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r16f",
+          "kind": "oblique",
+          "size": "512x512",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.005000000353902578,
+            "mean": 0.0011666666716337204,
+            "min": 0,
+            "max": 0.005000000353902578
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.024999999906867743,
+            "p95": 0.0400000000372529,
+            "mean": 0.028499999968335032,
+            "min": 0.02000000001862645,
+            "max": 0.07999999960884452
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 15.165000000037253,
+            "p95": 33.794999999925494,
+            "mean": 18.421833333326504,
+            "min": 8.944999999832362,
+            "max": 87.27499999990687
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.8199999998323619,
+            "p95": 1.5249999999068677,
+            "mean": 0.9929999999857198,
+            "min": 0.5400000000372529,
+            "max": 4.65999999968335
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 13.204999999608845,
+            "p95": 20.944999999832362,
+            "mean": 13.371333333322157,
+            "min": 9.225000000093132,
+            "max": 24.40499999979511
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        }
+      ],
+      "contextsCreated": 1,
+      "contextsLost": 0
+    },
+    "r32f": {
+      "upload": {
+        "format": "r32f",
+        "ms": 1240.3249999997206,
+        "gpuBytes": 419430400,
+        "stagingBytes": 1048576,
+        "sharedViewAccepted": null,
+        "error": null
+      },
+      "info": {
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "max3DTextureSize": 2048,
+        "maxTextureSize": 8192,
+        "floatLinear": true,
+        "norm16": false
+      },
+      "rows": [
+        {
+          "method": "webgl2-r32f",
+          "kind": "axial",
+          "size": "512x512",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.005000000353902578,
+            "mean": 0.00566666666418314,
+            "min": 0,
+            "max": 0.14500000001862645
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.005000000353902578,
+            "mean": 0.002333333343267441,
+            "min": 0,
+            "max": 0.01000000024214387
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 7.484999999869615,
+            "p95": 13.774999999906868,
+            "mean": 7.733166666623826,
+            "min": 3.7100000004284084,
+            "max": 14.819999999832362
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.6650000000372529,
+            "p95": 1.3250000001862645,
+            "mean": 0.7759999999931703,
+            "min": 0.5649999999441206,
+            "max": 1.6049999999813735
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 9.415000000037253,
+            "p95": 18.584999999962747,
+            "mean": 10.02400000000683,
+            "min": 7.3549999999813735,
+            "max": 19.81499999994412
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r32f",
+          "kind": "coronal",
+          "size": "512x714",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.004999999888241291,
+            "mean": 0.0006666666672875484,
+            "min": 0,
+            "max": 0.005000000353902578
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.01000000024214387,
+            "mean": 0.00283333333209157,
+            "min": 0,
+            "max": 0.01000000024214387
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 9.09499999973923,
+            "p95": 21.669999999925494,
+            "mean": 12.781333333284904,
+            "min": 7.160000000149012,
+            "max": 84.67499999981374
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.6799999997019768,
+            "p95": 0.8050000001676381,
+            "mean": 0.6798333333494763,
+            "min": 0.5749999997206032,
+            "max": 0.8649999997578561
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 12.764999999664724,
+            "p95": 21.875,
+            "mean": 13.6285000000149,
+            "min": 9.365000000223517,
+            "max": 22.75499999988824
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r32f",
+          "kind": "sagittal",
+          "size": "512x714",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.005000000353902578,
+            "mean": 0.0034999999993791183,
+            "min": 0,
+            "max": 0.07500000018626451
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.009999999776482582,
+            "p95": 0.02500000037252903,
+            "mean": 0.009999999993791182,
+            "min": 0,
+            "max": 0.0400000000372529
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 17.040000000037253,
+            "p95": 38.00499999988824,
+            "mean": 18.78400000000062,
+            "min": 7.824999999720603,
+            "max": 61.15500000026077
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.9799999999813735,
+            "p95": 1.0749999997206032,
+            "mean": 0.9540000000192473,
+            "min": 0.75,
+            "max": 1.0900000003166497
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 22.71500000031665,
+            "p95": 108.61499999975786,
+            "mean": 36.524166666654246,
+            "min": 15.164999999571592,
+            "max": 166.089999999851
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        },
+        {
+          "method": "webgl2-r32f",
+          "kind": "oblique",
+          "size": "512x512",
+          "submit": {
+            "n": 30,
+            "median": 0,
+            "p95": 0.005000000353902578,
+            "mean": 0.0011666666716337204,
+            "min": 0,
+            "max": 0.005000000353902578
+          },
+          "drawFinish": {
+            "n": 30,
+            "median": 0.03500000014901161,
+            "p95": 0.10999999986961484,
+            "mean": 0.052999999995032944,
+            "min": 0.02000000001862645,
+            "max": 0.38500000024214387
+          },
+          "drawReadPixels": {
+            "n": 30,
+            "median": 12.385000000242144,
+            "p95": 19.294999999925494,
+            "mean": 13.405500000016763,
+            "min": 5.260000000242144,
+            "max": 27.139999999664724
+          },
+          "readPixelsOnly": {
+            "n": 30,
+            "median": 0.599999999627471,
+            "p95": 0.7199999997392297,
+            "mean": 0.5966666666635623,
+            "min": 0.48499999986961484,
+            "max": 0.7250000000931323
+          },
+          "drawImageToCanvas": {
+            "n": 30,
+            "median": 12.695000000298023,
+            "p95": 16.90000000037253,
+            "mean": 12.832499999987583,
+            "min": 8.754999999888241,
+            "max": 18.574999999720603
+          },
+          "maxGreyDiffVsCpu": 1,
+          "fractionDiffOver1": 0
+        }
+      ],
+      "contextsCreated": 1,
+      "contextsLost": 0
+    }
+  },
+  "labels": {
+    "rows": [
+      {
+        "op": "paint-stamp",
+        "kind": "axial",
+        "radius": 15,
+        "representation": "dense",
+        "n": 5,
+        "median": 0.09174999999813735,
+        "p95": 0.8915000000037253,
+        "mean": 0.2571999999973923,
+        "min": 0.06924999998882413,
+        "max": 0.8915000000037253
+      },
+      {
+        "op": "paint-stamp",
+        "kind": "axial",
+        "radius": 15,
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 0.021999999997206032,
+        "p95": 0.15949999999720604,
+        "mean": 0.050350000006146735,
+        "min": 0.011000000010244548,
+        "max": 0.15949999999720604
+      },
+      {
+        "op": "paint-stamp",
+        "kind": "coronal",
+        "radius": 15,
+        "representation": "dense",
+        "n": 5,
+        "median": 0.08924999998416752,
+        "p95": 0.29350000000558796,
+        "mean": 0.12199999999254943,
+        "min": 0.06450000000186265,
+        "max": 0.29350000000558796
+      },
+      {
+        "op": "paint-stamp",
+        "kind": "coronal",
+        "radius": 15,
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 0.1817500000121072,
+        "p95": 1.1020000000018626,
+        "mean": 0.3299500000011176,
+        "min": 0.06500000001396984,
+        "max": 1.1020000000018626
+      },
+      {
+        "op": "paint-stamp",
+        "kind": "sagittal",
+        "radius": 15,
+        "representation": "dense",
+        "n": 5,
+        "median": 0.1125,
+        "p95": 0.36799999999348076,
+        "mean": 0.1584999999962747,
+        "min": 0.0727500000037253,
+        "max": 0.36799999999348076
+      },
+      {
+        "op": "paint-stamp",
+        "kind": "sagittal",
+        "radius": 15,
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 0.09799999999813735,
+        "p95": 0.27250000000931324,
+        "mean": 0.11605000000447037,
+        "min": 0.044500000006519255,
+        "max": 0.27250000000931324
+      },
+      {
+        "op": "paint-stamp",
+        "kind": "oblique",
+        "radius": 15,
+        "representation": "dense",
+        "n": 5,
+        "median": 0.05100000000093132,
+        "p95": 0.07124999999068678,
+        "mean": 0.05339999999850988,
+        "min": 0.038500000000931324,
+        "max": 0.07124999999068678
+      },
+      {
+        "op": "paint-stamp",
+        "kind": "oblique",
+        "radius": 15,
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 0.046999999997206034,
+        "p95": 0.07075000000186264,
+        "mean": 0.0509999999916181,
+        "min": 0.04424999998882413,
+        "max": 0.07075000000186264
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "axial",
+        "representation": "dense",
+        "n": 5,
+        "median": 2.2999999998137355,
+        "p95": 2.3250000001862645,
+        "mean": 2.3049999999813737,
+        "min": 2.2850000001490116,
+        "max": 2.3250000001862645
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "axial",
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 5.944999999832362,
+        "p95": 5.970000000204891,
+        "mean": 5.950999999977649,
+        "min": 5.930000000167638,
+        "max": 5.970000000204891
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "coronal",
+        "representation": "dense",
+        "n": 5,
+        "median": 3.2299999999813735,
+        "p95": 3.5099999997764826,
+        "mean": 3.2859999999403953,
+        "min": 3.2199999997392297,
+        "max": 3.5099999997764826
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "coronal",
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 4.84499999973923,
+        "p95": 4.995000000111759,
+        "mean": 4.815999999921769,
+        "min": 4.600000000093132,
+        "max": 4.995000000111759
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "sagittal",
+        "representation": "dense",
+        "n": 5,
+        "median": 3.1450000000186265,
+        "p95": 3.275000000372529,
+        "mean": 3.1750000000931324,
+        "min": 3.0750000001862645,
+        "max": 3.275000000372529
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "sagittal",
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 4.695000000298023,
+        "p95": 4.754999999888241,
+        "mean": 4.691000000014901,
+        "min": 4.625,
+        "max": 4.754999999888241
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "oblique",
+        "representation": "dense",
+        "n": 5,
+        "median": 2.1950000002980232,
+        "p95": 2.2849999996833503,
+        "mean": 2.2109999999403955,
+        "min": 2.1850000000558794,
+        "max": 2.2849999996833503
+      },
+      {
+        "op": "reslice-for-display",
+        "kind": "oblique",
+        "representation": "slice-masks",
+        "n": 5,
+        "median": 3.3799999998882413,
+        "p95": 3.5049999998882413,
+        "mean": 3.4160000000149013,
+        "min": 3.3549999999813735,
+        "max": 3.5049999998882413
+      }
+    ],
+    "stamps": 20,
+    "radius": 15,
+    "paintedVoxels": 22077,
+    "voxelMismatches": 0,
+    "memory": {
+      "denseBytes": 104857600,
+      "denseAllocMs": 1.1599999996833503,
+      "sliceMaskBytes": 1769472,
+      "sliceMasksAllocated": 33,
+      "bitPackedDenseBytes": 13107200
+    }
+  },
+  "benchContexts": {
+    "created": 1,
+    "lost": 0,
+    "byKind": {
+      "webgl2": 1
+    }
+  },
+  "mpr": [
+    {
+      "drawer": "canvas",
+      "setup": {
+        "drawer": "canvas",
+        "volumeFillMs": 936.5699999998324,
+        "cellsSetupMs": 208.35000000009313,
+        "sizes": {
+          "axial": "512x512",
+          "coronal": "512x714",
+          "sagittal": "512x714",
+          "oblique": "512x512"
+        },
+        "contexts": {
+          "created": 0,
+          "lost": 0,
+          "live": 0,
+          "byKind": {}
+        },
+        "uaMemoryBefore": 8775941,
+        "uaMemoryAfter": 247167308,
+        "perCellPlaneBytes": {
+          "axial": 2621440,
+          "coronal": 3655680,
+          "sagittal": 3655680,
+          "oblique": 2621440
+        }
+      },
+      "loops": [
+        {
+          "scenario": "pan-zoom-axial",
+          "method": "cpu",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 58.53886980955349,
+          "frameMs": {
+            "n": 120,
+            "median": 16.665000000000873,
+            "p95": 16.67000000000189,
+            "mean": 17.082666666666682,
+            "min": 16.659999999999854,
+            "max": 33.33499999999913
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 0.03500000014901161,
+            "p95": 0.20000000018626451,
+            "mean": 0.0545416666699263,
+            "min": 0.014999999664723873,
+            "max": 0.6000000000931323
+          },
+          "phases": {
+            "reslice": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "upload": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "osdDraw": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "fabric": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "decorations": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            }
+          },
+          "decorationsPerFrame": 0,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-axial",
+          "method": "cpu",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 39.562048127231606,
+          "frameMs": {
+            "n": 120,
+            "median": 16.665000000000873,
+            "p95": 66.66500000000087,
+            "mean": 25.27674999999996,
+            "min": 16.659999999996217,
+            "max": 216.65499999999884
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 5.4249999998137355,
+            "p95": 15.714999999850988,
+            "mean": 6.898874999986341,
+            "min": 2.2149999998509884,
+            "max": 59.45999999996275
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 1.2749999999068677,
+              "p95": 8.135000000242144,
+              "mean": 2.4154583333176562,
+              "min": 0.9249999998137355,
+              "max": 11.350000000093132
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.4599999999627471,
+              "p95": 4.550000000279397,
+              "mean": 0.9514583333473031,
+              "min": 0.35499999998137355,
+              "max": 9.379999999888241
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 0.125,
+              "p95": 0.48999999975785613,
+              "mean": 0.24862500003073365,
+              "min": 0.09499999973922968,
+              "max": 5.509999999776483
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.08999999985098839,
+              "p95": 1.565000000409782,
+              "mean": 0.2732499999847884,
+              "min": 0.05999999959021807,
+              "max": 5.439999999944121
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.0450000003911555,
+              "p95": 8.31000000005588,
+              "mean": 2.9604166666744276,
+              "min": 0.6499999999068677,
+              "max": 47.015000000130385
+            }
+          },
+          "decorationsPerFrame": 31,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-coronal",
+          "method": "cpu",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 40.910671548673456,
+          "frameMs": {
+            "n": 120,
+            "median": 16.665000000000873,
+            "p95": 50,
+            "mean": 24.44350000000001,
+            "min": 16.659999999996217,
+            "max": 283.32500000000437
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 5.6749999998137355,
+            "p95": 14.93500000005588,
+            "mean": 7.456166666684052,
+            "min": 3.8549999999813735,
+            "max": 40.64500000001863
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 3.205000000074506,
+              "p95": 9.90999999968335,
+              "mean": 4.504666666678774,
+              "min": 2.3950000000186265,
+              "max": 23.27999999979511
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.6350000002421439,
+              "p95": 1.2450000001117587,
+              "mean": 0.9258333333341094,
+              "min": 0.47500000009313226,
+              "max": 12.799999999813735
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 0.125,
+              "p95": 0.43999999994412065,
+              "mean": 0.2509166666694606,
+              "min": 0.0849999999627471,
+              "max": 6.335000000428408
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.0849999999627471,
+              "p95": 0.19999999972060323,
+              "mean": 0.10987499996554106,
+              "min": 0.054999999701976776,
+              "max": 1.0499999998137355
+            },
+            "decorations": {
+              "n": 120,
+              "median": 0.9399999999441206,
+              "p95": 2.7749999999068677,
+              "mean": 1.4159583333569268,
+              "min": 0.5849999999627471,
+              "max": 21.389999999664724
+            }
+          },
+          "decorationsPerFrame": 37,
+          "nativeObjectsInTarget": 0,
+          "size": "512x714"
+        },
+        {
+          "scenario": "rotate-oblique",
+          "method": "cpu",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 27.48202789883867,
+          "frameMs": {
+            "n": 120,
+            "median": 33.330000000001746,
+            "p95": 99.99499999999534,
+            "mean": 36.38741666666665,
+            "min": 16.659999999996217,
+            "max": 199.98999999999796
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 12.805000000167638,
+            "p95": 65.55499999970198,
+            "mean": 19.766791666663874,
+            "min": 9.09499999973923,
+            "max": 101.64500000001863
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 10.794999999925494,
+              "p95": 46.8249999997206,
+              "mean": 15.943499999986186,
+              "min": 7.310000000055879,
+              "max": 99.53999999957159
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.5049999998882413,
+              "p95": 1.0300000002607703,
+              "mean": 0.652458333344354,
+              "min": 0.3700000001117587,
+              "max": 8.625
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 0.13499999977648258,
+              "p95": 0.3000000002793968,
+              "mean": 0.2438333333275902,
+              "min": 0.0849999999627471,
+              "max": 8.270000000018626
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.09999999962747097,
+              "p95": 0.17499999981373549,
+              "mean": 0.13183333332805583,
+              "min": 0.054999999701976776,
+              "max": 3.279999999795109
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.154999999795109,
+              "p95": 7.46500000031665,
+              "mean": 2.661791666682499,
+              "min": 0.7850000001490116,
+              "max": 71.51500000013039
+            }
+          },
+          "decorationsPerFrame": 39,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "rotate-oblique",
+          "method": "workers",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 20.455370642792975,
+          "frameMs": {
+            "n": 120,
+            "median": 33.330000000001746,
+            "p95": 150,
+            "mean": 48.88691666666667,
+            "min": 16.659999999996217,
+            "max": 333.3199999999997
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 22.915000000037253,
+            "p95": 123.41500000003725,
+            "mean": 37.33054166667862,
+            "min": 6.180000000167638,
+            "max": 331.97500000009313
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 20.600000000093132,
+              "p95": 106.89999999990687,
+              "mean": 34.337999999984945,
+              "min": 4.320000000298023,
+              "max": 329.81999999983236
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.5300000002607703,
+              "p95": 0.8799999998882413,
+              "mean": 0.5838333333764846,
+              "min": 0.3600000003352761,
+              "max": 2.9950000001117587
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 0.12000000011175871,
+              "p95": 0.22999999998137355,
+              "mean": 0.14933333329778786,
+              "min": 0.0849999999627471,
+              "max": 1.5749999997206032
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.10999999986961484,
+              "p95": 0.2099999999627471,
+              "mean": 0.6376666666396583,
+              "min": 0.06999999983236194,
+              "max": 38.10499999998137
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.125,
+              "p95": 3.9050000002607703,
+              "mean": 1.5792500000136593,
+              "min": 0.7949999999254942,
+              "max": 21.260000000242144
+            }
+          },
+          "decorationsPerFrame": 40,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-axial",
+          "method": "workers",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 47.68395077426816,
+          "frameMs": {
+            "n": 120,
+            "median": 16.665000000000873,
+            "p95": 50,
+            "mean": 20.971416666666663,
+            "min": 16.659999999996217,
+            "max": 99.99499999999534
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 7.980000000447035,
+            "p95": 46.294999999925494,
+            "mean": 11.312291666682965,
+            "min": 2.8650000002235174,
+            "max": 85.02000000001863
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 6.444999999832362,
+              "p95": 44.955000000074506,
+              "mean": 9.610375000000932,
+              "min": 1.7150000003166497,
+              "max": 83.56000000005588
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.4499999997206032,
+              "p95": 0.720000000204891,
+              "mean": 0.4716249999823049,
+              "min": 0.3349999999627471,
+              "max": 1.125
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 0.10000000009313226,
+              "p95": 0.2149999998509884,
+              "mean": 0.1468750000038805,
+              "min": 0.07000000029802322,
+              "max": 4.225000000093132
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.07499999972060323,
+              "p95": 0.22500000009313226,
+              "mean": 0.1077916666554908,
+              "min": 0.049999999813735485,
+              "max": 0.9150000000372529
+            },
+            "decorations": {
+              "n": 120,
+              "median": 0.845000000204891,
+              "p95": 1.5100000002421439,
+              "mean": 0.9450000000186265,
+              "min": 0.5600000000558794,
+              "max": 5.669999999925494
+            }
+          },
+          "decorationsPerFrame": 34,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "rotate-oblique",
+          "method": "gl",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 15.222602012047423,
+          "frameMs": {
+            "n": 120,
+            "median": 33.33499999999913,
+            "p95": 149.99500000000262,
+            "mean": 65.69179166666666,
+            "min": 16.660000000003492,
+            "max": 2133.2450000000026
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 21.18999999994412,
+            "p95": 69.25499999988824,
+            "mean": 28.782291666678308,
+            "min": 12.765000000130385,
+            "max": 265.875
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 0.0400000000372529,
+              "p95": 0.19499999983236194,
+              "mean": 0.06312499998991067,
+              "min": 0.024999999906867743,
+              "max": 0.5200000000186265
+            },
+            "upload": {
+              "n": 120,
+              "median": 18.065000000409782,
+              "p95": 66.72999999998137,
+              "mean": 24.96816666666418,
+              "min": 11.270000000018626,
+              "max": 260.38500000024214
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 0.5,
+              "p95": 1.2400000002235174,
+              "mean": 0.607750000009158,
+              "min": 0.3000000002793968,
+              "max": 3.5200000000186265
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.09500000020489097,
+              "p95": 0.18000000016763806,
+              "mean": 0.1152916666974003,
+              "min": 0.06499999994412065,
+              "max": 0.6799999997019768
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.040000000037253,
+              "p95": 6.509999999776483,
+              "mean": 2.8831666666587505,
+              "min": 0.7600000002421439,
+              "max": 138.160000000149
+            }
+          },
+          "decorationsPerFrame": 37,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-axial",
+          "method": "gl",
+          "drawer": "canvas",
+          "frames": 120,
+          "fps": 26.667733376001706,
+          "frameMs": {
+            "n": 120,
+            "median": 33.330000000001746,
+            "p95": 99.99499999999534,
+            "mean": 37.4985,
+            "min": 16.659999999996217,
+            "max": 166.65499999999884
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 17.575000000186265,
+            "p95": 47.58499999996275,
+            "mean": 23.110708333346217,
+            "min": 11.59499999973923,
+            "max": 135.3300000000745
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 0.03000000026077032,
+              "p95": 0.2149999998509884,
+              "mean": 0.06349999996600672,
+              "min": 0.019999999552965164,
+              "max": 0.7349999998696148
+            },
+            "upload": {
+              "n": 120,
+              "median": 14.665000000037253,
+              "p95": 45.97500000009313,
+              "mean": 20.479166666674427,
+              "min": 10.209999999962747,
+              "max": 132.85999999986961
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 0.4900000002235174,
+              "p95": 1.319999999832362,
+              "mean": 0.7506250000170742,
+              "min": 0.2850000001490116,
+              "max": 16.385000000242144
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.09999999962747097,
+              "p95": 0.8349999999627471,
+              "mean": 0.5279583333448197,
+              "min": 0.060000000055879354,
+              "max": 40.924999999813735
+            },
+            "decorations": {
+              "n": 120,
+              "median": 0.900000000372529,
+              "p95": 2.9500000001862645,
+              "mean": 1.2504583333308499,
+              "min": 0.5649999999441206,
+              "max": 9.225000000093132
+            }
+          },
+          "decorationsPerFrame": 31,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        }
+      ],
+      "crossView": {
+        "passed": 10,
+        "failed": 0,
+        "checks": [
+          {
+            "name": "rectangle committed by RectangleTool",
+            "ok": true,
+            "detail": {
+              "type": "rectangle",
+              "origin": {
+                "x": 153.60000610351562,
+                "y": 153.60000610351562
+              },
+              "width": 153.60000610351562,
+              "height": 128,
+              "rotation": 0
+            }
+          },
+          {
+            "name": "point committed by PointTool",
+            "ok": true,
+            "detail": {
+              "type": "point",
+              "position": {
+                "x": 230.50001215934833,
+                "y": 356.25000536441803
+              }
+            }
+          },
+          {
+            "name": "axial rectangle shows as one segment in coronal",
+            "ok": true,
+            "detail": {
+              "segs": [
+                {
+                  "id": "xv:a19:0",
+                  "type": "line",
+                  "start": {
+                    "x": 307.20001220703125,
+                    "y": 356.25000000000006
+                  },
+                  "end": {
+                    "x": 153.60000610351562,
+                    "y": 356.25000000000006
+                  },
+                  "related": ["a19"]
+                }
+              ],
+              "expectedRow": 356.25,
+              "expectedSpan": 153.6,
+              "span": 153.60000610351562
+            }
+          },
+          {
+            "name": "axial rectangle shows as one segment in sagittal",
+            "ok": true,
+            "detail": {
+              "segs": [
+                {
+                  "id": "xv:a19:0",
+                  "type": "line",
+                  "start": {
+                    "x": 281.6000061035156,
+                    "y": 356.25000000000006
+                  },
+                  "end": {
+                    "x": 153.60000610351562,
+                    "y": 356.25000000000006
+                  },
+                  "related": ["a19"]
+                }
+              ],
+              "expectedRow": 356.25,
+              "expectedSpan": 128.00000000000003,
+              "span": 128
+            }
+          },
+          {
+            "name": "axial rectangle is a native Fabric object in axial",
+            "ok": true,
+            "detail": {
+              "native": 2
+            }
+          },
+          {
+            "name": "coronal point shows as a marker in axial (within half a slice)",
+            "ok": true,
+            "detail": {
+              "anchor": {
+                "x": 230.50001215934833,
+                "y": 256.5
+              },
+              "expected": {
+                "x": 230.5,
+                "y": 256.5
+              },
+              "errorPx": 0.000012159348329987552
+            }
+          },
+          {
+            "name": "coronal point is absent from sagittal (26 voxels away)",
+            "ok": true,
+            "detail": {
+              "iPoint": 230,
+              "iSagittal": 256
+            }
+          },
+          {
+            "name": "marker DOM element is placed at imageToScreen(anchor)",
+            "ok": true,
+            "detail": {
+              "screen": {
+                "x": 230.50001215934833,
+                "y": 256.5
+              },
+              "nearestDomPx": 0.0000030994407325124484
+            }
+          },
+          {
+            "name": "every cell draws reference lines for the other three planes",
+            "ok": true,
+            "detail": {
+              "axial": 3,
+              "coronal": 3,
+              "sagittal": 3,
+              "oblique": 3
+            }
+          },
+          {
+            "name": "after scrolling one slice the rectangle leaves the axial view",
+            "ok": true,
+            "detail": {
+              "nativeBefore": 2,
+              "nativeAfter": 0
+            }
+          }
+        ],
+        "decorationCounts": {
+          "axial": 11,
+          "coronal": 12,
+          "sagittal": 12,
+          "oblique": 6
+        }
+      },
+      "contexts": {
+        "created": 1,
+        "lost": 0,
+        "live": 1,
+        "byKind": {
+          "webgl2": 1
+        }
+      }
+    },
+    {
+      "drawer": "webgl",
+      "setup": {
+        "drawer": "webgl",
+        "volumeFillMs": 1854.5400000000373,
+        "cellsSetupMs": 2010.9199999999255,
+        "sizes": {
+          "axial": "512x512",
+          "coronal": "512x714",
+          "sagittal": "512x714",
+          "oblique": "512x512"
+        },
+        "contexts": {
+          "created": 8,
+          "lost": 4,
+          "live": 4,
+          "byKind": {
+            "webgl": 8
+          }
+        },
+        "uaMemoryBefore": 8778421,
+        "uaMemoryAfter": 285120573,
+        "perCellPlaneBytes": {
+          "axial": 2621440,
+          "coronal": 3655680,
+          "sagittal": 3655680,
+          "oblique": 2621440
+        }
+      },
+      "loops": [
+        {
+          "scenario": "pan-zoom-axial",
+          "method": "cpu",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 9.945152484050466,
+          "frameMs": {
+            "n": 120,
+            "median": 83.33499999999913,
+            "p95": 199.99500000000262,
+            "mean": 100.55149999999998,
+            "min": 16.665000000000873,
+            "max": 416.65499999999884
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 0.044999999925494194,
+            "p95": 0.3300000000745058,
+            "mean": 0.08083333333488554,
+            "min": 0.034999999683350325,
+            "max": 1.0150000001303852
+          },
+          "phases": {
+            "reslice": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "upload": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "osdDraw": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "fabric": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            },
+            "decorations": {
+              "n": 0,
+              "median": null,
+              "p95": null,
+              "mean": 0,
+              "min": null,
+              "max": null
+            }
+          },
+          "decorationsPerFrame": 0,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-axial",
+          "method": "cpu",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 8.421389487158432,
+          "frameMs": {
+            "n": 120,
+            "median": 99.99499999999534,
+            "p95": 266.6550000000061,
+            "mean": 118.74525,
+            "min": 49.99499999999534,
+            "max": 433.3150000000023
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 78.7050000000745,
+            "p95": 225.8800000003539,
+            "mean": 98.79137499999487,
+            "min": 33.21499999985099,
+            "max": 387.3149999999441
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 1.1850000000558794,
+              "p95": 7.484999999869615,
+              "mean": 1.9156249999883586,
+              "min": 0.9100000001490116,
+              "max": 23.615000000223517
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.5699999998323619,
+              "p95": 1.209999999962747,
+              "mean": 0.7590833333398526,
+              "min": 0.4500000001862645,
+              "max": 9.809999999590218
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 73.68500000005588,
+              "p95": 220.125,
+              "mean": 92.98987500001289,
+              "min": 30.430000000167638,
+              "max": 360.79000000003725
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.1650000000372529,
+              "p95": 0.9449999998323619,
+              "mean": 0.43379166669910774,
+              "min": 0.09500000020489097,
+              "max": 20.00499999988824
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.3000000002793968,
+              "p95": 5.939999999944121,
+              "mean": 2.637208333335972,
+              "min": 0.7900000000372529,
+              "max": 66.64000000013039
+            }
+          },
+          "decorationsPerFrame": 31,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-coronal",
+          "method": "cpu",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 16.000640025601015,
+          "frameMs": {
+            "n": 120,
+            "median": 50,
+            "p95": 116.66000000000349,
+            "mean": 62.49750000000004,
+            "min": 33.325000000004366,
+            "max": 216.65499999999884
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 44.90499999979511,
+            "p95": 105.125,
+            "mean": 52.6954166666527,
+            "min": 22.619999999646097,
+            "max": 194.14999999990687
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 3.1450000000186265,
+              "p95": 7.71999999973923,
+              "mean": 3.8552916666454013,
+              "min": 2.2849999996833503,
+              "max": 39.20999999996275
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.7450000001117587,
+              "p95": 2.5049999998882413,
+              "mean": 1.0687500000116414,
+              "min": 0.5600000000558794,
+              "max": 16.020000000018626
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 39.02000000001863,
+              "p95": 84.67000000039116,
+              "mean": 46.04375000000776,
+              "min": 18.33999999985099,
+              "max": 188.56000000005588
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.14500000001862645,
+              "p95": 0.2549999998882413,
+              "mean": 0.1715833333864187,
+              "min": 0.0849999999627471,
+              "max": 1.279999999795109
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.1199999996460974,
+              "p95": 3.2149999998509884,
+              "mean": 1.5105833332985639,
+              "min": 0.7099999999627471,
+              "max": 11.540000000037253
+            }
+          },
+          "decorationsPerFrame": 37,
+          "nativeObjectsInTarget": 0,
+          "size": "512x714"
+        },
+        {
+          "scenario": "rotate-oblique",
+          "method": "cpu",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 10.959344485075201,
+          "frameMs": {
+            "n": 120,
+            "median": 83.33000000000175,
+            "p95": 166.66500000000815,
+            "mean": 91.24633333333331,
+            "min": 33.330000000001746,
+            "max": 299.9850000000006
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 71.44499999983236,
+            "p95": 165.67999999970198,
+            "mean": 79.92433333333271,
+            "min": 36.72500000009313,
+            "max": 278.3300000000745
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 11.15500000026077,
+              "p95": 29.695000000298023,
+              "mean": 13.940916666660147,
+              "min": 8.694999999832362,
+              "max": 77.6699999999255
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.6149999997578561,
+              "p95": 1.4450000002980232,
+              "mean": 0.9100833333291424,
+              "min": 0.47500000009313226,
+              "max": 12.760000000242144
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 54.64999999990687,
+              "p95": 119.75,
+              "mean": 62.867083333331784,
+              "min": 25.700000000186265,
+              "max": 263.62999999988824
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.1600000001490116,
+              "p95": 0.27000000001862645,
+              "mean": 0.17599999997764826,
+              "min": 0.12000000011175871,
+              "max": 1.0200000000186265
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.3449999997392297,
+              "p95": 3.830000000074506,
+              "mean": 1.9506666666750485,
+              "min": 0.974999999627471,
+              "max": 38.56499999994412
+            }
+          },
+          "decorationsPerFrame": 39,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "rotate-oblique",
+          "method": "workers",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 8.592227900252826,
+          "frameMs": {
+            "n": 120,
+            "median": 99.99499999999534,
+            "p95": 249.99000000000524,
+            "mean": 116.38425000000001,
+            "min": 16.66500000000815,
+            "max": 333.320000000007
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 86.7949999999255,
+            "p95": 217.65999999968335,
+            "mean": 109.56950000000651,
+            "min": 42.794999999925494,
+            "max": 323.76000000024214
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 18.165000000037253,
+              "p95": 87.97999999998137,
+              "mean": 26.98341666669197,
+              "min": 6.654999999795109,
+              "max": 110.86500000022352
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.6200000001117587,
+              "p95": 1.6600000001490116,
+              "mean": 0.8553749999846332,
+              "min": 0.47999999998137355,
+              "max": 8.889999999664724
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 63.60499999998137,
+              "p95": 174.64500000001863,
+              "mean": 79.53237500000978,
+              "min": 33.02499999990687,
+              "max": 300.29000000003725
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.1600000001490116,
+              "p95": 0.2949999999254942,
+              "mean": 0.20150000001303853,
+              "min": 0.12000000011175871,
+              "max": 3.1300000003539026
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.2299999999813735,
+              "p95": 3.984999999869615,
+              "mean": 1.875541666673962,
+              "min": 0.9100000001490116,
+              "max": 33.485000000335276
+            }
+          },
+          "decorationsPerFrame": 40,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-axial",
+          "method": "workers",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 8.219507425468764,
+          "frameMs": {
+            "n": 120,
+            "median": 99.99499999999534,
+            "p95": 333.3150000000023,
+            "mean": 121.66179166666662,
+            "min": 16.664999999993597,
+            "max": 649.9750000000058
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 88.32500000018626,
+            "p95": 264.0649999999441,
+            "mean": 113.38375000002173,
+            "min": 42.455000000074506,
+            "max": 639.6749999998137
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 9.625,
+              "p95": 60.47999999998137,
+              "mean": 16.98375000001397,
+              "min": 2.859999999869615,
+              "max": 196.55500000016764
+            },
+            "upload": {
+              "n": 120,
+              "median": 0.595000000204891,
+              "p95": 2.584999999962747,
+              "mean": 1.2497916666752038,
+              "min": 0.47500000009313226,
+              "max": 41.35499999998137
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 67.18999999994412,
+              "p95": 229.79000000003725,
+              "mean": 91.5903749999629,
+              "min": 31.90500000026077,
+              "max": 622.9499999997206
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.13999999966472387,
+              "p95": 0.8149999999441206,
+              "mean": 0.19791666667054716,
+              "min": 0.09500000020489097,
+              "max": 1.2950000003911555
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.0150000001303852,
+              "p95": 14.040000000037253,
+              "mean": 3.2969166666851377,
+              "min": 0.7399999997578561,
+              "max": 99.69500000029802
+            }
+          },
+          "decorationsPerFrame": 34,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "rotate-oblique",
+          "method": "gl",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 8.401737479310723,
+          "frameMs": {
+            "n": 120,
+            "median": 99.99499999999534,
+            "p95": 233.3249999999971,
+            "mean": 119.02299999999995,
+            "min": 33.330000000001746,
+            "max": 1166.6199999999953
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 76.9199999999255,
+            "p95": 186.85499999998137,
+            "mean": 93.81424999998417,
+            "min": 48.140000000130385,
+            "max": 259.51000000024214
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 0.054999999701976776,
+              "p95": 0.3349999999627471,
+              "mean": 0.11629166667504857,
+              "min": 0.034999999683350325,
+              "max": 2.389999999664724
+            },
+            "upload": {
+              "n": 120,
+              "median": 17.15500000026077,
+              "p95": 83.46499999985099,
+              "mean": 26.748208333315173,
+              "min": 10.129999999888241,
+              "max": 123.56499999994412
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 52.735000000335276,
+              "p95": 137.45999999996275,
+              "mean": 64.86770833332945,
+              "min": 30.100000000093132,
+              "max": 244.27000000001863
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.14999999990686774,
+              "p95": 0.2949999999254942,
+              "mean": 0.1740833333344199,
+              "min": 0.10999999986961484,
+              "max": 1.069999999832362
+            },
+            "decorations": {
+              "n": 120,
+              "median": 1.2250000000931323,
+              "p95": 6.589999999850988,
+              "mean": 1.8484166666593713,
+              "min": 0.9050000002607703,
+              "max": 19.87000000011176
+            }
+          },
+          "decorationsPerFrame": 37,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        },
+        {
+          "scenario": "scroll-axial",
+          "method": "gl",
+          "drawer": "webgl",
+          "frames": 120,
+          "fps": 10.51136935988388,
+          "frameMs": {
+            "n": 120,
+            "median": 83.33000000000175,
+            "p95": 183.31999999999243,
+            "mean": 95.13508333333338,
+            "min": 49.99499999999534,
+            "max": 433.3150000000023
+          },
+          "updateMs": {
+            "n": 120,
+            "median": 68.93000000016764,
+            "p95": 155.6549999997951,
+            "mean": 82.80104166670547,
+            "min": 40.57000000029802,
+            "max": 421.5
+          },
+          "phases": {
+            "reslice": {
+              "n": 120,
+              "median": 0.0400000000372529,
+              "p95": 0.2949999999254942,
+              "mean": 0.15074999997547517,
+              "min": 0.024999999906867743,
+              "max": 9.81499999994412
+            },
+            "upload": {
+              "n": 120,
+              "median": 15.354999999981374,
+              "p95": 44.18000000016764,
+              "mean": 21.880416666681413,
+              "min": 11.18500000005588,
+              "max": 218.7449999996461
+            },
+            "osdDraw": {
+              "n": 120,
+              "median": 50.06999999983236,
+              "p95": 122.15500000026077,
+              "mean": 59.20212500000295,
+              "min": 27.170000000391155,
+              "max": 201.21500000031665
+            },
+            "fabric": {
+              "n": 120,
+              "median": 0.13500000024214387,
+              "p95": 0.6399999996647239,
+              "mean": 0.2066249999954986,
+              "min": 0.10000000009313226,
+              "max": 2.6199999996460974
+            },
+            "decorations": {
+              "n": 120,
+              "median": 0.9600000004284084,
+              "p95": 3.4450000002980232,
+              "mean": 1.3158333333674819,
+              "min": 0.7549999998882413,
+              "max": 6.654999999795109
+            }
+          },
+          "decorationsPerFrame": 31,
+          "nativeObjectsInTarget": 0,
+          "size": "512x512"
+        }
+      ],
+      "crossView": {
+        "passed": 10,
+        "failed": 0,
+        "checks": [
+          {
+            "name": "rectangle committed by RectangleTool",
+            "ok": true,
+            "detail": {
+              "type": "rectangle",
+              "origin": {
+                "x": 153.60000610351562,
+                "y": 153.60000610351562
+              },
+              "width": 153.60000610351562,
+              "height": 128,
+              "rotation": 0
+            }
+          },
+          {
+            "name": "point committed by PointTool",
+            "ok": true,
+            "detail": {
+              "type": "point",
+              "position": {
+                "x": 230.50001215934833,
+                "y": 356.25000536441803
+              }
+            }
+          },
+          {
+            "name": "axial rectangle shows as one segment in coronal",
+            "ok": true,
+            "detail": {
+              "segs": [
+                {
+                  "id": "xv:a19:0",
+                  "type": "line",
+                  "start": {
+                    "x": 307.20001220703125,
+                    "y": 356.25000000000006
+                  },
+                  "end": {
+                    "x": 153.60000610351562,
+                    "y": 356.25000000000006
+                  },
+                  "related": ["a19"]
+                }
+              ],
+              "expectedRow": 356.25,
+              "expectedSpan": 153.6,
+              "span": 153.60000610351562
+            }
+          },
+          {
+            "name": "axial rectangle shows as one segment in sagittal",
+            "ok": true,
+            "detail": {
+              "segs": [
+                {
+                  "id": "xv:a19:0",
+                  "type": "line",
+                  "start": {
+                    "x": 281.6000061035156,
+                    "y": 356.25000000000006
+                  },
+                  "end": {
+                    "x": 153.60000610351562,
+                    "y": 356.25000000000006
+                  },
+                  "related": ["a19"]
+                }
+              ],
+              "expectedRow": 356.25,
+              "expectedSpan": 128.00000000000003,
+              "span": 128
+            }
+          },
+          {
+            "name": "axial rectangle is a native Fabric object in axial",
+            "ok": true,
+            "detail": {
+              "native": 2
+            }
+          },
+          {
+            "name": "coronal point shows as a marker in axial (within half a slice)",
+            "ok": true,
+            "detail": {
+              "anchor": {
+                "x": 230.50001215934833,
+                "y": 256.5
+              },
+              "expected": {
+                "x": 230.5,
+                "y": 256.5
+              },
+              "errorPx": 0.000012159348329987552
+            }
+          },
+          {
+            "name": "coronal point is absent from sagittal (26 voxels away)",
+            "ok": true,
+            "detail": {
+              "iPoint": 230,
+              "iSagittal": 256
+            }
+          },
+          {
+            "name": "marker DOM element is placed at imageToScreen(anchor)",
+            "ok": true,
+            "detail": {
+              "screen": {
+                "x": 230.50001215934833,
+                "y": 256.5
+              },
+              "nearestDomPx": 0.0000030994407325124484
+            }
+          },
+          {
+            "name": "every cell draws reference lines for the other three planes",
+            "ok": true,
+            "detail": {
+              "axial": 3,
+              "coronal": 3,
+              "sagittal": 3,
+              "oblique": 3
+            }
+          },
+          {
+            "name": "after scrolling one slice the rectangle leaves the axial view",
+            "ok": true,
+            "detail": {
+              "nativeBefore": 2,
+              "nativeAfter": 0
+            }
+          }
+        ],
+        "decorationCounts": {
+          "axial": 11,
+          "coronal": 12,
+          "sagittal": 12,
+          "oblique": 6
+        }
+      },
+      "contexts": {
+        "created": 9,
+        "lost": 4,
+        "live": 5,
+        "byKind": {
+          "webgl": 8,
+          "webgl2": 1
+        }
+      }
+    }
+  ],
+  "solid": {
+    "passed": 8,
+    "failed": 0,
+    "checks": [
+      {
+        "name": "rectangle stored under the axial plane image id",
+        "ok": true,
+        "detail": ["vol:axial:200", "vol:coronal:256"]
+      },
+      {
+        "name": "point stored under the coronal plane image id",
+        "ok": true,
+        "detail": ["vol:axial:200", "vol:coronal:256"]
+      },
+      {
+        "name": "axial rectangle projected into coronal by the shared provider",
+        "ok": true,
+        "detail": {
+          "yellow": 1,
+          "hit": {
+            "x1": 307.19998769685037,
+            "y1": 356.25000000000006,
+            "x2": 153.59999384842519,
+            "y2": 356.25000000000006,
+            "stroke": "#ffd400"
+          }
+        }
+      },
+      {
+        "name": "axial rectangle projected into sagittal by the shared provider",
+        "ok": true,
+        "detail": {
+          "yellow": 1,
+          "hit": {
+            "x1": 281.5999938484252,
+            "y1": 356.25000000000006,
+            "x2": 153.59999384842519,
+            "y2": 356.25000000000006,
+            "stroke": "#ffd400"
+          }
+        }
+      },
+      {
+        "name": "coronal point projected into axial as a marker",
+        "ok": true,
+        "detail": {
+          "markers": 2
+        }
+      },
+      {
+        "name": "rectangle is a native annotation object in the axial cell",
+        "ok": true,
+        "detail": {
+          "annotationObjects": 1
+        }
+      },
+      {
+        "name": "each cell draws reference lines for the two other planes",
+        "ok": true,
+        "detail": [2, 2, 2]
+      },
+      {
+        "name": "after scrolling away and back the rectangle is native again",
+        "ok": true,
+        "detail": {
+          "annotationObjects": 1
+        }
+      }
+    ],
+    "scroll": {
+      "frames": 120,
+      "fps": 7.171601176501173,
+      "frameMs": {
+        "n": 120,
+        "median": 116.66499999999905,
+        "p95": 299.98499999999876,
+        "mean": 139.438875,
+        "min": 16.664999999999964,
+        "max": 433.3149999999996
+      },
+      "setImageSourceSyncMs": {
+        "n": 120,
+        "median": 1.1950000002980232,
+        "p95": 7.734999999869615,
+        "mean": 3.124541666653628,
+        "min": 0.7099999999627471,
+        "max": 100.45000000018626
+      },
+      "resliceAndRedrawMs": {
+        "n": 120,
+        "median": 1.9550000000745058,
+        "p95": 28.975000000093132,
+        "mean": 4.6437916666502135,
+        "min": 1.4050000002607703,
+        "max": 62.72999999998137
+      },
+      "providerRunsPerFrame": 3.025
+    },
+    "contexts": {
+      "created": 6,
+      "live": 3,
+      "byKind": {
+        "webgl": 6
+      }
+    }
+  },
+  "niivue": {
+    "setup": {
+      "dims": [512, 512, 400],
+      "volumeBytes": 209715200,
+      "niivue": {
+        "version": "1.0.0-rc.37",
+        "attachMs": 598.0099999997765,
+        "nii2volumeMs": 858.1000000000931,
+        "addVolumeAndFirstFramesMs": 30817.475000000093,
+        "imgIsOurArray": true,
+        "imgSharesOurBuffer": true,
+        "imgType": "Int16Array",
+        "imgBufferIsShared": true
+      },
+      "contexts": {
+        "before3D": 0,
+        "created": 1,
+        "live": 1,
+        "lost": 0,
+        "byKind": {
+          "webgl2": 1
+        }
+      },
+      "uaMemory": {
+        "start": 13791509,
+        "after2DCells": 246322176,
+        "afterNiivue": 249502774
+      },
+      "overlay3D": {
+        "annotations": 18,
+        "vertices": 190,
+        "firstProjectionMs": 1.2850000001490116
+      }
+    },
+    "rotate": {
+      "frames": 120,
+      "fps": 0.7172315721991,
+      "frameMs": {
+        "n": 120,
+        "median": 1399.945000000007,
+        "p95": 1999.9249999999884,
+        "mean": 1394.2498333333335,
+        "min": 16.669999999998254,
+        "max": 2399.899999999994
+      },
+      "drawSceneCallMs": {
+        "n": 120,
+        "median": 0.03500000014901161,
+        "p95": 0.06000000052154064,
+        "mean": 0.03745833333814517,
+        "min": 0.024999999441206455,
+        "max": 0.13499999977648258
+      },
+      "reprojectMs": {
+        "n": 120,
+        "median": 0.4050000002607703,
+        "p95": 1.0099999997764826,
+        "mean": 0.5347083333181217,
+        "min": 0.2599999997764826,
+        "max": 4.820000000298023
+      },
+      "framesWithoutProjection": 0
+    },
+    "labels": {
+      "ok": true,
+      "createEmptyDrawingMs": 488.54000000003725,
+      "bitmapBytes": 104857600,
+      "paintedVoxels": 11808,
+      "paintMs": 12.665000000037253,
+      "niivueStillHoldsSameBitmap": true,
+      "refreshAndTwoFramesMs": 2538.625,
+      "tint2DPerCellMs": 6.540000000037253,
+      "uaMemoryDeltaBytes": 522588745
+    },
+    "accuracy": {
+      "centrePatientMm": [-28.671999999999997, 0, 0.625],
+      "results": [
+        {
+          "azimuth": 30,
+          "redPixels": 377,
+          "nonBlackPixels": 377,
+          "centroid": [233.25729442970822, 257.2334217506631],
+          "projected": [233.7945041656494, 257.0565892457962],
+          "errorPx": 0.5655652351121955
+        },
+        {
+          "azimuth": 110,
+          "redPixels": 375,
+          "nonBlackPixels": 375,
+          "centroid": [264.3786666666667, 259.24266666666665],
+          "projected": [264.4118595123291, 259.06641483306885],
+          "errorPx": 0.17935014315510683
+        },
+        {
+          "azimuth": 200,
+          "redPixels": 383,
+          "nonBlackPixels": 383,
+          "centroid": [279.6527415143603, 253.4308093994778],
+          "projected": [280.03128814697266, 253.4327311515808],
+          "errorPx": 0.37855151062082665
+        },
+        {
+          "azimuth": 290,
+          "redPixels": 378,
+          "nonBlackPixels": 378,
+          "centroid": [246.64021164021165, 250.67989417989418],
+          "projected": [247.5881404876709, 250.72043228149414],
+          "errorPx": 0.948795255851733
+        }
+      ]
+    },
+    "contexts": {
+      "created": 1,
+      "live": 1,
+      "lost": 0,
+      "byKind": {
+        "webgl2": 1
+      }
+    }
+  },
+  "bundle": {
+    "niivue-webgl2": {
+      "files": 1,
+      "minifiedBytes": 1550818,
+      "gzipBytes": 460222
+    },
+    "osdlabel-mpr-cell": {
+      "files": 1,
+      "minifiedBytes": 723011,
+      "gzipBytes": 176993
+    },
+    "new-packages": {
+      "files": 1,
+      "minifiedBytes": 31394,
+      "gzipBytes": 9759
+    }
+  }
+}

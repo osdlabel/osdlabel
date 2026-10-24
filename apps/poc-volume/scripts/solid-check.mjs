@@ -1,3 +1,4 @@
+/* global window -- referenced inside page.waitForFunction, which runs in the browser */
 /**
  * Stock @osdlabel/solid ViewerCells over volume planes (solid.html): draw
  * with the binding's own tool wiring, check the other cells' projections,

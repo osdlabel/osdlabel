@@ -86,8 +86,38 @@ export function printSummary(r) {
     }
     if (m.contexts) console.log('contexts:', JSON.stringify(m.contexts));
   }
-  if (r.niivue)
-    console.log('\nniivue:', JSON.stringify(r.niivue.summary ?? r.niivue, null, 0).slice(0, 2000));
+  if (r.solid) {
+    const S = r.solid;
+    console.log(`\n## Stock Solid ViewerCells: ${S.passed} passed, ${S.failed} failed`);
+    for (const c of S.checks) {
+      console.log(
+        `  ${c.ok ? 'PASS' : 'FAIL'} ${c.name}${c.ok ? '' : ' ' + JSON.stringify(c.detail)}`,
+      );
+    }
+    const sc = S.scroll;
+    console.log(
+      `scroll: ${f(sc.fps, 1)} fps, frame median ${f(sc.frameMs.median)} ms, setImageSource (Solid effects) ${f(sc.setImageSourceSyncMs.median)} ms, reslice+redraw ${f(sc.resliceAndRedrawMs.median)} ms, provider runs/frame ${f(sc.providerRunsPerFrame, 1)}; contexts ${JSON.stringify(S.contexts)}`,
+    );
+  }
+  if (r.niivue) {
+    const n = r.niivue;
+    console.log('\n## Niivue 3D cell');
+    console.log('setup:', JSON.stringify(n.setup.niivue));
+    console.log(
+      'contexts:',
+      JSON.stringify(n.setup.contexts),
+      'final:',
+      JSON.stringify(n.contexts),
+    );
+    console.log(
+      `rotate: ${f(n.rotate.fps, 2)} fps (SwiftShader), frame median ${f(n.rotate.frameMs.median)} ms; overlay re-projection ${f(n.rotate.reprojectMs.median, 3)} ms for ${n.setup.overlay3D.vertices} vertices`,
+    );
+    console.log('shared labels:', JSON.stringify(n.labels));
+    console.log(
+      'overlay accuracy (px):',
+      n.accuracy.results.map((x) => `az ${x.azimuth}: ${f(x.errorPx, 2)}`).join(', '),
+    );
+  }
   if (r.bundle) {
     table(
       'Bundle size (production, minified)',
@@ -106,4 +136,10 @@ export function printSummary(r) {
     ['gpu-process', (x) => f(x.byType?.['gpu-process']?.pssMiB, 0)],
     ['browser', (x) => f(x.byType?.browser?.pssMiB, 0)],
   ]);
+}
+
+// `node scripts/summary.mjs <results.json>` reprints a saved run.
+if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+  const fs = await import('node:fs');
+  printSummary(JSON.parse(fs.readFileSync(process.argv[2], 'utf8')));
 }
