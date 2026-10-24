@@ -79,16 +79,40 @@ function frameLoop(t: number): void {
 }
 requestAnimationFrame(frameLoop);
 
+/**
+ * Long tasks (> 50 ms on the main thread), from the Long Tasks API: the
+ * standard measure of how long the page could not respond to input.
+ */
+const longTasks: { start: number; duration: number }[] = [];
+try {
+  new PerformanceObserver((list) => {
+    for (const e of list.getEntries()) longTasks.push({ start: e.startTime, duration: e.duration });
+  }).observe({ type: 'longtask', buffered: true });
+} catch {
+  // Not supported: the frame statistics below still apply.
+}
+
 function frameStatsSince(t0: number): unknown {
+  const now = performance.now();
   const ts = frames.filter((t) => t >= t0);
+  // Bracket with the window's ends: a block before the first frame (or after
+  // the last) is a gap too. Without this, a page frozen for 3.6 s that then
+  // paints 6 quick frames reported a 16.7 ms maximum gap.
+  const bounds = [t0, ...ts, now];
   const gaps: number[] = [];
-  for (let i = 1; i < ts.length; i++) gaps.push(ts[i]! - ts[i - 1]!);
+  for (let i = 1; i < bounds.length; i++) gaps.push(bounds[i]! - bounds[i - 1]!);
   const s = stats(gaps);
+  const lt = longTasks.filter((e) => e.start + e.duration >= t0 && e.start <= now);
   return {
+    windowMs: now - t0,
     frames: ts.length,
+    fps: (ts.length * 1000) / Math.max(1, now - t0),
     maxGap: s.max,
     p90Gap: s.p90,
     longFrames: gaps.filter((g) => g > 50).length,
+    longTasks: lt.length,
+    longTaskMs: lt.reduce((sum, e) => sum + e.duration, 0),
+    longestTaskMs: lt.reduce((m, e) => Math.max(m, e.duration), 0),
   };
 }
 

@@ -145,7 +145,7 @@ export function printSummary(results, modelTable = []) {
     );
     const rows = run.steps.map((s) => {
       if (s.error)
-        return [s.id, 'ERROR', s.error.slice(0, 60), '', '', '', '', '', '', '', '', '', ''];
+        return [s.id, 'ERROR', s.error.slice(0, 60), '', '', '', '', '', '', '', '', '', '', ''];
       const r = s.events?.find((e) => e.type === 'result');
       const p = s.events?.find((e) => e.type === 'painted');
       const fr = s.events?.find((e) => e.type === 'frames');
@@ -167,6 +167,7 @@ export function printSummary(results, modelTable = []) {
         f(t.decode, 1),
         f(t.roundTrip),
         f(fr?.maxGap),
+        fr?.fps !== undefined ? `${f(fr.fps)} / ${f(fr.longTaskMs)}` : '-',
         f(r?.view?.scale, 4),
         gt,
         f((a.maskBoxPixels ?? 0) / 1e6, 1),
@@ -183,6 +184,7 @@ export function printSummary(results, modelTable = []) {
       'decode',
       'net rt',
       'max frame gap',
+      'fps / long-task ms',
       'scale',
       'GT IoU (/alt)',
       'mask box Mpx',

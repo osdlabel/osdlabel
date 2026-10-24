@@ -18,6 +18,8 @@
  * Options:
  *   --suites native,models,e2e,remote   (default: all)
  *   --steps S1,S2                (e2e/remote scenario steps; default: all)
+ *   --e2e-models mobile_sam      --e2e-threads 4   --main-threads 4   --no-main
+ *   --webgpu-models edge_sam,mobile_sam   (SwiftShader cases are slow: keep this short)
  *   --native-threads 1,4
  *   --models mobile_sam,...      (default: every model whose files exist)
  *   --eps wasm,webgpu            (default: wasm,webgpu)
@@ -96,6 +98,7 @@ function chromiumPath() {
 
 const E2E_MODELS = list('--e2e-models', 'mobile_sam');
 const WEBGPU_MODELS = list('--webgpu-models', 'edge_sam,mobile_sam');
+const MAIN_THREADS = list('--main-threads', '4').map(Number);
 const E2E_THREADS = list('--e2e-threads', '4').map(Number);
 const VIEW_W = 1280;
 
@@ -498,15 +501,19 @@ async function main() {
         }
       }
       // The same inference on the main thread, to show what the worker buys.
-      const mainSteps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5'].includes(s.id));
-      results.e2e.push(
-        await runScenario(
-          openPage,
-          { mode: 'local-main', model: E2E_MODELS[0], threads: 4 },
-          mainSteps,
-        ),
-      );
-      save(results);
+      if (!flag('--no-main')) {
+        const mainSteps = scenarioSteps().filter((s) => ['S1', 'S2', 'S5'].includes(s.id));
+        for (const threads of MAIN_THREADS) {
+          results.e2e.push(
+            await runScenario(
+              openPage,
+              { mode: 'local-main', model: E2E_MODELS[0], threads },
+              mainSteps,
+            ),
+          );
+          save(results);
+        }
+      }
     }
     if (SUITES.includes('remote')) {
       results.remote = [];
