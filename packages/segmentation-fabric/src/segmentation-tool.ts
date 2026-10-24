@@ -120,11 +120,13 @@ export class SegmentationTool extends BaseTool {
   private controller: AbortController | null = null;
   private promptStartedAt = 0;
 
-  constructor(config: SegmentationToolConfig, toolType: ToolType = 'segmentationBrush') {
+  constructor(config: SegmentationToolConfig, toolType: ToolType = 'segmentation') {
     super();
     this.config = config;
-    // A dedicated ToolType does not exist yet (see the PoC report); masks are
-    // recorded under the brush's, which is what createMaskAnnotation accepts.
+    // 'segmentation' is the ToolType this PoC adds to @osdlabel/annotation (a
+    // closed union: adding it touched annotation, validation, osdlabel and both
+    // toolbars). Mask commits are counted against it by the host
+    // (createMaskAnnotation's `toolType`); polygon commits use `polygonToolType`.
     this.type = toolType;
   }
 
@@ -304,7 +306,7 @@ export class SegmentationTool extends BaseTool {
     if (!ov || !cb || !best || !this.imageId || !target) return null;
     const contextId = cb.getActiveContextId();
     if (!contextId) return null;
-    let output: SegmentationOutput = outputOverride ?? this.config.getOutput?.() ?? 'mask';
+    const output: SegmentationOutput = outputOverride ?? this.config.getOutput?.() ?? 'mask';
 
     if (output === 'mask') {
       if (!cb.canAddAnnotation(this.type) || !this.config.onCommitMask) return null;
@@ -330,7 +332,7 @@ export class SegmentationTool extends BaseTool {
         if (!(error instanceof MaskCapacityExceededError)) throw error;
         this.config.onEvent?.({ type: 'capacity', error });
         if (this.config.fallbackToPolygon === false) return null;
-        output = 'polygon';
+        // Fall through to the polygon output below.
       }
     }
 

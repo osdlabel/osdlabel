@@ -152,6 +152,10 @@ describe('tool type schema', () => {
   it('accepts the brush tool', () => {
     expect(v.parse(ToolTypeSchema, 'segmentationBrush')).toBe('segmentationBrush');
   });
+
+  it('accepts the model-assisted segmentation tool (PoC: claude/poc-sam)', () => {
+    expect(v.parse(ToolTypeSchema, 'segmentation')).toBe('segmentation');
+  });
 });
 
 describe('image dimensions are bounded separately from the mask', () => {

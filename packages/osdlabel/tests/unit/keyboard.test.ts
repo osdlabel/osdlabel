@@ -343,12 +343,13 @@ describe('mapKeyEventToActions — the segmentation brush', () => {
 });
 
 describe('computeConstraintStatus — tool coverage', () => {
-  it('reports on the segmentation brush like every other tool', () => {
+  it('reports on the segmentation brush and the assisted-segmentation tool like every other tool', () => {
     // The constraint layer's tool list is what the toolbar and the keyboard
     // both read. A tool missing from it is invisible to constraints: its
     // status is `undefined`, the toolbar renders no button, and the shortcut
     // throws on `.enabled`.
     expect(TOOL_TYPES).toContain('segmentationBrush');
+    expect(TOOL_TYPES).toContain('segmentation');
     expect(TOOL_TYPES).toEqual(
       expect.arrayContaining([
         'rectangle',
@@ -358,8 +359,9 @@ describe('computeConstraintStatus — tool coverage', () => {
         'polyline',
         'freeHandPath',
         'segmentationBrush',
+        'segmentation',
       ]),
     );
-    expect(TOOL_TYPES).toHaveLength(7);
+    expect(TOOL_TYPES).toHaveLength(8);
   });
 });
