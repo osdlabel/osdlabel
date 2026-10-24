@@ -14,6 +14,8 @@ import {
   rankCandidates,
   rasterToMaskSnapshot,
   rasterToPolygons,
+  resampleLogits,
+  sameRasterFrame,
   stabilityScore,
   type RasterMask,
 } from '../../src/index.js';
@@ -63,6 +65,62 @@ describe('model frames', () => {
     const f = modelFrame(view, 1024, 'stretch');
     expect(f.scaleX).toBeCloseTo(0.512);
     expect(f.scaleY).toBeCloseTo(1.024);
+  });
+
+  it('tells grids apart by placement and cell size, not only by dimensions', () => {
+    const a = {
+      originX: 100,
+      originY: 200,
+      pixelWidth: 58.6,
+      pixelHeight: 58.6,
+      width: 256,
+      height: 160,
+    };
+    expect(sameRasterFrame(a, { ...a, originX: 100 + 1e-10 })).toBe(true);
+    expect(sameRasterFrame(a, { ...a, originX: 100 + 58.6 })).toBe(false);
+    expect(sameRasterFrame(a, { ...a, pixelWidth: 16.5, pixelHeight: 16.5 })).toBe(false);
+    expect(sameRasterFrame(a, { ...a, height: 161 })).toBe(false);
+  });
+
+  it('resamples logits onto a finer grid in the same image place', () => {
+    // A coarse disc (1 cell = 8 image px) resampled onto a 4x finer grid that
+    // covers only part of it: the foreground stays at the same image pixels.
+    const coarse = discRaster(8, 0, 0, 40);
+    const fine = {
+      originX: 768,
+      originY: 768,
+      pixelWidth: 2,
+      pixelHeight: 2,
+      width: 256,
+      height: 256,
+    };
+    const out = resampleLogits(coarse.data as Float32Array, coarse.frame, fine);
+    const size = { width: 4096, height: 4096 };
+    const a = rasterToMaskSnapshot(coarse, size);
+    const b = rasterToMaskSnapshot({ frame: fine, data: out }, size);
+    // Compare inside the fine grid's extent (the window both cover).
+    let inter = 0;
+    let union = 0;
+    for (let y = 768; y < 768 + 512; y++)
+      for (let x = 768; x < 768 + 512; x++) {
+        const at = (s: typeof a): number => {
+          const u = x - s.x;
+          const v = y - s.y;
+          return u >= 0 && v >= 0 && u < s.width && v < s.height ? s.data[v * s.width + u]! : 0;
+        };
+        const p = at(a);
+        const q = at(b);
+        inter += p & q;
+        union += p | q;
+      }
+    expect(union).toBeGreaterThan(0);
+    expect(inter / union).toBeGreaterThan(0.99);
+    // Outside the source: its most confident background.
+    const far = resampleLogits(coarse.data as Float32Array, coarse.frame, {
+      ...fine,
+      originX: 10_000,
+    });
+    expect(far[0]).toBe(Math.min(...(coarse.data as Float32Array)));
   });
 });
 
