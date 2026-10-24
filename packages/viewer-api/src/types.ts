@@ -71,8 +71,11 @@ export interface UIState {
    * (a CT/MR stack, a cine loop, a video). Present exactly for those cells:
    * the cell registers its axis when it opens such a source. Per cell, like
    * `cellTransforms`, so one series can be shown at two slices side by side.
+   *
+   * Optional, so a `UIState` built before frame axes existed (persisted
+   * state, a JS host) stays valid; the reducers create it on first use.
    */
-  cellFrames: Record<number, CellFrame>;
+  cellFrames?: Record<number, CellFrame>;
   /**
    * Radius of the segmentation brush, in **image** pixels — so a stroke covers
    * the same real area at any zoom and masks stay reproducible.
@@ -88,6 +91,13 @@ export interface CellFrame {
   readonly index: number;
   /** Length of the axis, so the frame can be stepped without the image source. */
   readonly count: number;
+  /**
+   * The series grouping of a source whose frames are separate images (one
+   * `ImageId` per slice, e.g. a SOPInstanceUID each): `sliceImageIds[index]`
+   * is the image the cell's annotations are keyed on while it shows `index`.
+   * Absent for a single-image frame axis, where annotations carry `frame`.
+   */
+  readonly sliceImageIds?: readonly ImageId[] | undefined;
 }
 
 /** Bounds for {@link UIState.brushRadius}, in image pixels. */
@@ -208,8 +218,8 @@ export interface KeyboardShortcutMap {
   readonly nextContext: string;
   /** Activate the previous annotation context in the configured order (wraps around) */
   readonly previousContext: string;
-  /** Show the next frame of the active cell's multi-frame source (stops at the end). */
-  readonly nextFrame: string;
-  /** Show the previous frame of the active cell's multi-frame source (stops at the start). */
-  readonly previousFrame: string;
+  /** Show the next frame of the active cell's multi-frame source (stops at the end). Optional: unset disables it. */
+  readonly nextFrame?: string | undefined;
+  /** Show the previous frame of the active cell's multi-frame source (stops at the start). Optional: unset disables it. */
+  readonly previousFrame?: string | undefined;
 }

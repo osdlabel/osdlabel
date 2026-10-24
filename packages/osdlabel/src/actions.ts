@@ -63,6 +63,11 @@ export type UIAction =
         readonly cellIndex: number;
         readonly frame: number;
         readonly frameCount: number;
+        /**
+         * One `ImageId` per frame, for a source whose frames are separate
+         * images (the series grouping). When set, its length is the axis length.
+         */
+        readonly sliceImageIds?: readonly ImageId[] | undefined;
       };
     }
   | {
@@ -274,7 +279,7 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       draft.gridAssignments[cellIndex] = action.payload.imageId;
       draft.cellTransforms[cellIndex] = { ...DEFAULT_CELL_TRANSFORM };
       // A new image starts at its first frame.
-      delete draft.cellFrames[cellIndex];
+      if (draft.cellFrames) delete draft.cellFrames[cellIndex];
       break;
     }
     case 'UNASSIGN_IMAGE_FROM_CELL': {
@@ -291,26 +296,37 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
       if (cellIndex === undefined) break;
       delete draft.gridAssignments[cellIndex];
       delete draft.cellTransforms[cellIndex];
-      delete draft.cellFrames[cellIndex];
+      if (draft.cellFrames) delete draft.cellFrames[cellIndex];
       break;
     }
     case 'SET_CELL_FRAME': {
       const cellIndex = toCellIndex(action.payload.cellIndex);
       if (cellIndex === undefined) break;
-      const count = Math.max(1, Math.trunc(action.payload.frameCount) || 1);
+      const sliceImageIds = action.payload.sliceImageIds;
+      const count = sliceImageIds
+        ? Math.max(1, sliceImageIds.length)
+        : Math.max(1, Math.trunc(action.payload.frameCount) || 1);
       const index = clampFrameIndex(action.payload.frame, count);
-      const current = draft.cellFrames[cellIndex];
+      const frames = (draft.cellFrames ??= {});
+      const current = frames[cellIndex];
       // Equal writes are skipped so a wheel tick at the end of a stack does not
       // notify every reader of the cell.
-      if (current && current.index === index && current.count === count) break;
-      draft.cellFrames[cellIndex] = { index, count };
+      if (
+        current &&
+        current.index === index &&
+        current.count === count &&
+        current.sliceImageIds === sliceImageIds
+      ) {
+        break;
+      }
+      frames[cellIndex] = sliceImageIds ? { index, count, sliceImageIds } : { index, count };
       break;
     }
     case 'STEP_CELL_FRAME': {
       const cellIndex = toCellIndex(action.payload.cellIndex);
       if (cellIndex === undefined) break;
-      const current = draft.cellFrames[cellIndex];
-      if (!current) break;
+      const current = draft.cellFrames?.[cellIndex];
+      if (!draft.cellFrames || !current) break;
       const index = stepFrameIndex(
         current.index,
         action.payload.delta,
@@ -318,7 +334,7 @@ export function applyUIAction(draft: UIState, action: UIAction): void {
         action.payload.wrap ?? false,
       );
       if (index === current.index) break;
-      draft.cellFrames[cellIndex] = { index, count: current.count };
+      draft.cellFrames[cellIndex] = { ...current, index };
       break;
     }
     case 'SET_GRID_DIMENSIONS': {

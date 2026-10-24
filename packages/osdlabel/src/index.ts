@@ -281,6 +281,9 @@ export {
 export type { MaskSwapOutcome, MaskTintOverride, MaskTintSwapHost } from './mask-style.js';
 export { MaskObjectCache } from './mask-object-cache.js';
 export { VectorObjectCache, DEFAULT_VECTOR_OBJECT_CACHE_SIZE } from './vector-object-cache.js';
+export { DEFAULT_FRAME_CELL_OPTIONS } from './frame-cell-options.js';
+export type { FrameCellOptions } from './frame-cell-options.js';
+export { cellAnnotationImageId } from './cell-annotation-image-id.js';
 export type { BrushConfigAccessors, BrushConfigDispatchers } from './brush-config.js';
 export type {
   CreateMaskAnnotationOptions,
@@ -336,6 +339,7 @@ export {
   countAnnotationsForContextAndType,
   canAddAnnotation,
   usesPerFrameScope,
+  usesImageScope,
 } from './constraints.js';
 
 // Drag-driven viewer control registry

@@ -152,6 +152,23 @@ export function usesPerFrameScope(contextState: ContextState): boolean {
 }
 
 /**
+ * Whether the active context's status can differ between two images of one
+ * series grouping (one `ImageId` per slice): it lists `imageIds`, or limits a
+ * tool per image or per frame. When it cannot, a binding keys its constraint
+ * memo on the cell's grid assignment rather than the slice shown, so a scroll
+ * does not recount every annotation for a status that cannot change; the
+ * frame-axis model gets the same guarantee from {@link usesPerFrameScope}.
+ */
+export function usesImageScope(contextState: ContextState): boolean {
+  const active = contextState.contexts.find((c) => c.id === contextState.activeContextId);
+  if (!active) return false;
+  return (
+    active.imageIds !== undefined ||
+    active.tools.some((t) => t.countScope === 'per-image' || t.countScope === 'per-frame')
+  );
+}
+
+/**
  * Whether `type` may add an annotation now: enabled, and under its limit.
  *
  * Distinct from `enabled` for the brush, which stays usable at its limit to

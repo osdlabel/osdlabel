@@ -8,6 +8,7 @@ import { vi } from 'vitest';
 import { BoundedDenseMaskBuffer, stampCircle } from '@osdlabel/mask';
 import { applyUIAction } from '../../src/actions.js';
 import { createFrameThrottle } from '../../src/frame-throttle.js';
+import { cellAnnotationImageId } from '../../src/cell-annotation-image-id.js';
 import { VectorObjectCache } from '../../src/vector-object-cache.js';
 import { buildSegmentationBrushConfig } from '../../src/brush-config.js';
 import { createMaskAnnotation } from '../../src/create-mask-annotation.js';
@@ -57,37 +58,69 @@ describe('SET_CELL_FRAME', () => {
       type: 'SET_CELL_FRAME',
       payload: { cellIndex: 0, frame: 400, frameCount: 300 },
     });
-    expect(ui.cellFrames[0]).toEqual({ index: 299, count: 300 });
+    expect(ui.cellFrames![0]).toEqual({ index: 299, count: 300 });
     applyUIAction(ui, {
       type: 'SET_CELL_FRAME',
       payload: { cellIndex: 0, frame: -5, frameCount: 300 },
     });
-    expect(ui.cellFrames[0]).toEqual({ index: 0, count: 300 });
+    expect(ui.cellFrames![0]).toEqual({ index: 0, count: 300 });
     applyUIAction(ui, {
       type: 'SET_CELL_FRAME',
       payload: { cellIndex: 0, frame: 42, frameCount: 300 },
     });
     applyUIAction(ui, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 0, imageId: series } });
-    expect(ui.cellFrames[0]?.index).toBe(42); // same image: #212 rule, nothing resets
+    expect(ui.cellFrames![0]?.index).toBe(42); // same image: #212 rule, nothing resets
     applyUIAction(ui, {
       type: 'ASSIGN_IMAGE_TO_CELL',
       payload: { cellIndex: 0, imageId: createImageId('other') },
     });
-    expect(ui.cellFrames[0]).toBeUndefined();
+    expect(ui.cellFrames![0]).toBeUndefined();
   });
 
   it('steps within the registered axis, and only for a cell that has one', () => {
     const ui = createInitialUIState();
     applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 1 } });
-    expect(ui.cellFrames[0]).toBeUndefined();
+    expect(ui.cellFrames![0]).toBeUndefined();
     applyUIAction(ui, {
       type: 'SET_CELL_FRAME',
       payload: { cellIndex: 0, frame: 298, frameCount: 300 },
     });
     applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 5 } });
-    expect(ui.cellFrames[0]).toEqual({ index: 299, count: 300 });
+    expect(ui.cellFrames![0]).toEqual({ index: 299, count: 300 });
     applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 1, wrap: true } });
-    expect(ui.cellFrames[0]).toEqual({ index: 0, count: 300 });
+    expect(ui.cellFrames![0]).toEqual({ index: 0, count: 300 });
+  });
+
+  it('registers a series grouping: the slice ids set the axis and follow the frame', () => {
+    const ui = createInitialUIState();
+    const slices = [0, 1, 2].map((i) => createImageId(`slice-${i}`));
+    applyUIAction(ui, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 0, imageId: series } });
+    expect(cellAnnotationImageId(ui, 0)).toBe(series);
+    applyUIAction(ui, {
+      type: 'SET_CELL_FRAME',
+      payload: { cellIndex: 0, frame: 0, frameCount: 99, sliceImageIds: slices },
+    });
+    expect(ui.cellFrames![0]).toEqual({ index: 0, count: 3, sliceImageIds: slices });
+    expect(cellAnnotationImageId(ui, 0)).toBe(slices[0]);
+    applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 5 } });
+    expect(ui.cellFrames![0]?.sliceImageIds).toBe(slices);
+    expect(cellAnnotationImageId(ui, 0)).toBe(slices[2]);
+    // The grid still holds one assignment: the series.
+    expect(ui.gridAssignments[0]).toBe(series);
+  });
+
+  it('accepts a UIState built without cellFrames (persisted or JS-built state)', () => {
+    const ui = createInitialUIState();
+    delete ui.cellFrames;
+    applyUIAction(ui, { type: 'ASSIGN_IMAGE_TO_CELL', payload: { cellIndex: 0, imageId: series } });
+    applyUIAction(ui, { type: 'STEP_CELL_FRAME', payload: { cellIndex: 0, delta: 1 } });
+    applyUIAction(ui, { type: 'UNASSIGN_IMAGE_FROM_CELL', payload: { cellIndex: 0 } });
+    expect(ui.cellFrames).toBeUndefined();
+    applyUIAction(ui, {
+      type: 'SET_CELL_FRAME',
+      payload: { cellIndex: 0, frame: 2, frameCount: 10 },
+    });
+    expect(ui.cellFrames).toEqual({ 0: { index: 2, count: 10 } });
   });
 
   it('ignores an invalid cell index', () => {

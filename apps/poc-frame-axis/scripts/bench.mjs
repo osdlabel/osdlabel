@@ -19,6 +19,7 @@
  *   --port <n>              harness server port (default 5531)
  *   --out <dir>             results directory (default results/<timestamp>)
  *   --only <regex>          run only the configurations whose name matches
+ *   --reps <n>              repetitions per Solid configuration (default 5; --quick 1)
  *
  * Memory is the PSS of every process in the browser's tree (Linux /proc only;
  * reported as null elsewhere), sampled before setup, after setup and after the
@@ -31,6 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
+import { aggregateSolid, fmtSpread } from './solid-aggregate.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -378,64 +380,171 @@ async function groupModel(browser) {
   return out;
 }
 
+/** VectorObjectCache's default bound (osdlabel), for sizing the window pass. */
+const VECTOR_CACHE_BOUND = 5000;
+const SOLID_REPS = Number(opt('--reps', QUICK ? '1' : '5'));
+
+/**
+ * The Solid binding, through its public options only. Every configuration
+ * runs SOLID_REPS times, each in a fresh page, with three recorded passes of
+ * a scripted 60 Hz wheel:
+ * - cold: frames 0..~180, all first visits;
+ * - revisit: the same frames again. With object reuse on, at 50+ per slice
+ *   this overruns the reuse cache's 5,000-object bound, so it is not "warm";
+ * - window: bouncing within the first W frames, W sized so W x perSlice fits
+ *   the bound (all 180 at 10 per slice), after an unrecorded priming pass:
+ *   object reuse at its best case.
+ */
 async function groupSolid(browser, pid) {
   const out = [];
-  const base = { frames: 300, width: 512, height: 512, drawer: 'canvas', model: 'frame-axis' };
+  const base = { frames: 300, width: 512, height: 512 };
+  const rebuild = { reuseObjects: false };
+  const reuse = { reuseObjects: true };
   const variants = QUICK
-    ? [{ ...base, annotationsPerFrame: 10, objectCaching: true }]
+    ? [
+        {
+          name: 'solid/frame-axis/rebuild/10',
+          ...base,
+          annotationsPerFrame: 10,
+          frameCellOptions: rebuild,
+        },
+        {
+          name: 'solid/frame-axis/reuse/10',
+          ...base,
+          annotationsPerFrame: 10,
+          frameCellOptions: reuse,
+        },
+        {
+          name: 'solid/slice-ids/default/10',
+          ...base,
+          model: 'slice-ids',
+          annotationsPerFrame: 10,
+        },
+      ]
     : [
-        { ...base, annotationsPerFrame: 0, objectCaching: true },
-        { ...base, annotationsPerFrame: 10, objectCaching: true },
-        { ...base, annotationsPerFrame: 50, objectCaching: true },
-        { ...base, annotationsPerFrame: 10, objectCaching: false },
-        { ...base, annotationsPerFrame: 50, objectCaching: false },
-        { ...base, drawer: 'webgl', annotationsPerFrame: 10, objectCaching: true },
-        // The alternative model: one ImageSource / ImageId per slice.
-        { ...base, model: 'image-per-slice', annotationsPerFrame: 0, objectCaching: true },
-        { ...base, model: 'image-per-slice', annotationsPerFrame: 10, objectCaching: false },
+        // The binding's defaults with nothing to annotate: the pixel path alone.
+        { name: 'solid/frame-axis/default/0', ...base, annotationsPerFrame: 0, reps: 3 },
+        ...[10, 50, 200].flatMap((n) => [
+          // Object reuse off (the default) vs on, both with the binding's
+          // default drawer (canvas) and Fabric object caching (off).
+          {
+            name: `solid/frame-axis/rebuild/${n}`,
+            ...base,
+            annotationsPerFrame: n,
+            frameCellOptions: rebuild,
+          },
+          {
+            name: `solid/frame-axis/reuse/${n}`,
+            ...base,
+            annotationsPerFrame: n,
+            frameCellOptions: reuse,
+          },
+          // The alternative model on equal footing: same presenter, same
+          // options (the binding's defaults), annotations keyed by slice id.
+          {
+            name: `solid/slice-ids/default/${n}`,
+            ...base,
+            model: 'slice-ids',
+            annotationsPerFrame: n,
+          },
+        ]),
+        // A per-slice limit makes the constraint memo recount on every step.
+        {
+          name: 'solid/frame-axis/default/50/limit',
+          ...base,
+          annotationsPerFrame: 50,
+          perSliceLimit: true,
+        },
+        {
+          name: 'solid/slice-ids/default/50/limit',
+          ...base,
+          model: 'slice-ids',
+          annotationsPerFrame: 50,
+          perSliceLimit: true,
+        },
+        // Fabric's own default (object caching on), for the record.
+        {
+          name: 'solid/frame-axis/objcache/50',
+          ...base,
+          annotationsPerFrame: 50,
+          frameCellOptions: { objectCaching: true },
+          reps: 3,
+        },
+        // WebGL opted in (SwiftShader here: CPU-emulated, pessimistic).
+        {
+          name: 'solid/frame-axis/webgl/10',
+          ...base,
+          annotationsPerFrame: 10,
+          frameCellOptions: { drawer: 'webgl' },
+          reps: 3,
+        },
+        // Today's per-assignment path for N plain images (not a model): reference only.
+        {
+          name: 'solid/reopen-per-slice/10',
+          ...base,
+          model: 'reopen-per-slice',
+          annotationsPerFrame: 10,
+          reps: 1,
+        },
       ];
   for (const v of variants) {
-    const name =
-      `solid/${v.model === 'image-per-slice' ? 'per-slice/' : ''}${v.drawer}/${v.annotationsPerFrame}` +
-      (v.objectCaching ? '' : '/nocache');
-    if (ONLY && !ONLY.test(name)) continue;
-    process.stdout.write(`  ${name} ... `);
-    const t = Date.now();
-    const { context, page } = await openPage(browser, 'solid.html');
-    const mem0 = pssMB(pid);
-    const r = { name, opts: v, loadAvgBefore: load() };
-    try {
-      r.setup = await call(page, 'setup', v);
-      // A non-default view (rotated, zoomed): does navigation keep it?
-      r.viewBefore = await call(page, 'prepareView');
-      // First visits (each frame's annotations revived once), then the same
-      // frames again (objects reused): cold vs warm.
-      r.scripted = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
-      r.scriptedWarm = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
-      r.viewAfter = await call(page, 'viewState');
-      // Real input: Playwright mouse.wheel over the cell (the browser's own
-      // wheel pipeline). Its rate is bounded by the CDP round trip, not by us.
-      await page.mouse.move(400, 400);
-      const wheelMs = QUICK ? 1000 : 3000;
-      await call(page, 'startRecording');
-      const t0 = Date.now();
-      let n = 0;
-      while (Date.now() - t0 < wheelMs) {
-        await page.mouse.wheel(0, 100);
-        n++;
-        await new Promise((res) => setTimeout(res, 16));
+    if (ONLY && !ONLY.test(v.name)) continue;
+    const reps = Math.min(v.reps ?? SOLID_REPS, SOLID_REPS);
+    const { name, ...rest } = v;
+    const setupOpts = { ...rest };
+    delete setupOpts.reps;
+    const perSlice = setupOpts.annotationsPerFrame;
+    const window = perSlice > 0 ? Math.min(180, Math.floor(VECTOR_CACHE_BOUND / perSlice)) : 180;
+    for (let rep = 0; rep < reps; rep++) {
+      process.stdout.write(`  ${name} #${rep + 1}/${reps} ... `);
+      const t = Date.now();
+      const { context, page } = await openPage(browser, 'solid.html');
+      const mem0 = pssMB(pid);
+      const r = { name, rep, opts: setupOpts, loadAvgBefore: load() };
+      try {
+        r.setup = await call(page, 'setup', setupOpts);
+        // A non-default view (rotated, zoomed): does navigation keep it?
+        r.viewBefore = await call(page, 'prepareView');
+        r.passes = {};
+        r.passes.cold = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
+        r.passes.revisit = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS });
+        await call(page, 'scroll', {
+          rate: 60,
+          durationMs: Math.ceil((window / 60) * 1000) + 300,
+          window,
+          record: false,
+        });
+        r.passes.window = await call(page, 'scroll', { rate: 60, durationMs: SCROLL_MS, window });
+        r.viewAfter = await call(page, 'viewState');
+        if (perSlice > 0 && setupOpts.model !== 'reopen-per-slice') {
+          r.edit = await call(page, 'editProbe', QUICK ? 5 : 11);
+        }
+        if (rep === 0) {
+          // Real input: Playwright mouse.wheel over the cell (the browser's own
+          // wheel pipeline). Its rate is bounded by the CDP round trip, not by us.
+          await page.mouse.move(400, 400);
+          const wheelMs = QUICK ? 1000 : 2000;
+          await call(page, 'startRecording');
+          const t0 = Date.now();
+          let n = 0;
+          while (Date.now() - t0 < wheelMs) {
+            await page.mouse.wheel(0, 100);
+            n++;
+            await new Promise((res) => setTimeout(res, 16));
+          }
+          r.realWheel = { ...(await call(page, 'stopRecording')), wheelEventsSent: n };
+        }
+        r.memory = { before: mem0, after: pssMB(pid), deltaMB: delta(mem0, pssMB(pid)) };
+        r.loadAvgAfter = load();
+      } catch (err) {
+        r.error = String(err?.message ?? err);
+        console.error(`  ${name}: ${r.error}`);
+      } finally {
+        await context.close().catch(() => {});
       }
-      r.realWheel = { ...(await call(page, 'stopRecording')), wheelEventsSent: n };
-      r.memory = { before: mem0, after: pssMB(pid), deltaMB: delta(mem0, pssMB(pid)) };
-      r.loadAvgAfter = load();
-    } catch (err) {
-      r.error = String(err?.message ?? err);
-      console.error(`  ${name}: ${r.error}`);
-    } finally {
-      await context.close().catch(() => {});
+      console.log(`${((Date.now() - t) / 1000).toFixed(1)}s`);
+      out.push(r);
     }
-    console.log(`${((Date.now() - t) / 1000).toFixed(1)}s`);
-    out.push(r);
   }
   return out;
 }
@@ -548,29 +657,29 @@ function summary(results) {
   }
   if (results.solid) {
     console.log(
-      '\nSolid binding prototype (wheel -> SET_CELL_FRAME -> FramePresenter + per-frame annotations).',
+      '\nSolid binding (public frameCellOptions), median (min-max) over repetitions; passes cold / revisit / window.',
     );
-    table(results.solid, [
+    const agg = aggregateSolid(results.solid);
+    const cell = (r, pass, k) => fmtSpread(r.passes[pass]?.[k]);
+    table(agg, [
       ['config', (r) => r.name],
-      ['real wheel fps', (r) => f1(r.realWheel?.displayFps)],
-      ['real shown/s', (r) => f1(r.realWheel?.shownSlicesPerSec)],
-      ['cold fps', (r) => f1(r.scripted?.displayFps)],
-      ['cold shown/s', (r) => f1(r.scripted?.shownSlicesPerSec)],
-      ['warm fps', (r) => f1(r.scriptedWarm?.displayFps)],
-      ['warm shown/s', (r) => f1(r.scriptedWarm?.shownSlicesPerSec)],
-      ['incoherent', (r) => r.scriptedWarm?.incoherentFrames ?? '-'],
-      ['blank', (r) => r.scriptedWarm?.blankFrames ?? '-'],
-      ['effect ms p95', (r) => f1(r.scriptedWarm?.applyMs?.p95)],
-      [
-        'view kept',
-        (r) =>
-          r.viewAfter
-            ? `rot ${r.viewBefore?.rotation}->${r.viewAfter.rotation} zoom ${r.viewBefore?.zoomOverHome}->${r.viewAfter.zoomOverHome}`
-            : '-',
-      ],
-      ['mem MB', (r) => f1(r.memory?.deltaMB)],
-      ['err', (r) => (r.error ? 'ERR' : '')],
+      ['reps', (r) => r.reps],
+      ['cold slices/s', (r) => cell(r, 'cold', 'slicesPerSec')],
+      ['cold incoh', (r) => cell(r, 'cold', 'incoherent')],
+      ['revisit slices/s', (r) => cell(r, 'revisit', 'slicesPerSec')],
+      ['revisit incoh', (r) => cell(r, 'revisit', 'incoherent')],
+      ['window slices/s', (r) => cell(r, 'window', 'slicesPerSec')],
+      ['window incoh', (r) => cell(r, 'window', 'incoherent')],
+      ['fps (revisit)', (r) => cell(r, 'revisit', 'fps')],
+      ['sync p95', (r) => cell(r, 'revisit', 'syncMsP95')],
+      ['blank', (r) => cell(r, 'revisit', 'blank')],
+      ['edit add ms', (r) => fmtSpread(r.editAddMsP50)],
+      ['heap MB', (r) => cell(r, 'window', 'heapMB')],
+      ['PSS MB', (r) => fmtSpread(r.memDeltaMB)],
+      ['view kept', (r) => (r.viewKept ? 'yes' : `no: ${JSON.stringify(r.viewAfter)}`)],
+      ['err', (r) => (r.errors.length ? `ERR x${r.errors.length}` : '')],
     ]);
+    results.solidSummary = agg;
   }
 }
 
@@ -604,8 +713,8 @@ try {
   await server.close();
 }
 results.finishedAt = new Date().toISOString();
+summary(results);
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify(results, null, 2));
 fs.writeFileSync(path.join(APP, 'results', 'latest.json'), JSON.stringify(results, null, 2));
-summary(results);
 console.log(`\nwrote ${path.relative(process.cwd(), path.join(OUT, 'results.json'))}`);

@@ -1,4 +1,4 @@
-import type { ImageSource } from '@osdlabel/viewer-api';
+import type { ImageId, ImageSource } from '@osdlabel/viewer-api';
 import type { FrameAxis } from '@osdlabel/frame';
 import type { FrameSource } from './frame-source.js';
 
@@ -13,6 +13,14 @@ import type { FrameSource } from './frame-source.js';
 export interface FramedImageSource extends ImageSource {
   readonly frameAxis: FrameAxis;
   readonly frameSource: FrameSource;
+  /**
+   * The alternative annotation model, for a series whose frames are separate
+   * images: one `ImageId` per frame (e.g. each slice's SOPInstanceUID), in
+   * axis order. When set, a cell keys the annotations it shows on
+   * `sliceImageIds[frame]` (no `frame` field), and `id` is the series'
+   * grouping id: the one grid assignment. Pixels are presented the same way.
+   */
+  readonly sliceImageIds?: readonly ImageId[] | undefined;
 }
 
 export function isFramedImageSource(source: ImageSource | undefined): source is FramedImageSource {

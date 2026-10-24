@@ -19,6 +19,15 @@
         // Lets the analysis place work done *between* two callbacks of one
         // frame (a microtask, say) in that frame's paint, not the next.
         window.__frameLog = [];
+        // True from a display frame's first rAF callback until the next task:
+        // microtasks queued by the last callback (a promise-based revive, say)
+        // still run before that frame's paint, but after __inRaf is reset.
+        // A message posted at the frame's start is delivered after the paint.
+        window.__renderPhase = false;
+        var phaseEnd = new MessageChannel();
+        phaseEnd.port1.onmessage = function () {
+          window.__renderPhase = false;
+        };
         window.requestAnimationFrame = function (cb) {
           return orig(function (ts) {
             var now = performance.now();
@@ -27,6 +36,8 @@
               frame.seq += 1;
               frame.start = now;
               window.__frameLog.push({ seq: frame.seq, start: now, last: now });
+              window.__renderPhase = true;
+              phaseEnd.port2.postMessage(0);
             } else {
               var log = window.__frameLog;
               if (log.length) log[log.length - 1].last = now;

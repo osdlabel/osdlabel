@@ -104,6 +104,7 @@ export function createMockAnnotator(overrides: Partial<MockAnnotator> = {}): Moc
     },
     vertexMarkerOptions: {},
     brushOptions: {},
+    frameCellOptions: {},
     activeImageId: () => undefined,
     testMode: false,
     decorationProviders: [],

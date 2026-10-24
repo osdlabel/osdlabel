@@ -46,6 +46,19 @@ export class VectorObjectCache {
     }
   }
 
+  /**
+   * Drop the entry holding `obj`. For an object the user is transforming:
+   * Fabric mutates it in place, so it no longer matches its payload.
+   */
+  deleteObject(obj: unknown): void {
+    for (const [payload, o] of this.entries) {
+      if (o === obj) {
+        this.entries.delete(payload);
+        return;
+      }
+    }
+  }
+
   clear(): void {
     this.entries.clear();
   }

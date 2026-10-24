@@ -20,6 +20,8 @@ declare global {
   interface Window {
     __frame: FrameClock;
     __inRaf: boolean;
+    /** Inside a display frame's rendering phase (its rAF callbacks and their microtasks). */
+    __renderPhase: boolean;
     __frameLog: FrameLogEntry[];
   }
 }
@@ -46,7 +48,9 @@ export class Recorder {
       frame,
       seq: window.__frame.seq,
       t: performance.now(),
-      inRaf: window.__inRaf,
+      // A microtask of the frame's last rAF callback counts as in it: it runs
+      // before the paint.
+      inRaf: window.__inRaf || window.__renderPhase,
     });
   }
 

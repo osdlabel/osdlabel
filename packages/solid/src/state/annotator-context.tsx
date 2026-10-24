@@ -17,12 +17,15 @@ import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
 import type {
   AnnotationRenderFailure,
   BrushOptions,
+  FrameCellOptions,
   OsdAnnotation,
   OsdFields,
   VertexEditConfig,
   VertexMarkerOptions,
 } from 'osdlabel';
 import {
+  cellAnnotationImageId,
+  usesImageScope,
   usesPerFrameScope,
   DEFAULT_KEYBOARD_SHORTCUTS,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -86,6 +89,12 @@ interface AnnotatorContextValue {
   vertexEditConfig: VertexEditConfig;
   vertexMarkerOptions: VertexMarkerOptions;
   brushOptions: BrushOptions;
+  /** How cells showing a multi-frame source render it; see `AnnotatorProviderProps.frameCellOptions`. */
+  frameCellOptions: FrameCellOptions;
+  /**
+   * The image the active cell's annotations are keyed on: the assigned image,
+   * or, for a series grouping (one `ImageId` per slice), the slice shown.
+   */
   activeImageId: Accessor<ImageId | undefined>;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -142,6 +151,13 @@ export interface AnnotatorProviderProps {
    * when a stroke exceeds it. See {@link BrushOptions}.
    */
   readonly brushOptions?: BrushOptions | undefined;
+  /**
+   * How cells showing a multi-frame source (a `FramedImageSource`) render it:
+   * OSD drawer, Fabric object caching, object reuse across frames. Unset
+   * fields take `DEFAULT_FRAME_CELL_OPTIONS`. Read when a cell opens a source
+   * or rebuilds its objects, so a change applies from the next one.
+   */
+  readonly frameCellOptions?: FrameCellOptions | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
@@ -196,16 +212,23 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     uiState,
     annotationState,
   );
-  const activeImageId = () => uiState.gridAssignments[uiState.activeCellIndex];
+  // A memo, so readers re-run when the id changes, not on every frame step
+  // (STEP_CELL_FRAME replaces the cell's frame record each time).
+  const activeImageId = createMemo(() => cellAnnotationImageId(uiState, uiState.activeCellIndex));
   const constraintStatus = createConstraintStatus(
     contextState,
     annotationState,
-    activeImageId,
+    // A series grouping changes `activeImageId` on every frame step; the
+    // status only depends on it under an image-scoped context.
+    () =>
+      usesImageScope(contextState)
+        ? activeImageId()
+        : uiState.gridAssignments[uiState.activeCellIndex],
     () => uiState.selectedAnnotationId,
     // Tracked only under a per-frame limit: a scroll must not recount the series.
     () =>
       usesPerFrameScope(contextState)
-        ? uiState.cellFrames[uiState.activeCellIndex]?.index
+        ? uiState.cellFrames?.[uiState.activeCellIndex]?.index
         : undefined,
   );
 
@@ -247,6 +270,19 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     },
     get maskStyle() {
       return props.brushOptions?.maskStyle;
+    },
+  };
+
+  // Getters for the same reason as `brushOptions`.
+  const frameCellOptions: FrameCellOptions = {
+    get drawer() {
+      return props.frameCellOptions?.drawer;
+    },
+    get objectCaching() {
+      return props.frameCellOptions?.objectCaching;
+    },
+    get reuseObjects() {
+      return props.frameCellOptions?.reuseObjects;
     },
   };
 
@@ -310,6 +346,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
       return vertexMarkerOptions();
     },
     brushOptions,
+    frameCellOptions,
     activeImageId,
     testMode: props.testMode ?? false,
     decorationProviders: props.decorationProviders ?? [],

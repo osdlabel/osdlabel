@@ -59,7 +59,7 @@ export function useKeyboard(
         activeImageId: activeImageId(),
         contexts: contextState.contexts,
         activeContextId: contextState.activeContextId,
-        activeCellHasFrames: uiState.cellFrames[uiState.activeCellIndex] !== undefined,
+        activeCellHasFrames: uiState.cellFrames?.[uiState.activeCellIndex] !== undefined,
       },
       constraintStatus(),
     );

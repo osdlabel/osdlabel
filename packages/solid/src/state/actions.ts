@@ -62,7 +62,7 @@ export function createActions(
       annotationState,
       imageId,
       null,
-      uiState.cellFrames[uiState.activeCellIndex]?.index,
+      uiState.cellFrames?.[uiState.activeCellIndex]?.index,
     );
     if (!status.rectangle.enabled) return;
     const patch = processConvertCircleToRectangle(annotation);
@@ -142,13 +142,22 @@ export function createActions(
     );
   }
 
-  /** Show `frame` in a cell whose source has a frame axis of `frameCount` frames (registers the axis). */
-  function setCellFrame(cellIndex: number, frame: number, frameCount: number): void {
+  /**
+   * Show `frame` in a cell whose source has a frame axis of `frameCount` frames
+   * (registers the axis). `sliceImageIds` registers a series grouping: one
+   * `ImageId` per frame, which the cell's annotations are then keyed on.
+   */
+  function setCellFrame(
+    cellIndex: number,
+    frame: number,
+    frameCount: number,
+    sliceImageIds?: readonly ImageId[],
+  ): void {
     setUIState(
       produce((draft) =>
         applyUIAction(draft, {
           type: 'SET_CELL_FRAME',
-          payload: { cellIndex, frame, frameCount },
+          payload: { cellIndex, frame, frameCount, sliceImageIds },
         }),
       ),
     );
