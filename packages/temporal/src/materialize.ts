@@ -49,7 +49,13 @@ export function createFrameMaterializer<P, T extends TrackBase<P>, A>(
   return Object.assign(fn, { cache });
 }
 
-/** Wire format for a set of tracks. Tracks are plain data, so this is their JSON. */
+/**
+ * Wire format for a set of tracks: the first PoC format, kept for the size
+ * comparison in `apps/poc-video` (keyframes.html). Not the recommended
+ * storage: keyframes stored as ordinary annotations carrying
+ * `KeyframeFields` reuse osdlabel's serialization and validation and
+ * round-trip exactly (see `groupKeyframeAnnotations`).
+ */
 export interface TrackDocument<T> {
   readonly format: 'osdlabel-tracks';
   readonly version: 1;
