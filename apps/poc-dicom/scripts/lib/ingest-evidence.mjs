@@ -4,7 +4,14 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { readPart10, describeInstance, buildStack, readPlaneGeometry, toImageSources, TAGS } from '@osdlabel/dicom';
+import {
+  readPart10,
+  describeInstance,
+  buildStack,
+  readPlaneGeometry,
+  toImageSources,
+  TAGS,
+} from '@osdlabel/dicom';
 
 const r3 = (x) => (typeof x === 'number' ? +x.toPrecision(6) : x);
 
@@ -13,7 +20,10 @@ export function ingestEvidence(dataDir, manifest) {
   for (const s of manifest.series) {
     const dir = path.join(dataDir, s.role);
     if (!fs.existsSync(dir)) continue;
-    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.dcm')).sort();
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.dcm'))
+      .sort();
     const parsed = files.map((f) => {
       const bytes = new Uint8Array(fs.readFileSync(path.join(dir, f)));
       const head = readPart10(bytes, { untilTag: TAGS.PixelData.tag });
@@ -82,7 +92,10 @@ export function ingestEvidence(dataDir, manifest) {
         : null,
     };
     if (parsed.length > 1 && parsed.every((p) => readPlaneGeometry(p.head.dataset))) {
-      const stack = buildStack(parsed.map((p) => p.head.dataset), (ds) => readPlaneGeometry(ds));
+      const stack = buildStack(
+        parsed.map((p) => p.head.dataset),
+        (ds) => readPlaneGeometry(ds),
+      );
       const gaps = stack.gaps;
       entry.stack = {
         slices: stack.slices.length,
@@ -99,7 +112,11 @@ export function ingestEvidence(dataDir, manifest) {
       entry.imageSources = sources.length;
       // Ordering by Instance Number would differ from geometric order?
       const byInstance = [...parsed]
-        .sort((a, b) => (a.head.dataset.numbers(TAGS.InstanceNumber.tag)?.[0] ?? 0) - (b.head.dataset.numbers(TAGS.InstanceNumber.tag)?.[0] ?? 0))
+        .sort(
+          (a, b) =>
+            (a.head.dataset.numbers(TAGS.InstanceNumber.tag)?.[0] ?? 0) -
+            (b.head.dataset.numbers(TAGS.InstanceNumber.tag)?.[0] ?? 0),
+        )
         .map((p) => p.head.dataset.strings(TAGS.SOPInstanceUID.tag)?.[0]);
       const geometric = sources.map((x) => x.id);
       const reversed = [...geometric].reverse();

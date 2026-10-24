@@ -19,7 +19,12 @@ gc();
 const after = process.memoryUsage().heapUsed;
 const shapes = groups.reduce((n, g) => n + g.geometries.length, 0);
 const points = groups.reduce(
-  (n, g) => n + g.geometries.reduce((m, x) => m + (x.type === 'polygon' || x.type === 'polyline' ? x.points.length : 4), 0),
+  (n, g) =>
+    n +
+    g.geometries.reduce(
+      (m, x) => m + (x.type === 'polygon' || x.type === 'polyline' ? x.points.length : 4),
+      0,
+    ),
   0,
 );
 process.stdout.write(

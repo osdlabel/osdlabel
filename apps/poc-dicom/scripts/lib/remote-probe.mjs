@@ -36,7 +36,8 @@ export async function remoteProbe(manifest, { frames = 24, concurrency = 6 } = {
   const c0 = Math.floor(base.tilesAcross * 0.8);
   const r0 = Math.floor(base.tilesDown * 0.4);
   const tiles = [];
-  for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) tiles.push(frameNumberFor(base, c0 + c, r0 + r));
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 6; c++) tiles.push(frameNumberFor(base, c0 + c, r0 + r));
   const pick = tiles.slice(0, frames);
   const seq = [];
   for (const n of pick.slice(0, 8)) {
@@ -64,7 +65,13 @@ export async function remoteProbe(manifest, { frames = 24, concurrency = 6 } = {
     metadataRequests,
     metadataBytes,
     sequentialFrameMs: { median: pct(seq, 0.5), p90: pct(seq, 0.9), n: seq.length },
-    parallel: { frames: pick.length, concurrency, wallMs: +parallelWallMs.toFixed(1), perFrameMedianMs: pct(par, 0.5), perFrameP90Ms: pct(par, 0.9) },
+    parallel: {
+      frames: pick.length,
+      concurrency,
+      wallMs: +parallelWallMs.toFixed(1),
+      perFrameMedianMs: pct(par, 0.5),
+      perFrameP90Ms: pct(par, 0.9),
+    },
     totalRequests: requests,
     totalBytes: bytes,
   };

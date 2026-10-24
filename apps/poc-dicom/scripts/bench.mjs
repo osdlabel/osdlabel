@@ -12,6 +12,7 @@
  *   --python PATH   Python with highdicom + dicom3tools (default: POC_PYTHON,
  *                   then ./.venv from `pnpm --filter @osdlabel/poc-dicom setup:python`)
  *   --port N        dev-server port (default 5420)
+ *   --no-bulk       skip the bulk-annotation rendering scale test (the slowest section)
  *
  * Fetches the IDC data if missing (scripts/fetch-data.mjs), then measures
  * H1 (ingest: mapping evidence, parser correctness/speed, bundle cost),
@@ -33,6 +34,8 @@ import { runExportExperiment } from './lib/export-experiment.mjs';
 import { remoteProbe } from './lib/remote-probe.mjs';
 import { startServer, launch, chromiumPath } from './lib/browser.mjs';
 import { runAnnotateFlow } from './lib/annotate-flow.mjs';
+import { runInterop, compareInterop, thirdPartyFiles } from './lib/interop-experiment.mjs';
+import { runBulkFlow } from './lib/bulk-flow.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RESULTS = path.join(APP, 'results');
@@ -47,12 +50,15 @@ const opts = {
   browser: !has('--no-browser'),
   remote: !has('--no-remote'),
   survey: has('--survey'),
+  bulk: !has('--no-bulk'),
   headed: has('--headed'),
   port: Number(arg('--port', 5420)),
   python:
     arg('--python') ??
     process.env.POC_PYTHON ??
-    (fs.existsSync(path.join(APP, '.venv', 'bin', 'python')) ? path.join(APP, '.venv', 'bin', 'python') : null),
+    (fs.existsSync(path.join(APP, '.venv', 'bin', 'python'))
+      ? path.join(APP, '.venv', 'bin', 'python')
+      : null),
 };
 
 const log = (...a) => console.log('[bench]', ...a);
@@ -69,12 +75,16 @@ const r1 = (x) => (x === null || x === undefined ? null : +Number(x).toFixed(1))
 function python(script, args) {
   if (!opts.python) return null;
   try {
-    const out = execFileSync(opts.python, ['-I', path.join(APP, 'scripts', 'py', script), ...args], {
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'ignore'],
-      cwd: os.tmpdir(),
-    });
+    const out = execFileSync(
+      opts.python,
+      ['-I', path.join(APP, 'scripts', 'py', script), ...args],
+      {
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        cwd: os.tmpdir(),
+      },
+    );
     return JSON.parse(out);
   } catch (err) {
     log(`python ${script} failed: ${String(err.message).slice(0, 200)}`);
@@ -132,7 +142,9 @@ async function runWsiCase(browser, origin, c) {
   const page = await context.newPage();
   try {
     await page.goto(`${origin}/wsi.html?role=${c.role}&mode=${c.mode}&drawer=${c.drawer}`);
-    await page.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 180000 });
+    await page.waitForFunction(() => document.body.dataset.ready === '1', null, {
+      timeout: 180000,
+    });
     const base = await page.evaluate(() => {
       const w = window.__wsi;
       return {
@@ -232,7 +244,10 @@ if (opts.survey) {
   fs.mkdirSync(RESULTS, { recursive: true });
   fs.writeFileSync(path.join(RESULTS, 'survey.json'), JSON.stringify(s, null, 1));
 } else if (fs.existsSync(path.join(RESULTS, 'survey.json'))) {
-  results.h1.survey = { ...JSON.parse(fs.readFileSync(path.join(RESULTS, 'survey.json'), 'utf8')).summary, _from: 'results/survey.json (previous --survey run)' };
+  results.h1.survey = {
+    ...JSON.parse(fs.readFileSync(path.join(RESULTS, 'survey.json'), 'utf8')).summary,
+    _from: 'results/survey.json (previous --survey run)',
+  };
 }
 
 log('H3: export round trip…');
@@ -248,8 +263,18 @@ results.h3 = {
   buildMs: exp.timings,
   validation: summariseValidation(validation),
   transformCrossCheck: validation?.transforms ?? null,
-  validators: validation ? { highdicom: validation.highdicom, pydicom: validation.pydicom } : 'skipped (no python)',
+  validators: validation
+    ? { highdicom: validation.highdicom, pydicom: validation.pydicom }
+    : 'skipped (no python)',
 };
+
+log('H3: reading third-party SR / SEG / ANN (dcmqi, QIBA, IDC nuclei) back into osdlabel…');
+const interop = runInterop(DATA_DIR);
+const interopHd = python('validate.py', [
+  '--files',
+  ...thirdPartyFiles(DATA_DIR).map((f) => f.path),
+]);
+results.h3.interop = { ours: interop, vsHighdicom: compareInterop(interop, interopHd) };
 
 if (opts.browser) {
   log(`H2: browser sections (chromium: ${chromiumPath()})…`);
@@ -267,14 +292,18 @@ if (opts.browser) {
       const ctx = await browser.newContext();
       const p = await ctx.newPage();
       await p.goto(origin + url);
-      await p.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 180000 }).catch(() => {});
+      await p
+        .waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 180000 })
+        .catch(() => {});
       await ctx.close();
     }
     const wsi = [];
     for (const c of WSI_CASES) {
       const runs = [];
       for (let rep = 0; rep < opts.reps; rep++) {
-        log(`  WSI ${c.role} ${c.mode} ${c.drawer}${c.latency ? ` +${c.latency}ms` : ''} rep ${rep + 1}/${opts.reps}`);
+        log(
+          `  WSI ${c.role} ${c.mode} ${c.drawer}${c.latency ? ` +${c.latency}ms` : ''} rep ${rep + 1}/${opts.reps}`,
+        );
         runs.push(await runWsiCase(browser, origin, c));
       }
       const pick = (k) => median(runs.map((r) => r[k]));
@@ -298,7 +327,11 @@ if (opts.browser) {
         tileBytes: pick('tileBytes'),
         serverRequests: pick('serverRequests'),
         serverBytes: pick('serverBytes'),
-        raw: runs.map((r) => ({ homeMs: r1(r.homeMs), zoomMs: r.zoomMs.map(r1), firstTileMs: r1(r.firstTileMs) })),
+        raw: runs.map((r) => ({
+          homeMs: r1(r.homeMs),
+          zoomMs: r.zoomMs.map(r1),
+          firstTileMs: r1(r.firstTileMs),
+        })),
       });
     }
     results.h2.wsi = wsi;
@@ -312,6 +345,23 @@ if (opts.browser) {
     const files = flow.exported.map((f) => path.join(annotateDir, f.name));
     const v = files.length ? python('validate.py', ['--files', ...files]) : null;
     results.h2.annotate = { ...flow, validation: summariseValidation(v) };
+
+    if (opts.bulk) {
+      // IDC's nuclei ANN (55 092 polygons) on the WSI: as ordinary annotations (one Fabric
+      // object each) versus a read-only companion canvas layer (naive Path2D, and LOD + grid).
+      results.h2.bulk = {};
+      for (const [mode, sizes] of [
+        ['fabric', [0, 500, 2000, 8000]],
+        ['layer', [8000, 55092]],
+        ['lod', [8000, 55092]],
+      ]) {
+        log(`  bulk annotations: ${mode} ${sizes.join(',')}…`);
+        results.h2.bulk[mode] = await runBulkFlow(browser, origin, sizes, {
+          mode,
+          timeoutMs: 300000,
+        });
+      }
+    }
   } finally {
     await browser.close();
     await server.close();
@@ -358,12 +408,24 @@ console.table(
 console.log('== H1 parsers: files correct vs pydicom; median ms per role (parse + extract) ==');
 console.table(
   Object.fromEntries(
-    Object.entries(results.h1.parsers.correctness).map(([k, c]) => [k, { files: c.files, correct: c.ok, mismatched: c.failures.length, threw: c.errors.length }]),
+    Object.entries(results.h1.parsers.correctness).map(([k, c]) => [
+      k,
+      { files: c.files, correct: c.ok, mismatched: c.failures.length, threw: c.errors.length },
+    ]),
   ),
 );
-console.table(Object.fromEntries(Object.entries(results.h1.parsers.perRole).map(([k, v]) => [k, v.ms])));
+console.table(
+  Object.fromEntries(Object.entries(results.h1.parsers.perRole).map(([k, v]) => [k, v.ms])),
+);
 console.log('== H1 bundle cost (esbuild, minified) ==');
-console.table(Object.fromEntries(Object.entries(results.h1.bundles).map(([k, v]) => [k, { rawKB: +(v.raw / 1024).toFixed(1), gzipKB: +(v.gzip / 1024).toFixed(1) }])));
+console.table(
+  Object.fromEntries(
+    Object.entries(results.h1.bundles).map(([k, v]) => [
+      k,
+      { rawKB: +(v.raw / 1024).toFixed(1), gzipKB: +(v.gzip / 1024).toFixed(1) },
+    ]),
+  ),
+);
 console.log('== H3 export round trip ==');
 console.table(
   Object.fromEntries(
@@ -383,7 +445,10 @@ console.table(
   ),
 );
 if (results.h3.transformCrossCheck) {
-  console.log('image→patient/slide vs highdicom ImageToReferenceTransformer (max |Δ| mm):', JSON.stringify(results.h3.transformCrossCheck));
+  console.log(
+    'image→patient/slide vs highdicom ImageToReferenceTransformer (max |Δ| mm):',
+    JSON.stringify(results.h3.transformCrossCheck),
+  );
 }
 if (results.h2.wsi) {
   console.log('== H2 DICOM WSI in OpenSeadragon (median of reps; ms) ==');
@@ -410,10 +475,73 @@ if (results.h2.annotate) {
     Object.fromEntries(
       results.h2.annotate.exported.map((f) => [
         f.name,
-        { kind: f.kind, items: f.items, bytes: f.bytes, dciodvfyErrors: results.h2.annotate.validation?.[f.name]?.dciodvfyErrors ?? 'n/a', highdicom: results.h2.annotate.validation?.[f.name]?.highdicomOk ?? 'n/a' },
+        {
+          kind: f.kind,
+          items: f.items,
+          bytes: f.bytes,
+          dciodvfyErrors: results.h2.annotate.validation?.[f.name]?.dciodvfyErrors ?? 'n/a',
+          highdicom: results.h2.annotate.validation?.[f.name]?.highdicomOk ?? 'n/a',
+        },
       ]),
     ),
   );
 }
-if (results.h2.remote) console.log('== H2 real network (IDC bucket, HTTP Range) ==\n', JSON.stringify(results.h2.remote));
-console.log(`\nwrote results/bench-${stamp}.json (${results.meta.durationS}s; load ${results.meta.loadavgStart.map((x) => x.toFixed(1)).join('/')} → ${results.meta.loadavgEnd.map((x) => x.toFixed(1)).join('/')})`);
+if (results.h3.interop) {
+  console.log('== H3 reverse: third-party DICOM read into osdlabel, vs highdicom ==');
+  console.table(
+    Object.fromEntries(
+      Object.entries(results.h3.interop.ours).map(([role, r]) => {
+        const c = results.h3.interop.vsHighdicom[role] ?? {};
+        return [
+          role,
+          {
+            creator: r.creator,
+            modality: r.modality,
+            ok: r.ok,
+            items: r.shapes ?? r.segments?.length ?? r.measurements?.length ?? '-',
+            readMs: r.readMs,
+            agreesWithHighdicom: c.compared
+              ? c.agree
+              : `n/a (${String(c.reason ?? '').slice(0, 40)})`,
+          },
+        ];
+      }),
+    ),
+  );
+}
+if (results.h2.bulk) {
+  console.log(
+    '== H2 bulk annotations on the WSI: median pan frame ms (fit / zoom8 / zoom64) and flushed draw ms ==',
+  );
+  const rows = [];
+  for (const [mode, runs] of Object.entries(results.h2.bulk))
+    for (const r of runs) {
+      if (r.error) {
+        rows.push({ mode, n: r.n, error: r.error.slice(0, 60) });
+        continue;
+      }
+      const ph = (k) => r.phases?.[k] ?? {};
+      rows.push({
+        mode,
+        n: r.n,
+        points: r.points,
+        mountMs: r1(r.mountToObjectsMs),
+        panFit: r1(ph('fit').panFrameMs?.median),
+        panZ8: r1(ph('zoom8').panFrameMs?.median),
+        panZ64: r1(ph('zoom64').panFrameMs?.median),
+        drawFit: r1(ph('fit').drawFlushedMs?.median),
+        drawZ8: r1(ph('zoom8').drawFlushedMs?.median),
+        drawZ64: r1(ph('zoom64').drawFlushedMs?.median),
+        heapMB: r1(r.heapMB),
+      });
+    }
+  console.table(rows);
+}
+if (results.h2.remote)
+  console.log(
+    '== H2 real network (IDC bucket, HTTP Range) ==\n',
+    JSON.stringify(results.h2.remote),
+  );
+console.log(
+  `\nwrote results/bench-${stamp}.json (${results.meta.durationS}s; load ${results.meta.loadavgStart.map((x) => x.toFixed(1)).join('/')} → ${results.meta.loadavgEnd.map((x) => x.toFixed(1)).join('/')})`,
+);

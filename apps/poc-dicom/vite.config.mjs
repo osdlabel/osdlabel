@@ -30,6 +30,7 @@ export default defineConfig({
       input: {
         wsi: path.join(HERE, 'wsi.html'),
         annotate: path.join(HERE, 'annotate.html'),
+        bulk: path.join(HERE, 'bulk.html'),
       },
     },
   },

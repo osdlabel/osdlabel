@@ -13,7 +13,10 @@ import { fileURLToPath } from 'node:url';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const venv = path.join(APP, '.venv');
-const py = process.platform === 'win32' ? path.join(venv, 'Scripts', 'python.exe') : path.join(venv, 'bin', 'python');
+const py =
+  process.platform === 'win32'
+    ? path.join(venv, 'Scripts', 'python.exe')
+    : path.join(venv, 'bin', 'python');
 
 if (!fs.existsSync(py)) execFileSync('python3', ['-m', 'venv', venv], { stdio: 'inherit' });
 const pkgs = ['highdicom==0.28.2', 'pydicom==3.0.2', 'dicom3tools==20260927', 'numpy'];
