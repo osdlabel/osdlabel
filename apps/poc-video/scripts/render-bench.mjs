@@ -7,6 +7,7 @@
  * red marker (spatial), and the Fabric 4x4 frame code must equal the video's
  * (temporal).
  */
+import os from 'node:os';
 import { PNG } from 'pngjs';
 
 // [host, source, decorations]. Every cell carries 50 interpolated rectangles
@@ -220,6 +221,9 @@ export async function runH2(
           cpuBrowser: r2(cpu.browser ?? 0),
           syncMaxPx: syncSummary.spatialMaxPx,
           frameDelta: JSON.stringify(syncSummary.frameDeltaHistogram),
+          // Host 1-minute load average when the cell ended: other processes
+          // on a shared machine show up here before they show up as noise.
+          load1: r2(os.loadavg()[0]),
         };
         rows.push(row);
         raw.push({

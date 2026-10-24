@@ -66,6 +66,17 @@ for (const r of runs) {
     console.log(`\n## H2 (${r.h2.video}, ${r.h2.seconds}s per cell, ${r.h2.viewport})\n`);
     console.log(md(r.h2.rows, Object.keys(r.h2.rows.find((x) => !x.error) ?? r.h2.rows[0])));
   }
+  if (r.h2Replaced?.rows) {
+    console.log(
+      `\n## H2 as first measured in ${r.meta.sources?.main ?? 'the main run'} (replaced: shared host under load)\n`,
+    );
+    console.log(
+      md(
+        r.h2Replaced.rows,
+        Object.keys(r.h2Replaced.rows.find((x) => !x.error) ?? r.h2Replaced.rows[0]),
+      ),
+    );
+  }
   if (r.h3?.node) {
     console.log('\n## H3 interpolation cost (Node)\n');
     console.log(md(r.h3.node.rows, Object.keys(r.h3.node.rows[0])));

@@ -205,6 +205,7 @@ async function main() {
         cpuModel: os.cpus()[0]?.model,
         memGB: Math.round(os.totalmem() / 1e9),
         platform: `${os.platform()} ${os.release()}`,
+        loadavgAtStart: os.loadavg(),
       },
       node: process.version,
       chromium: executablePath,
@@ -268,6 +269,8 @@ async function main() {
     await server.close();
   }
 
+  result.meta.host.loadavgAtEnd = os.loadavg();
+  result.meta.finishedAt = new Date().toISOString();
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
   const stamp = result.meta.startedAt.replace(/[:.]/g, '-');
   const file = path.join(RESULTS_DIR, `run-${stamp}.json`);
