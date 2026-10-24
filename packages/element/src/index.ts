@@ -9,6 +9,8 @@ export type {
   OsdlabelAnnotatorElementConstructor,
   ShadowMode,
 } from './annotator-element.js';
+export { createElementSlots } from './element-slots.js';
+export type { ElementSlotHost, ElementSlotTable } from './element-slots.js';
 export { ANNOTATOR_EVENTS, createAnnotatorEvent } from './element-events.js';
 export type {
   ActiveToolChangeDetail,

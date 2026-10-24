@@ -5,6 +5,12 @@ export { default as GridControls } from './GridControls.js';
 export { default as GridView } from './GridView.js';
 export { default as StatusBar } from './StatusBar.js';
 export { default as Toolbar, ToolbarView, useToolbarSlotProps } from './Toolbar.js';
+export { AnnotatorSlot, ANNOTATOR_SLOT_RENDERERS } from './annotator-slots.js';
+export type {
+  AnnotatorSlotProps,
+  AnnotatorSlotRenderer,
+  AnnotatorSlotRendererTable,
+} from './annotator-slots.js';
 export { default as ContextSwitcher } from './ContextSwitcher.js';
 export { default as ViewerCell } from './ViewerCell.js';
 export { ViewControls } from './ViewControls.js';

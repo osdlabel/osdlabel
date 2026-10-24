@@ -3,7 +3,12 @@ import { createComponent, untrack, type Component } from 'solid-js';
 import { render } from 'solid-js/web';
 import { createAnnotationContextId, type AnnotationContext } from '@osdlabel/annotation-context';
 import { createImageId, type ImageSource } from '@osdlabel/viewer-api';
-import type { ToolbarSlotProps } from 'osdlabel';
+import { ANNOTATOR_SLOT_NAMES } from 'osdlabel';
+import type { AnnotatorSlotName, AnnotatorSlotPropsMap, ToolbarSlotProps } from 'osdlabel';
+import {
+  ANNOTATOR_SLOT_RENDERERS,
+  type AnnotatorSlotRendererTable,
+} from '../../../src/components/annotator-slots.js';
 import { useAnnotator } from '../../../src/state/annotator-context.js';
 
 // A viewer that never opens: the cell mounts, no overlay is ever built, and
@@ -138,4 +143,43 @@ describe('stock toolbar theming hooks', () => {
     expect(q(root, 'tool-rectangle')!.getAttribute('part')).toBe('tool-button');
     expect(root.querySelector('[part="status-bar"]')).not.toBeNull();
   });
+});
+
+describe('slot renderer table', () => {
+  it('has a renderer for exactly the shared slot names', () => {
+    expect(Object.keys(ANNOTATOR_SLOT_RENDERERS).sort()).toEqual(
+      Object.keys(ANNOTATOR_SLOT_NAMES).sort(),
+    );
+  });
+
+  it('does not compile without a renderer for every shared slot', () => {
+    const { Toolbar: omitted, ...withoutToolbar } = ANNOTATOR_SLOT_RENDERERS;
+    // @ts-expect-error -- a table missing a slot must not type-check; if this
+    // directive is reported unused, the table type stopped being exhaustive.
+    const incomplete: AnnotatorSlotRendererTable = withoutToolbar;
+    expect(Object.keys(incomplete)).not.toContain('Toolbar');
+    expect(omitted.Stock).toBe(ANNOTATOR_SLOT_RENDERERS.Toolbar.Stock);
+  });
+
+  /** A `components` map overriding only `name`, with a marker component. */
+  const overrideOnly = (name: AnnotatorSlotName, marker: Component): AnnotatorComponents => {
+    const components: { -readonly [K in AnnotatorSlotName]?: Component<AnnotatorSlotPropsMap[K]> } =
+      {};
+    components[name] = marker;
+    return components;
+  };
+
+  // Runtime half of the contract: the layout places every slot, so an
+  // override for any shared slot name is rendered.
+  for (const name of Object.keys(ANNOTATOR_SLOT_NAMES) as AnnotatorSlotName[]) {
+    it(`renders an override for the ${name} slot`, () => {
+      const Marker: Component = () => {
+        const el = document.createElement('div');
+        el.dataset['testid'] = `slot-marker-${name}`;
+        return el;
+      };
+      const root = mountAnnotator(overrideOnly(name, Marker));
+      expect(q(root, `slot-marker-${name}`)).not.toBeNull();
+    });
+  }
 });

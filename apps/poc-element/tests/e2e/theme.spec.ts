@@ -73,6 +73,21 @@ test('slot="toolbar": a host toolbar replaces the stock one and drives the annot
   await expect(page.getByTestId('host-tool-rectangle')).toHaveText('[Rect 1]');
 });
 
+test('the shadow root has a named <slot> for every shared slot name', async ({ page }) => {
+  await page.goto('/theme.html');
+  await waitInteractive(page);
+  const { names, rendered } = await page.evaluate(() => {
+    const el = document.querySelector('osdlabel-annotator')!;
+    const names = (window as unknown as { __slotNames: readonly string[] }).__slotNames;
+    const rendered = [...el.shadowRoot!.querySelectorAll('slot[name]')].map((s) =>
+      s.getAttribute('name'),
+    );
+    return { names, rendered };
+  });
+  expect(names.length).toBeGreaterThan(0);
+  for (const name of names) expect(rendered).toContain(name);
+});
+
 test('without an override, drawing still uses the stock toolbar', async ({ page }) => {
   await page.goto('/theme.html?theme=1');
   await waitInteractive(page);

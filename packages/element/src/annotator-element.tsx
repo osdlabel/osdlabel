@@ -1,12 +1,11 @@
 import { render } from 'solid-js/web';
-import { createEffect, createSignal, on, onCleanup, type Component, type JSX } from 'solid-js';
-import { Annotator, ToolbarView, useAnnotator } from '@osdlabel/solid';
+import { createEffect, createSignal, on, onCleanup, type JSX } from 'solid-js';
+import { Annotator, useAnnotator } from '@osdlabel/solid';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
 import type { AnnotationContext, AnnotationContextId } from '@osdlabel/annotation-context';
 import type { ImageId, ImageSource, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import type { DecorationProvider } from '@osdlabel/decoration';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
-import { ANNOTATOR_SLOT_NAMES } from 'osdlabel';
 import type {
   OsdAnnotation,
   OsdFields,
@@ -14,6 +13,7 @@ import type {
   ToolbarSlotProps,
   ToolbarTool,
 } from 'osdlabel';
+import { createElementSlots } from './element-slots.js';
 import { groupAnnotationsByImage, isSameAnnotationSet } from './annotations-io.js';
 import { toPlainData } from './plain-data.js';
 import {
@@ -311,40 +311,13 @@ export function createAnnotatorElementClass(
         this.dispatchEvent(createAnnotatorEvent(name, detail));
       };
 
-      /**
-       * The Toolbar override point. In shadow mode the stock toolbar is the
-       * fallback content of `<slot name="toolbar">`, so a host child with
-       * `slot="toolbar"` replaces it with no script; that child drives the
-       * annotator through `toolbarModel` / `toolbarmodelchange` and the
-       * `selectTool()`-style commands. Light DOM has no slots, so there the
-       * stock toolbar always renders.
-       */
-      const ToolbarSlot: Component<ToolbarSlotProps> = (slotProps) => {
-        this.#toolbar = slotProps;
-        onCleanup(() => {
-          this.#toolbar = undefined;
-        });
-        createEffect(
-          on(
-            () => slotProps.model,
-            (model) => emit('toolbarmodelchange', { model }),
-          ),
-        );
-        const stock = (
-          <ToolbarView
-            model={slotProps.model}
-            onSelectTool={slotProps.onSelectTool}
-            onBrushRadiusChange={slotProps.onBrushRadiusChange}
-            onBrushErasingChange={slotProps.onBrushErasingChange}
-            onConvertToRect={slotProps.onConvertToRect}
-          />
-        );
-        return shadowMode === 'open' ? (
-          <slot name={ANNOTATOR_SLOT_NAMES.Toolbar}>{stock}</slot>
-        ) : (
-          stock
-        );
-      };
+      const slots = createElementSlots({
+        shadow: shadowMode === 'open',
+        emit,
+        onToolbarProps: (props) => {
+          this.#toolbar = props;
+        },
+      });
 
       const disposeTree = render(
         () => (
@@ -363,7 +336,7 @@ export function createAnnotatorElementClass(
             showFps={flags()['show-fps']}
             filmstripPosition={filmstripPosition()}
             testMode={flags()['test-mode']}
-            components={{ Toolbar: ToolbarSlot }}
+            components={slots}
             onAnnotationsChange={(annotations) => {
               if (!this.#applyingProperty) emit('annotationschange', { annotations });
             }}

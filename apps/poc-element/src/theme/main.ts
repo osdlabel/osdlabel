@@ -10,6 +10,7 @@ import {
   type OsdlabelAnnotatorElement,
   type ToolbarModelChangeDetail,
 } from '@osdlabel/element';
+import { ANNOTATOR_SLOT_NAMES } from 'osdlabel';
 import type { ToolbarModel } from 'osdlabel';
 import { CONTEXTS, FIRST_IMAGE_ID, IMAGES } from '../shared/fixtures.js';
 import { HOST_EVENT_NAMES, reportHostEvent, startInteractiveProbe } from '../shared/probe.js';
@@ -79,3 +80,8 @@ if (params.get('override') === '1') {
 }
 
 document.getElementById('app')!.append(el);
+
+// The shared slot names, so the spec can check the element renders a named
+// <slot> for every one of them.
+(window as unknown as { __slotNames: readonly string[] }).__slotNames =
+  Object.values(ANNOTATOR_SLOT_NAMES);

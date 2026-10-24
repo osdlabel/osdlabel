@@ -8,7 +8,7 @@ import {
 import { AnnotatorProvider } from '../state/annotator-context.js';
 import type { AnnotatorProviderProps } from '../state/annotator-context.js';
 import { useAnnotator } from '../state/annotator-context.js';
-import Toolbar, { useToolbarSlotProps } from './Toolbar.js';
+import { AnnotatorSlot } from './annotator-slots.js';
 import StatusBar from './StatusBar.js';
 import GridView from './GridView.js';
 import Filmstrip from './Filmstrip.js';
@@ -18,11 +18,13 @@ import { ViewControls } from './ViewControls.js';
 import type { ImageSource } from '@osdlabel/viewer-api';
 import type { AnnotationContext, AnnotationContextId } from '@osdlabel/annotation-context';
 import { OSDLABEL_PARTS, themeVar } from 'osdlabel';
-import type { AnnotatorSlotName, AnnotatorSlotPropsMap, ToolbarSlotProps } from 'osdlabel';
+import type { AnnotatorSlotName, AnnotatorSlotPropsMap } from 'osdlabel';
 
 /**
  * Replacement components for the stock layout's override points, keyed by the
- * shared slot names; each receives that slot's shared props contract.
+ * shared slot names; each receives that slot's shared props contract. Every
+ * key is optional for the host; the binding's own renderer table
+ * (`ANNOTATOR_SLOT_RENDERERS`) is the exhaustive side.
  */
 export type AnnotatorComponents = {
   readonly [K in AnnotatorSlotName]?: ComponentType<AnnotatorSlotPropsMap[K]> | undefined;
@@ -57,15 +59,6 @@ export interface AnnotatorProps extends Omit<AnnotatorProviderProps, 'children'>
   readonly providerChildren?: ReactNode | undefined;
   /** Components replacing parts of the stock layout; see {@link AnnotatorComponents}. */
   readonly components?: AnnotatorComponents | undefined;
-}
-
-/** Renders an override toolbar with the stock toolbar's model and commands. */
-function ToolbarOverride({
-  component: Override,
-}: {
-  readonly component: ComponentType<ToolbarSlotProps>;
-}) {
-  return <Override {...useToolbarSlotProps()} />;
 }
 
 function AnnotatorSetup({
@@ -155,7 +148,7 @@ function AnnotatorInner({
           padding: '4px 8px',
         }}
       >
-        {components?.Toolbar ? <ToolbarOverride component={components.Toolbar} /> : <Toolbar />}
+        <AnnotatorSlot name="Toolbar" override={components?.Toolbar} />
         {/* Sits next to the tools rather than pinned to the right edge with
             `marginLeft: auto`: its grid popover opens rightward from the
             button, so anchoring it at the edge clipped it whenever the

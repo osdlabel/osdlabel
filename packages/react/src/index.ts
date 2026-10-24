@@ -17,6 +17,12 @@ export { default as Annotator } from './components/Annotator.js';
 export type { AnnotatorProps, AnnotatorComponents } from './components/Annotator.js';
 export { default as ViewerCell } from './components/ViewerCell.js';
 export { default as Toolbar, ToolbarView, useToolbarSlotProps } from './components/Toolbar.js';
+export { AnnotatorSlot, ANNOTATOR_SLOT_RENDERERS } from './components/annotator-slots.js';
+export type {
+  AnnotatorSlotProps,
+  AnnotatorSlotRenderer,
+  AnnotatorSlotRendererTable,
+} from './components/annotator-slots.js';
 export { default as StatusBar } from './components/StatusBar.js';
 export { default as ContextSwitcher } from './components/ContextSwitcher.js';
 export { default as GridView } from './components/GridView.js';
