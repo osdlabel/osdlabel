@@ -1,0 +1,9 @@
+# Fetched IDC data (scripts/fetch-data.mjs) — never committed.
+data/
+# Benchmark output; only the representative run is committed.
+results/*
+!results/representative.json
+# Python tooling (scripts/setup-python.mjs).
+.venv/
+# Scratch drivers.
+scripts/tmp-*

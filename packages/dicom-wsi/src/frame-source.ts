@@ -115,7 +115,7 @@ export function createRangeFrameSource(options: {
       const out: PyramidInstance[] = [];
       await Promise.all(
         options.urls.map(async (url) => {
-          let size = options.headerBytes ?? 65536;
+          let size = options.headerBytes ?? 262144;
           for (;;) {
             const res = await fetchFn(url, {
               headers: { Range: `bytes=0-${size - 1}` },
@@ -125,7 +125,7 @@ export function createRangeFrameSource(options: {
             const total = Number(
               /\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1] ?? head.length,
             );
-            const file = readPart10(head);
+            const file = readPart10(head, { untilTag: TAGS.PixelData.tag });
             const px = file.pixelData;
             const uid = file.dataset.strings(TAGS.SOPInstanceUID.tag)?.[0] ?? url;
             const complete = !file.truncated || head.length < size;

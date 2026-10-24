@@ -1,0 +1,43 @@
+{
+  "name": "@osdlabel/poc-dicom",
+  "version": "0.0.0",
+  "author": "Guy Or <guydude1@gmail.com>",
+  "private": true,
+  "type": "module",
+  "description": "PoC: 'speak DICOM, but don't be DICOM' - ingest, WSI tiles and SR/SEG/ANN export for osdlabel, with a one-command benchmark.",
+  "scripts": {
+    "dev": "vite",
+    "fetch-data": "node scripts/fetch-data.mjs",
+    "setup:python": "node scripts/setup-python.mjs",
+    "bench": "node scripts/bench.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cornerstonejs/codec-openjpeg": "1.3.6",
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/decoration": "workspace:*",
+    "@osdlabel/dicom": "workspace:*",
+    "@osdlabel/dicom-export": "workspace:*",
+    "@osdlabel/dicom-wsi": "workspace:*",
+    "@osdlabel/geometry": "workspace:*",
+    "@osdlabel/mask": "workspace:*",
+    "@osdlabel/solid": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*",
+    "dcmjs": "0.52.2",
+    "dicom-parser": "1.8.21",
+    "fabric": "catalog:",
+    "openseadragon": "catalog:",
+    "osdlabel": "workspace:*",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "catalog:",
+    "esbuild": "0.25.12",
+    "playwright": "^1.60.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:",
+    "vitest": "catalog:"
+  }
+}

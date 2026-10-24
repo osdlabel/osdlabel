@@ -1,0 +1,3207 @@
+{
+  "seed": 1500,
+  "per_modality": 40,
+  "base_url": "https://storage.googleapis.com",
+  "items": [
+    {
+      "modality": "CT",
+      "collection_id": "cptac_sar",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.2626.124845135136172916617608698364",
+      "key": "idc-open-data/ddec8c26-84d7-4cbb-abf2-6d10bf4eef65/6d340b58-83fb-4945-8b4f-1f41ed76f6de.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "uw_cirp_mouse_pet_ct_nsclc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "2.25.216336887603457280734504493746490389385",
+      "key": "idc-open-data/7c71f2cd-c0a1-4935-ae21-15a32b6c9eef/00416b88-fae0-4c1b-ad4f-bdf9ee8874a3.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.291335398429943646074868001446110591213",
+      "key": "idc-open-data/f0bd0126-1f51-46bd-ad45-ba0e13d817ce/5b1c10f5-b12c-4d59-a325-6cf7a276a3b7.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_stad",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6354.4025.163548967273573198919850018378",
+      "key": "idc-open-data/b64b9693-386b-4239-803d-e059c0c8b161/00c32aae-119e-42bd-879e-a185702f33d1.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "ct4harmonization_multicentric",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.12.2.1107.5.1.4.83100.30000021022306474301500052446",
+      "key": "idc-open-data/851a723d-1a53-454f-9cd6-3cee5b552164/0083308f-38ea-4248-b6d7-0754004a6822.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "spinal_multiple_myeloma_seg",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.145118038034693681085540749401780182568",
+      "key": "idc-open-data/f133bb15-4b13-465e-8736-ea0d77f2765a/00275ecd-91f5-41a4-b106-c4329a63d8b8.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "qin_lung_ct",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4320.7015.607116685535995843554823064088",
+      "key": "idc-open-data/b55dd3ef-85ab-4bb7-a18e-a7f61f91892c/03b42296-4151-4661-ab43-aeca16d01ce2.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "ctpred_sunitinib_pannet",
+      "license": "CC BY 4.0",
+      "manufacturer": "Unknown manufacturer",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.156752320014437111811231423464339637580",
+      "key": "idc-open-data/77d9b9da-a88b-462c-aad3-2590f4d8af01/0249b10e-a4c2-4f6d-ab32-b28a6675a0e3.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "nsclc_radiogenomics",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4334.1501.266563989427013903777123968303",
+      "key": "idc-open-data/f1c77622-1337-4aad-859a-f86bd440abf4/f7fd678b-352f-4882-9e50-e3aac4758505.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_esca",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6354.4026.114969797498116752701794660416",
+      "key": "idc-open-data/467083ec-a2cb-452d-a857-4395f789228f/02c98a36-9c93-4418-bf4c-657ccd356392.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "ct_lymph_nodes",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "61.7.50609751867865247998649433908524202040",
+      "key": "idc-open-data/f535fc9a-449a-446b-b3a4-142fa861d603/010d76dc-9cb8-41dd-8bc4-bbbc49215ce6.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "rider_pilot",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.2.131888",
+      "key": "idc-open-data/a800d8da-9720-4d03-ab54-7dca865ccdd7/009c3be8-1aca-4589-bfd3-6b339be9f47b.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.842980983137518332429408284002",
+      "key": "idc-open-data/6e79f14e-39fb-44e9-8510-8497613dfe6d/01c1e9b3-ab9c-4925-a5ea-d8be97e4b76a.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_ov",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9203.4007.614377524245853198956065823185",
+      "key": "idc-open-data/42d216c2-7399-433f-b153-67c9d4114ae1/04d4e9a4-402f-4fbc-b5bc-b370e7476b02.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.61779217094748660870094592404162",
+      "key": "idc-open-data/c159f836-c55d-4e25-b6e5-2021b506b1e8/ab21115e-2665-470f-aac3-3119e5e1cc4d.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "rider_lung_pet_ct",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.17.16899153445127694150192755610737825576",
+      "key": "idc-open-data/1d92626a-e39d-4cf5-8ed9-864aae909d3d/012b6322-7a9b-48c2-b6f0-9e246e7ab30d.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "c4kc_kits",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6919.4624.221475274105167685410422649790",
+      "key": "idc-open-data/e6c49acd-76e3-442f-9397-441aa51811dd/00a6f13e-1e16-4ae8-a83d-5bf832dea434.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "pancreas_ct",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.2.826.0.1.3680043.2.1125.1.40631408996058588469985312769188870",
+      "key": "idc-open-data/9ccd9de0-067a-4510-b158-35f56ad44e58/0057dac1-8855-4afc-99cd-b8a357df15de.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "lung_phantom",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.2.840.113619.2.55.3.1930041893.617.1308206442.326.4",
+      "key": "idc-open-data/f5402923-2649-4347-aea3-dc88ef463cc3/0147ebd6-7d47-4e36-ad57-3fa14feeefb8.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_ucec",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4020.179992913375626389134715206555",
+      "key": "idc-open-data/d41ce178-67b0-4121-85de-6132c244e89e/018a3b6d-8012-43a8-ba71-b95a539c0029.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_lusc",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3023.4012.154116914104043104173150313707",
+      "key": "idc-open-data/22406730-11ff-4006-ba9b-f397fe7035d0/09a1cb82-408d-401c-80a4-f97755e248c5.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "pelvic_reference_data",
+      "license": "CC BY 3.0",
+      "manufacturer": "ELEKTA / MIM Software",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7085.2036.369887626002643556069847219660",
+      "key": "idc-open-data/6e19f145-955d-4db8-83c9-7553dde46477/0173de06-e7bb-49af-bac6-b9c52ab9ec1f.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_thca",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8421.4019.821675332992208140506903443739",
+      "key": "idc-open-data/ae7a42de-f474-4179-a9dc-e3d816486a77/00d2a896-9e1a-446a-b602-5ca1842a89c2.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "cptac_luad",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1427.5885.161759606360659532608300969019",
+      "key": "idc-open-data/086c03b1-453e-4d20-9949-88c55e401d9f/048390c9-2f83-41d6-a75e-4db2ec4a1f5f.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8421.4016.290461498602315375313218057921",
+      "key": "idc-open-data/6c2348a5-e86b-408c-9db3-1b512796a3e2/000836d8-a10b-4c97-8b2a-c3a45e0df7f0.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "4d_lung",
+      "license": "CC BY 3.0",
+      "manufacturer": "Varian Imaging Laboratories, Switzerland",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6834.5010.460945844576668608735289530977",
+      "key": "idc-open-data/ca4fdcb0-c491-4ade-91f3-8ca501cfa107/03d7bf61-afd7-4430-bf8c-e39e209a6dd1.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_kich",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1357.4011.213846823699400886279698296072",
+      "key": "idc-open-data/c91671f5-8fe5-4db7-9cbe-ecc06bbb48cd/00f3f9af-73b8-4af1-8d33-608036c631b1.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.267174297665783426387740744616939059741",
+      "key": "idc-open-data/6edd71a9-cb1a-4b5c-abcd-c00cb6f757c9/07fc3867-2e85-45bb-98d9-5789514739cb.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "rider_lung_ct",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.85266568780932217010791795289018793460",
+      "key": "idc-open-data/bc94a14d-dbe6-4d05-904d-8eda9b568788/428a40ec-817c-4400-84f2-076bc4987e63.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "naf_prostate",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9823.8001.949805677342965918955419760119",
+      "key": "idc-open-data/78edb92f-8634-4d89-ab66-26c4cecbfdb8/00182d79-1618-4b56-9e93-c9a9e7901c5a.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "qiba_ct_liver_phantom",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.2.840.113619.2.340.3.1930077730.199.1439484877.356",
+      "key": "idc-open-data/4887f351-9aef-45e6-9aa4-4b4f4518bdb2/00af7ad2-4423-40fd-8f49-de8dde7b4154.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "pancreatic_ct_cbct_seg",
+      "license": "CC BY 4.0",
+      "manufacturer": "Varian Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.311069933061805031364361153959500362126",
+      "key": "idc-open-data/62a1044b-6517-4a6b-91d5-1f8373cae828/03522686-c244-4c0c-bbc8-88ec1bcbbeac.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_sarc",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3023.4024.303123119074665705294749259172",
+      "key": "idc-open-data/77d6e092-6911-4ca0-a192-19ff49661211/00dc1ea2-c3c1-4883-b9eb-24a44602a016.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "lungct_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4320.5030.108377250346249631601443486053",
+      "key": "idc-open-data/e1bc1f8b-d109-4f97-9627-986fba777afc/00a88639-f3cf-4882-99b6-5515530ac6e4.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "tcga_coad",
+      "license": "CC BY 3.0",
+      "manufacturer": "TOSHIBA",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3671.4017.636521288047753928498963185558",
+      "key": "idc-open-data/f9669d7b-15ad-4da2-a272-ba741e44f9e6/02474c95-3167-40ec-82ae-c7b2c43b0068.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "cptac_ccrcc",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7085.2626.242054066625853713658479602439",
+      "key": "idc-open-data/84504bf6-0617-4714-acb2-38f3bc781567/832900c0-7735-4c58-8258-340f05d0e4a1.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "ldct_and_projection_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.2.840.113713.4.2.208252418011085827325887013562636052723",
+      "key": "idc-open-data/18e48ab7-b44f-458a-9bb2-546a0586a108/00046a56-644f-4f1d-8cca-54c7096d2869.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "cmb_mel",
+      "license": "CC BY 4.0",
+      "manufacturer": "Hitachi, Ltd.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.194226440597607331247472194603670719983",
+      "key": "idc-open-data/3c7a1f23-1e5c-4834-bb50-614eb27d3aed/0364bc96-207b-4184-96d0-9c2a0aa8c179.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.32073626539405098025627410795665150775",
+      "key": "idc-open-data/aa64a4f9-27f9-496d-8980-2a1e445cab53/fc1d5ed3-aec8-49c5-aeb0-b86df18108f4.dcm"
+    },
+    {
+      "modality": "CT",
+      "collection_id": "psma_pet_ct_lesions",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.28038244905144173221459889672481700340",
+      "key": "idc-open-data/6054cdfc-7844-4df1-8722-a0118dfb912d/00995640-0adb-4629-9ebb-23e7d5e067c3.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.33689033773194473337141724951023462950",
+      "key": "idc-open-data/08de1963-5b21-4a69-ae0a-cdee794df92f/00c786da-b223-4546-8f15-8e36a3d06c6e.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_read",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8421.4018.158023417769972666501480099896",
+      "key": "idc-open-data/94bcb355-b330-4019-99fb-97e0a5ab1b01/01db6297-4f5d-4143-a587-73b6af27e765.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "soft_tissue_sarcoma",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.5168.1900.201546489172522856135066035252",
+      "key": "idc-open-data/3aa4a708-0af7-4b92-bc76-951d92f6e0f5/1c418afb-0274-4e1a-bdee-59753213b874.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "remind",
+      "license": "CC BY 4.0",
+      "manufacturer": "Unknown manufacturer",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.172268194243680268086819158873134028456",
+      "key": "idc-open-data/a6825aa6-3fdc-400c-a196-111cb4865ff8/0166d090-b734-4096-95ae-a5b5940cc8df.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "breast_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4792.2001.252025637791292041896682391422",
+      "key": "idc-open-data/e8a8e3ea-118c-484e-afe2-0547d3d08371/0409a764-2799-48d9-b31c-79c2e7b4be11.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_ov",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7777.4007.184087856829248244311673087516",
+      "key": "idc-open-data/eb94be67-59b8-47d1-894e-d2d3ded3ad6a/0a045e83-9102-4235-bc98-ab4bcc44508c.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "pdmr_997537_175_t",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "2.25.142863522755780933428134602051478750126.1",
+      "key": "idc-open-data/fe42d49f-cea8-4f9a-b2e0-6952de356315/1959b4b4-d674-4020-8e75-4d18e17ad878.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "vestibular_schwannoma_seg",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.243523278055804203160558433710694550736",
+      "key": "idc-open-data/1bd6e711-fd16-486d-9e20-c01b4578fc15/06370d10-dd26-496a-8cfb-66c5918c4957.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cptac_luad",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2857.5885.252118259618012850668434342990",
+      "key": "idc-open-data/d8211fac-7b41-4fb7-aa71-ac3796cb9141/065e38b6-5f9b-4c88-9fb4-3d9ae3d24d4f.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "prostatex",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7311.5101.284626510053781875358345052181",
+      "key": "idc-open-data/2db68fca-f794-4c09-95c5-2ea6cdb5b8b5/02fe93f8-0772-4431-a092-ab9a316d8fb1.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "icdc_glioma",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.204944624900289760245298188085524699087",
+      "key": "idc-open-data/8bcc9303-6414-4abf-83da-012129ef0796/05321b94-7971-4ecf-8534-807e6399c704.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "qin_breast_dce_mri",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2103.7010.940127803624690103779050678518",
+      "key": "idc-open-data/4b731e3c-f2f9-4512-9b6c-2b82f3d1e5d7/010990ac-3524-4c42-a8c8-72ee9c56db20.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.138565678007496002565381045735018676230",
+      "key": "idc-open-data/584b5495-ffe7-4e48-a3ca-9f9519b69a0a/15890bce-b6eb-4db9-ab37-64145abb219e.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "pdmr_521955_158_r4",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "2.25.34145827039392330216850255312375330921.1",
+      "key": "idc-open-data/715fed17-cdef-4f48-a8ca-c7b169109484/72a333fb-15cf-406d-983a-0b0e26e077c0.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "mri_dir",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.218662694911234866108788191150",
+      "key": "idc-open-data/b431c34a-a9a7-4174-999a-af3e60b26016/01705d03-0e1f-448a-9293-955c514b6775.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_prad",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3983.4006.109914063962015091424076638940",
+      "key": "idc-open-data/1e2f84de-836b-44be-87a7-6bc9c4daf89c/09bd3b12-f5f8-4fd7-bbe3-7e00fb6371a5.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_lihc",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4008.126247492663572822157624143315",
+      "key": "idc-open-data/f78cfd6e-0592-4656-8932-70ebff05ddd9/008af3b0-cf17-4d1c-a875-881ea9a4d149.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9203.4016.256864714425146815211647457837",
+      "key": "idc-open-data/15daf207-b092-4733-b393-cde26e38e898/043387cd-f04b-4860-a8fe-23c4531c84a8.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "2.25.183883987340968988242665205760765050358",
+      "key": "idc-open-data/d3efe73d-5e7c-46e6-85bf-d4d4acc7167d/01cb75f3-f6d1-4c67-848d-6777fa95c673.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cc_tumor_heterogeneity",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.158106267155606878400233069685697634160",
+      "key": "idc-open-data/0eb47297-50c0-4633-9725-98f90be735ef/0218d0a8-cd2f-45ee-92cd-9789f3e1eee8.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_kirp",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3023.4010.258464709942125571365309158256",
+      "key": "idc-open-data/331b5af2-65f2-491e-b4ca-6a0a713fb1bc/02e1aa13-8b38-47cf-a3ea-0ffcd2d49ba5.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "pdmr_bl0293_f563",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.46.670589.11.17169.5.0.1768.2015073010024202726",
+      "key": "idc-open-data/a9776964-468a-4058-b58f-141102193796/114c8323-cef5-4af3-8e8c-5079fd39dc8f.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "rider_phantom_mri",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.2.840.113619.2.176.3596.3311940.6866.1220205031.855",
+      "key": "idc-open-data/9ce473a7-c178-41a3-becb-590e11fdd35b/01983425-9a4b-4e0f-8872-bf604306c801.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.187603369312826546638894522429550584977",
+      "key": "idc-open-data/4567710e-b8ee-4bad-ad26-04fa5196b76d/0377dedf-e79b-47c6-b768-a614d46fd813.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "qin_breast_02",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8162.5966.876309216968770248629988801476",
+      "key": "idc-open-data/86eb5df0-334a-44b7-9f0f-a1ee1759c9f3/0602e2e1-967a-4f4d-8c49-27956f33b6a6.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cptac_ccrcc",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7085.2626.214902489700179905148429089828",
+      "key": "idc-open-data/eb67a454-5c3a-4768-b619-e73404e4ee06/026180d6-c294-41e1-8ee3-b339757e7d3d.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.18655460124733602726552772434272",
+      "key": "idc-open-data/ae909fc4-63cb-4d27-a806-706033d81f48/27f964cb-4359-4603-8508-cd35de188661.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_kich",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1357.4011.216886051050647634634366062228",
+      "key": "idc-open-data/3fd68b6b-8f98-4d49-9ed5-eec974b2d899/012f77aa-d838-4cd9-8f2a-0f94c70caf44.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.290261881380592185167009174504095463391",
+      "key": "idc-open-data/d64ade0a-fa5e-4ce8-8615-122430b3a909/0c2cc2cf-b854-40be-932e-c658fecbaf85.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "acrin_6698",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7695.4164.208901856080157344579303930521",
+      "key": "idc-open-data/8df83390-7ede-4cae-bc65-e98f519f72dc/01511e81-aa39-419d-a041-ab4aa0e7e16b.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "prostate_mri_us_biopsy",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.158869930895498595242548717882766063227",
+      "key": "idc-open-data/5cb89c83-e723-4c9c-820c-d0b90c1af9d8/044ddcf2-0585-4420-b657-fe0575d3f1d4.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "tcga_cesc",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6354.4022.644277382719532861869350823734",
+      "key": "idc-open-data/adb168d0-4b85-4543-8345-c7d096d48605/0617b3fa-58bd-45cf-8388-336812719ba2.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "pdmr_texture_analysis",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "2.25.212894341926801397269044431531834358197",
+      "key": "idc-open-data/6dba4a51-e375-4404-aa0c-8776ab085753/02a5810e-60ff-41d4-bd82-4a2afa94b073.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "vestibular_schwannoma_mc_rc",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.90279409841444029378668032697625302959",
+      "key": "idc-open-data/f58b726e-9253-4577-a474-178c7e4cf1e0/11debd65-7d44-45af-becf-60890faee191.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cptac_ucec",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3320.3273.205988142746422664437234058140",
+      "key": "idc-open-data/1d7dd44f-8836-484b-8a1e-1813adf51d1d/01075754-c011-4c14-a22b-d47e7f36497f.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "mouse_mammary",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.46.670589.11.17169.5.0.7916.2013012411502035321.2",
+      "key": "idc-open-data/67a13999-7a98-4426-af55-7cee31e51764/025fcad7-c830-44e1-84ec-9539b28f57df.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "mouse_astrocytoma",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.46.670589.11.17169.5.0.7588.2012021411291722633.1",
+      "key": "idc-open-data/0f866598-9bbb-44a1-adc4-01312a79cf37/002b1add-6f74-4fda-87bb-d8eece2a457a.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "prostate_3t",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7308.2101.134818058254419546549041389418",
+      "key": "idc-open-data/5bd56ccb-fa64-4f7e-9d96-7630f8667966/0bc3fad2-c315-46c7-ba03-63bc231bfe6d.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "cmb_ov",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.138238483792616134503406631646767684776",
+      "key": "idc-open-data/0eed3446-6e4d-4649-97d5-8f4ad65e4773/0198b22d-85c4-4045-bdf4-b33c6eb37323.dcm"
+    },
+    {
+      "modality": "MR",
+      "collection_id": "pdmr_292921_168_r",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "2.25.176742596312015291095929092887853714207",
+      "key": "idc-open-data/3250f6bd-6fa1-459f-b5b0-eb745f595aef/085b362e-914a-4d86-a3cb-08cc16c0c644.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.230050990935728478756248050820928076902",
+      "key": "idc-open-data/9d0e4271-fabe-4f86-b0d2-1963ebd0e150/126fa966-f223-4be4-b17a-f7ab7645f24c.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "SonoSite, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.10399530765565655960882814217689077176",
+      "key": "idc-open-data/6e9e854e-b2c2-448e-8204-e67102f01b48/25746cae-fb4c-4c08-8159-5d7a9e3a5880.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_mel",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.78620393996990384206084905721745347693",
+      "key": "idc-open-data/854a2339-5cd1-44d4-bc8d-c6280cb21e75/10f6829e-bedf-4110-bf65-6c1625e0c263.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_ucec",
+      "license": "CC BY 4.0",
+      "manufacturer": "ACUSON",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7085.2626.252950437956329338256830139567",
+      "key": "idc-open-data/dea041ff-963b-41b4-b2a5-8e4a32826333/007d59eb-0742-4e8a-a062-33b27bb9bf4f.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.332980135061482860008218507365757646711",
+      "key": "idc-open-data/d09c7f70-42ee-4b9d-949f-80efca591983/00233efb-b879-4656-9bd5-136962f247e6.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_stad",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1078.3754.149824746945575798036553158689",
+      "key": "idc-open-data/252d0c16-1649-456c-93a8-8a1a0f4544fc/001f248c-cee5-47eb-9bcd-9182de97f13b.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "remind",
+      "license": "CC BY 4.0",
+      "manufacturer": "PixelMed",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6288930691602070578908668997631231041",
+      "key": "idc-open-data/54a9a83b-0c26-4bc3-b80e-fde02ff9c8e4/5f2eacdc-3de3-48aa-8958-df9c31c4f847.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "b_mode_and_ceus_liver",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1188.2803.294977848439276788771616657719",
+      "key": "idc-open-data/4b7aea4c-39cd-4301-ab1e-083997fdde15/031f9b64-e7c9-4195-b48e-5f3daa3683cd.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1427.3349.304760509273541250165318700791",
+      "key": "idc-open-data/e2fd461f-5981-47ba-a438-edd247b7c85f/0367f0e3-49a7-45cd-84c3-29a364615e81.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17876582826948268985492295920840595766",
+      "key": "idc-open-data/646da31f-9bd8-49f2-9812-e5c3c6996698/c0bacb23-cd46-423d-9110-03602e6a88e7.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_pda",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7085.2626.205393536686744016059221741558",
+      "key": "idc-open-data/a10875cc-d88f-4832-951a-25c2cc6780c6/009d1043-70f2-425c-9cd0-df482a50c3e6.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "prostate_mri_us_biopsy",
+      "license": "CC BY 4.0",
+      "manufacturer": "Eigen",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.232582732735367201779860685044217264837",
+      "key": "idc-open-data/0fea2778-1b91-4681-9b3d-bce8185eafe3/7940c5ea-7ba4-4234-9bbf-53e5777f4dc9.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.192487314902693301566300088136760876609",
+      "key": "idc-open-data/cd3225e6-4396-48c9-8fc5-c2b09b9280f8/058462b7-189a-4a1a-8051-d6f36f4da38a.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17273761317913011857169890931336657148",
+      "key": "idc-open-data/a1b8e01d-baf9-4738-aa38-d85b95c70985/0ce7695d-83e7-4628-a44c-16d8c8621c64.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_mel",
+      "license": "CC BY 4.0",
+      "manufacturer": "SonoSite, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.37357637317422814613104319191722270824",
+      "key": "idc-open-data/bd01d9f2-a87a-4254-9529-a0cd40089e97/035b673d-fc55-4664-88e8-756fb3912168.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_ucec",
+      "license": "CC BY 4.0",
+      "manufacturer": "ACUSON",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7085.2626.252950437956329338256830139567",
+      "key": "idc-open-data/dea041ff-963b-41b4-b2a5-8e4a32826333/007d59eb-0742-4e8a-a062-33b27bb9bf4f.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1795927564309144360845610819140277746",
+      "key": "idc-open-data/9c877d49-999d-4c93-9d63-4d5a4a0ddaf5/05c35a51-af7a-4ab6-87c6-e03e4665d001.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "remind",
+      "license": "CC BY 4.0",
+      "manufacturer": "PixelMed",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.29267862958485597990481074802109071346",
+      "key": "idc-open-data/17779ab9-c65e-4284-88a0-4a3f09f77d30/226888e2-3bf8-4409-934d-2e11c0e14d46.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "b_mode_and_ceus_liver",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1188.2803.253588513759674146508138075910",
+      "key": "idc-open-data/56804cbf-a55e-44a1-8377-fa93d6dddafe/012ddcc2-747d-4ac5-902f-d6f3dd84f119.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1427.3349.295481707630631373561827436054",
+      "key": "idc-open-data/5f3c8151-12b2-4bda-95b8-6af863dbc190/033078e1-290c-48f7-b970-cc3d8665bce4.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17876582826948268985492295920840595766",
+      "key": "idc-open-data/646da31f-9bd8-49f2-9812-e5c3c6996698/c0bacb23-cd46-423d-9110-03602e6a88e7.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_pda",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1078.3273.1078.3273.33030494760673582600",
+      "key": "idc-open-data/03de9ea0-f923-4e57-80ab-492bb15ad883/0241e9e4-7df0-4b3e-ad1f-707cca7f94c9.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "prostate_mri_us_biopsy",
+      "license": "CC BY 4.0",
+      "manufacturer": "Eigen",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.881002059102369447705248390042366976",
+      "key": "idc-open-data/bd0cf6de-47e2-439a-88be-fd138bd0f546/f955f4a8-0992-40c1-9e2c-caa2b37a5712.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.112685569374703430096218596498937726547",
+      "key": "idc-open-data/0c4833f0-e015-4579-aae5-789cb2827abb/0d1a77c2-0ba5-4798-890b-a15dfac9f2d2.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17356180075630579932909118047182006186",
+      "key": "idc-open-data/da19e162-bf0d-4ad7-87f3-65283f107809/08e83c0e-4986-4b57-96a5-288ca8b39142.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_mel",
+      "license": "CC BY 4.0",
+      "manufacturer": "SonoSite, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.32053765825192668172194889675403295056",
+      "key": "idc-open-data/1f6cc96d-caa6-462d-82b9-4677704c05ed/2207646a-a00b-4cac-b792-a3d8893d2f4a.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "remind",
+      "license": "CC BY 4.0",
+      "manufacturer": "PixelMed",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.319572443809156610047819877413841919990",
+      "key": "idc-open-data/880e83fb-e956-47b1-b752-8d63dd5bed36/63fa3a14-5095-4040-a841-ca27d6d1bce0.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "b_mode_and_ceus_liver",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1188.2803.181268971780610528341510906895",
+      "key": "idc-open-data/f83ba231-65fd-4fab-b553-c225ab3e3a33/06727617-680a-4775-898c-a4b2fee994d4.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.19036392303537179201153582958171789930",
+      "key": "idc-open-data/076f5a2b-8e9e-4c8c-bcfa-45425b01f894/0880959b-85d0-4a8f-bf43-e26fc8d87d61.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cptac_pda",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1078.3273.151707753790818651875631573818",
+      "key": "idc-open-data/0fee4c84-7289-401d-8242-4d345692157c/00ba6b70-4dcc-44d0-87c6-990d1a857bf3.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "prostate_mri_us_biopsy",
+      "license": "CC BY 4.0",
+      "manufacturer": "Eigen",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.314410887969204544132098898499793325728",
+      "key": "idc-open-data/79643bf4-690b-4698-9fc3-bcc8f347ad5a/b64ac9eb-fdfe-4d41-acaf-2921bf378a7a.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.297583912908058148474832796742728056684",
+      "key": "idc-open-data/925b3d11-4417-4a6d-9d68-ec99b15e910c/203cd516-6c76-40c5-a3be-8eae22a31af0.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_mel",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.301267287981923378289069237998479810808",
+      "key": "idc-open-data/3e004a64-b4ee-4263-9fda-551f037024b4/10efebc4-1553-4f82-81b8-78b65215793f.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "remind",
+      "license": "CC BY 4.0",
+      "manufacturer": "PixelMed",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.189921138609316080285552196321762766903",
+      "key": "idc-open-data/9a2b8959-f646-4267-b47b-c8d3ff26ea06/dd83aca2-8c1d-4593-ae47-b6c6a5d66ea4.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "b_mode_and_ceus_liver",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1188.2803.326083935888469766488739443191",
+      "key": "idc-open-data/d7068af0-a1c5-4fe8-8bda-108296e71a38/023b1a2e-9d58-4971-8ee7-3335a3a4d6ab.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.23622908919597286371124578383371692895",
+      "key": "idc-open-data/b2c9228b-e275-4c68-a8bc-ec3ebd4f1140/02dbae1a-4606-4e8a-a99b-b2db817911b5.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "prostate_mri_us_biopsy",
+      "license": "CC BY 4.0",
+      "manufacturer": "Eigen",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.226408451245453516875833308524223690066",
+      "key": "idc-open-data/7d8d694a-3caa-40c6-986b-1fec76fa9737/5a430534-da2e-4e54-9290-7735a4fe129c.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.292815029622112450790978260869380719538",
+      "key": "idc-open-data/7ce131dc-5b0a-47b9-9cf9-4426c19700a0/06461d27-29d0-41d8-90e2-1305497d548a.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "cmb_mel",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17911811811865411201108951298421703766",
+      "key": "idc-open-data/a8c49be3-a37f-4fcb-877f-33a1c7646f45/031f9f79-d318-4f30-baeb-ce4f4d0c6180.dcm"
+    },
+    {
+      "modality": "US",
+      "collection_id": "remind",
+      "license": "CC BY 4.0",
+      "manufacturer": "PixelMed",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.180783498158474930244624393276603792333",
+      "key": "idc-open-data/69adf766-4348-49bd-929f-496054e70a83/b3ede530-9ffb-4708-9299-3455ce44390d.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "rider_pilot",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.2.51623",
+      "key": "idc-open-data/9e74e78d-dd24-4075-9ff2-44bce77ed8d5/b89a28cc-aeed-4cd0-8e29-986a33988303.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.107839668475392436946910653113",
+      "key": "idc-open-idc1/98c16eea-ccb2-450b-8993-8d81003c4032/5fb098a1-fab8-414a-8553-816f1b64cf0d.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.3364826619730093489068500550392",
+      "key": "idc-open-data/0874a76d-cf3f-40e9-960e-2de77d75a5d4/23ead0a5-851e-4f72-ae0e-fd7f63ac5619.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "Oehm und Rehbein GmbH",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.111496736574540772816177955707250560822",
+      "key": "idc-open-data/cbd8138b-f136-4513-953c-cb73278a1894/fb7fe0b2-6f34-4b87-ab7f-4a6c173f1915.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7215224281709087902211555591327164829",
+      "key": "idc-open-data/aa223af5-3fba-4a74-9b94-d78041d8fbcb/ee537bbb-e620-4423-a4a6-3f9d389776bf.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8700.9668.247579504823262422040255173145",
+      "key": "idc-open-data/731ff1ef-b35f-4b57-a9e3-d45089ae817b/137bd94c-0df6-4fc9-b949-82fe31efb2e7.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.11869848942966947437059501398461849973",
+      "key": "idc-open-data/6f6ba851-cb85-4fb0-87d9-541c3f04575d/9c476e7c-3690-44d8-b4cc-6a9fc3f5be27.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "\"GE Healthcare\"",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.163427332971478593213840739002",
+      "key": "idc-open-data/a94bea5b-8a10-4229-b902-f0ab380c86f2/00da8666-5228-4dfb-8914-ecb3819f572c.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "Carestream",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.25552854194956639536483861550168",
+      "key": "idc-open-data/908e0340-f9e5-4fbe-8d5b-0bb475441933/76eb229f-8651-4e98-9154-ff9c6fb2f03c.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.29453996746203212737643872043261443033",
+      "key": "idc-open-data/4a0cc136-2f06-4ae6-9d19-8dd3a35585f3/1d679ba5-a309-4f85-96c3-5ed7af784d72.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "\"GE Healthcare\"",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.73259459389408720224591489579010582581",
+      "key": "idc-open-data/bcb65d67-1d4e-4d1c-ad14-ebe9b0650701/413b2a4e-44e8-4988-9385-8d3d56d25107.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4016.302608602625863946040561476468",
+      "key": "idc-open-data/50f2f5ab-03b2-4d98-812f-ec697d839ab5/0f5c7235-4092-45e7-a874-efebfdbe017d.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "rider_pilot",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.2.131859",
+      "key": "idc-open-data/cce1f4f7-98ad-4891-8a43-07b75244846d/80acdd9c-6fb2-43a2-8e0a-7831af377c22.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.279105460084540440232142237973",
+      "key": "idc-open-idc1/57d01d75-0807-4200-a6da-fa5a97f01978/263bf697-7777-4277-8663-447b07a6e166.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.5458432351979933763442319213331",
+      "key": "idc-open-data/41d4727b-1987-4f64-8a29-1ffcf91cad6f/754cc589-f5f1-4e5f-8de5-bbb4b6ee011e.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "CARESTREAM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.46516335741582166040564589188870810727",
+      "key": "idc-open-data/ac639d9d-fdfb-40da-8cae-7ef136a4c7b1/5a25c3f8-0a6d-4346-81fe-d12451f423a9.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "2.25.267046995551041197882743054101055651318",
+      "key": "idc-open-data/3b9b217d-2bb5-4e85-bd83-243609988002/c4d30fff-ff30-41e4-b5eb-8b9ba8657665.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Samsung Electronics",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.52541602949688823495986871684455776190",
+      "key": "idc-open-data/bc4c65a1-311e-4c5a-8d92-8fcf0630c03c/e8567ffb-9929-4626-b71c-efa5112f45f7.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.109473460036609681692304461229",
+      "key": "idc-open-data/baf7f5fb-9aab-4fa5-b229-52af6e62e2ed/de75637d-aaee-402f-8cd4-8e8aa714062d.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "Carestream",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.60148621587082388548714636009558",
+      "key": "idc-open-data/77408019-f0dd-4e1c-91ae-35a60206922f/387024ac-43e1-4064-994c-b5b8683e8ca1.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.329926054576247509690119430351081746992",
+      "key": "idc-open-data/8a443a76-39c5-49b1-b39b-a7e999c5156d/4c3076e6-a248-4d94-a2e6-0d4ae5e92025.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "\"GE Healthcare\"",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.73259459389408720224591489579010582581",
+      "key": "idc-open-data/bcb65d67-1d4e-4d1c-ad14-ebe9b0650701/413b2a4e-44e8-4988-9385-8d3d56d25107.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4016.270291525016149556596435959866",
+      "key": "idc-open-data/668aad75-9645-4689-8288-6821edf7fb3f/80d892e0-15f1-4cc9-816a-84f805206a2a.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "rider_pilot",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.2.131315",
+      "key": "idc-open-data/0c04bb62-90c4-4b6b-934c-03c70d129adf/51e7d253-51a2-4116-b523-a9df0d04dd71.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.179077540374918512211170392831",
+      "key": "idc-open-idc1/2b401207-6767-48ad-b0a6-5b03ae40cdc8/3794ebe3-8db1-4cc1-a7e8-501e53815d67.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.2637588655800197462993950520176",
+      "key": "idc-open-data/fe3e6370-1bdc-4176-9680-162520d2d943/df6e840e-9fd8-43fe-8587-a9a9d0160370.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99543434049059724841282093226853413156",
+      "key": "idc-open-data/7f0e22dd-7055-4288-9409-c634583a3b36/17e45d34-ee77-4e18-a654-de85a231fa7d.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "2.25.165719506958352694947877011193729760758",
+      "key": "idc-open-data/e9b0a7c9-e776-48c1-a54e-40ec7e93065f/2b67506e-7168-4639-9169-7c222205f4b5.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.35273398090521715538957655116539808731",
+      "key": "idc-open-data/6b8ddf60-ba36-4e44-93de-d392f1e5a6ff/1f661de4-50f3-4526-87f5-417440f2266e.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.116851598584728635491816908135",
+      "key": "idc-open-data/aa0381c4-5473-47cf-b5cd-19e6483044df/35da155e-6eb0-438c-a930-44c48da24f29.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "Carestream",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.12861969851229585785081325759322",
+      "key": "idc-open-data/59024235-0430-40e3-966b-02a45cac8e50/8aefda57-a185-441f-8afd-559520f97b1c.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.329926054576247509690119430351081746992",
+      "key": "idc-open-data/8a443a76-39c5-49b1-b39b-a7e999c5156d/4c3076e6-a248-4d94-a2e6-0d4ae5e92025.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "\"GE Healthcare\"",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4016.287734611271123706421304538379",
+      "key": "idc-open-data/bfede3cb-02ca-4149-9cd4-efc5f578dfb8/d92aefbe-667e-4fd8-be00-f55d624235a7.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "rider_pilot",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.2.133357",
+      "key": "idc-open-data/6162c940-b704-48bc-a5a1-7c4f2eafe23a/5cf9400d-73d6-4148-a84b-44d0c6164a6b.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.807907579845390726964507572529",
+      "key": "idc-open-idc1/69391abe-8810-4978-a1c7-fd5492b08720/0af37b0f-36d9-444d-b89f-556d7797c6f3.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.5351914491929503072144630650947",
+      "key": "idc-open-data/d8729092-adf7-4393-bea4-85e9c40b06a1/1d2012c8-5116-4053-8ba6-3717caf7a224.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "CARESTREAM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.46516335741582166040564589188870810727",
+      "key": "idc-open-data/ac639d9d-fdfb-40da-8cae-7ef136a4c7b1/5a25c3f8-0a6d-4346-81fe-d12451f423a9.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "2.25.267046995551041197882743054101055651318",
+      "key": "idc-open-data/3b9b217d-2bb5-4e85-bd83-243609988002/c4d30fff-ff30-41e4-b5eb-8b9ba8657665.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Samsung Electronics",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.89598026724213365305800421627056228640",
+      "key": "idc-open-data/e28fa323-7ef5-443e-9e7e-93bbc6a69db2/d7b6372a-fb46-4aad-b67f-63f987b3ab1e.dcm"
+    },
+    {
+      "modality": "DX",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.339063854210318997673643535996",
+      "key": "idc-open-data/15ac3834-7494-4297-934b-84c17046b3c8/36efc053-471d-482c-b2a3-1e51627adafd.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.2357396326408709785008340860221",
+      "key": "idc-open-data/d2218452-cb20-4877-94e1-5c30c04d0de0/12915b23-f768-4ecc-94da-f42e58cec997.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "rider_pilot",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJI PHOTO FILM Co., ltd.",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.2.269473",
+      "key": "idc-open-data/3c0bd6df-1772-4bb2-abe5-570665311253/1a83d1f2-02d9-4b30-9737-2b49f9519e3e.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_ucec",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4020.753814686533625467770881650535",
+      "key": "idc-open-data/a01fa385-d66e-4570-aae7-99667e90477c/d1c580a3-ffb0-4c37-a0b0-f0a99106c765.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "Carestream Health",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.85401993674259769984040090645414890294",
+      "key": "idc-open-data/09b0c595-052b-4b9e-85ac-3ab0fc0d6281/c58437f7-707f-4596-b506-9d73119118a8.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.54458601883082738724234634110564951111",
+      "key": "idc-open-data/8fba986c-a52f-4f32-bb08-1e213314b99d/b4e06884-f7df-45e7-8658-28dbee986008.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_kirc",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4004.187358987637810620533630544789",
+      "key": "idc-open-data/d1f37111-c63c-46bc-a77d-3e350518f210/e97436f6-32f8-4746-ba0d-6702d7f96d97.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "DIRECT RADIOGRAPHY CORP",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.211732615037289897967686021629",
+      "key": "idc-open-idc1/e6ed31bb-fc6e-4c85-8a2f-689ceba2b8f4/21edc9a8-34a8-4d40-86bd-f458e8ab5f2d.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJI PHOTO FILM Co., ltd.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4016.183159535953321781523678696872",
+      "key": "idc-open-data/78038b6f-5d8e-4493-85a7-f20b443cac41/f187e5ee-ac8e-44c7-b929-bd9e3cdd20a7.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "CARESTREAM HEALTH",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.20454080416327041025924939577893",
+      "key": "idc-open-data/9cb0706f-b8d3-43a8-9e13-859a408bd0c5/1e23082e-f92d-4514-917c-86798b3c0d3b.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8700.9668.130620824840950315064486267628",
+      "key": "idc-open-data/043fc698-d136-434c-b1d2-e75ba0b7424e/a9a64114-ded9-40a6-b03f-318007ee343a.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "DeJarnette Research Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.202943208413928063516044802880",
+      "key": "idc-open-data/50efdf78-01ca-4b89-941d-e5e29182f032/1cae561f-25db-445b-9250-11f09b390675.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "acrin_contralateral_breast_mr",
+      "license": "CC BY 4.0",
+      "manufacturer": "LUMISYS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2406.121793337371512345396858148146",
+      "key": "idc-open-data/62e26167-3741-4248-84f3-9b2051f409e0/03c0eb3b-b887-4380-9ba0-844cd97e99f0.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.2266925819456394169594024357742",
+      "key": "idc-open-data/5f66e283-1aef-4453-992e-d1a78272e0ac/372fee20-4cf7-40a6-8156-26e76fc3f555.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "rider_pilot",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJI PHOTO FILM Co., ltd.",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.2.269473",
+      "key": "idc-open-data/3c0bd6df-1772-4bb2-abe5-570665311253/1a83d1f2-02d9-4b30-9737-2b49f9519e3e.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_ucec",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4020.119039887066728431143918242447",
+      "key": "idc-open-data/b54a520a-485f-492e-a648-a0ddd6d1039e/37ff1aa9-3401-4f4a-8f68-eac52a1238bc.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "Carestream Health",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.333543418125243707376693428986932852060",
+      "key": "idc-open-data/26e07bd7-b126-4c4f-9561-210d1799d3c6/c6885133-c6b2-4522-9052-9fa3e83207e2.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.256285352229809447026278696773360307109",
+      "key": "idc-open-data/80b91eb2-5fcd-4bb4-bd9a-464ff143fa13/77a45e88-50f1-4b10-a433-45a0decc7c95.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_kirc",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4004.187358987637810620533630544789",
+      "key": "idc-open-data/d1f37111-c63c-46bc-a77d-3e350518f210/e97436f6-32f8-4746-ba0d-6702d7f96d97.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "Agfa",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.478826739616706885623417940628",
+      "key": "idc-open-idc1/f2abf86f-8603-4074-93c0-d5f705684b84/f6b03f42-e241-47a3-813e-b873c0a34506.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4016.255520674218227500654896318302",
+      "key": "idc-open-data/dcc912b9-c613-4021-b2ad-311b302975b7/2bcd839e-7bea-459d-b98e-50603848c1a9.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "CARESTREAM HEALTH",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.16043849011064566125598192175631",
+      "key": "idc-open-data/f1245bf1-fe2c-437f-a867-36faebc3b2d3/308a9870-a6fd-4f14-91e4-c43045e268a6.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "2.25.30562807935945476104184698489410272758",
+      "key": "idc-open-data/4260ddfd-8d72-4f91-9ef1-e2882028c8ac/f8144090-dfb3-41b0-b838-03be71d4d970.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.513114548408601984123939083099",
+      "key": "idc-open-data/5e62108d-ecee-4f24-ac20-42d3a239b18c/aa664178-e5dc-48d7-b3d1-0fc334f51e3b.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.5847232257506267689400011317842",
+      "key": "idc-open-data/84c6df2e-550a-44bf-b11b-dbeb5967de1e/5cbcaa1d-2bf6-4c2b-b3be-fb1da7adcbcd.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_ucec",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4020.753814686533625467770881650535",
+      "key": "idc-open-data/a01fa385-d66e-4570-aae7-99667e90477c/d1c580a3-ffb0-4c37-a0b0-f0a99106c765.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "Samsung Electronics",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.51277509141120122579353297135376945582",
+      "key": "idc-open-data/ae05fadf-91dc-4600-8227-ed9670e8185f/20e59eac-24bf-43bb-a603-ee959a09dc0d.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.166567296538527715322688053521",
+      "key": "idc-open-data/bedd1f63-580d-4818-9610-f0a93553ee80/64316e7c-3ab5-4366-a8d1-b2bb370a8918.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_kirc",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4004.187358987637810620533630544789",
+      "key": "idc-open-data/d1f37111-c63c-46bc-a77d-3e350518f210/e97436f6-32f8-4746-ba0d-6702d7f96d97.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "KODAK",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.289179523272746183553651050906",
+      "key": "idc-open-idc1/13126a6c-b9d3-4919-84a5-d479870452d9/fcbb593d-020a-46ca-ba97-e840ef6a3bc4.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8421.4016.425058647901426889338595730880",
+      "key": "idc-open-data/ca9163c4-cc1b-4c50-9d2a-0d730ae57f31/52e8537d-d005-4265-8d47-770f62f36f5b.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "CARESTREAM HEALTH",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.13249497828299581321038301605436",
+      "key": "idc-open-data/95f1ba5a-44d0-464a-8538-13fc10e1f489/bc0d5d2d-2f1d-4458-9300-d567359baaa4.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "2.25.128855358766913815043891168771980246518",
+      "key": "idc-open-data/ea43939e-c8d4-4ff2-9287-937dfed2357e/da3395aa-cfdb-4428-bb8e-a6e9453f104f.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "lidc_idri",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.286359704222993185355649430232",
+      "key": "idc-open-data/15e172ae-cb8c-40b8-99c7-4d4fe3274ffd/726d2c10-cbf1-451c-ad87-366614fb2d41.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ar",
+      "license": "CC BY 4.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9999.103.2938641785673968459320666638388",
+      "key": "idc-open-data/1f272ce8-5271-4952-a3d7-60a72e1268ba/f4ad1982-adb4-473b-a10d-4b77bfb05b90.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.334578640026325407586087657780562751758",
+      "key": "idc-open-data/0a74ab42-66b7-451c-9fdb-e7a826038124/e1c68fca-a6e0-4059-8bf6-6c50b4a3003e.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.15017335496634762339929663017554154821",
+      "key": "idc-open-data/07ad5d5c-33b4-45ca-8376-e219ead9daea/0ddf9f59-9732-48bf-8fa6-4f5566acca9a.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_kirc",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJI PHOTO FILM Co., ltd.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4004.245916539070518626342817523833",
+      "key": "idc-open-data/692c0d1d-fdce-4407-a453-780c577d5501/03c6429c-9262-43b2-8f50-c18acf1718c5.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "Agfa",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.178964642784035899073749003285",
+      "key": "idc-open-idc1/1119c8a3-8632-470f-be80-3fdf14d44aa6/b0748cf4-aed2-44be-a002-0dd649470db8.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "FUJIFILM Corporation",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4016.227690447216289019877643952760",
+      "key": "idc-open-data/fda2a4a8-1a6e-4ff7-9d17-b9d51332a623/1e6e5516-a1af-4279-9271-0e8a01c1c0df.dcm"
+    },
+    {
+      "modality": "CR",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "CARESTREAM HEALTH",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.99636104921350306248463323638895",
+      "key": "idc-open-data/b96a9bb6-7f5c-45c3-af81-07969a422e73/bc3cf1f9-5593-4e65-ad03-a901db414414.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "2.25.98808384350227182643204424654420295158",
+      "key": "idc-open-data/68c3602a-9df9-4726-839e-51b08fc88fd5/5611ca09-3b60-4336-a3cd-af74d2f9dd12.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "ea1141",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1225.245078632672914717379113654936",
+      "key": "idc-open-data/928f68b4-c6a0-4424-b11a-74c49083f00b/2382373c-e64b-48cb-818a-f16b201c95d7.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "victre",
+      "license": "CC BY 3.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2135.6389.150095957318472595067412639636",
+      "key": "idc-open-data/b8f811d6-55c8-42f1-8d23-5bc9cf068f9b/0031c0b8-c476-4bde-9d9e-c09921c2d30e.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmmd",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1239.1759.104704285123919675082052893731",
+      "key": "idc-open-data/6a9d608d-a8e1-4ae8-9c44-fc1b2ce28f2a/69be4545-b713-4a9f-ab60-f14aa46520e0.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "breast_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4792.2001.133683364442727047283716402734",
+      "key": "idc-open-data/eec90436-0ae8-4943-8229-ced72bb6cc68/f30263af-a59e-4804-a8fc-8a50f5e08c20.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.131124697671325632926232203920426442906",
+      "key": "idc-open-data/a810ad83-1d57-48a5-a14a-25beb4270760/3057ae26-efde-4d2b-a25a-4770b6e38c63.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cbis_ddsm",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.9590.100.1.2.418726330413468375416377862913199051800",
+      "key": "idc-open-data/329e7a7e-4ace-42ff-9175-769e12014922/2d9643e2-4f07-44cb-98e9-367a3439dfb0.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "tcga_brca",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1869.4002.640271254454202832269613997886",
+      "key": "idc-open-data/f36a349b-027f-4240-971a-78ae93c7a50d/bd338910-fa76-4b07-92df-2c5037df108c.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "2.25.141688359801061597120368160545921678838",
+      "key": "idc-open-data/23999398-b3d0-400b-bd91-f2b54a178c7e/006cc595-d644-40b3-80fb-bf4b13c005a6.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "ea1141",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1225.723210715747020166420645397265",
+      "key": "idc-open-data/d1030d9e-2233-4509-8884-07157247030a/53634ef5-ae25-4c8d-ad8e-0021125ecc9f.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "victre",
+      "license": "CC BY 3.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2135.6389.307520636102857199546060154866",
+      "key": "idc-open-data/2d701cd5-34dc-4a1b-bcc4-60098bd4e76a/064a036b-4954-46bc-afb3-4a998c92e3b1.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmmd",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1239.1759.320066737516471769410953542586",
+      "key": "idc-open-data/fbf5d5c1-3479-47ad-b3d4-e2c86ce20c57/8970c1d1-6b47-42c1-bded-03c831bc964d.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "breast_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4792.2001.723056275370060357541809425036",
+      "key": "idc-open-data/633403c3-a53e-49d3-b9ac-aeba2e8649a7/e7ef24a4-a5a0-49b2-b7a7-49220d712082.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.128776425093663790577008150653050175437",
+      "key": "idc-open-data/09d65824-ec75-425e-9061-dc07d59cd223/3dbbee24-6186-4adc-a3a2-0e31627793eb.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cbis_ddsm",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.9590.100.1.2.82651895413212185029290792021771919265",
+      "key": "idc-open-data/df0b84cb-9e2b-4fbc-aae1-5ec1dd90e836/150ce039-1d01-4d3e-9ebf-f278ad1b8b76.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "tcga_brca",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1869.4002.281340984162635717428007888940",
+      "key": "idc-open-data/7109a45d-1a00-44fd-a921-ac8a53a84823/bc8766b2-ac49-4a3f-a9e4-cb421c359e2d.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8700.9668.346370662838604699615308810182",
+      "key": "idc-open-data/02052be5-a905-4523-a636-143b681cc6d9/01b0afe5-5602-4b1c-b999-4b02b5992a2a.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "ea1141",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1225.449537864421753501199646162629",
+      "key": "idc-open-data/56d8f90d-5e2d-4eec-a874-5a9cbc826402/abc7c05e-7c80-4add-b805-2c1402356046.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "victre",
+      "license": "CC BY 3.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2135.6389.261069338367856194182365297652",
+      "key": "idc-open-data/aa5ed947-508d-4276-a1eb-1988ebab4598/ba391d02-a20e-4378-8a39-bbd0fed4e439.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmmd",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1239.1759.248122985767984921475964719610",
+      "key": "idc-open-data/7a5bd778-2bf0-4ca1-8659-b513d26573ea/30e7e789-b292-47db-9760-feb2d5cd7748.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "breast_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4792.2001.145286189347932488101188781644",
+      "key": "idc-open-data/e795fe59-ca6b-4c33-b736-e1ab10d23e6a/b141af79-6388-497d-9b0f-21fe0bc89181.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.207776098961005429284467902411167871841",
+      "key": "idc-open-data/85f33dd2-dbd0-4afe-a6aa-cddbfe8948a8/0b7af2d8-3457-4d23-8765-9378ea543a27.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cbis_ddsm",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.9590.100.1.2.136495231711077347326245851332072991979",
+      "key": "idc-open-data/f7e68923-7996-4c3b-a256-162790f430fe/a658a2c4-3983-4490-97c0-e53d9240ce39.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "tcga_brca",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9203.4002.997993139263721918674259792020",
+      "key": "idc-open-data/24f8c9a3-2afa-4847-86e4-27365c939411/12747850-a85e-445c-9782-5c3616d7a224.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "pseudo_phi_dicom_data",
+      "license": "CC BY 4.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "2.25.141688359801061597120368160545921678838",
+      "key": "idc-open-data/23999398-b3d0-400b-bd91-f2b54a178c7e/006cc595-d644-40b3-80fb-bf4b13c005a6.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "ea1141",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1225.226536816255805430744980920365",
+      "key": "idc-open-data/0114ba33-80ed-4eea-be6e-88b4218b81aa/d458a6c6-a785-4c79-a613-6ed595012242.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "victre",
+      "license": "CC BY 3.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2135.6389.220263934714845304757880466783",
+      "key": "idc-open-data/5dab3993-70d9-4c73-b458-831f6bcaa248/122d093e-6a2f-4d32-bde3-9669062574a2.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmmd",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1239.1759.323443554139890063894342773065",
+      "key": "idc-open-data/5443d493-6796-4379-8c2f-8012b190fe80/8057fa2e-f3a5-4412-b557-6fa72083e63e.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "breast_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4792.2001.198757374521402718499801176281",
+      "key": "idc-open-data/537bd089-e037-4a54-8265-828784773e4e/5a07ca2a-9bef-44dc-abf3-0fbc582f07bf.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.97763871926997221036836907851387981229",
+      "key": "idc-open-data/4366f541-9cec-4e45-ae3f-723fcf58fa60/7cabb190-dc88-41a1-b7dd-4688cb99a6fb.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cbis_ddsm",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.9590.100.1.2.133488449010975893429744902440595376958",
+      "key": "idc-open-data/4ac6c684-be93-4e2a-b150-998060910530/8287f810-967b-4525-bbfd-953a78c46358.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "tcga_brca",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1869.4002.160821928856029831405045323844",
+      "key": "idc-open-data/09597236-1e55-4c41-9b7e-da209f1bd122/0b03bde8-b977-405a-a755-ba2367d594a3.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "ea1141",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1225.166032146255640150855237722122",
+      "key": "idc-open-data/c0858ede-bb88-4bc9-8c4a-852c87b66987/6eb5ed98-07e5-40bb-8ad2-8e4104c493fa.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "victre",
+      "license": "CC BY 3.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2135.6389.766849361040420807575052191689",
+      "key": "idc-open-data/3feb7840-c03b-4a20-a3dd-386e00db91f5/0ab5de69-7392-4315-b33d-463b0c6b7100.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cmmd",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1239.1759.696940919060229520501860438353",
+      "key": "idc-open-data/bf430e44-f840-4e3d-9edb-49a2c7816144/3dea1bd1-f650-43cf-8de7-e441429c92e1.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "breast_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "LORAD",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4792.2001.749836586993208029747489805614",
+      "key": "idc-open-data/bbfc3ec3-0fc3-4358-ac8a-df17cfc45ed7/ca235e1c-70f9-4f6f-898d-09b49732381e.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "cbis_ddsm",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.9590.100.1.2.37268040013764475837844589131241996902",
+      "key": "idc-open-data/4089b106-dc34-4ee8-9e0e-068288e55c99/ebee77ba-db37-4e07-9d96-1c6fba01a291.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "tcga_brca",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9203.4002.175046419594617395178636594476",
+      "key": "idc-open-data/d4302f86-fea7-4c34-8d0b-8aa425384afa/21dda9d0-6a56-4817-ae95-547a5c2dbc54.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "ea1141",
+      "license": "CC BY 4.0",
+      "manufacturer": "HOLOGIC, Inc.",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1225.450369242695410133342010037612",
+      "key": "idc-open-data/25439322-f03f-4bb7-991c-7d3cfebcf366/75a9f601-df64-4d14-8318-5844ec6940fe.dcm"
+    },
+    {
+      "modality": "MG",
+      "collection_id": "victre",
+      "license": "CC BY 3.0",
+      "manufacturer": "VICTRE",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.2135.6389.188678421214684767626340017743",
+      "key": "idc-open-data/67266135-d0f6-4989-a030-f0af6614c710/fd7d0f53-3b60-4718-a0a3-968e1507ac6d.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare Surgery",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.33343722159019714085164945966349503373",
+      "key": "idc-open-data/925c492f-139d-4fcc-9357-6a0cd4c9b6db/5c3535ff-3f8f-4325-8836-b31790686c06.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "eay131",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1226.556671887929658205439233229751",
+      "key": "idc-open-data/20f7d87d-13f9-4a5f-851a-57a2ee1a106d/c0233150-8907-4dac-859b-cdda622f453f.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.325586868912722966659148270956285342001",
+      "key": "idc-open-data/cb555121-aed1-4a14-8767-afefc2b370a3/0019c886-dd28-448d-8cbc-0f16dd2d4411.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9466947283977394912580522272166736559",
+      "key": "idc-open-data/64a54544-0d1e-4d93-8130-0dde9e7d5548/0dfc4407-1440-469b-8f44-e5625f065c49.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE Healthcare Surgery",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.33343722159019714085164945966349503373",
+      "key": "idc-open-data/925c492f-139d-4fcc-9357-6a0cd4c9b6db/5c3535ff-3f8f-4325-8836-b31790686c06.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.314587808638088284709015894326920076166",
+      "key": "idc-open-data/d75bf663-aa42-481f-a5fa-4bb034f4ca1d/72278492-678e-45e1-b6b3-d9d98257fa76.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.42832551279901706221289907793622253532",
+      "key": "idc-open-data/cb2343b4-e146-4b04-8273-d6e30289c045/375b4963-17f9-4a2b-b599-4aa26407dddc.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17147871808539919675426641730310931959",
+      "key": "idc-open-data/2ed24cee-1313-486e-856c-937eea5883a5/5bb3a75d-8606-41d8-bfa0-926f28866d91.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.42832551279901706221289907793622253532",
+      "key": "idc-open-data/cb2343b4-e146-4b04-8273-d6e30289c045/375b4963-17f9-4a2b-b599-4aa26407dddc.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.54052752769593509203551143338940345809",
+      "key": "idc-open-data/ae792c3f-cdd4-409d-9d59-2d70f19a5ef9/79c8198f-a6a8-4f8b-a32a-9db825d75958.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.25776582306555005157669244745017037126",
+      "key": "idc-open-data/bf5c1fd9-5a94-4ddb-b9b6-c0dad95a804c/f03b095a-5b45-4f56-ab25-b7305c96257c.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.84250565717914022931629078387164960051",
+      "key": "idc-open-data/d478b0bd-1f80-4734-8d81-47f20c36d0ab/1753337a-c390-4698-9d9b-f2a5b5a702a6.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.59262337924955234830347964410871055044",
+      "key": "idc-open-data/34fc876b-dd21-497b-97a0-e2ec559dae97/2d5976ad-7b7e-474f-9c6f-040de11385fe.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17147871808539919675426641730310931959",
+      "key": "idc-open-data/2ed24cee-1313-486e-856c-937eea5883a5/5bb3a75d-8606-41d8-bfa0-926f28866d91.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.132142077156104871341900933629511781096",
+      "key": "idc-open-data/694ab8d9-4f48-4138-9207-831833fc7082/8ab79460-9ce5-4c2e-97ac-96183839c84a.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.161316835645173511746926744364448167287",
+      "key": "idc-open-data/9de7bda7-8b57-408b-85b9-e72f2eb6c9ea/95fad090-e998-4d21-a2e1-4e61e1fbe1b6.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.42832551279901706221289907793622253532",
+      "key": "idc-open-data/cb2343b4-e146-4b04-8273-d6e30289c045/375b4963-17f9-4a2b-b599-4aa26407dddc.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.161316835645173511746926744364448167287",
+      "key": "idc-open-data/9de7bda7-8b57-408b-85b9-e72f2eb6c9ea/95fad090-e998-4d21-a2e1-4e61e1fbe1b6.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.59262337924955234830347964410871055044",
+      "key": "idc-open-data/34fc876b-dd21-497b-97a0-e2ec559dae97/2d5976ad-7b7e-474f-9c6f-040de11385fe.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.141615637432462209980326559941268148154",
+      "key": "idc-open-data/2e1f7cf1-fcdf-415f-ba4e-3091e2797c1a/51947c08-120a-411b-9149-da4aa6c6615d.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.23244831910210597349192758937291970264",
+      "key": "idc-open-data/0262c009-b1ff-4032-a69d-68b5fef608c3/dceb7d57-22ba-43b8-b6da-76939067e306.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.59262337924955234830347964410871055044",
+      "key": "idc-open-data/34fc876b-dd21-497b-97a0-e2ec559dae97/2d5976ad-7b7e-474f-9c6f-040de11385fe.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.213466789480592550120500479578451185745",
+      "key": "idc-open-data/524571af-8286-422c-b5e9-a0e664e6e273/351ae14b-7b10-4400-800a-eb33495f3ea1.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.92716470162264682290902110706372921544",
+      "key": "idc-open-data/174b0841-9e28-4e4a-a5c3-4c6ea1d523fd/eb681709-bf27-4910-9273-80a0dac37f17.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.258782148958853550074911751333487971851",
+      "key": "idc-open-data/21af70bd-7b08-4508-bed8-dc93f7467ad6/f760017b-ad14-4d75-9ae0-63a4d9826fab.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17010949356304202825932879424753696643",
+      "key": "idc-open-data/7ad1c510-4054-4021-9ea2-fa60eb4b679b/93f3a181-0bb4-42ab-9570-01534375e7b9.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.243339242365864366777591722067591704093",
+      "key": "idc-open-data/87765143-d0b5-41b6-af00-669818a69f5b/485122af-e8b6-4389-95ff-62bb95e5d1a9.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.74404188509965227181033492233234493424",
+      "key": "idc-open-data/7371d787-fa2c-4bc3-ab91-9d5dfbbe1940/74134074-7ab6-4fe5-a0ee-3dbaab245ada.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.42832551279901706221289907793622253532",
+      "key": "idc-open-data/cb2343b4-e146-4b04-8273-d6e30289c045/375b4963-17f9-4a2b-b599-4aa26407dddc.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.11475647794232364965043692477395424883",
+      "key": "idc-open-data/4b81bbbe-bd03-4c2e-99a5-59f8b70634c7/031870bf-4217-4cbb-bdb0-ae2f6a95d073.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.131035040037757318422645774567283072093",
+      "key": "idc-open-data/dd705bfa-b975-42ee-91f0-2e090fe40a77/541a4ef3-13d9-4d11-9209-c460a8ffcfc1.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.146723077402940611392501496773706077631",
+      "key": "idc-open-data/73fe50dc-7087-4e5e-89f1-bdef8d9c876b/f878c405-a9b3-4dff-813a-0a5b50978ad3.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.74404188509965227181033492233234493424",
+      "key": "idc-open-data/7371d787-fa2c-4bc3-ab91-9d5dfbbe1940/74134074-7ab6-4fe5-a0ee-3dbaab245ada.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.92716470162264682290902110706372921544",
+      "key": "idc-open-data/174b0841-9e28-4e4a-a5c3-4c6ea1d523fd/eb681709-bf27-4910-9273-80a0dac37f17.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.74404188509965227181033492233234493424",
+      "key": "idc-open-data/7371d787-fa2c-4bc3-ab91-9d5dfbbe1940/74134074-7ab6-4fe5-a0ee-3dbaab245ada.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.152303837669244820696847551018339175095",
+      "key": "idc-open-data/502b3444-5b21-4d2e-b6eb-5e8fba4764b2/6171336b-cee7-4924-985f-f3e17418478d.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.21864042369504870281524569459663733718",
+      "key": "idc-open-data/d58c4da7-de5f-4201-aa52-079f51e17e8a/a7081893-0618-4e23-b323-0a3faf1c5ccc.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.147437293006135598545808385099099895468",
+      "key": "idc-open-data/71e60afd-fd18-4466-b2eb-d30aec1b3b74/9b867eb6-14d7-40f1-bc0e-f31d2bc152b6.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.11475647794232364965043692477395424883",
+      "key": "idc-open-data/4b81bbbe-bd03-4c2e-99a5-59f8b70634c7/031870bf-4217-4cbb-bdb0-ae2f6a95d073.dcm"
+    },
+    {
+      "modality": "XA",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.165572801149899187505014829605616452095",
+      "key": "idc-open-data/0c0365f6-d63a-4ddc-a7a9-adde5d3624cc/f96d4b00-95e4-4144-b87b-b09f5312a268.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.30907454987448876417071133187277082717",
+      "key": "idc-open-data/6d552ed9-a3d0-44a9-855f-3d32a6a727a5/067a337c-ce78-41e4-aea9-d02cae442463.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.281179872355257937874148858128054458658",
+      "key": "idc-open-data/71fa47d6-d16c-48e8-8f01-bea4ae52a02a/0f2b787d-6ce4-4947-8f6b-9565a15267d3.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "qin_breast",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8162.7003.194966255265068139963447727098",
+      "key": "idc-open-data/d20ee168-9f11-48dc-af00-159ac11b771f/0b6888a3-93fc-42fb-8d4a-7f9e70b00f8a.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "rider_lung_pet_ct",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.9328.50.17.33448411630762243528802837314263605044",
+      "key": "idc-open-data/990cc656-8e59-4461-a1b4-5294e9026b02/084dfb2e-c348-4421-8a3f-71df6328b99f.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "lung_pet_ct_dx",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6655.2359.172543554666961781137651263376",
+      "key": "idc-open-data/1d497566-5b24-45cb-9936-04832b93759a/000db4b4-18c0-4398-ba8e-e148e80c26c9.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "psma_pet_ct_lesions",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.973005666462603747457286468666426504",
+      "key": "idc-open-data/d1d545f5-45f8-4311-ac24-afabaffa1516/00c55562-24d8-4ed8-b5b5-ddd5cbd080de.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "anti_pd_1_lung",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3098.5025.124191629546203669246870103231",
+      "key": "idc-open-idc1/d0eecbe0-5c48-4942-8ee9-1e7a728d5a65/000a572a-1eb8-46a1-bf29-afea6c8e5165.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cptac_ucec",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.2626.216677873822435634645765573147",
+      "key": "idc-open-data/ab4f03ae-cad3-4503-8cf6-8227577a1725/007d85de-91fa-4e5b-94f5-6a27b8f4a231.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cptac_luad",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4320.5885.428261296432129709422394324018",
+      "key": "idc-open-data/c6402b65-1923-496a-a3db-67e2d6f0fbdb/00744ff6-a0ef-4792-9ab2-65b9c9a83d31.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "fdg_pet_ct_lesions",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.21507163440554943382503955824581446837",
+      "key": "idc-open-data/806992c9-6223-4f57-b522-8215bd030def/01f12055-6515-4b50-a57a-37916adcfdf5.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_ucec",
+      "license": "CC BY 3.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4020.114271268347856033127580635410",
+      "key": "idc-open-data/636e2d08-d5e4-44f1-a8a8-aa8fd81be706/00817848-90e0-4d17-b4cf-81e683b33e08.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_prad",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7777.4006.256121133634818906319766557842",
+      "key": "idc-open-data/a522a98e-8ce1-42f8-bc1a-cb5ae7f71289/0026a8b1-9407-4239-acfa-c6329a86c55b.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.18963713270356317260588650759777467775",
+      "key": "idc-open-data/72cce317-10dc-43c0-9713-92b3da88e2f2/093157e8-a6b9-4d9a-96bf-85252167c03f.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cptac_pda",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3320.3273.166905736899089489602631926859",
+      "key": "idc-open-data/c869b936-19ad-4615-8d3d-7a2e6c73cd8d/0068fdcd-29d6-4b81-b92c-403c4973e030.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4016.103244526815807571332200658409",
+      "key": "idc-open-data/e8072348-32b3-4b94-8d4c-4929b5efbecb/003732ae-b4e8-47cd-b948-1aa08a036f7d.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.29031151873065448396549424256090",
+      "key": "idc-open-data/e8136864-ee58-4f6f-a355-3ef27946a552/042940d0-d8ad-4d60-ba8c-7eee0325efd3.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.191364869293971683765111893389510351640",
+      "key": "idc-open-data/68c1a8f4-5650-487d-acbe-231c68307c57/0535357b-f2eb-40d3-8475-98db5e9e6402.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cc_tumor_heterogeneity",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.329982375913914487313862556721948124365",
+      "key": "idc-open-data/c2c4b5c3-ac85-437f-bf36-c4689fa9f0ed/0066d743-cb84-467e-851d-c976043803e9.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "qin_pet_phantom",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.2.840.113619.2.25.4.1263093.1399752847.968",
+      "key": "idc-open-data/4270fb53-5755-4198-8a5a-1d7b16f348dd/0877749d-7fc4-405a-97d1-adc70dc4617f.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "eay131",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1226.730710512301928193217696872402",
+      "key": "idc-open-data/0e4801f2-a493-4328-99ee-1345fe8e08a6/008aae38-7852-4a4b-af42-40cffd4ec184.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_lihc",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3344.4008.107503303977196430716296371527",
+      "key": "idc-open-data/905376cc-ebf3-42c9-bd56-ae5f5c7e9935/00a8d8da-4c66-4633-a75c-f8fa6b64fbce.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cptac_lscc",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3320.3273.130123263988993820024544171314",
+      "key": "idc-open-idc1/58bc6189-09ec-40db-b998-1e5d63e79a39/005d1106-298b-4d68-99ad-6c280e9e9e3f.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cptac_sar",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3320.3273.325045169898030908792442609111",
+      "key": "idc-open-data/b381675b-cf36-4fa6-a757-83f2d4359d2e/00691635-8f9d-49ca-a042-b05a47c73a31.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_thca",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8421.4019.206851847585471559941508385034",
+      "key": "idc-open-data/73fa8446-0738-4eb2-8759-5043cd60d8e7/163ddd3e-fc71-4a23-9259-24921884bd34.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cmb_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.19478948245341411902473163401443517157",
+      "key": "idc-open-data/993f71f4-5acf-42b9-8feb-1cb2aeec655e/05346ffd-c968-4d6b-8eef-e1b36d292fff.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.971310947601003633517267110565",
+      "key": "idc-open-idc1/13120706-c1f1-4205-b6fa-b8a551aac33c/00aefd5c-ac02-4b36-9447-b1ff855b3cee.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_luad",
+      "license": "CC BY 3.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7777.9002.343903454071244493719496097051",
+      "key": "idc-open-data/6f3bcf03-04a6-4e69-860d-c0f89c42f7e6/003cf9d7-f3af-4847-a768-c973169d3d33.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "naf_prostate",
+      "license": "CC BY 3.0",
+      "manufacturer": "Philips Medical Systems",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.9823.8001.131085138640302883925467109842",
+      "key": "idc-open-data/b9d541af-3bf8-4db8-aa88-d8818944073d/02099955-678b-47c8-8665-42b2f4b01e41.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "breast_diagnosis",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4792.2001.269030604998663614553836918104",
+      "key": "idc-open-data/f373117f-1574-481a-ab64-71ca33251c01/0271328e-6b0f-4f45-b495-5bd76208e195.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "soft_tissue_sarcoma",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.5168.1900.185606251815714846810086258747",
+      "key": "idc-open-data/f57baac5-97d5-428f-a39f-e698611f64f6/00bbeafa-204f-4086-a08b-01dd6425b5c6.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cmb_gec",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.17821788076050544799097719829445189510",
+      "key": "idc-open-data/a500f09b-ec32-499a-8d7d-0b74cebe23f4/0491b804-14ba-4c93-9fe3-c8c42e2d6c3e.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.202055756405960884859272937794348042065",
+      "key": "idc-open-data/01d075fc-582e-4ab2-9d23-0e242e1514d9/007cc1d4-8220-48e8-9adb-ed44c2f8ad23.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "nsclc_radiogenomics",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.4334.1501.306097368969091771305877991972",
+      "key": "idc-open-data/d00a4753-fbbd-4f93-b2f6-4f2c4e8e438e/005fbdbb-e982-476b-9d5d-8b2df2a3fe91.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cmb_mel",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.248786465740605564356712774079688261628",
+      "key": "idc-open-data/6cb20199-fd3e-4d4e-975e-300af498a9b4/00b3fc92-ed1d-4a61-bb3a-e3bf670e8e3d.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_lusc",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8421.4012.204746195342398612204534152858",
+      "key": "idc-open-data/f7027140-f066-4b0a-a345-9d15322537f1/0106260e-e7a9-4a2e-9af4-b69afb747fa2.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "uw_cirp_mouse_pet_ct_nsclc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Siemens",
+      "series_instance_uid": "2.25.50147170829845906490161524133147679442",
+      "key": "idc-open-data/b921e4fd-ae7f-43c4-b4b4-4a04542152b8/00735b33-d0fa-4a60-9e2b-fded887fdb24.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "ct_vs_pet_ventilation_imaging",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.88985052635186496921448887760409482849",
+      "key": "idc-open-data/623a32bb-38f7-473c-89ab-37c692975451/00e3fff6-7df9-4197-b692-bff64ed61dce.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "acrin_flt_breast",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2401.806467312440587722339348720161",
+      "key": "idc-open-data/f2874d7a-62f8-45df-94bd-c1d0e56501a3/0012551a-4940-4ccb-926b-c8b9c8daf632.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "cptac_cm",
+      "license": "CC BY 4.0",
+      "manufacturer": null,
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3320.3273.669438171774307285204066202519",
+      "key": "idc-open-idc1/8da047f9-9791-4ca5-8313-3364de360153/007d1f8e-f539-4cd6-bdf4-be78c163cbb0.dcm"
+    },
+    {
+      "modality": "PT",
+      "collection_id": "tcga_kirp",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.8421.4010.133997372328608607605368936824",
+      "key": "idc-open-data/d3d6938e-33c0-4d15-8a16-21b94b144674/001ade43-076b-495a-bab8-13c9d0dc0b43.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.31816742296793850035402595949210518790",
+      "key": "idc-open-data/4c680ff0-ef78-4d2c-a155-6f36e6a83a76/9d4cd8c5-b063-48c3-9cc9-8d027613b48a.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_lusc",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.4012.322510031069677075651888163389",
+      "key": "idc-open-data/d20da1b2-07d5-4f60-9a81-c4d073b43a7d/65eaf31e-5e6b-4db6-834b-380670a6cff6.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_luad",
+      "license": "CC BY 3.0",
+      "manufacturer": "ADAC",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.9002.204170368393007669948814352536",
+      "key": "idc-open-data/e48c2ff8-358b-4623-845d-eca4df40cb5e/a7e15c3d-714a-428d-bc87-00c41eca910e.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.243679035027201134377258654433119302818",
+      "key": "idc-open-data/b7d547be-cc0b-4f78-a7aa-c6d4be0ea3ca/6ef5da86-1ba8-4eec-be56-68120a4a03e9.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.85704487139564383278635499194363",
+      "key": "idc-open-data/35c8255f-cd8e-4403-9797-6abf7d880757/9e3960bc-b533-4937-a039-6284b8f8cd56.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "eay131",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1226.418195426103611600166797173893",
+      "key": "idc-open-data/45619e5c-53e6-4c58-9511-2f420b24c5a4/9840aa4e-f29a-498f-8425-b78f3e48d4ea.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.288403234704964491432292405746033956101",
+      "key": "idc-open-data/00c4d342-0450-4288-b3b8-b8e5d7beb144/248609da-46b2-4379-9065-a0e0610c3232.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.124303195107418352118287238531",
+      "key": "idc-open-idc1/093818d8-d531-43d9-b785-f31156e6c15b/8bc40fd5-a536-4e42-b22e-6481a6c209b6.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.256510469443903797967225812201661950475",
+      "key": "idc-open-data/ba8e8a83-3a17-4738-a46a-76a5cdb3c3f8/e06482d0-51de-4384-883f-415d199be93a.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.18858138976266679129306679518365470036",
+      "key": "idc-open-data/60f22101-819a-48c2-a5ce-88f550db1ee1/b621b93c-842f-416e-9f84-11bea27eb85e.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_lusc",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.4012.322510031069677075651888163389",
+      "key": "idc-open-data/d20da1b2-07d5-4f60-9a81-c4d073b43a7d/65eaf31e-5e6b-4db6-834b-380670a6cff6.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_luad",
+      "license": "CC BY 3.0",
+      "manufacturer": "ADAC",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.9002.204170368393007669948814352536",
+      "key": "idc-open-data/e48c2ff8-358b-4623-845d-eca4df40cb5e/a7e15c3d-714a-428d-bc87-00c41eca910e.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_crc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.22922221865096284945116173729406274438",
+      "key": "idc-open-data/ded876f4-cd26-4d3a-a16b-7e1eab8b4233/19e87a23-c4c3-459e-8f91-1dd6de954a23.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.28731251855136827416741281429161",
+      "key": "idc-open-data/536c5dce-14f5-4033-8b5d-fa95406ae4da/0dee1429-0c55-4fe6-b601-4bd389dc1265.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "eay131",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1226.418195426103611600166797173893",
+      "key": "idc-open-data/45619e5c-53e6-4c58-9511-2f420b24c5a4/9840aa4e-f29a-498f-8425-b78f3e48d4ea.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.288403234704964491432292405746033956101",
+      "key": "idc-open-data/00c4d342-0450-4288-b3b8-b8e5d7beb144/248609da-46b2-4379-9065-a0e0610c3232.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.124303195107418352118287238531",
+      "key": "idc-open-idc1/093818d8-d531-43d9-b785-f31156e6c15b/8bc40fd5-a536-4e42-b22e-6481a6c209b6.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.1343333396057586738416226893762582981",
+      "key": "idc-open-data/542dd2fa-119d-4eff-ae13-6e6dc601fb52/fd0998b6-bd96-437d-8f7e-d6ce68149947.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.128239622946497736411227407131314982083",
+      "key": "idc-open-data/6b9c3637-67f2-439b-84fb-f1cadce7d6f9/a373982d-b0e5-45cb-a036-1bf11e71e5ea.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_lusc",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.4012.165879292468742500586463281338",
+      "key": "idc-open-data/b8e9a9a7-ff38-40ef-bd18-27fdc13ddf39/2b74d25a-af0f-4fc5-aa32-53725e29f183.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_luad",
+      "license": "CC BY 3.0",
+      "manufacturer": "ADAC",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.9002.329451189839369613896222100019",
+      "key": "idc-open-data/216d6710-38c7-48ea-91aa-864b8f254b7a/32ce5834-2d90-496f-8dcf-e277e0767783.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.26176220179136571069466540150943",
+      "key": "idc-open-data/109ebf6f-45ba-4fc4-8960-d778f762fca6/c1ea8c24-39c7-4f99-9195-3550b9555c22.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "eay131",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1226.223234383833675180199743038400",
+      "key": "idc-open-data/37800108-f8b3-4070-bd28-f4882f72b9fc/e3f3c574-f21c-4963-b4c2-9e0126850501.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.212374946448048375945181493644869222100",
+      "key": "idc-open-data/12c520d0-a715-41e1-a68d-4c5071e401c1/ec48acda-17d6-4493-a229-9af849bec229.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.484725606860278331095617627781",
+      "key": "idc-open-idc1/afe16939-2b95-41b4-ab1b-ce9b176e6631/0d6c2de3-168b-4ea5-a1c8-c7d7438faa15.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.23389338196871146555196580832208932475",
+      "key": "idc-open-data/f99377cb-9a84-4228-a4f9-a97513f0354a/0bc12ff7-ce8a-4daa-bccb-36b67a62dd5e.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.334339220977241182003566978930095236416",
+      "key": "idc-open-data/df4a8a66-fb0c-4b90-974c-21fb6299d843/1b01404c-981c-4c58-a6e1-c50f5f80781b.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_lusc",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.4012.322510031069677075651888163389",
+      "key": "idc-open-data/d20da1b2-07d5-4f60-9a81-c4d073b43a7d/65eaf31e-5e6b-4db6-834b-380670a6cff6.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_luad",
+      "license": "CC BY 3.0",
+      "manufacturer": "ADAC",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6450.9002.204170368393007669948814352536",
+      "key": "idc-open-data/e48c2ff8-358b-4623-845d-eca4df40cb5e/a7e15c3d-714a-428d-bc87-00c41eca910e.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.26176220179136571069466540150943",
+      "key": "idc-open-data/109ebf6f-45ba-4fc4-8960-d778f762fca6/c1ea8c24-39c7-4f99-9195-3550b9555c22.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "eay131",
+      "license": "CC BY 4.0",
+      "manufacturer": "Philips Healthcare",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1226.244213092242983324876733788951",
+      "key": "idc-open-data/f20dba4c-2290-41d0-b3dd-9f2e31382378/2a293090-3912-4ae1-acf0-42f24025c103.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.47693850851491211207362179605802364068",
+      "key": "idc-open-data/1bbf962f-c0e1-4e38-be78-dee8c473d16d/6fb2f5ac-f7bd-47fb-846b-c45e99f5c1ef.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.117667721075579809273230420853",
+      "key": "idc-open-idc1/cf2faaa2-4b00-4225-9a23-e1f0a7c2011a/15025e24-7a0a-4721-8065-32b07d1a951c.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1.1343333396057586738416226893762582981",
+      "key": "idc-open-data/542dd2fa-119d-4eff-ae13-6e6dc601fb52/fd0998b6-bd96-437d-8f7e-d6ce68149947.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "cmb_lca",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.20232320546261867869490374494626088564",
+      "key": "idc-open-data/a51c8b63-7383-4c39-9b45-bf26d2f6c0a0/84cddf3b-5607-462f-a0bd-d88ffbc3c82b.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "tcga_luad",
+      "license": "CC BY 3.0",
+      "manufacturer": "GE_MEDICAL_SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.3983.9002.636581694079649543680516298404",
+      "key": "idc-open-data/ab362bea-ca47-4267-a78a-27d185a2dd6b/2950f528-778c-4473-a5d7-16075cbe544c.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "covid_19_ny_sbu",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.99.1071.18086109172446526938294232368805",
+      "key": "idc-open-data/fa89fdb7-cc59-4bb1-a6eb-4490eb231f8b/128d631a-c524-4741-86c2-c655720665a2.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "eay131",
+      "license": "CC BY 4.0",
+      "manufacturer": "GE MEDICAL SYSTEMS",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1620.1226.223234383833675180199743038400",
+      "key": "idc-open-data/37800108-f8b3-4070-bd28-f4882f72b9fc/e3f3c574-f21c-4963-b4c2-9e0126850501.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "varepop_apollo",
+      "license": "CC BY 4.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.157054492072141889470242773102752585261",
+      "key": "idc-open-data/77ba2ec3-abde-423f-99b2-0a1b100558bc/904179ea-b8ca-4be0-806b-3a58e3dbfe69.dcm"
+    },
+    {
+      "modality": "NM",
+      "collection_id": "acrin_nsclc_fdg_pet",
+      "license": "CC BY 3.0",
+      "manufacturer": "SIEMENS NM",
+      "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.7009.2403.148359609246202872544198436664",
+      "key": "idc-open-idc1/657f0274-ffb7-470a-a369-07344e1449be/1bbb2d9c-d50b-4b96-9b1c-d05bcb82969c.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cmb_mml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3921437761.1812922977.1756268127297.4.0",
+      "key": "idc-open-data/6d5ed719-f4d8-4baf-b9ef-eb90a9ef3b3f/1dee594f-8b1f-49b7-8868-a001b16a6b15.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_cesc",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1739303017.810879083.1638121875561.2.0",
+      "key": "idc-open-data/d1c6470e-6979-42f1-a13d-08a373b9a4b1/58a23c5d-5062-479c-95e6-cdf56dba30a2.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "ccdi_mci",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.828546706.582368317.1727405432466.4.0",
+      "key": "idc-open-data/fdf4e13b-684b-4064-a21e-453753da09ee/362d016f-aa7c-41d5-bd86-85af6f08597b.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cmb_pca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.4000546996.1439181846.1756347236532.4.0",
+      "key": "idc-open-data/89af4963-3da5-4ccd-b068-65e99e3e9fd9/1f80a8c6-06c7-4442-9654-07e38b572923.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cptac_brca",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.146900540.2076708556.1640824440380.2.0",
+      "key": "idc-open-data/12105ecb-b9ea-4d63-86ee-762fd064defd/2894dad7-aeb9-47ad-abda-9ec5ee7312bd.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_lusc",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1093234481.291900519.1637475807025.2.0",
+      "key": "idc-open-data/bd7c6f71-c89d-4ae5-8f98-038359b4fdfb/0e38a6e9-7d13-432a-be86-4ec286c44b3f.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_gbm",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1159746136.1593819522.1637542318680.2.0",
+      "key": "idc-open-data/b33cb91b-86c3-412b-b0e1-2e7a9926593d/14262072-36a1-4f4d-bca2-a9e46ff06efc.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_luad",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1049424127.923675488.1637431996671.2.0",
+      "key": "idc-open-data/7e5c199d-758f-471b-8f4d-eaadf2dfb13d/06eee532-7c5c-4c73-a475-57af7d3207b3.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "bonemarrowwsi_pediatricleukemia",
+      "license": "CC BY 4.0",
+      "manufacturer": "Mirax",
+      "series_instance_uid": "1.2.826.0.1.3680043.8.498.40732607746660149380857714557237115306",
+      "key": "idc-open-data/edebac55-ecc3-468e-a57f-d1a1a5a07d04/0ebf6acb-6f2a-4d71-a7dd-e72211741b44.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_chol",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1909240955.1740058753.1638291813499.2.0",
+      "key": "idc-open-data/920b34ee-5905-4010-8e4c-43f428fd1ff0/2e2fdbb7-e71d-4ddf-83dd-07acca2b70c3.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "htan_ohsu",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.2003005515.495970520.1655565447243.4.0",
+      "key": "idc-open-data/060b6933-52ad-47aa-b6e2-54493a20149e/008ebdb9-99b9-46e5-a658-b31a661085a6.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_blca",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1730983035.1925291488.1638113555579.2.0",
+      "key": "idc-open-data/17054c91-1423-432a-af72-089aad0b9767/111d7df2-b822-46f2-87c8-47bf5b762002.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "htan_wustl",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1999217660.1509129655.1655561659388.4.0",
+      "key": "idc-open-data/8bf70bc6-5220-4c90-9ab9-735943d60072/045ee4e1-090f-48d2-9e44-eab9d8c3acd9.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_kirp",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3441088915.1327080970.1639823661459.2.0",
+      "key": "idc-open-data/366f92a0-e35b-4a67-86ca-bcb854845bf0/0e17f5c5-81dc-4d76-8db8-0133309f6afb.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cptac_coad",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.184313074.1622738084.1640861852914.2.0",
+      "key": "idc-open-data/b77eae0d-c7b2-4df0-87b4-182e155689c0/6afc7868-1565-49fd-946d-873b5f287b21.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_meso",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.2001844209.12581588.1638384416753.2.0",
+      "key": "idc-open-data/e8af6cbc-82c8-4707-ac61-7e61c964e946/2c073d06-7401-4488-9316-c91f84acb953.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_read",
+      "license": "CC BY 3.0",
+      "manufacturer": "Carl Zeiss",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.2245444995.427580978.1638628017539.2.0",
+      "key": "idc-open-data/c7ceb0e3-ac4c-41ef-ad95-7a27ce6e6cac/0bd8f076-99e6-40ef-b38c-96e1e5ccb80a.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cptac_ov",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.268314176.1887547201.1640945854016.2.0",
+      "key": "idc-open-data/ae6e494b-6897-4a87-8977-513bfc0ffba9/1bab63f8-08e9-4ab5-9607-e1eac7e651b4.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_brca",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1327485955.559218747.1637710058499.2.0",
+      "key": "idc-open-data/473c0611-2bf9-484c-b9ae-62e31f756b74/4035982c-44d1-4263-8ee0-37b5c82ef11d.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_coad",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3215433993.1471958998.1639598006537.2.0",
+      "key": "idc-open-data/dde05e12-0003-4b98-ba2a-f4a7b1e7f49c/22d6643c-ebea-454c-84d7-4ba2d705645b.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_ucs",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3643240896.1587996749.1640025813440.2.0",
+      "key": "idc-open-data/819d0f08-808d-4d3a-aaa0-419ed354a729/0dc11ded-49f1-4b1c-8482-3ab057fce86d.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cmb_aml",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1286034261.1363622291.1714978018133.4.0",
+      "key": "idc-open-data/60f04140-4f73-42bf-bab7-e321c1c4367d/158e462a-ce56-4ca4-b790-ae588bfe66ed.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "hcmi_cmdc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3036984288.1684267787.1772563543008.4.0",
+      "key": "idc-open-data/aa2ee315-d006-4523-9851-fda4e1f94cf3/18f20ad7-e5af-4313-8aed-4a51c868be8f.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cgci_htmcp_lc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3836932944.453928843.1773363491664.4.0",
+      "key": "idc-open-data/628d7840-34d8-433b-96dc-f569eb22f43e/81929fd1-e7b1-4619-9313-a03bc2b77828.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_lgg",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1413681036.1808416414.1637796253580.2.0",
+      "key": "idc-open-data/60ed8465-9a46-4b47-9a16-b91ecf80ea47/ac7089ba-ecf3-48f1-ab27-8e58e19b4df3.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cptac_hnscc",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.201457915.1700531779.1640878997755.2.0",
+      "key": "idc-open-data/43e235ea-fa3d-4fd8-8ca0-d4956f07dc63/0f68aaed-fb6b-4f4f-bba5-6eb82684d72e.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_paad",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3381152392.1063476471.1639763724936.2.0",
+      "key": "idc-open-data/d89a61db-8b66-4162-a238-121fa978e757/1273be97-e883-47ad-bd3a-aa800ac18d22.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_lihc",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1958826897.1782615796.1638341399441.2.0",
+      "key": "idc-open-data/12ba28ef-5d42-465d-9bcf-78f56c07b740/4fd33483-5236-475d-bb33-e5c96775754c.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "rms_mutation_prediction",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.2637068573.458087163.1686264281373.4.0",
+      "key": "idc-open-data/7d8d1b6b-89d0-4c06-aadb-c460ffbef21f/6256aff8-5c85-469a-9489-5b3d93b84860.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_stad",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.2908185359.237824258.1639290757903.2.0",
+      "key": "idc-open-data/ab228e58-975b-4709-89e9-b36221a0ef4a/339197c5-7028-4fa7-abf2-e785b9f460d9.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cptac_ucec",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.297809625.68867777.1640975349465.2.0",
+      "key": "idc-open-data/5d15c822-572b-4950-844b-e036465084bd/0ea2adac-2e62-4f3f-9941-505676532603.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_thym",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3604914136.1561935980.1639987486680.2.0",
+      "key": "idc-open-data/a7d7c142-573f-45ff-a2c6-1f91aa637c97/63382c5b-40da-4f7c-8980-6dd8d64d7666.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_kich",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1635792303.156632336.1638018364847.2.0",
+      "key": "idc-open-data/0c1634eb-10f4-4a60-a284-e32dfb58c758/147ea5fe-41f3-4d28-8084-19bb2791b4ff.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "nlst",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.512737632.2134350426.1641190277472.2.0",
+      "key": "idc-open-data/9a3522e8-c1e2-4df5-94c3-622b32759996/287a94ab-1c3d-4248-9a89-9528bc5466aa.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_hnsc",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1581657620.1290731884.1637964230164.2.0",
+      "key": "idc-open-data/4e08d3c6-bb32-4a2a-97ab-081753180215/574ef2f0-b4a8-4efa-b2f3-6dd6e37df17b.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "cptac_sar",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.284355827.1400072086.1640961895667.2.0",
+      "key": "idc-open-data/b225c851-9e6f-4ae5-a354-ba327c036602/53d1e6cc-b999-4e52-b0a1-d108360bbfd7.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_pcpg",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3481299238.1346419402.1639863871782.2.0",
+      "key": "idc-open-data/3a1660a6-b619-484a-93f2-e83d31dfb63d/03b2d21c-9b68-42d8-802a-3c32638ab101.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_skcm",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.3290649959.1481709190.1639673222503.2.0",
+      "key": "idc-open-data/aaa3fda7-d303-4c0a-b3fc-c10d4985386c/45608abb-61aa-40ae-a9cd-ad276f4952fd.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "tcga_esca",
+      "license": "CC BY 3.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.1925449397.249473506.1638308021941.2.0",
+      "key": "idc-open-data/e2f83788-b1a7-4f77-b2be-dc21f26ec9ed/1e3261ab-49ba-4273-bb1c-2eb80a85a159.dcm"
+    },
+    {
+      "modality": "SM",
+      "collection_id": "icdc_glioma",
+      "license": "CC BY 4.0",
+      "manufacturer": "Leica Biosystems",
+      "series_instance_uid": "1.3.6.1.4.1.5962.99.1.479857410.3565348.1684107070210.4.0",
+      "key": "idc-open-data/063caab1-3aa7-434a-be9d-94b760b23652/15d0bd19-34ed-444b-8670-f0bedfc35753.dcm"
+    }
+  ]
+}

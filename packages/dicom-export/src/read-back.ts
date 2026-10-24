@@ -128,8 +128,20 @@ export interface ImportedSegment {
   readonly masks: ReadonlyMap<string, MaskSnapshot>;
 }
 
-/** Reads a BINARY Segmentation back into per-source-image mask snapshots. */
-export function readSegmentation(ds: DicomDataset, pixelData: Uint8Array): ImportedSegment[] {
+/**
+ * Reads a Segmentation back into per-source-image mask snapshots. BINARY
+ * masks are exact; FRACTIONAL ones (probability / occupancy, 8 bits per
+ * pixel) are thresholded at `fractionalThreshold` × Maximum Fractional Value —
+ * osdlabel masks are binary, so this direction is lossy by construction.
+ */
+export function readSegmentation(
+  ds: DicomDataset,
+  pixelData: Uint8Array,
+  options: { readonly fractionalThreshold?: number } = {},
+): ImportedSegment[] {
+  const fractional = str(ds, TAGS.SegmentationType.tag) === 'FRACTIONAL';
+  const maxFraction = num(ds, TAGS.MaximumFractionalValue.tag) ?? 255;
+  const cut = (options.fractionalThreshold ?? 0.5) * maxFraction;
   const rows = num(ds, TAGS.Rows.tag) ?? 0;
   const cols = num(ds, TAGS.Columns.tag) ?? 0;
   const frames = num(ds, TAGS.NumberOfFrames.tag) ?? 1;
@@ -161,7 +173,8 @@ export function readSegmentation(ds: DicomDataset, pixelData: Uint8Array): Impor
     const base = f * n;
     for (let i = 0; i < n; i++) {
       const bit = base + i;
-      if ((pixelData[bit >> 3]! >> (bit & 7)) & 1) {
+      const on = fractional ? pixelData[base + i]! > cut : (pixelData[bit >> 3]! >> (bit & 7)) & 1;
+      if (on) {
         full[i] = 1;
         const x = i % cols;
         const y = (i / cols) | 0;
