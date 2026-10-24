@@ -813,6 +813,22 @@ importers:
         specifier: 'catalog:'
         version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
 
+  packages/volume:
+    dependencies:
+      '@osdlabel/mask':
+        specifier: workspace:*
+        version: link:../mask
+      '@osdlabel/spatial':
+        specifier: workspace:*
+        version: link:../spatial
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@24.12.4)(jsdom@26.1.0(canvas@3.2.1))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.28.2)(yaml@2.9.0))
+
 packages:
 
   '@asamuzakjp/css-color@3.2.0':
