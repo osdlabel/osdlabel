@@ -1,0 +1,16 @@
+slides with positive polygons: 110; positive polygons: 2163
+polygons whose level-0 bbox exceeds 64 Mi px: 83 (3.8%)
+share of annotated tumour area in those polygons: 87.3%
+polygons with long bbox side > 2 mm: 94 (4.3%)
+per-polygon d histogram: [(1, 2080), (2, 52), (4, 25), (8, 6)]
+per-slide (one mask per slide) d histogram: [(1, 37), (2, 8), (4, 19), (8, 34), (16, 12)]
+  train_Tumor_095.json bbox 58465x39431 = 14.21x9.58 mm, 34.4x cap, d=8, cell 1.94 um, polygon area 52.75 mm2, vertices 6381
+  train_Tumor_076.json bbox 43987x46647 = 10.69x11.34 mm, 30.6x cap, d=8, cell 1.94 um, polygon area 86.37 mm2, vertices 3080
+  train_Tumor_089.json bbox 36327x55550 = 8.83x13.50 mm, 30.1x cap, d=8, cell 1.94 um, polygon area 58.19 mm2, vertices 4450
+  train_Tumor_044.json bbox 46029x30052 = 11.19x7.30 mm, 20.6x cap, d=8, cell 1.94 um, polygon area 47.48 mm2, vertices 8326
+  train_Tumor_054.json bbox 30752x39357 = 7.47x9.56 mm, 18.0x cap, d=8, cell 1.94 um, polygon area 34.18 mm2, vertices 5834
+  train_Tumor_076.json bbox 31462x35408 = 7.65x8.60 mm, 16.6x cap, d=8, cell 1.94 um, polygon area 41.19 mm2, vertices 2726
+  train_Tumor_054.json bbox 29833x35940 = 7.25x8.73 mm, 16.0x cap, d=4, cell 0.97 um, polygon area 33.44 mm2, vertices 4236
+  train_Tumor_046.json bbox 38720x27037 = 9.41x6.57 mm, 15.6x cap, d=4, cell 0.97 um, polygon area 33.41 mm2, vertices 10041
+polygon area mm2: median 0.0041, p90 0.239, max 86.37
+vertex spacing (level-0 px): median 7.1, p10 3.0, p90 54.2; in um: median 1.72

@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>OSD mask render harness</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #222;
+      }
+      #viewer {
+        position: relative;
+        width: 1024px;
+        height: 768px;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <script>
+      // Load the OSD build named by ?osd= (5 = repo's 5.0.1, 6 = 6.1.1), then Fabric 7.4.0, then the harness.
+      (function () {
+        const q = new URLSearchParams(location.search);
+        const osd = q.get('osd') === '6' ? 'vendor/osd-6.1.1.js' : 'vendor/osd-5.0.1.js';
+        const scripts = [osd, 'vendor/fabric-7.4.0.min.js', 'harness.js'];
+        (function next(i) {
+          if (i >= scripts.length) return;
+          const s = document.createElement('script');
+          s.src = scripts[i];
+          s.onload = () => next(i + 1);
+          document.head.appendChild(s);
+        })(0);
+      })();
+    </script>
+  </body>
+</html>

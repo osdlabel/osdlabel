@@ -1,0 +1,18 @@
+Square region of side L mm (bbox = L x L):
+mpp  L_mm  side_px  bbox/cap  d  cells(MCells)  cell_um  mean_boundary_shift_um(~d/4)  max_shift_um(~0.71d)
+0.25     1     4000     0.24   1      16.00     0.25       0.06       0.18
+0.25     2     8000     0.95   1      64.00     0.25       0.06       0.18
+0.25     5    20000     5.96   4      25.00     1.00       0.25       0.71
+0.25    10    40000    23.84   8      25.00     2.00       0.50       1.42
+0.25    20    80000    95.37  16      25.00     4.00       1.00       2.84
+ 0.5     1     2000     0.06   1       4.00     0.50       0.12       0.35
+ 0.5     2     4000     0.24   1      16.00     0.50       0.12       0.35
+ 0.5     5    10000     1.49   2      25.00     1.00       0.25       0.71
+ 0.5    10    20000     5.96   4      25.00     2.00       0.50       1.42
+ 0.5    20    40000    23.84   8      25.00     4.00       1.00       2.84
+
+Whole-slide model output imported as ONE mask (2 cm x 1.5 cm tissue box):
+mpp=0.25: 80000x60000 px = 4.80 Gpx = 71.5x cap -> d=16, grid 5000x3750 = 18.75 M cells, cell = 4.00 um
+mpp=0.5: 40000x30000 px = 1.20 Gpx = 17.9x cap -> d=8, grid 5000x3750 = 18.75 M cells, cell = 4.00 um
+
+Largest bbox that stays at d=1 (square): 2.048 mm at 0.25 um/px, 4.096 mm at 0.5 um/px; area 4.19 mm2 / 16.78 mm2

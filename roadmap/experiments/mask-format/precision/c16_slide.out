@@ -1,0 +1,8 @@
+train_Tumor_089.json: one mask per slide -> d=16 (3.89 um cells), 116 polygons, area 103.15 mm2, dice=0.998732, meanBoundaryShift=0.95 um
+   66 lesions < 0.01 mm2: per-lesion dice median 0.956, min 0.876, p10 0.912; vanished 0; smallest lesion 242 um2
+train_Tumor_036.json: one mask per slide -> d=16 (3.89 um cells), 103 polygons, area 4.65 mm2, dice=0.992289, meanBoundaryShift=0.92 um
+   79 lesions < 0.01 mm2: per-lesion dice median 0.962, min 0.760, p10 0.941; vanished 0; smallest lesion 127 um2
+train_Tumor_078.json: one mask per slide -> d=16 (3.89 um cells), 69 polygons, area 58.60 mm2, dice=0.997303, meanBoundaryShift=0.94 um
+   37 lesions < 0.01 mm2: per-lesion dice median 0.962, min 0.904, p10 0.934; vanished 0; smallest lesion 414 um2
+train_Tumor_047.json: one mask per slide -> d=16 (3.89 um cells), 67 polygons, area 35.31 mm2, dice=0.998047, meanBoundaryShift=0.93 um
+   38 lesions < 0.01 mm2: per-lesion dice median 0.956, min 0.896, p10 0.927; vanished 0; smallest lesion 293 um2

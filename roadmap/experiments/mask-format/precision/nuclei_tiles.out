@@ -1,0 +1,10 @@
+PanNuke-derived density: 5863 nuclei/mm2 (189,744 nuclei / 7,901 patches of 256x256 px at 0.25 um/px)
+Hou et al.: ~5e9 nuclei / 5,060 WSIs = 988,142 nuclei per slide
+rho=  1000/mm2 D=7.0um tile=64px (16um): P(tile MIXED) ~= 0.405
+rho=  1000/mm2 D=7.0um tile=256px (64um): P(tile MIXED) ~= 0.993
+rho=  3000/mm2 D=7.0um tile=64px (16um): P(tile MIXED) ~= 0.789
+rho=  3000/mm2 D=7.0um tile=256px (64um): P(tile MIXED) ~= 1.000
+rho=  5863/mm2 D=7.0um tile=64px (16um): P(tile MIXED) ~= 0.952
+rho=  5863/mm2 D=7.0um tile=256px (64um): P(tile MIXED) ~= 1.000
+2x1.5 cm at 0.25 um/px = 4.8 Gpx -> all-MIXED tiled store ~= 572 MiB bit-packed, 4.47 GiB as bytes
+canonical RLE: ~821 nuclei crossed per row -> ~98 M runs over 60000 rows

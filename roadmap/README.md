@@ -1,6 +1,6 @@
 # osdlabel roadmap, October 2026
 
-This folder is the repository copy of a roadmap study for osdlabel: which directions it can take while keeping one concern per package, and in what order. The living version is the doc [osdlabel Roadmap: Strategy & Feasibility](https://claude.ai/artifact/RkjPD8YqHFxcpVV99tHG8x). Comments and answers to its questions go there. This copy was taken on October 24, 2026, and updated on October 25 with the follow-up on #149's mask format, so the study can be linked from issues and pull requests. Where the two disagree, the doc is newer.
+This folder is the repository copy of a roadmap study for osdlabel: which directions it can take while keeping one concern per package, and in what order. The living version is the doc [osdlabel Roadmap: Strategy & Feasibility](https://claude.ai/artifact/RkjPD8YqHFxcpVV99tHG8x). Comments and answers to its questions go there. This copy was taken on October 24, 2026, and updated on October 25 with the follow-ups on #149's mask format, so the study can be linked from issues and pull requests. Where the two disagree, the doc is newer.
 
 The short version: osdlabel should stay an annotation layer over one 2D viewport host, OpenSeadragon, and let each modality plug its pixels in as a leaf package. That means a tile source for DICOM slides, a drawer subclass for 16-bit windowing, and a frame source repainted in place for stacks, video and volume planes. Fabric keeps drawing editable shapes and the DOM keeps drawing decorations. Only true 3D brings a second renderer, Niivue, as an optional cell. The order is a patch this week, one breaking foundation release, then near-term tracks in any order, stacks, video, and options that start when users ask for them.
 
@@ -18,7 +18,7 @@ The short version: osdlabel should stay an annotation layer over one 2D viewport
 | [maturity-audit.md](maturity-audit.md)                 | The read-only maturity and polish audit of `main` at e0eba8f behind the roadmap's maturity section                                                                                                                       |
 | [diagrams/](diagrams/)                                 | The roadmap timeline and the package graph, as SVG and PNG, rendered from the doc                                                                                                                                        |
 | [experiments/web-platform/](experiments/web-platform/) | The browser-platform probes behind the landscape's limits (WebGL contexts, buffer sizes, codecs, video seeking, high bit depth)                                                                                          |
-| [experiments/mask-format/](experiments/mask-format/)   | The probes behind the section on #149's mask format: its cap, sparse full-resolution storage, and the review of the resolution spike                                                                                     |
+| [experiments/mask-format/](experiments/mask-format/)   | The probes behind the section on #149's mask format: its cap, sparse full-resolution storage, the review of the resolution spike, and the sparse-now-or-later follow-up                                                  |
 
 ## Branches
 
@@ -35,6 +35,7 @@ Nothing here is merged, and no pull request is open. Each proof-of-concept branc
 | `claude/poc-sam`               | 39579b8 | SAM as a provider contract and a tool, in a worker, on crops of the tile pyramid                                                                                           | `apps/poc-sam/REPORT.md`            |
 | `claude/poc-element`           | b766e69 | One custom element for every framework, and one UI contract (tokens, parts, slots) for both bindings                                                                       | `apps/poc-element/REPORT.md`        |
 | `claude/spike-mask-resolution` | 70dd415 | A power-of-two downsample on #149's masks, so the brush and SAM can store regions larger than its 64 Mi-pixel cap (question 8). One commit on #149's current head, 58a379f | `SPIKE-REPORT.md`                   |
+| `claude/spike-mask-raster`     | 97f1c87 | A read-only `MaskRaster` contract on top of the resolution spike, so sparse full-resolution storage can be added later without a second breaking change                    | the commit messages                 |
 
 The package graph shows where each prototype's packages would sit:
 
