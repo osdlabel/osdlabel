@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { FabricObject } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
@@ -44,6 +44,14 @@ export function useAnnotationTool(
     vertexMarkerOptions,
     brushOptions,
   } = useAnnotator();
+
+  // Read per stroke through a ref, as Solid reads them per stroke through its
+  // getters: the selected tint and the capacity callback must not be
+  // dependencies of the tool effect, or changing them mid-drag would rebuild
+  // the tool and discard the stroke. Only `maxPixels` sizes the buffer at
+  // construction and so has to rebuild.
+  const brushOptionsRef = useRef(brushOptions);
+  brushOptionsRef.current = brushOptions;
 
   // Auto-switch to select tool when active drawing tool becomes disabled
   useEffect(() => {
@@ -145,6 +153,7 @@ export function useAnnotationTool(
           getImageId: () => imageId,
           getActiveContextId: () => store.getSnapshot().contextState.activeContextId,
           maxPixels: brushOptions.maxPixels,
+          getSelectedFill: () => brushOptionsRef.current.maskStyle?.selectedFill,
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),
@@ -153,9 +162,7 @@ export function useAnnotationTool(
           deleteAnnotation: (id, imageIdArg) => actions.deleteAnnotation(id, imageIdArg),
           setSelectedAnnotation: (id) => actions.setSelectedAnnotation(id),
           adjustBrushRadius: (direction) => actions.adjustBrushRadius(direction),
-          // The provider routes the callback through a ref, so `brushOptions`
-          // only changes identity when `maxPixels` does.
-          onCapacityExceeded: (error) => brushOptions.onCapacityExceeded?.(error),
+          onCapacityExceeded: (error) => brushOptionsRef.current.onCapacityExceeded?.(error),
         },
       ),
     });
@@ -271,7 +278,7 @@ export function useAnnotationTool(
     shortcuts,
     vertexEditConfig,
     vertexMarkerOptions,
-    brushOptions,
+    brushOptions.maxPixels,
     actions,
     store,
     activeToolKeyHandlerRef,

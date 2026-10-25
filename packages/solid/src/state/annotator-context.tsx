@@ -239,6 +239,9 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     get onCapacityExceeded() {
       return props.brushOptions?.onCapacityExceeded;
     },
+    get maskStyle() {
+      return props.brushOptions?.maskStyle;
+    },
   };
 
   // Load initial annotations if provided

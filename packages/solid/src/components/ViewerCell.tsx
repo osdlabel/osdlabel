@@ -15,9 +15,17 @@ import { useAnnotator } from '../state/annotator-context.js';
 import type { Annotation } from '@osdlabel/annotation';
 import type { OsdFields } from 'osdlabel';
 import {
+  applyMaskSelectionStyle,
+  desiredMaskTint,
   enableLiveDecorationUpdates,
+  MaskObjectCache,
+  maskFillFor,
+  maskOpacityFor,
+  MaskTintState,
   reportAnnotationRenderFailures,
+  selectedMaskOn,
   settleAnnotationObjects,
+  swapMaskTints,
 } from 'osdlabel';
 export interface ViewerCellProps {
   readonly imageSource: ImageSource | undefined;
@@ -38,6 +46,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     defaultPixelSpacing,
     renderDomDecoration,
     reportAnnotationRenderError,
+    brushOptions,
   } = useAnnotator();
   let containerRef: HTMLDivElement | undefined;
   let viewer: OpenSeadragon.Viewer | undefined;
@@ -134,6 +143,12 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       : Object.values(imageAnns);
   };
 
+  /** Rasterized masks reused across rebuilds; see `MaskObjectCache`. */
+  const maskObjects = new MaskObjectCache();
+  onCleanup(() => maskObjects.clear());
+  /** Which mask is drawn in the override tint; shared by the two effects below. */
+  const tintState = new MaskTintState();
+
   // Sync annotations from state to canvas (full clear-and-reload)
   createEffect(() => {
     const ov = overlay();
@@ -143,7 +158,12 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     void props.isActive;
     void contextState.displayedContextIds;
 
-    if (!ov || !imageId) return;
+    if (!ov || !imageId) {
+      // No image means nothing to reuse; without this the previous image's
+      // rasters stayed in memory until the cell went away.
+      maskObjects.clear();
+      return;
+    }
 
     const matching = visibleAnnotations();
 
@@ -162,9 +182,28 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     });
 
     // Async load from rawAnnotationData
+    // Selection and mask style are read untracked: the selection effect below
+    // owns reacting to them, so a click does not rebuild every annotation.
+    const maskIds = new Set(matching.filter((a) => a.geometry.type === 'mask').map((a) => a.id));
+    const selectedAtBuild = selectedMaskOn(
+      untrack(() => uiState.selectedAnnotationId),
+      maskIds,
+    );
+    const styleAtBuild = untrack(() => brushOptions.maskStyle);
     void (async () => {
       const { objects, failures } = await settleAnnotationObjects(matching, async (ann) => {
-        const obj = await createFabricObjectFromRawData(ann);
+        const selectedId = selectedAtBuild;
+        const maskStyle = styleAtBuild;
+        // A mask's raster is reused while its payload and tint are unchanged;
+        // the stroke that changed one mask must not re-rasterize the others.
+        const fill = maskFillFor(ann.id, selectedId, maskStyle);
+        const isMask = ann.geometry.type === 'mask';
+        const cached = isMask ? maskObjects.get(ann, fill) : undefined;
+        const obj = cached ?? (await createFabricObjectFromRawData(ann, { maskFill: fill }));
+        // Not after this run was superseded: a newer run has already retained
+        // its own set, and a write now would outlive that until the next
+        // rebuild, which a cell showing a static image never has.
+        if (obj && isMask && !cached && !cancelled) maskObjects.set(ann, fill, obj);
         if (obj) {
           // Only active-context annotations may be interactive; mark the rest
           // `_readOnly` so setMode() keeps them inert too.
@@ -176,13 +215,39 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
           const isActiveCtx = ann.contextId === activeContextId;
           obj._readOnly = !isActiveCtx;
           ov.applyModeToObject(obj, !isActiveCtx);
+          if (ann.geometry.type === 'mask') {
+            obj.set('opacity', maskOpacityFor(ann.id, selectedId, maskStyle));
+          }
         }
         return obj;
       });
       if (cancelled) return;
+      maskObjects.retain(maskIds);
       if (objects.length > 0) {
         ov.canvas.add(...objects);
       }
+      // The selection may have moved while the objects were being built. A
+      // brush commit adds its mask and then selects it, and this effect runs
+      // between the two writes, so the build above saw the old selection — and
+      // the selection effect found an empty canvas. Re-apply against the
+      // current selection now that the objects exist. The objects carry the
+      // tint they were built under; the selection effect takes over from
+      // there.
+      const selectedMaskNow = selectedMaskOn(
+        untrack(() => uiState.selectedAnnotationId),
+        maskIds,
+      );
+      const styleNow = untrack(() => brushOptions.maskStyle);
+      applyMaskSelectionStyle(objects, maskIds, selectedMaskNow, styleNow);
+      tintState.rebuilt(desiredMaskTint(selectedAtBuild, styleAtBuild));
+      swapMaskTints(tintState, desiredMaskTint(selectedMaskNow, styleNow), {
+        canvas: ov.canvas,
+        applyModeToObject: (obj, readOnly) => ov.applyModeToObject(obj, readOnly),
+        cache: maskObjects,
+        annotations: new Map(matching.map((a) => [a.id as string, a] as const)),
+        opacityFor: (id) => maskOpacityFor(id, selectedMaskNow, styleNow),
+        isCancelled: () => cancelled,
+      });
       if (containerRef) {
         containerRef.dataset.annotationCount = String(objects.length);
       }
@@ -191,6 +256,50 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       // skipped and reported instead of leaving the whole image empty (#209).
       reportAnnotationRenderFailures(failures, reportAnnotationRenderError);
     })();
+  });
+
+  // Selected-mask styling. A selected mask has no handles to show, so the
+  // others are dimmed and, if the host asks, the selected one is recoloured.
+  // Separate from the rebuild above because it runs on every selection
+  // change: dimming is a per-object opacity, free; recolouring re-decodes
+  // only the masks whose tint changed. `tintState` is shared with the
+  // rebuild, which resets it for the objects it builds.
+  createEffect(() => {
+    const ov = overlay();
+    const selectedId = uiState.selectedAnnotationId;
+    const maskStyle = brushOptions.maskStyle;
+    if (!ov) return;
+    const masks = new Map(
+      untrack(visibleAnnotations)
+        .filter((a) => a.geometry.type === 'mask')
+        .map((a) => [a.id as string, a] as const),
+    );
+    // Only a mask on *this* image counts: selection is global, and a selected
+    // rectangle or a mask in another cell must not dim these.
+    const selectedMaskId = selectedMaskOn(selectedId, new Set(masks.keys()));
+    if (
+      applyMaskSelectionStyle(
+        ov.canvas.getObjects(),
+        new Set(masks.keys()),
+        selectedMaskId,
+        maskStyle,
+      )
+    ) {
+      ov.canvas.requestRenderAll();
+    }
+
+    let cancelled = false;
+    onCleanup(() => {
+      cancelled = true;
+    });
+    swapMaskTints(tintState, desiredMaskTint(selectedMaskId, maskStyle), {
+      canvas: ov.canvas,
+      applyModeToObject: (obj, readOnly) => ov.applyModeToObject(obj, readOnly),
+      cache: maskObjects,
+      annotations: masks,
+      opacityFor: (id) => maskOpacityFor(id, selectedMaskId, maskStyle),
+      isCancelled: () => cancelled,
+    });
   });
 
   // Sync decorations from state to canvas. Pure derivation: runs providers

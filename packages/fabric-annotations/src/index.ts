@@ -39,3 +39,4 @@ export {
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
 } from './poly-vertex-editor.js';
 export type { PolyVertexEditorOptions, VertexEditConfig } from './poly-vertex-editor.js';
+export type { CreateFabricObjectOptions } from './fabric-utils.js';

@@ -141,6 +141,7 @@ export type {
   BrushStrokeCommit,
   BrushTarget,
   BuildMaskFabricObjectOptions,
+  CreateFabricObjectOptions,
   PolyVertexEditorOptions,
   VertexEditConfig,
   VertexMarkerOptions,
@@ -235,7 +236,22 @@ export type { OsdAnnotation, OsdFields } from './types.js';
 export { createAnnotationFromGeometry } from './create-annotation.js';
 export { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
 export { buildSegmentationBrushConfig, nextBrushRadius } from './brush-config.js';
-export type { BrushOptions } from './brush-options.js';
+export type { BrushOptions, MaskStyle } from './brush-options.js';
+export {
+  DEFAULT_UNSELECTED_MASK_OPACITY,
+  applyMaskSelectionStyle,
+  desiredMaskTint,
+  maskFillFor,
+  maskOpacityFor,
+  planMaskTintSwaps,
+  replaceMaskObject,
+  swapMaskTints,
+  MaskTintState,
+  selectedMaskOn,
+  unselectedMaskOpacity,
+} from './mask-style.js';
+export type { MaskSwapOutcome, MaskTintOverride, MaskTintSwapHost } from './mask-style.js';
+export { MaskObjectCache } from './mask-object-cache.js';
 export type { BrushConfigAccessors, BrushConfigDispatchers } from './brush-config.js';
 export type {
   CreateMaskAnnotationOptions,

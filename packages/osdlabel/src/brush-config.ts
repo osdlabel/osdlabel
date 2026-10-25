@@ -41,6 +41,14 @@ export interface BrushConfigAccessors {
   readonly getActiveContextId: () => AnnotationContextId | null;
   readonly getFill?: (() => string) | undefined;
   /**
+   * The tint the selected mask is *displayed* in, if the host overrides it
+   * (`MaskStyle.selectedFill`). The target of a refining stroke is by
+   * definition the selected mask, so the live preview paints in this colour;
+   * otherwise it would flash the mask's own tint for the length of the stroke.
+   * Display only: it is never recorded on the annotation.
+   */
+  readonly getSelectedFill?: (() => string | undefined) | undefined;
+  /**
    * Cap on the pixels one mask may allocate. Only ever lowers the shared
    * `DEFAULT_MAX_MASK_PIXELS` ceiling — see {@link BrushOptions.maxPixels}.
    */
@@ -115,14 +123,16 @@ export function buildSegmentationBrushConfig(
     // Remember the mask's own tint; re-encoding without it would silently
     // repaint an imported red mask in the default blue.
     targetFill = annotation.rawAnnotationData.data.fill;
+    // Handed to the tool so the live preview paints in the colour the mask is
+    // currently *shown* in — the host's selected tint if there is one, else the
+    // mask's own — instead of flashing the default blue for the stroke.
+    const previewFill = accessors.getSelectedFill?.() ?? targetFill;
     return {
       annotationId: id,
       // The same cap the buffer will use. Decoding under the default while the
       // host raised it would refuse to reopen a mask the host allowed to exist.
       snapshot: decodeCanonical(annotation.rawAnnotationData.data, { maxPixels }),
-      // Handed to the tool so the live preview paints in the mask's own colour
-      // instead of flashing the default blue for the length of the stroke.
-      ...(targetFill !== undefined ? { fill: targetFill } : {}),
+      ...(previewFill !== undefined ? { fill: previewFill } : {}),
     };
   };
 

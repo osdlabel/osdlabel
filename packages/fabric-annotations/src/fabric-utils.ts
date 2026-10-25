@@ -69,6 +69,14 @@ export async function deserializeFabricObject(
   return objects[0] as FabricObject;
 }
 
+export interface CreateFabricObjectOptions {
+  /**
+   * Tint to draw a mask in, in place of the one recorded on it. Display only;
+   * ignored for vector annotations.
+   */
+  readonly maskFill?: string | undefined;
+}
+
 /**
  * Create a Fabric object from an Annotation's rawAnnotationData.
  * Sets selectable/evented to true for committed annotations.
@@ -78,10 +86,11 @@ export async function deserializeFabricObject(
  */
 export async function createFabricObjectFromRawData(
   annotation: Annotation<FabricFields>,
+  options?: CreateFabricObjectOptions,
 ): Promise<FabricObject | null> {
   const raw = annotation.rawAnnotationData;
   if (raw.format === MASK_RAW_FORMAT) {
-    return buildMaskFabricObject(raw, { id: annotation.id });
+    return buildMaskFabricObject(raw, { id: annotation.id, fill: options?.maskFill });
   }
 
   const obj = await deserializeFabricObject(raw);
