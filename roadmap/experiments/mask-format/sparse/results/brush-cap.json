@@ -1,0 +1,43 @@
+{
+  "cap": 67108864,
+  "capSide": 8192,
+  "strokes": [
+    {
+      "radius": 512,
+      "direction": [1, 1],
+      "stepPx": 64,
+      "lengthBeforeAbortPx": 10048,
+      "requestedAtAbort": 67387681,
+      "allocatedBoxAtAbort": [8192, 8192],
+      "screenPxAtOverview": 171,
+      "mmAt0_25umPerPx": 2.51,
+      "mmAt0_5umPerPx": 5.02,
+      "slowestMoveMs": 53.2
+    },
+    {
+      "radius": 512,
+      "direction": [1, 0],
+      "stepPx": 64,
+      "lengthBeforeAbortPx": 60608,
+      "requestedAtAbort": 67162240,
+      "allocatedBoxAtAbort": [61666, 1088],
+      "screenPxAtOverview": 1030,
+      "mmAt0_25umPerPx": 15.15,
+      "mmAt0_5umPerPx": 30.3,
+      "slowestMoveMs": 74
+    },
+    {
+      "radius": 12,
+      "direction": [1, 1],
+      "stepPx": 64,
+      "lengthBeforeAbortPx": 11520,
+      "requestedAtAbort": 67864644,
+      "allocatedBoxAtAbort": [8192, 8192],
+      "screenPxAtOverview": 196,
+      "mmAt0_25umPerPx": 2.88,
+      "mmAt0_5umPerPx": 5.76,
+      "slowestMoveMs": 40.4
+    }
+  ],
+  "twoDabsMaxDiagonalOffsetPx": 8146
+}

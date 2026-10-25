@@ -1,0 +1,31 @@
+{
+  "viewChooser": {
+    "d": 16,
+    "cells": 1389388,
+    "box": {
+      "x": 39488,
+      "y": 29488,
+      "width": 21024,
+      "height": 17024
+    },
+    "capFraction": 0.021
+  },
+  "extentBased": {
+    "d": 4,
+    "coarsenSteps": 2,
+    "coarsenMs": 1520,
+    "totalMs": 5227,
+    "cells": 22230038,
+    "box": {
+      "x": 39488,
+      "y": 29488,
+      "width": 21024,
+      "height": 17024
+    },
+    "capFraction": 0.333
+  },
+  "mediumObjectAtOverview": {
+    "viewChooserD": 16,
+    "extentBasedD": 1
+  }
+}

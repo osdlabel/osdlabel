@@ -1,0 +1,65 @@
+{
+ "s1_level0": {
+  "box": "60001x37501",
+  "boxPixels": 2250097501,
+  "capRatio": 33.53,
+  "rowIntervals": 64353,
+  "runs": 128706,
+  "synthMs": 89,
+  "canonicalCountsChars": 405764,
+  "varintB64Ms": 11.7,
+  "foreground": 1387934503
+ },
+ "decode": {
+  "varintMs": 22,
+  "tilesMs": 93,
+  "fullTiles": 336445,
+  "mixedTiles": 4826,
+  "mixedBytes": 19767296,
+  "directoryBytes": 5861250,
+  "pixelCountExact": true,
+  "heapMB": 10,
+  "arrayBuffersMB": 24
+ },
+ "encode": {
+  "runsMs": 519,
+  "roundTripIdentical": true,
+  "box": {
+   "x": 31594,
+   "y": 16574,
+   "width": 60001,
+   "height": 37501
+  }
+ },
+ "render": {
+  "level6OverviewMs": 8.2,
+  "level6Size": "939x587",
+  "level0Window1000Ms": 19.6,
+  "level0InteriorFullHDMs": 11.2
+ },
+ "coco": {
+  "runs": 185287,
+  "ms": 504,
+  "sumIsImageArea": true
+ },
+ "brushOverview": {
+  "radiusL0": 1200,
+  "segmentL0": 600,
+  "segments": 600,
+  "msP50": 2.61,
+  "msP95": 4.65,
+  "msMax": 38.39,
+  "mixedTiles": 1486,
+  "pixelCount": 704358092,
+  "box": "32400x22200",
+  "boxPixels": 719280000,
+  "canonicalCountsChars": 148004,
+  "encodeRunsMs": 189
+ },
+ "brushFine": {
+  "radiusL0": 12,
+  "segments": 500,
+  "msP50": 0.092,
+  "msMax": 1.206
+ }
+}

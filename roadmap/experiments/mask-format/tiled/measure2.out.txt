@@ -1,0 +1,1 @@
+{"rep0":{"fastRunsMs":114.7,"varintB64Ms":23.8,"identical":true,"decodeToTilesMs":131.8,"commitRoundTripMs":270},"rep1":{"fastRunsMs":64.7,"varintB64Ms":14.9,"identical":true,"decodeToTilesMs":118,"commitRoundTripMs":198},"rep2":{"fastRunsMs":83.1,"varintB64Ms":13.4,"identical":true,"decodeToTilesMs":108.2,"commitRoundTripMs":205}}

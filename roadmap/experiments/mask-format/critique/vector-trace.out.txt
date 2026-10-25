@@ -1,0 +1,118 @@
+{
+  "1": {
+    "coarsePixels": 2250097501,
+    "note": "level-0: dense snapshot would need a 2.27 GB Uint8Array; refused by the 64 Mi cap"
+  },
+  "32": {
+    "coarseGrid": "1876x1172",
+    "coarsePixels": 2198672,
+    "level0EquivalentForeground": 1388767232,
+    "canonicalCountsChars": 10024,
+    "canonicalEncodeMs": 7.95,
+    "cocoFullResRuns": 185537,
+    "cocoFullResCountsChars": 478937,
+    "cocoFullResRunsMs": 17.1,
+    "cocoFullResStringMs": 64.4,
+    "cocoRunsSumEqualsImageArea": true,
+    "cocoForegroundEqualsLevel0Equivalent": true,
+    "cocoInteropSafePycocotools": false,
+    "cocoAtCoarseLevel": {
+      "image": "3125x2500",
+      "countsChars": 11171
+    },
+    "contours": 21,
+    "holes": 4,
+    "contourVertices": 5510,
+    "traceMs": 43.77,
+    "seg1bitBytesAtThisLevelFullTpm": 976563,
+    "seg1bitBytesAtThisLevelBboxOnly": 274834,
+    "niftiUint8BytesAtThisLevel": 7812500
+  },
+  "64": {
+    "coarseGrid": "938x586",
+    "coarsePixels": 549668,
+    "level0EquivalentForeground": 1388761088,
+    "canonicalCountsChars": 4264,
+    "canonicalEncodeMs": 3.32,
+    "cocoFullResRuns": 185345,
+    "cocoFullResCountsChars": 474733,
+    "cocoFullResRunsMs": 12.3,
+    "cocoFullResStringMs": 22.9,
+    "cocoRunsSumEqualsImageArea": true,
+    "cocoForegroundEqualsLevel0Equivalent": true,
+    "cocoInteropSafePycocotools": false,
+    "cocoAtCoarseLevel": {
+      "image": "1563x1250",
+      "countsChars": 5458
+    },
+    "contours": 21,
+    "holes": 4,
+    "contourVertices": 2752,
+    "traceMs": 33.25,
+    "seg1bitBytesAtThisLevelFullTpm": 244219,
+    "seg1bitBytesAtThisLevelBboxOnly": 68709,
+    "niftiUint8BytesAtThisLevel": 1953750
+  },
+  "128": {
+    "coarseGrid": "469x293",
+    "coarsePixels": 137417,
+    "level0EquivalentForeground": 1388265472,
+    "canonicalCountsChars": 1840,
+    "canonicalEncodeMs": 0.52,
+    "cocoFullResRuns": 185345,
+    "cocoFullResCountsChars": 473531,
+    "cocoFullResRunsMs": 11.7,
+    "cocoFullResStringMs": 22.7,
+    "cocoRunsSumEqualsImageArea": true,
+    "cocoForegroundEqualsLevel0Equivalent": true,
+    "cocoInteropSafePycocotools": false,
+    "cocoAtCoarseLevel": {
+      "image": "782x625",
+      "countsChars": 2326
+    },
+    "contours": 21,
+    "holes": 4,
+    "contourVertices": 1378,
+    "traceMs": 14.76,
+    "seg1bitBytesAtThisLevelFullTpm": 61094,
+    "seg1bitBytesAtThisLevelBboxOnly": 17178,
+    "niftiUint8BytesAtThisLevel": 488750
+  },
+  "256": {
+    "coarseGrid": "235x147",
+    "coarsePixels": 34545,
+    "level0EquivalentForeground": 1397096448,
+    "canonicalCountsChars": 808,
+    "canonicalEncodeMs": 0.15,
+    "cocoFullResRuns": 185857,
+    "cocoFullResCountsChars": 474484,
+    "cocoFullResRunsMs": 5.1,
+    "cocoFullResStringMs": 25.1,
+    "cocoRunsSumEqualsImageArea": true,
+    "cocoForegroundEqualsLevel0Equivalent": true,
+    "cocoInteropSafePycocotools": false,
+    "cocoAtCoarseLevel": {
+      "image": "391x313",
+      "countsChars": 1157
+    },
+    "contours": 21,
+    "holes": 4,
+    "contourVertices": 700,
+    "traceMs": 2.52,
+    "seg1bitBytesAtThisLevelFullTpm": 15298,
+    "seg1bitBytesAtThisLevelBboxOnly": 4319,
+    "niftiUint8BytesAtThisLevel": 122383
+  },
+  "level0": {
+    "bboxPixels": 2250097501,
+    "seg1bitBytesBboxOnly": 281262188,
+    "seg1bitBytesFullTpm": 1000000000,
+    "niftiUint8BytesFull": 8000000000
+  },
+  "naiveLevel0Walk": {
+    "measuredOn": "8192x8192",
+    "ms": 727,
+    "nsPerPixel": 10.83,
+    "extrapolatedMsForS1Box": 24366
+  }
+}

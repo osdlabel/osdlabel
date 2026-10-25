@@ -1,0 +1,55 @@
+{
+  "node": "v22.22.0",
+  "loadavgStart": [0.16, 0.32, 0.17],
+  "preCheckBox": {
+    "x": 31476,
+    "y": 16456,
+    "width": 60237,
+    "height": 37737,
+    "area": 2273163669,
+    "capRatio": 33.87277825176716
+  },
+  "withDefaultCap": {
+    "name": "MaskCapacityExceededError",
+    "requested": 2273163669,
+    "max": 67108864
+  },
+  "memBefore": {
+    "rssMB": 56.6,
+    "arrayBuffersMB": 0.2
+  },
+  "rasterToSnapshotMs": 19962,
+  "memAfterSnapshot": {
+    "rssMB": 1645.4,
+    "arrayBuffersMB": 2168
+  },
+  "snapshot": {
+    "x": 31476,
+    "y": 16456,
+    "width": 60237,
+    "height": 37737,
+    "bytes": 2273163669
+  },
+  "pixelCount": 1407035899,
+  "pixelCountMs": 3676,
+  "encodeCanonicalMs": 4017,
+  "canonical": {
+    "countsChars": 507140,
+    "jsonBytes": 507276,
+    "countsSha": "9ef4f67211cb31f2"
+  },
+  "memAfterCanonical": {
+    "rssMB": 1661.3,
+    "arrayBuffersMB": 2168
+  },
+  "snapshotToCocoCountsMs": 31859,
+  "encodeCocoStringMs": 65,
+  "coco": {
+    "runs": 198871,
+    "maxRun": 2518113715,
+    "stringChars": 523074,
+    "stringSha": "a0209e0c75fbdf2f",
+    "uncompressedJsonChars": 1113141
+  },
+  "loadavgEnd": [0.69, 0.45, 0.23]
+}

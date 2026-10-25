@@ -397,3 +397,26 @@ Every source the research agents cited, by topic, as of October 23 to 24, 2026. 
 - <https://raw.githubusercontent.com/orthanc-mirrors/orthanc-stone/master/Applications/StoneWebViewer/WebApplication/app.js>
 - <https://raw.githubusercontent.com/orthanc-mirrors/orthanc-stone/master/README>
 - <https://raw.githubusercontent.com/yformer/EfficientSAM/main/LICENSE>
+
+## Mask storage (follow-up on #149's mask format, Oct 25)
+
+- [DICOM PS3.3 A.51: Segmentation IOD (may differ in sampling and extent from its source)](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_A.51.3.html)
+- [highdicom 0.28.2 (Segmentation pixel_measures, create_segmentation_pyramid)](https://pypi.org/project/highdicom/0.28.2/)
+- [dicom-microscopy-viewer (addSegments scales a SEG by its own pixel spacing)](https://github.com/ImagingDataCommons/dicom-microscopy-viewer)
+- [DICOM Supplement 243: Label Map Segmentation](https://dicom.nema.org/medical/dicom/final/sup243_ft_LabelMapSeg.pdf)
+- [DICOM Supplement 222: Microscopy Bulk Simple Annotations (single-ring polygons)](https://www.dicomstandard.org/News-dir/ftsup/docs/sups/sup222.pdf)
+- [DICOM Supplement 255 draft: Microscopy Bulk Enhanced Annotation](https://www.dicomstandard.org/news-dir/current/docs/sups/sup255.pdf)
+- [OME-NGFF specification 0.5 and 0.6 (label multiscales, scale and translation)](https://github.com/ome/ngff-spec)
+- [QuPath source (vector brush scaled by the viewer's downsample; pixel classifier resolution)](https://github.com/qupath/qupath)
+- [large_image annotation schema (polylines with holes, pixelmap and image overlays with a transform)](https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst)
+- [Cytomine Python client (WKT locations, masks rendered on request)](https://github.com/Cytomine-ULiege/Cytomine-python-client)
+- [CVAT SDK masks.py (bbox-cropped run lengths at full resolution)](https://github.com/cvat-ai/cvat/blob/develop/cvat-sdk/cvat_sdk/masks.py)
+- [label-studio-sdk (brush run lengths over the full image)](https://pypi.org/project/label-studio-sdk/)
+- [pycocotools mask.py (COCO RLE: whole image, column-major)](https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocotools/mask.py)
+- [Cornerstone3D volumeLoader.ts (derived labelmaps share the source grid)](https://github.com/cornerstonejs/cornerstone3D/blob/main/packages/core/src/loaders/volumeLoader.ts)
+- [napari Labels layer (own scale and translate; multiscale labels not editable)](https://napari.org/stable/api/napari.layers.Labels.html)
+- [3D Slicer segmentations (labelmap geometry, Specify geometry)](https://slicer.readthedocs.io/en/latest/user_guide/modules/segmentations.html)
+- [Annotorious (MULTIPOLYGON shapes, no raster masks)](https://github.com/annotorious/annotorious)
+- [ASAP (vector annotations, rasterised at export)](https://github.com/computationalpathologygroup/ASAP)
+- [OpenSlide API (level downsample)](https://openslide.org/api/openslide_8h.html)
+- [Clipper2 (polygon union and difference, used in the vector-brush probe)](https://github.com/AngusJohnson/Clipper2)

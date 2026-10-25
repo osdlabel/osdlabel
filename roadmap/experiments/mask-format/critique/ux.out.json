@@ -1,0 +1,220 @@
+{
+  "dByZoomAndCell": {
+    "1.25x(0.03125)": {
+      "1000x800": 4,
+      "1920x1080": 8,
+      "3840x2160": 16
+    },
+    "2x(0.05)": {
+      "1000x800": 4,
+      "1920x1080": 4,
+      "3840x2160": 8
+    },
+    "4x(0.1)": {
+      "1000x800": 2,
+      "1920x1080": 2,
+      "3840x2160": 4
+    },
+    "5x(0.125)": {
+      "1000x800": 1,
+      "1920x1080": 2,
+      "3840x2160": 4
+    },
+    "10x(0.25)": {
+      "1000x800": 1,
+      "1920x1080": 1,
+      "3840x2160": 2
+    }
+  },
+  "dWholeSlide1000x800": 16,
+  "coarseThenFine": {
+    "d=1": {
+      "sketchIoU": 0.94873,
+      "refinedIoU": 0.99977,
+      "xorPx": 1610,
+      "meanBoundaryErrPx": 0.17,
+      "storedDownsample": 1
+    },
+    "d=16": {
+      "sketchIoU": 0.94883,
+      "refinedIoU": 0.99469,
+      "xorPx": 37672,
+      "meanBoundaryErrPx": 4,
+      "storedDownsample": 16
+    },
+    "d=4": {
+      "sketchIoU": 0.94873,
+      "refinedIoU": 0.99859,
+      "xorPx": 9948,
+      "meanBoundaryErrPx": 1.06,
+      "storedDownsample": 4
+    }
+  },
+  "dabFootprint": {
+    "d=1,r=4": {
+      "ringAreaPx": 50,
+      "erasedMean": 50,
+      "erasedMin": 47,
+      "erasedMax": 52,
+      "meanIoUWithRing": 1
+    },
+    "d=1,r=12": {
+      "ringAreaPx": 452,
+      "erasedMean": 452,
+      "erasedMin": 441,
+      "erasedMax": 456,
+      "meanIoUWithRing": 1
+    },
+    "d=1,r=32": {
+      "ringAreaPx": 3217,
+      "erasedMean": 3217,
+      "erasedMin": 3207,
+      "erasedMax": 3228,
+      "meanIoUWithRing": 1
+    },
+    "d=4,r=4": {
+      "ringAreaPx": 50,
+      "erasedMean": 50,
+      "erasedMin": 32,
+      "erasedMax": 64,
+      "meanIoUWithRing": 0.612
+    },
+    "d=4,r=12": {
+      "ringAreaPx": 452,
+      "erasedMean": 452,
+      "erasedMin": 416,
+      "erasedMax": 512,
+      "meanIoUWithRing": 0.853
+    },
+    "d=4,r=32": {
+      "ringAreaPx": 3217,
+      "erasedMean": 3215,
+      "erasedMin": 3120,
+      "erasedMax": 3328,
+      "meanIoUWithRing": 0.942
+    },
+    "d=16,r=4": {
+      "ringAreaPx": 50,
+      "erasedMean": 256,
+      "erasedMin": 256,
+      "erasedMax": 256,
+      "meanIoUWithRing": 0.153
+    },
+    "d=16,r=12": {
+      "ringAreaPx": 452,
+      "erasedMean": 436,
+      "erasedMin": 256,
+      "erasedMax": 1024,
+      "meanIoUWithRing": 0.512
+    },
+    "d=16,r=32": {
+      "ringAreaPx": 3217,
+      "erasedMean": 3214,
+      "erasedMin": 2560,
+      "erasedMax": 3584,
+      "meanIoUWithRing": 0.785
+    },
+    "d=32,r=4": {
+      "ringAreaPx": 50,
+      "erasedMean": 1024,
+      "erasedMin": 1024,
+      "erasedMax": 1024,
+      "meanIoUWithRing": 0.044
+    },
+    "d=32,r=12": {
+      "ringAreaPx": 452,
+      "erasedMean": 1024,
+      "erasedMin": 1024,
+      "erasedMax": 1024,
+      "meanIoUWithRing": 0.291
+    },
+    "d=32,r=32": {
+      "ringAreaPx": 3217,
+      "erasedMean": 3256,
+      "erasedMin": 2048,
+      "erasedMax": 4096,
+      "meanIoUWithRing": 0.604
+    }
+  },
+  "smallObject": {
+    "d=1": {
+      "iou": 1,
+      "pixelCount": 11304,
+      "exactArea": 11310,
+      "relAreaErr": -0.0005
+    },
+    "d=2": {
+      "iou": 0.9821,
+      "pixelCount": 11284,
+      "exactArea": 11310,
+      "relAreaErr": -0.0023
+    },
+    "d=4": {
+      "iou": 0.9688,
+      "pixelCount": 11312,
+      "exactArea": 11310,
+      "relAreaErr": 0.0002
+    },
+    "d=16": {
+      "iou": 0.8645,
+      "pixelCount": 12032,
+      "exactArea": 11310,
+      "relAreaErr": 0.0639
+    }
+  },
+  "cocoRoundTrip": [
+    {
+      "label": "20000x16000 region at d=16 (100k x 80k slide)",
+      "d": 16,
+      "box": {
+        "x": 39488,
+        "y": 29488,
+        "width": 21024,
+        "height": 17024
+      },
+      "interopSafe": false,
+      "ok": false,
+      "error": "MaskCapacityExceededError: Mask would require 355683328 pixels, exceeding the 67108864 pixel cap. Paint in a more localized region or raise maxPixels."
+    },
+    {
+      "label": "r=6000 disc at d=2 (40k x 30k image)",
+      "d": 2,
+      "box": {
+        "x": 14000,
+        "y": 9000,
+        "width": 12000,
+        "height": 12000
+      },
+      "interopSafe": true,
+      "ok": false,
+      "error": "MaskCapacityExceededError: Mask would require 113097360 pixels, exceeding the 67108864 pixel cap. Paint in a more localized region or raise maxPixels."
+    },
+    {
+      "label": "r=1500 disc at d=16 (40k x 30k image)",
+      "d": 16,
+      "box": {
+        "x": 18496,
+        "y": 13504,
+        "width": 3008,
+        "height": 2992
+      },
+      "interopSafe": true,
+      "ok": true,
+      "backDownsample": 1,
+      "backBox": {
+        "x": 18496,
+        "y": 13504,
+        "width": 3008,
+        "height": 2992
+      }
+    }
+  ],
+  "fineThenCoarse": {
+    "ok": false,
+    "error": "MaskCapacityExceededError: Mask would require 99540729 pixels, exceeding the 67108864 pixel cap. Paint in a more localized region or raise maxPixels."
+  },
+  "upsampleForLevel0Consumer": {
+    "ok": false,
+    "error": "Mask would require 323424256 pixels, exceeding the 67108864 pixel cap. Paint in a more localized region or raise maxPixels."
+  }
+}

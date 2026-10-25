@@ -1,0 +1,581 @@
+{
+  "mode": "bilinear",
+  "reps": 3,
+  "node": "v22.22.0",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+  "loadavgStart": [0.33, 0.33, 0.21],
+  "modelRaster": {
+    "width": 256,
+    "height": 160,
+    "cellPx": [234.379, 234.381],
+    "topology": {
+      "components": 11,
+      "holes": 4,
+      "rings": 15
+    }
+  },
+  "preCheckBox": {
+    "x": 31476,
+    "y": 16456,
+    "width": 60237,
+    "height": 37737,
+    "area": 2273163669,
+    "capRatio": 33.9
+  },
+  "nearestPreCheckBox": {
+    "x": 31594,
+    "y": 16574,
+    "width": 60002,
+    "height": 37501,
+    "area": 2250135002
+  },
+  "analysisMs": 37011.9,
+  "tightBox": {
+    "x": 31476,
+    "y": 16456,
+    "width": 60237,
+    "height": 37737,
+    "area": 2273163669,
+    "capRatio": 33.9
+  },
+  "pixelCount": 1407035899,
+  "boundaryPxEdges": {
+    "h": 177088,
+    "v": 198870
+  },
+  "precision": {
+    "s8": {
+      "iou": 0.99963,
+      "xorPx": 520123,
+      "meanDisplacementPx": 1.8
+    },
+    "s64": {
+      "iou": 0.99705,
+      "xorPx": 4156895,
+      "meanDisplacementPx": 14.1
+    },
+    "s128": {
+      "iou": 0.994115,
+      "xorPx": 8305895,
+      "meanDisplacementPx": 28.1
+    },
+    "s256": {
+      "iou": 0.988314,
+      "xorPx": 16535761,
+      "meanDisplacementPx": 56
+    },
+    "nearestUpsampleVsBilinear": {
+      "iou": 0.986684,
+      "xorPx": 18826777,
+      "meanDisplacementPx": 63.8
+    }
+  },
+  "boundaryPoint": {
+    "x": 91713,
+    "y": 35324
+  },
+  "genOnly": {
+    "median": 11405,
+    "min": 11341,
+    "max": 11586.4,
+    "n": 3
+  },
+  "canonical": {
+    "streamPassMs": {
+      "median": 14372.6,
+      "min": 14146.1,
+      "max": 15246,
+      "n": 3
+    },
+    "pr149EncodeVarintsPlusBase64Ms": 52.9,
+    "runs": 164653,
+    "runsPerRow": 4.4,
+    "maxRun": 155737014,
+    "varintBytes": 380353,
+    "varintBytesCheck": 380353,
+    "countsChars": 507140,
+    "countsSha": "9ef4f67211cb31f2",
+    "jsonBytes": 507276,
+    "gzipJsonBytes": 289640,
+    "deflateVarintBytes": 257688
+  },
+  "sparse": {
+    "naiveBytes": {
+      "ms": {
+        "median": 13361.8,
+        "min": 13229.2,
+        "max": 14232.3,
+        "n": 3
+      },
+      "gridTiles": 35076,
+      "gridDims": [237, 148],
+      "empty": 12860,
+      "full": 20757,
+      "mixed": 1459,
+      "dataBytes": 95617024,
+      "directoryBytes": 35076,
+      "exactBytes": 95652100,
+      "bits": false,
+      "sha": "951883a86f989eee",
+      "measuredArrayBuffersMB": 90.18
+    },
+    "naiveBits": {
+      "ms": {
+        "median": 13217.2,
+        "min": 12800.3,
+        "max": 13286.7,
+        "n": 3
+      },
+      "gridTiles": 35076,
+      "gridDims": [237, 148],
+      "empty": 12860,
+      "full": 20757,
+      "mixed": 1459,
+      "dataBytes": 11952128,
+      "directoryBytes": 35076,
+      "exactBytes": 11987204,
+      "bits": true,
+      "sha": "681115975637fbba"
+    },
+    "smartBytes": {
+      "ms": {
+        "median": 1049.9,
+        "min": 1048.2,
+        "max": 1160.5,
+        "n": 3
+      },
+      "gridTiles": 35076,
+      "gridDims": [237, 148],
+      "empty": 12860,
+      "full": 20757,
+      "mixed": 1459,
+      "dataBytes": 95617024,
+      "directoryBytes": 35076,
+      "exactBytes": 95652100,
+      "bits": false,
+      "sha": "951883a86f989eee",
+      "tilesRasterized": 2626
+    },
+    "smartBits": {
+      "ms": {
+        "median": 1081.8,
+        "min": 1055.5,
+        "max": 1101.8,
+        "n": 3
+      },
+      "gridTiles": 35076,
+      "gridDims": [237, 148],
+      "empty": 12860,
+      "full": 20757,
+      "mixed": 1459,
+      "dataBytes": 11952128,
+      "directoryBytes": 35076,
+      "exactBytes": 11987204,
+      "bits": true,
+      "sha": "681115975637fbba"
+    },
+    "decodeCanonicalToTiles": {
+      "ms": {
+        "median": 244.2,
+        "min": 240.2,
+        "max": 326.4,
+        "n": 3
+      },
+      "gridTiles": 35076,
+      "gridDims": [237, 148],
+      "empty": 12860,
+      "full": 20757,
+      "mixed": 1459,
+      "dataBytes": 95617024,
+      "directoryBytes": 35076,
+      "exactBytes": 95652100,
+      "bits": false,
+      "sha": "951883a86f989eee"
+    },
+    "agree": {
+      "naiveVsSmartBytes": true,
+      "naiveVsSmartBits": true,
+      "naiveVsDecodedFromCanonical": true
+    },
+    "pixelCountMatches": true,
+    "perTileCanvasRGBA_MB": 364.75
+  },
+  "sparseSerialized": {
+    "directoryBytes": 8769,
+    "rawBytesTiles": {
+      "bytes": 95625793,
+      "base64Chars": 127501060
+    },
+    "bitPacked": {
+      "bytes": 11960897,
+      "base64Chars": 15947864
+    },
+    "bitPackedDeflate9": {
+      "bytes": 241616,
+      "base64Chars": 322156
+    },
+    "perTileLeb128Rle": {
+      "bytes": 541633,
+      "base64Chars": 722180
+    }
+  },
+  "downsample": {
+    "capDerivedS": 8,
+    "s8": {
+      "buildMs": {
+        "median": 716,
+        "min": 703,
+        "max": 748,
+        "n": 3
+      },
+      "encodeCanonicalMs": 62.2,
+      "grid": [7531, 4718],
+      "gridPx": 35531258,
+      "fitsCap": true,
+      "denseBytes": 35531258,
+      "rgbaCanvasMB": 135.54,
+      "tightGrid": [7531, 4718],
+      "pixelCountLevel0Equiv": 1407174656,
+      "countsChars": 52292,
+      "jsonBytes": 52438
+    },
+    "s64": {
+      "buildMs": {
+        "median": 11.1,
+        "min": 10.7,
+        "max": 12,
+        "n": 3
+      },
+      "encodeCanonicalMs": 2.6,
+      "grid": [943, 590],
+      "gridPx": 556370,
+      "fitsCap": true,
+      "denseBytes": 556370,
+      "rgbaCanvasMB": 2.12,
+      "tightGrid": [943, 590],
+      "pixelCountLevel0Equiv": 1408090112,
+      "countsChars": 5144,
+      "jsonBytes": 5285
+    },
+    "s128": {
+      "buildMs": {
+        "median": 2.8,
+        "min": 2.6,
+        "max": 2.9,
+        "n": 3
+      },
+      "encodeCanonicalMs": 3,
+      "grid": [472, 296],
+      "gridPx": 139712,
+      "fitsCap": true,
+      "denseBytes": 139712,
+      "rgbaCanvasMB": 0.53,
+      "tightGrid": [472, 296],
+      "pixelCountLevel0Equiv": 1410187264,
+      "countsChars": 2256,
+      "jsonBytes": 2396
+    },
+    "s256": {
+      "buildMs": {
+        "median": 0.8,
+        "min": 0.7,
+        "max": 0.8,
+        "n": 3
+      },
+      "encodeCanonicalMs": 0.2,
+      "grid": [237, 148],
+      "gridPx": 35076,
+      "fitsCap": true,
+      "denseBytes": 35076,
+      "rgbaCanvasMB": 0.13,
+      "tightGrid": [237, 148],
+      "pixelCountLevel0Equiv": 1411055616,
+      "countsChars": 936,
+      "jsonBytes": 1075
+    }
+  },
+  "modelNative": {
+    "binaryRasterCanonicalJsonBytes": 1109,
+    "logitsFloat32Bytes": 163840,
+    "logitsFloat32Base64Chars": 218456,
+    "logitsInt8Bytes": 40960,
+    "logitsInt8DeflateBytes": 14311
+  },
+  "coco": {
+    "level0": {
+      "buildMs": 28.5,
+      "runs": 198871,
+      "maxRun": 2518113715,
+      "maxRunFitsUint32": true,
+      "imagePx": 8000000000,
+      "stringChars": 523074,
+      "stringSha": "a0209e0c75fbdf2f",
+      "encodeMs": 40.6,
+      "uncompressedJsonChars": 1113141,
+      "gzipStringBytes": 221518
+    },
+    "fromDownsample_s8": {
+      "runs": 198897,
+      "maxRun": 2517793712,
+      "maxRunFitsUint32": true,
+      "imagePx": 8000000000,
+      "stringChars": 524404,
+      "stringSha": "34cd7f3dcac56034",
+      "encodeMs": 37.4,
+      "uncompressedJsonChars": 1113320,
+      "gzipStringBytes": 42874
+    },
+    "fromDownsample_s128": {
+      "runs": 198401,
+      "maxRun": 2508833664,
+      "maxRunFitsUint32": true,
+      "imagePx": 8000000000,
+      "stringChars": 519439,
+      "stringSha": "5e56361f34244627",
+      "encodeMs": 34.8,
+      "uncompressedJsonChars": 1112080,
+      "gzipStringBytes": 4680
+    }
+  },
+  "render": {
+    "view": [1024, 768],
+    "overviewScale": 0.017,
+    "level0PxPerScreenPx": 58.8,
+    "level0PxInOverview": 2721372127,
+    "overview": {
+      "sparseLevel0NoPyramid_bytes": {
+        "ms": {
+          "median": 368.5,
+          "min": 346.1,
+          "max": 401.2,
+          "n": 3
+        },
+        "level0PxRasterized": 95617024
+      },
+      "sparseLevel0NoPyramid_bits": {
+        "ms": {
+          "median": 314.5,
+          "min": 276.4,
+          "max": 319.6,
+          "n": 3
+        },
+        "level0PxRasterized": 95617024
+      },
+      "pyramid": {
+        "buildMs": {
+          "median": 253.8,
+          "min": 252.1,
+          "max": 313.2,
+          "n": 3
+        },
+        "levels": [
+          {
+            "k": 0,
+            "tileSpanLevel0Px": 256,
+            "mixed": 1459,
+            "full": 20757,
+            "bytes": 95617024
+          },
+          {
+            "k": 1,
+            "tileSpanLevel0Px": 512,
+            "mixed": 722,
+            "full": 5004,
+            "bytes": 47316992
+          },
+          {
+            "k": 2,
+            "tileSpanLevel0Px": 1024,
+            "mixed": 353,
+            "full": 1164,
+            "bytes": 23134208
+          },
+          {
+            "k": 3,
+            "tileSpanLevel0Px": 2048,
+            "mixed": 164,
+            "full": 255,
+            "bytes": 10747904
+          },
+          {
+            "k": 4,
+            "tileSpanLevel0Px": 4096,
+            "mixed": 74,
+            "full": 49,
+            "bytes": 4849664
+          },
+          {
+            "k": 5,
+            "tileSpanLevel0Px": 8192,
+            "mixed": 39,
+            "full": 3,
+            "bytes": 2555904
+          },
+          {
+            "k": 6,
+            "tileSpanLevel0Px": 16384,
+            "mixed": 14,
+            "full": 0,
+            "bytes": 917504
+          },
+          {
+            "k": 7,
+            "tileSpanLevel0Px": 32768,
+            "mixed": 6,
+            "full": 0,
+            "bytes": 393216
+          },
+          {
+            "k": 8,
+            "tileSpanLevel0Px": 65536,
+            "mixed": 2,
+            "full": 0,
+            "bytes": 131072
+          },
+          {
+            "k": 9,
+            "tileSpanLevel0Px": 131072,
+            "mixed": 1,
+            "full": 0,
+            "bytes": 65536
+          }
+        ],
+        "extraBytesOverLevel0": 90112000,
+        "extraVsLevel0": "94.2%",
+        "measuredArrayBuffersMB": 82.94,
+        "renderLevel": 5,
+        "renderMs": {
+          "median": 25.7,
+          "min": 7.9,
+          "max": 50.4,
+          "n": 3
+        },
+        "tilePxTouched": 2555904
+      },
+      "downsample_s8": {
+        "onTheFlyMs": {
+          "median": 181.4,
+          "min": 168.7,
+          "max": 182.2,
+          "n": 3
+        },
+        "gridPxRead": 35531258,
+        "pr149StyleImageDataMs": {
+          "median": 501.9,
+          "min": 352.7,
+          "max": 501.9,
+          "n": 2
+        },
+        "imageDataMB": 135.54
+      },
+      "downsample_s64": {
+        "onTheFlyMs": {
+          "median": 5.3,
+          "min": 4.6,
+          "max": 5.3,
+          "n": 3
+        },
+        "gridPxRead": 556370,
+        "pr149StyleImageDataMs": {
+          "median": 5.7,
+          "min": 1.2,
+          "max": 5.7,
+          "n": 2
+        },
+        "imageDataMB": 2.12
+      },
+      "downsample_s128": {
+        "onTheFlyMs": {
+          "median": 2.1,
+          "min": 2.1,
+          "max": 2.2,
+          "n": 3
+        },
+        "gridPxRead": 139712,
+        "pr149StyleImageDataMs": {
+          "median": 0.4,
+          "min": 0.3,
+          "max": 0.4,
+          "n": 2
+        },
+        "imageDataMB": 0.53
+      },
+      "downsample_s256": {
+        "onTheFlyMs": {
+          "median": 1.3,
+          "min": 1.2,
+          "max": 1.3,
+          "n": 3
+        },
+        "gridPxRead": 35076,
+        "pr149StyleImageDataMs": {
+          "median": 0.1,
+          "min": 0.1,
+          "max": 0.1,
+          "n": 2
+        },
+        "imageDataMB": 0.13
+      },
+      "pr149DenseLevel0ImageDataGB": 8.47
+    },
+    "oneToOne": {
+      "view": {
+        "x": 91201,
+        "y": 34940,
+        "w": 1024,
+        "h": 768
+      },
+      "level0PxInView": 786432,
+      "sparse": {
+        "ms": {
+          "median": 27.7,
+          "min": 15.3,
+          "max": 47.6,
+          "n": 3
+        },
+        "empty": 8,
+        "full": 8,
+        "mixed": 4,
+        "level0PxRead": 196608,
+        "wholeTilePx": 262144
+      },
+      "downsample_s8": {
+        "ms": {
+          "median": 19.7,
+          "min": 14.7,
+          "max": 26.3,
+          "n": 3
+        },
+        "gridCellsInView": 6305
+      },
+      "downsample_s64": {
+        "ms": {
+          "median": 9.5,
+          "min": 6.2,
+          "max": 10.3,
+          "n": 3
+        },
+        "gridCellsInView": 117
+      },
+      "downsample_s128": {
+        "ms": {
+          "median": 7,
+          "min": 6.5,
+          "max": 7.6,
+          "n": 3
+        },
+        "gridCellsInView": 35
+      },
+      "downsample_s256": {
+        "ms": {
+          "median": 7.9,
+          "min": 7.1,
+          "max": 11.2,
+          "n": 3
+        },
+        "gridCellsInView": 12
+      }
+    }
+  },
+  "loadavgEnd": [2.18, 1.09, 0.54]
+}
