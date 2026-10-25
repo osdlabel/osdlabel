@@ -333,8 +333,8 @@ packages are available for custom UI layers and advanced integrations.
 
 ### Prerequisites
 
-- Node.js 22.13+ or 24 (ESLint 10 and Astro 6 set the floor; `.node-version`
-  pins 24)
+- Node.js 22.13+, 24 or 26 (ESLint 10 and Astro set the floor; `.node-version`
+  pins 26)
 - pnpm 12 — the exact version is pinned in `packageManager`, and pnpm 10+
   switches to it automatically
 

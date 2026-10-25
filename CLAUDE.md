@@ -314,7 +314,7 @@ vite@^8.0.16
 vitest@^4.1.8
 @playwright/test@^1.60.0
 vite-plugin-solid@^2.11.12
-pnpm@12.9.1   (packageManager; CI's pnpm/action-setup reads it)
+pnpm@12.15.0  (packageManager; CI's pnpm/action-setup reads it)
 turbo@^2.11.7
 ```
 
