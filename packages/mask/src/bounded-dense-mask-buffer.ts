@@ -12,7 +12,13 @@ import {
 } from './decode-guard.js';
 import type { MaskDecodeOptions } from './mask-codec.js';
 import { assertMaskDownsample, maskGridSize } from './downsample.js';
-import { asMaskRaster, denseRaster, type MaskRaster, type MaskRasterInput } from './mask-raster.js';
+import {
+  asMaskRaster,
+  denseRaster,
+  forEachCheckedSpan,
+  type MaskRaster,
+  type MaskRasterInput,
+} from './mask-raster.js';
 
 /**
  * Allocation is rounded outward to a multiple of this so that repeated strokes
@@ -141,7 +147,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     // Only called on a fresh buffer, so every cell starts at 0 and each span
     // adds exactly its length. reserve() clips to the image, so a span poking
     // outside it is written only where it overlaps.
-    raster.forEachSpan((cy, x0, x1) => {
+    forEachCheckedSpan(raster, (cy, x0, x1) => {
       const row = cy - this.ay;
       if (row < 0 || row >= this.ah) return;
       const left = Math.max(x0, this.ax);

@@ -6,6 +6,7 @@ export type { MaskRaster, MaskRasterInput, MaskSpanVisitor } from './mask-raster
 export {
   asMaskRaster,
   denseRaster,
+  forEachCheckedSpan,
   isMaskRaster,
   rasterPixelCount,
   rasterToRuns,

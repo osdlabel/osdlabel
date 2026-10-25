@@ -14,7 +14,13 @@ import {
   snapshotImageBox,
   type MaskBoxFields,
 } from './downsample.js';
-import { asMaskRaster, denseRaster, isMaskRaster, type MaskRasterInput } from './mask-raster.js';
+import {
+  asMaskRaster,
+  denseRaster,
+  forEachCheckedSpan,
+  isMaskRaster,
+  type MaskRasterInput,
+} from './mask-raster.js';
 
 export const COCO_RLE_FORMAT = 'coco-rle';
 export const COCO_RLE_UNCOMPRESSED_FORMAT = 'coco-rle-uncompressed';
@@ -94,7 +100,7 @@ export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
     if (!list) toggles.set(col, (list = []));
     list.push(delta === 1 ? row : ~row);
   };
-  raster.forEachSpan((cy, x0, x1) => {
+  forEachCheckedSpan(raster, (cy, x0, x1) => {
     toggle(x0, cy - y, 1);
     toggle(x1, cy - y, -1);
   });

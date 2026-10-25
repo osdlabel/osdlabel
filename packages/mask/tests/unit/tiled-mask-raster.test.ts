@@ -160,6 +160,47 @@ describe('TiledMaskRaster is a MaskRaster like any other', () => {
   }
 });
 
+describe('a raster that breaks the span contract', () => {
+  const box = { x: 2, y: 3, width: 4, height: 2, imageWidth: 10, imageHeight: 10, downsample: 1 };
+  const withSpans = (spans: readonly (readonly [number, number, number])[]): MaskRaster => ({
+    ...box,
+    cellCount: 0,
+    get: () => 0,
+    forEachSpan: (visit) => spans.forEach(([cy, x0, x1]) => visit(cy, x0, x1)),
+  });
+
+  it('is refused by every reader, not turned into a wrong mask', () => {
+    const broken = [
+      withSpans([
+        [4, 2, 3],
+        [3, 2, 3],
+      ]), // rows out of order
+      withSpans([
+        [3, 2, 4],
+        [3, 3, 5],
+      ]), // overlapping in a row
+      withSpans([[3, 1, 3]]), // left of the box
+      withSpans([[5, 2, 3]]), // below the box
+      withSpans([[3, 4, 4]]), // empty
+    ];
+    for (const raster of broken) {
+      expect(() => encodeCanonical(raster)).toThrow(RangeError);
+      expect(() => snapshotToCocoCounts(raster)).toThrow(RangeError);
+      expect(() => toDenseSnapshot(raster, Infinity)).toThrow(RangeError);
+      expect(() => BoundedDenseMaskBuffer.fromSnapshot(raster)).toThrow(RangeError);
+    }
+    // Touching spans are allowed, and merge.
+    expect(
+      encodeCanonical(
+        withSpans([
+          [3, 2, 3],
+          [3, 3, 6],
+        ]),
+      ),
+    ).toEqual(encodeCanonical(withSpans([[3, 2, 6]])));
+  });
+});
+
 describe('a mask whose box is past the dense cap', () => {
   // A 9000x9000 solid region and a dab 10,000 cells away on a 20,000-square
   // image: 13,000 x 13,000 = 169,000,000 cells of box, 2.5x the cap, and

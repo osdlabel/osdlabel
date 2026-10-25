@@ -56,6 +56,49 @@ export function isMaskRaster(value: MaskRasterInput): value is MaskRaster {
   return typeof (value as Partial<MaskRaster>).forEachSpan === 'function';
 }
 
+/**
+ * {@link MaskRaster.forEachSpan} with its contract enforced: every span
+ * non-empty, on whole cells, inside the box, and in row-major order without
+ * overlap.
+ *
+ * A raster a host implemented can break any of these, and each consumer would
+ * turn the break into a plausible wrong mask rather than an error — the
+ * canonical runs would go negative, the COCO sweep would toggle a row that
+ * was never on. Every reader in this package goes through here.
+ */
+export function forEachCheckedSpan(raster: MaskRaster, visit: MaskSpanVisitor): void {
+  const right = raster.x + raster.width;
+  const bottom = raster.y + raster.height;
+  let lastRow = -Infinity;
+  let lastEnd = -Infinity;
+  raster.forEachSpan((cy, x0, x1) => {
+    if (
+      !Number.isInteger(cy) ||
+      !Number.isInteger(x0) ||
+      !Number.isInteger(x1) ||
+      x1 <= x0 ||
+      x0 < raster.x ||
+      x1 > right ||
+      cy < raster.y ||
+      cy >= bottom
+    ) {
+      throw new RangeError(
+        `Span ${x0}..${x1} on row ${cy} is empty or outside the ` +
+          `${raster.width}x${raster.height} box at (${raster.x}, ${raster.y})`,
+      );
+    }
+    if (cy < lastRow || (cy === lastRow && x0 < lastEnd)) {
+      throw new RangeError(
+        `Spans must be row-major and disjoint: ${x0}..${x1} on row ${cy} ` +
+          `follows one ending at ${lastEnd} on row ${lastRow}`,
+      );
+    }
+    lastRow = cy;
+    lastEnd = x1;
+    visit(cy, x0, x1);
+  });
+}
+
 /** A dense snapshot behind the {@link MaskRaster} interface; the box is not copied. */
 class DenseMaskRaster implements MaskRaster {
   readonly x: number;
@@ -254,7 +297,7 @@ export function rasterToRuns(raster: MaskRaster): number[] {
   const width = raster.width;
   let end = 0; // box-relative linear index just past the last foreground run
   let open = -1; // start of the foreground run being extended, or -1
-  raster.forEachSpan((cy, x0, x1) => {
+  forEachCheckedSpan(raster, (cy, x0, x1) => {
     const start = (cy - raster.y) * width + (x0 - raster.x);
     const stop = start + (x1 - x0);
     if (open >= 0 && start === end) {
@@ -289,7 +332,7 @@ export function toDenseSnapshot(raster: MaskRasterInput, maxCells?: number): Mas
   assertDecodableArea(raster.width, raster.height, maxCells);
   const data = new Uint8Array(raster.width * raster.height);
   const { x, y, width } = raster;
-  raster.forEachSpan((cy, x0, x1) => {
+  forEachCheckedSpan(raster, (cy, x0, x1) => {
     const offset = (cy - y) * width - x;
     data.fill(1, offset + x0, offset + x1);
   });
@@ -318,7 +361,7 @@ export function rasterPixelCount(raster: MaskRaster): number {
   const clipCol = d - (raster.imageWidth - lastCol * d);
   const lastRowHeight = raster.imageHeight - lastRow * d;
   let total = 0;
-  raster.forEachSpan((cy, x0, x1) => {
+  forEachCheckedSpan(raster, (cy, x0, x1) => {
     let across = (x1 - x0) * d;
     if (x1 - 1 === lastCol) across -= clipCol;
     total += across * (cy === lastRow ? lastRowHeight : d);
