@@ -1,6 +1,6 @@
 import { Color, FabricImage, type FabricObject } from 'fabric';
 import { MASK_RAW_FORMAT, type MaskRawAnnotationData } from '@osdlabel/annotation';
-import { decodeCanonical } from '@osdlabel/mask';
+import { decodeCanonicalRaster } from '@osdlabel/mask';
 
 /** Tint used when a mask envelope carries no `fill` of its own. */
 export const DEFAULT_MASK_FILL = 'rgba(33, 150, 243, 0.45)';
@@ -44,8 +44,11 @@ export function buildMaskFabricObject(
     );
   }
 
-  const snapshot = decodeCanonical(raw.data);
-  if (snapshot.width === 0 || snapshot.height === 0) return null;
+  // Read as runs; this renderer then draws one canvas over the box, so the
+  // decode's default cap — the dense policy — is this renderer's own limit,
+  // not the format's. A tiled renderer would draw the same raster per tile.
+  const raster = decodeCanonicalRaster(raw.data);
+  if (raster.width === 0 || raster.height === 0) return null;
 
   const [red, green, blue, alpha] = new Color(
     options.fill ?? raw.data.fill ?? DEFAULT_MASK_FILL,
@@ -53,21 +56,23 @@ export function buildMaskFabricObject(
   const alphaByte = Math.round((alpha ?? 1) * 255);
 
   const canvas = document.createElement('canvas');
-  canvas.width = snapshot.width;
-  canvas.height = snapshot.height;
+  canvas.width = raster.width;
+  canvas.height = raster.height;
   const context = canvas.getContext('2d');
   if (!context) return null;
 
-  const imageData = context.createImageData(snapshot.width, snapshot.height);
+  const imageData = context.createImageData(raster.width, raster.height);
   const pixels = imageData.data;
-  for (let i = 0; i < snapshot.data.length; i++) {
-    if (snapshot.data[i] !== 1) continue;
-    const offset = i * 4;
-    pixels[offset] = red;
-    pixels[offset + 1] = green;
-    pixels[offset + 2] = blue;
-    pixels[offset + 3] = alphaByte;
-  }
+  raster.forEachSpan((cy, x0, x1) => {
+    const rowStart = (cy - raster.y) * raster.width - raster.x;
+    for (let i = rowStart + x0; i < rowStart + x1; i++) {
+      const offset = i * 4;
+      pixels[offset] = red;
+      pixels[offset + 1] = green;
+      pixels[offset + 2] = blue;
+      pixels[offset + 3] = alphaByte;
+    }
+  });
   context.putImageData(imageData, 0, 0);
 
   // One canvas pixel per stored cell, scaled up to the image pixels each cell
@@ -76,10 +81,10 @@ export function buildMaskFabricObject(
   // along a clipped image edge are drawn full-size, so a mask touching that
   // edge overhangs the image by under one cell — outside the image, where
   // nothing else is drawn.
-  const downsample = snapshot.downsample ?? 1;
+  const downsample = raster.downsample;
   return new FabricImage(canvas, {
-    left: snapshot.x * downsample,
-    top: snapshot.y * downsample,
+    left: raster.x * downsample,
+    top: raster.y * downsample,
     scaleX: downsample,
     scaleY: downsample,
     originX: 'left',

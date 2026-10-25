@@ -8,7 +8,13 @@ import {
 } from './decode-guard.js';
 import { emptySnapshot, snapshotPixelCount, type MaskSnapshot } from './mask-buffer.js';
 import type { MaskCodec, MaskDecodeOptions } from './mask-codec.js';
-import { assertMaskDownsample, maskGridSize, snapshotImageBox } from './downsample.js';
+import {
+  assertMaskDownsample,
+  maskGridSize,
+  snapshotImageBox,
+  type MaskBoxFields,
+} from './downsample.js';
+import { asMaskRaster, denseRaster, isMaskRaster, type MaskRasterInput } from './mask-raster.js';
 
 export const COCO_RLE_FORMAT = 'coco-rle';
 export const COCO_RLE_UNCOMPRESSED_FORMAT = 'coco-rle-uncompressed';
@@ -30,23 +36,30 @@ export interface CocoRleUncompressedSegmentation {
  * Converts a mask to COCO run lengths: **column-major** over the full image,
  * alternating and starting with background.
  *
- * Only the mask's bounding box is walked pixel by pixel — the fully-background
- * columns above, below, and to either side are added arithmetically. That keeps
- * export affordable on deep-zoom images, where iterating every pixel would mean
- * billions of steps.
+ * The mask is read only through {@link MaskRaster.forEachSpan}, and the
+ * row-major spans are transposed by a sweep across the columns: each span
+ * switches its row on at its first column and off past its last, and between
+ * two such events every column has the same runs. So the work is
+ * proportional to the spans and to the runs written, never to the box —
+ * fully-background columns, and the background above and below the mask, are
+ * added arithmetically.
  *
  * COCO has no notion of a downsample — its runs are image pixels — so a
- * downsampled snapshot is exported as the level-0 mask it means, every cell
- * expanded to the image pixels it covers. Nothing level-0 is materialised:
- * each cell column's runs are worked out once, in image rows, and repeated
- * for each image column the cells span.
+ * downsampled mask is exported as the level-0 mask it means, every cell
+ * expanded to the image pixels it covers, without materialising level 0.
  */
-export function snapshotToCocoCounts(snapshot: MaskSnapshot): number[] {
-  const { x, y, width, height, data, imageWidth, imageHeight } = snapshot;
+export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
+  if (!isMaskRaster(input) && input.data.length !== input.width * input.height) {
+    throw new RangeError(
+      `Snapshot data has ${input.data.length} pixels but its box describes ${input.width * input.height}`,
+    );
+  }
+  const raster = asMaskRaster(input);
+  const { x, y, width, height, imageWidth, imageHeight } = raster;
   const total = imageWidth * imageHeight;
   if (width === 0 || height === 0) return total > 0 ? [total] : [];
-  const downsample = snapshot.downsample ?? 1;
-  if (downsample !== 1) return downsampledToCocoCounts(snapshot, downsample);
+  const downsample = raster.downsample;
+  assertMaskDownsample(downsample);
 
   // A host-built snapshot with a fractional placement would emit fractional
   // runs, which is not COCO; the canonical encoder makes the same demand.
@@ -55,47 +68,9 @@ export function snapshotToCocoCounts(snapshot: MaskSnapshot): number[] {
   // COCO runs describe the whole image, so a box poking outside it cannot be
   // expressed: the background either side would have to be negative. Silently
   // clamping would shift every column, so refuse instead.
-  assertBoxInsideImage(x, y, width, height, imageWidth, imageHeight);
-
-  const runs: number[] = [];
-  let currentValue: 0 | 1 = 0;
-  let currentLength = 0;
-
-  const append = (value: 0 | 1, length: number): void => {
-    if (length <= 0) return;
-    if (value === currentValue) {
-      currentLength += length;
-      return;
-    }
-    runs.push(currentLength);
-    currentValue = value;
-    currentLength = length;
-  };
-
-  append(0, x * imageHeight);
-  const below = imageHeight - (y + height);
-  for (let col = 0; col < width; col++) {
-    append(0, y);
-    for (let row = 0; row < height; row++) {
-      append(data[row * width + col] === 1 ? 1 : 0, 1);
-    }
-    append(0, below);
-  }
-  append(0, (imageWidth - (x + width)) * imageHeight);
-
-  runs.push(currentLength);
-  return runs;
-}
-
-/** {@link snapshotToCocoCounts} for a snapshot stored at `downsample` above 1. */
-function downsampledToCocoCounts(snapshot: MaskSnapshot, downsample: number): number[] {
-  const { x, y, width, height, data, imageWidth, imageHeight } = snapshot;
-  assertMaskDownsample(downsample);
-  assertDecodableOrigin(x, y);
-  assertPixelDimensions(width, height);
   const grid = maskGridSize(imageWidth, imageHeight, downsample);
   assertBoxInsideImage(x, y, width, height, grid.width, grid.height);
-  const box = snapshotImageBox(snapshot);
+  const box = snapshotImageBox(raster);
 
   const runs: number[] = [];
   let currentValue: 0 | 1 = 0;
@@ -111,37 +86,95 @@ function downsampledToCocoCounts(snapshot: MaskSnapshot, downsample: number): nu
     currentLength = length;
   };
 
-  // Image rows each cell row covers; only the image's last can be short.
-  const rowSpan = new Array<number>(height);
-  for (let row = 0; row < height; row++) {
-    const top = (y + row) * downsample;
-    rowSpan[row] = Math.min(top + downsample, imageHeight) - top;
-  }
+  // Row toggles keyed by the cell column they happen at: +1 where a span
+  // starts, -1 just past where it ends. Rows are box-relative cell rows.
+  const toggles = new Map<number, number[]>();
+  const toggle = (col: number, row: number, delta: 1 | -1): void => {
+    let list = toggles.get(col);
+    if (!list) toggles.set(col, (list = []));
+    list.push(delta === 1 ? row : ~row);
+  };
+  raster.forEachSpan((cy, x0, x1) => {
+    toggle(x0, cy - y, 1);
+    toggle(x1, cy - y, -1);
+  });
+  const eventColumns = [...toggles.keys()].sort((a, b) => a - b);
+
+  // The rows currently on, as sorted, disjoint, non-touching [start, end)
+  // intervals of box-relative cell rows.
+  const active: [number, number][] = [];
+  const findInterval = (row: number): number => {
+    // Index of the last interval starting at or before `row`, or -1.
+    let lo = 0;
+    let hi = active.length - 1;
+    let found = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1;
+      if (active[mid]![0] <= row) {
+        found = mid;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    return found;
+  };
+  const switchOn = (row: number): void => {
+    const i = findInterval(row);
+    const joinsLeft = i >= 0 && active[i]![1] === row;
+    const next = active[i + 1];
+    const joinsRight = next !== undefined && next[0] === row + 1;
+    if (joinsLeft && joinsRight) {
+      active[i]![1] = next[1];
+      active.splice(i + 1, 1);
+    } else if (joinsLeft) active[i]![1] = row + 1;
+    else if (joinsRight) next[0] = row;
+    else active.splice(i + 1, 0, [row, row + 1]);
+  };
+  const switchOff = (row: number): void => {
+    const i = findInterval(row);
+    const interval = active[i]!;
+    const [start, end] = interval;
+    if (start === row && end === row + 1) active.splice(i, 1);
+    else if (start === row) interval[0] = row + 1;
+    else if (end === row + 1) interval[1] = row;
+    else {
+      interval[1] = row;
+      active.splice(i + 1, 0, [row + 1, end]);
+    }
+  };
+
+  // One image column of the current pattern; only the image's last cell row
+  // can cover fewer than `downsample` image rows.
+  const emitColumn = (): void => {
+    let cursor = 0;
+    for (const [start, end] of active) {
+      const top = (y + start) * downsample;
+      const bottom = Math.min((y + end) * downsample, imageHeight);
+      append(0, top - cursor);
+      append(1, bottom - top);
+      cursor = bottom;
+    }
+    append(0, imageHeight - cursor);
+  };
 
   append(0, box.x * imageHeight);
-  const below = imageHeight - (box.y + box.height);
-  const spanValues: (0 | 1)[] = [];
-  const spanLengths: number[] = [];
-  for (let col = 0; col < width; col++) {
-    // This cell column as merged (value, image rows) spans.
-    spanValues.length = 0;
-    spanLengths.length = 0;
-    for (let row = 0; row < height; row++) {
-      const value: 0 | 1 = data[row * width + col] === 1 ? 1 : 0;
-      const last = spanValues.length - 1;
-      if (last >= 0 && spanValues[last] === value) spanLengths[last]! += rowSpan[row]!;
-      else {
-        spanValues.push(value);
-        spanLengths.push(rowSpan[row]!);
-      }
+  const boxRight = x + width;
+  let col = x;
+  for (let e = 0; e <= eventColumns.length; e++) {
+    const next = e < eventColumns.length ? Math.min(eventColumns[e]!, boxRight) : boxRight;
+    // Columns [col, next) share one pattern.
+    if (next > col) {
+      const left = col * downsample;
+      const right = Math.min(next * downsample, imageWidth);
+      const columns = right - left;
+      if (active.length === 0) append(0, columns * imageHeight);
+      else for (let repeat = 0; repeat < columns; repeat++) emitColumn();
+      col = next;
     }
-    const left = (x + col) * downsample;
-    const columns = Math.min(left + downsample, imageWidth) - left;
-    for (let repeat = 0; repeat < columns; repeat++) {
-      append(0, box.y);
-      for (let i = 0; i < spanValues.length; i++) append(spanValues[i]!, spanLengths[i]!);
-      append(0, below);
-    }
+    if (e === eventColumns.length || next >= boxRight) break;
+    // Offs before ons: a row whose spans touch at this column stays on.
+    const events = toggles.get(eventColumns[e]!)!;
+    for (const event of events) if (event < 0) switchOff(~event);
+    for (const event of events) if (event >= 0) switchOn(event);
   }
   append(0, (imageWidth - (box.x + box.width)) * imageHeight);
 
@@ -366,7 +399,7 @@ export const COCO_MAX_INTEROP_IMAGE_PIXELS = 0xffffffff;
  * Worth checking before exporting masks from very large (deep-zoom) images,
  * because the failure is silent.
  */
-export function isCocoInteropSafe(snapshot: MaskSnapshot): boolean {
+export function isCocoInteropSafe(snapshot: MaskBoxFields): boolean {
   return snapshot.imageWidth * snapshot.imageHeight <= COCO_MAX_INTEROP_IMAGE_PIXELS;
 }
 
@@ -386,13 +419,13 @@ function cocoSize(payload: { readonly size?: unknown }): readonly [number, numbe
  * COCO `bbox`: `[x, y, width, height]` of the mask's bounding box, in image
  * pixels at every downsample.
  */
-export function cocoBbox(snapshot: MaskSnapshot): [number, number, number, number] {
+export function cocoBbox(snapshot: MaskBoxFields): [number, number, number, number] {
   const box = snapshotImageBox(snapshot);
   return [box.x, box.y, box.width, box.height];
 }
 
 /** COCO `area`: the exact count of foreground image pixels, at every downsample. */
-export function cocoArea(snapshot: MaskSnapshot): number {
+export function cocoArea(snapshot: MaskRasterInput): number {
   return snapshotPixelCount(snapshot);
 }
 
@@ -427,7 +460,9 @@ export const cocoRleCodec: MaskCodec<CocoRleSegmentation> = {
   },
   decode(payload, options) {
     const [height, width] = cocoSize(payload);
-    return cocoCountsToSnapshot(decodeCocoCountsString(payload.counts), height, width, options);
+    return denseRaster(
+      cocoCountsToSnapshot(decodeCocoCountsString(payload.counts), height, width, options),
+    );
   },
 };
 
@@ -443,6 +478,6 @@ export const cocoRleUncompressedCodec: MaskCodec<CocoRleUncompressedSegmentation
   },
   decode(payload, options) {
     const [height, width] = cocoSize(payload);
-    return cocoCountsToSnapshot(payload.counts, height, width, options);
+    return denseRaster(cocoCountsToSnapshot(payload.counts, height, width, options));
   },
 };

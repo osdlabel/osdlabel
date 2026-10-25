@@ -8,6 +8,7 @@ import {
   decodeCanonical,
   stampCircle,
   upsampleSnapshot,
+  denseRaster,
   type MaskCodec,
 } from '@osdlabel/mask';
 import { MASK_RAW_FORMAT, createAnnotationId } from '@osdlabel/annotation';
@@ -251,7 +252,7 @@ describe('a downsampled mask', () => {
     const doc = serialize(stateWith(mask), { maskCodec: cocoRleCodec });
     const exported = doc.find((a) => a.id === mask.id)!;
     expect(exported.rawAnnotationData.data).toEqual(
-      cocoRleCodec.encode(upsampleSnapshot(snapshot, Infinity)),
+      cocoRleCodec.encode(denseRaster(upsampleSnapshot(snapshot, Infinity))),
     );
   });
 

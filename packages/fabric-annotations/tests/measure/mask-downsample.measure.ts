@@ -26,6 +26,7 @@ import {
   MaskCapacityExceededError,
   chooseMaskDownsample,
   cocoRleCodec,
+  denseRaster,
   decodeCanonical,
   encodeCanonical,
   isCocoInteropSafe,
@@ -543,7 +544,7 @@ describe('mask downsample measurement', () => {
     }
 
     // COCO export at level 0 (the format has no downsample).
-    const coco = timed(3, () => cocoRleCodec.encode(snapshot));
+    const coco = timed(3, () => cocoRleCodec.encode(denseRaster(snapshot)));
 
     const box = snapshotImageBox(snapshot);
     out.committed = {

@@ -12,6 +12,8 @@ import {
   COCO_MAX_INTEROP_IMAGE_PIXELS,
   snapshotToCocoCounts,
   stampCircle,
+  denseRaster,
+  toDenseSnapshot,
   type MaskSnapshot,
 } from '../../src/index.js';
 
@@ -96,8 +98,8 @@ describe('COCO compressed counts string', () => {
 
 describe('codecs', () => {
   it('reports size as [height, width] of the full image', () => {
-    expect(cocoRleCodec.encode(FIXTURE).size).toEqual([3, 4]);
-    expect(cocoRleUncompressedCodec.encode(FIXTURE).size).toEqual([3, 4]);
+    expect(cocoRleCodec.encode(denseRaster(FIXTURE)).size).toEqual([3, 4]);
+    expect(cocoRleUncompressedCodec.encode(denseRaster(FIXTURE)).size).toEqual([3, 4]);
   });
 
   it('agrees between the compressed and uncompressed variants', () => {
@@ -106,8 +108,10 @@ describe('codecs', () => {
     stampCircle(b, 105.5, 85.5, 6, 0);
     const snapshot = b.snapshot();
 
-    const compressed = cocoRleCodec.decode!(cocoRleCodec.encode(snapshot));
-    const plain = cocoRleUncompressedCodec.decode!(cocoRleUncompressedCodec.encode(snapshot));
+    const compressed = toDenseSnapshot(cocoRleCodec.decode!(cocoRleCodec.encode(b.raster())));
+    const plain = toDenseSnapshot(
+      cocoRleUncompressedCodec.decode!(cocoRleUncompressedCodec.encode(b.raster())),
+    );
 
     expect(compressed).toEqual(snapshot);
     expect(plain).toEqual(snapshot);
@@ -118,7 +122,7 @@ describe('codecs', () => {
     stampCircle(b, 500.5, 400.5, 9, 1);
     const snapshot = b.snapshot();
 
-    const restored = cocoRleCodec.decode!(cocoRleCodec.encode(snapshot));
+    const restored = toDenseSnapshot(cocoRleCodec.decode!(cocoRleCodec.encode(b.raster())));
     expect(restored.x).toBe(snapshot.x);
     expect(restored.y).toBe(snapshot.y);
     expect(restored).toEqual(snapshot);
@@ -147,7 +151,9 @@ describe('pycocotools interop limits', () => {
     expect(isCocoInteropSafe(gigapixel)).toBe(false);
 
     // Our own round-trip is unaffected — the limitation is downstream.
-    const restored = cocoRleCodec.decode!(cocoRleCodec.encode(gigapixel));
+    const restored = toDenseSnapshot(
+      cocoRleCodec.decode!(cocoRleCodec.encode(denseRaster(gigapixel))),
+    );
     expect(restored).toEqual(gigapixel);
   });
 

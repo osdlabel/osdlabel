@@ -1,5 +1,15 @@
+import {
+  isMaskRaster,
+  rasterPixelCount,
+  type MaskRaster,
+  type MaskRasterInput,
+} from './mask-raster.js';
+
 /**
- * An immutable, tightly-cropped view of a mask's pixels.
+ * An immutable, tightly-cropped view of a mask's pixels, as a dense array —
+ * the shape a host that computed pixels itself (a model's output, a decoded
+ * file) hands in. Readers take a {@link MaskRaster}; `denseRaster` wraps
+ * this as one.
  *
  * `data` is row-major over the `width x height` bounding box whose top-left
  * corner sits at (`x`, `y`) in **mask cells**; each entry is `0` or `1`.
@@ -39,15 +49,16 @@ export interface MaskRegion {
 /**
  * Mutable pixel storage for a single mask annotation.
  *
- * Coordinates are absolute **image-space** integers, so callers never think
- * about the buffer's internal placement. Writes outside the image are ignored;
- * writes outside the currently allocated region grow it (see
- * {@link BoundedDenseMaskBuffer}).
+ * Coordinates are absolute **cell** integers (image pixels at downsample 1),
+ * so callers never think about the buffer's internal placement. Writes
+ * outside the image are ignored; writes outside the currently allocated
+ * region grow it (see {@link BoundedDenseMaskBuffer}).
  *
- * This interface is the seam that keeps the storage strategy swappable: the
- * brush tool, the codecs, and the renderer all speak `MaskBuffer` /
- * {@link MaskSnapshot}, so a tiled sparse implementation can replace the
- * bounded dense one without touching them.
+ * This interface is the seam that keeps the storage strategy swappable. Its
+ * output is a {@link MaskRaster}, not a dense array: the brush tool, the
+ * codecs and the renderer read masks only through that interface, so a tiled
+ * sparse buffer can replace the bounded dense one without changing any of
+ * their signatures.
  */
 export interface MaskBuffer {
   /** Full image width in image (level-0) pixels. */
@@ -98,8 +109,11 @@ export interface MaskBuffer {
    * it, and callers must treat its absence as a no-op.
    */
   reserve?(region: MaskRegion): void;
-  /** Produces a tightly-cropped, copied snapshot of the current pixels. */
-  snapshot(): MaskSnapshot;
+  /**
+   * A tightly-cropped, read-only view of the current cells, detached from
+   * later writes. Its storage is the implementation's business.
+   */
+  raster(): MaskRaster;
 }
 
 /** Thrown when a mask would need to allocate more pixels than its configured cap. */
@@ -119,7 +133,9 @@ export class MaskCapacityExceededError extends Error {
 }
 
 /** Counts the foreground cells in a snapshot (image pixels at downsample 1). */
-export function snapshotCellCount(snapshot: MaskSnapshot): number {
+export function snapshotCellCount(input: MaskRasterInput): number {
+  if (isMaskRaster(input)) return input.cellCount;
+  const snapshot = input;
   let count = 0;
   for (let i = 0; i < snapshot.data.length; i++) if (snapshot.data[i] === 1) count++;
   return count;
@@ -134,7 +150,9 @@ export function snapshotCellCount(snapshot: MaskSnapshot): number {
  * column and row of cells. Those are counted at their clipped size, so this
  * equals the foreground of `upsampleSnapshot(snapshot)` without building it.
  */
-export function snapshotPixelCount(snapshot: MaskSnapshot): number {
+export function snapshotPixelCount(input: MaskRasterInput): number {
+  if (isMaskRaster(input)) return rasterPixelCount(input);
+  const snapshot = input;
   const d = snapshot.downsample ?? 1;
   if (d === 1) return snapshotCellCount(snapshot);
   const { x, y, width, height, data, imageWidth, imageHeight } = snapshot;

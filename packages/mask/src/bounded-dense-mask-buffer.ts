@@ -12,6 +12,7 @@ import {
 } from './decode-guard.js';
 import type { MaskDecodeOptions } from './mask-codec.js';
 import { assertMaskDownsample, maskGridSize } from './downsample.js';
+import { asMaskRaster, denseRaster, type MaskRaster, type MaskRasterInput } from './mask-raster.js';
 
 /**
  * Allocation is rounded outward to a multiple of this so that repeated strokes
@@ -88,71 +89,68 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     this.gridHeight = grid.height;
   }
 
-  /** Rebuilds a buffer from a snapshot (e.g. after loading a saved annotation). */
-  static fromSnapshot(snapshot: MaskSnapshot, options?: MaskDecodeOptions): BoundedDenseMaskBuffer {
+  /**
+   * Rebuilds a buffer from a mask (e.g. after loading a saved annotation):
+   * any {@link MaskRaster}, or a dense snapshot a host built.
+   */
+  static fromSnapshot(input: MaskRasterInput, options?: MaskDecodeOptions): BoundedDenseMaskBuffer {
+    const raster = asMaskRaster(input);
     const buffer = new BoundedDenseMaskBuffer({
-      imageWidth: snapshot.imageWidth,
-      imageHeight: snapshot.imageHeight,
+      imageWidth: raster.imageWidth,
+      imageHeight: raster.imageHeight,
       ...(options?.maxPixels !== undefined ? { maxPixels: options.maxPixels } : {}),
-      ...(snapshot.downsample !== undefined ? { downsample: snapshot.downsample } : {}),
+      downsample: raster.downsample,
     });
-    if (snapshot.width > 0 && snapshot.height > 0) buffer.blit(snapshot);
+    if (raster.width > 0 && raster.height > 0) buffer.blit(raster);
     return buffer;
   }
 
   /**
-   * Copies a snapshot in wholesale: reserve once, then write row by row.
+   * Copies a raster into this (still empty) buffer: reserve once, then fill
+   * span by span.
    *
    * Going through `set()` per pixel instead cost a bounds check, a growth
    * check, and a call per pixel — enough to stall the first frame of every
    * stroke that refines an existing mask.
    */
-  private blit(snapshot: MaskSnapshot): void {
+  private blit(raster: MaskRaster): void {
     // `set()` screens fractional coordinates one at a time; a bulk copy has to
     // do it once, up front. Skipping it was worse than the per-pixel path it
     // replaced: fractional indices write nowhere while `count` still advances,
     // leaving the buffer permanently claiming pixels it does not have.
-    assertDecodableOrigin(snapshot.x, snapshot.y);
-    assertDecodableArea(snapshot.width, snapshot.height, this.maxPixels);
-    // Every in-tree caller arrives via `decodeCanonical`, which already checked
-    // this. A host handing us a snapshot it built itself — a model's output,
-    // say — does not, and `reserve` clips the overhang away: the mask would
-    // come back quietly truncated on its first refining stroke, which is the
+    assertDecodableOrigin(raster.x, raster.y);
+    // The dense cap is this buffer's own policy: it is what this
+    // implementation allocates, not a property of the mask.
+    assertDecodableArea(raster.width, raster.height, this.maxPixels);
+    // Every in-tree caller arrives via a decoder, which already checked this.
+    // A host handing us a snapshot it built itself — a model's output, say —
+    // does not, and `reserve` clips the overhang away: the mask would come
+    // back quietly truncated on its first refining stroke, which is the
     // failure this guard exists to prevent everywhere else.
     assertBoxInsideImage(
-      snapshot.x,
-      snapshot.y,
-      snapshot.width,
-      snapshot.height,
+      raster.x,
+      raster.y,
+      raster.width,
+      raster.height,
       this.gridWidth,
       this.gridHeight,
     );
 
-    this.reserve({
-      x: snapshot.x,
-      y: snapshot.y,
-      width: snapshot.width,
-      height: snapshot.height,
+    this.reserve({ x: raster.x, y: raster.y, width: raster.width, height: raster.height });
+
+    // Only called on a fresh buffer, so every cell starts at 0 and each span
+    // adds exactly its length. reserve() clips to the image, so a span poking
+    // outside it is written only where it overlaps.
+    raster.forEachSpan((cy, x0, x1) => {
+      const row = cy - this.ay;
+      if (row < 0 || row >= this.ah) return;
+      const left = Math.max(x0, this.ax);
+      const right = Math.min(x1, this.ax + this.aw);
+      if (right <= left) return;
+      const offset = row * this.aw - this.ax;
+      this.data.fill(1, offset + left, offset + right);
+      this.count += right - left;
     });
-
-    // reserve() clips to the image, so a snapshot poking outside it is written
-    // only where it overlaps.
-    const left = Math.max(snapshot.x, this.ax);
-    const top = Math.max(snapshot.y, this.ay);
-    const right = Math.min(snapshot.x + snapshot.width, this.ax + this.aw);
-    const bottom = Math.min(snapshot.y + snapshot.height, this.ay + this.ah);
-
-    for (let y = top; y < bottom; y++) {
-      let src = (y - snapshot.y) * snapshot.width + (left - snapshot.x);
-      let dst = (y - this.ay) * this.aw + (left - this.ax);
-      for (let x = left; x < right; x++, src++, dst++) {
-        const value = snapshot.data[src] === 1 ? 1 : 0;
-        const previous = this.data[dst]!;
-        if (previous === value) continue;
-        this.data[dst] = value;
-        this.count += value === 1 ? 1 : -1;
-      }
-    }
   }
 
   get pixelCount(): number {
@@ -197,6 +195,16 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     this.count += value === 1 ? 1 : -1;
   }
 
+  /** The current cells as a {@link MaskRaster}: a dense, tightly-cropped copy. */
+  raster(): MaskRaster {
+    return denseRaster(this.snapshot());
+  }
+
+  /**
+   * Produces a tightly-cropped, copied dense snapshot of the current pixels.
+   * Specific to this implementation; the {@link MaskBuffer} contract is
+   * {@link BoundedDenseMaskBuffer.raster}.
+   */
   snapshot(): MaskSnapshot {
     if (this.count === 0) return emptySnapshot(this.imageWidth, this.imageHeight);
 

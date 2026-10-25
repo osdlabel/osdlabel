@@ -20,6 +20,8 @@ import {
   stampCircle,
   strokeSegment,
   upsampleSnapshot,
+  denseRaster,
+  toDenseSnapshot,
   type CanonicalMaskData,
   type MaskSnapshot,
 } from '../../src/index.js';
@@ -248,8 +250,10 @@ describe('COCO RLE at a downsample', () => {
   });
 
   it('decodes back to the upsampled mask', () => {
-    const encoded = cocoRleCodec.encode(EDGE);
-    expect(cocoRleCodec.decode!(encoded)).toEqual(upsampleSnapshot(EDGE, Infinity));
+    const encoded = cocoRleCodec.encode(denseRaster(EDGE));
+    expect(toDenseSnapshot(cocoRleCodec.decode!(encoded))).toEqual(
+      upsampleSnapshot(EDGE, Infinity),
+    );
   });
 
   it('matches the upsampled export for a painted mask on a large image', () => {

@@ -11,8 +11,8 @@ import {
   stampCircle,
   strokeSegment,
   type MaskBuffer,
+  type MaskRaster,
   type MaskRegion,
-  type MaskSnapshot,
 } from '@osdlabel/mask';
 import { DEFAULT_MASK_FILL } from '../mask-fabric-object.js';
 import type { ToolOverlay } from '../types.js';
@@ -23,13 +23,15 @@ export interface BrushStrokeCommit {
   readonly annotationId: AnnotationId | null;
   readonly imageId: ImageId;
   readonly contextId: AnnotationContextId;
-  readonly snapshot: MaskSnapshot;
+  /** The mask after the stroke, through the storage-agnostic raster interface. */
+  readonly snapshot: MaskRaster;
 }
 
 /** The mask a stroke should paint into, resolved by the host. */
 export interface BrushTarget {
   readonly annotationId: AnnotationId;
-  readonly snapshot: MaskSnapshot;
+  /** The mask to refine; any raster (`denseRaster` wraps a dense snapshot). */
+  readonly snapshot: MaskRaster;
   /**
    * The tint this mask is already drawn with, if it recorded one.
    *
@@ -293,7 +295,7 @@ export class SegmentationBrushTool extends BaseTool {
       return;
     }
 
-    const snapshot = this.buffer.snapshot();
+    const snapshot = this.buffer.raster();
     const commit: BrushStrokeCommit = {
       annotationId: this.targetId,
       imageId: this.imageId,

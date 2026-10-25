@@ -1,4 +1,11 @@
 import { MaskCapacityExceededError, type MaskRegion, type MaskSnapshot } from './mask-buffer.js';
+import { toDenseSnapshot, type MaskRasterInput } from './mask-raster.js';
+
+/** The placement fields a snapshot and a raster share. */
+export type MaskBoxFields = Pick<
+  MaskSnapshot,
+  'x' | 'y' | 'width' | 'height' | 'imageWidth' | 'imageHeight' | 'downsample'
+>;
 
 /**
  * The coarsest grid a mask may be stored at: 2^16 image pixels per cell side.
@@ -69,7 +76,7 @@ export function maskGridSize(
  * covers image pixels `[cx * d, min((cx + 1) * d, imageWidth))` across and the
  * matching span down, so the box's far edges stop at the image's.
  */
-export function snapshotImageBox(snapshot: MaskSnapshot): MaskRegion {
+export function snapshotImageBox(snapshot: MaskBoxFields): MaskRegion {
   const d = maskDownsampleOf(snapshot);
   if (d === 1 || snapshot.width === 0 || snapshot.height === 0) {
     return { x: snapshot.x, y: snapshot.y, width: snapshot.width, height: snapshot.height };
@@ -152,12 +159,14 @@ export function chooseMaskDownsample(
  * result is `downsample` squared times larger, so it is bounded by `maxPixels`
  * like any other allocation, and refused when it would not fit.
  */
-export function upsampleSnapshot(snapshot: MaskSnapshot, maxPixels: number): MaskSnapshot {
-  const d = maskDownsampleOf(snapshot);
-  if (d === 1) return snapshot;
-  const box = snapshotImageBox(snapshot);
+export function upsampleSnapshot(input: MaskRasterInput, maxPixels: number): MaskSnapshot {
+  const d = maskDownsampleOf(input);
+  if (d === 1) return toDenseSnapshot(input, maxPixels);
+  const box = snapshotImageBox(input);
   const area = box.width * box.height;
   if (area > maxPixels) throw new MaskCapacityExceededError(area, maxPixels);
+  // The cell grid is d^2 smaller than the area just checked.
+  const snapshot = toDenseSnapshot(input, Infinity);
   const data = new Uint8Array(area);
   for (let row = 0; row < box.height; row++) {
     const sourceRow = Math.floor(row / d) * snapshot.width;

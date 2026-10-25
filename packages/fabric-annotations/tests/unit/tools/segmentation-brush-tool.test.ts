@@ -11,7 +11,8 @@ import {
   snapshotImageBox,
   snapshotPixelCount,
   stampCircle,
-  type MaskSnapshot,
+  toDenseSnapshot,
+  type MaskRaster,
 } from '@osdlabel/mask';
 import { SegmentationBrushTool } from '../../../src/tools/segmentation-brush-tool.js';
 import type {
@@ -29,13 +30,13 @@ const shortcuts = createTestKeyboardShortcuts();
 const IMAGE = { width: 400, height: 300 } as const;
 
 /** A painted snapshot to stand in for an existing mask. */
-function paintedSnapshot(radius = 6): MaskSnapshot {
+function paintedSnapshot(radius = 6): MaskRaster {
   const buffer = new BoundedDenseMaskBuffer({
     imageWidth: IMAGE.width,
     imageHeight: IMAGE.height,
   });
   stampCircle(buffer, 100.5, 80.5, radius, 1);
-  return buffer.snapshot();
+  return buffer.raster();
 }
 
 interface Harness {
@@ -417,7 +418,7 @@ describe('SegmentationBrushTool: capacity', () => {
     const big = new BoundedDenseMaskBuffer({ imageWidth: 4096, imageHeight: 4096 });
     stampCircle(big, 2048, 2048, 900, 1);
     const h = harness({
-      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.snapshot() },
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.raster() },
       maxPixels: 64 * 64,
     });
 
@@ -459,7 +460,7 @@ describe('SegmentationBrushTool: capacity', () => {
     const big = new BoundedDenseMaskBuffer({ imageWidth: 4096, imageHeight: 4096 });
     stampCircle(big, 2048, 2048, 900, 1);
     const h = harness({
-      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.snapshot() },
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.raster() },
       maxPixels: 64 * 64,
       existingObjects: [existing],
     });
@@ -508,7 +509,9 @@ describe('SegmentationBrushTool: an entirely erased stroke', () => {
 
     expect(h.commits).toHaveLength(1);
     expect(snapshotPixelCount(h.commits[0]!.snapshot)).toBe(0);
-    expect(h.commits[0]!.snapshot).toEqual(emptySnapshot(IMAGE.width, IMAGE.height));
+    expect(toDenseSnapshot(h.commits[0]!.snapshot)).toEqual(
+      emptySnapshot(IMAGE.width, IMAGE.height),
+    );
   });
 });
 
@@ -689,7 +692,7 @@ describe('SegmentationBrushTool: when the image and the mask disagree about size
     stampCircle(big, 500, 500, 20, 1);
 
     const h = harness({
-      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.snapshot() },
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.raster() },
       imageSize: { width: 200, height: 160 },
     });
 
@@ -1000,7 +1003,7 @@ describe('SegmentationBrushTool: resolution of a new mask', () => {
     });
     down(h.tool, 5000, 5000);
     up(h.tool, 5000, 5000);
-    expect(h.commits[0]!.snapshot.downsample).toBeUndefined();
+    expect(h.commits[0]!.snapshot.downsample).toBe(1);
   });
 
   it('paints a stroke wider than the cap allows at level 0, on a coarser grid', () => {
@@ -1054,7 +1057,7 @@ describe('SegmentationBrushTool: resolution of a new mask', () => {
       downsample: 4,
     });
     stampCircle(buffer, 5000, 5000, 40, 1);
-    const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.snapshot() };
+    const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.raster() };
     const h = harness({
       imageSize: BIG,
       maxPixels: CAP,

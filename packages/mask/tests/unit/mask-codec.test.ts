@@ -3,6 +3,7 @@ import {
   canonicalMaskCodec,
   cocoRleCodec,
   createMaskCodecRegistry,
+  denseRaster,
   emptySnapshot,
   type MaskCodec,
 } from '../../src/index.js';
@@ -25,12 +26,12 @@ describe('createMaskCodecRegistry', () => {
     // An export-only codec: no decode, which the contract allows.
     const pixelCountCodec: MaskCodec<number> = {
       format: 'pixel-count',
-      encode: (snapshot) => snapshot.data.length,
+      encode: (raster) => raster.cellCount,
     };
     const registry = createMaskCodecRegistry(canonicalMaskCodec);
     registry.register(pixelCountCodec);
 
-    expect(registry.require('pixel-count').encode(emptySnapshot(10, 10))).toBe(0);
+    expect(registry.require('pixel-count').encode(denseRaster(emptySnapshot(10, 10)))).toBe(0);
   });
 
   it('lets a later registration replace an earlier one for the same format', () => {

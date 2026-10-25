@@ -36,13 +36,13 @@ export const MAX_STROKE_DASH_ARRAY_LENGTH = 20;
  */
 export const MAX_IMAGE_DIMENSION = 67_108_864 as const; // 2 ** 26
 /**
- * Upper bound on a mask's decoded area (width * height), mirroring
- * `DEFAULT_MAX_MASK_PIXELS` in `@osdlabel/mask`.
+ * The default dense-decode cap, in cells, mirroring `DEFAULT_MAX_MASK_PIXELS`
+ * in `@osdlabel/mask`.
  *
- * Bounding the sides individually is not enough: two values well inside
- * {@link MAX_IMAGE_DIMENSION} still multiply into an allocation large enough
- * to exhaust memory, so the product is what has to be checked. It is also the
- * only bound a mask's box needs — see {@link MAX_IMAGE_DIMENSION}.
+ * **Not** a schema invariant: no schema here checks a mask's area. It is the
+ * runtime default a dense reader applies per mask, where a refusal skips that
+ * mask rather than failing the document, and a reader with sparse storage may
+ * apply a larger one. It sizes {@link MAX_MASK_COUNTS_LENGTH}.
  */
 export const MAX_MASK_PIXELS = 64 * 1024 * 1024;
 /**
