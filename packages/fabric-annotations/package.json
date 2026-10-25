@@ -27,7 +27,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.tests.json",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "measure:mask-downsample": "vitest run --config tests/measure/vitest.measure.config.ts"
   },
   "dependencies": {
     "@osdlabel/annotation": "workspace:*",

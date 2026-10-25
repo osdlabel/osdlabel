@@ -70,9 +70,18 @@ export function buildMaskFabricObject(
   }
   context.putImageData(imageData, 0, 0);
 
+  // One canvas pixel per stored cell, scaled up to the image pixels each cell
+  // covers. The overlay's viewport transform does the rest, as for any other
+  // object; with smoothing off (below) a cell renders as a crisp block. Cells
+  // along a clipped image edge are drawn full-size, so a mask touching that
+  // edge overhangs the image by under one cell — outside the image, where
+  // nothing else is drawn.
+  const downsample = snapshot.downsample ?? 1;
   return new FabricImage(canvas, {
-    left: snapshot.x,
-    top: snapshot.y,
+    left: snapshot.x * downsample,
+    top: snapshot.y * downsample,
+    scaleX: downsample,
+    scaleY: downsample,
     originX: 'left',
     originY: 'top',
     id: options.id,

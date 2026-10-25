@@ -33,3 +33,25 @@ describe('mask geometry math', () => {
     expect(radius(mask)).toBeUndefined();
   });
 });
+
+describe('a downsampled mask', () => {
+  // Stored at 8x, but every field the math reads is in image pixels: the box,
+  // and `pixelCount` (image pixels covered, not cells).
+  const coarse: MaskGeometry = {
+    type: 'mask',
+    origin: { x: 8000, y: 4000 },
+    width: 56_000 - 8000,
+    height: 40_600 - 4000,
+    pixelCount: 900_000_000,
+    downsample: 8,
+  };
+
+  it('reads area, box and anchor exactly as at full resolution', () => {
+    expect(area(coarse)).toBe(900_000_000);
+    expect(boundingBox(coarse)).toEqual({
+      min: { x: 8000, y: 4000 },
+      max: { x: 56_000, y: 40_600 },
+    });
+    expect(centroid(coarse)).toEqual({ x: 32_000, y: 22_300 });
+  });
+});

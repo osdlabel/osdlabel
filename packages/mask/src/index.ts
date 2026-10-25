@@ -1,6 +1,23 @@
 // Runtime pixel storage.
 export type { MaskBuffer, MaskSnapshot, MaskRegion } from './mask-buffer.js';
-export { MaskCapacityExceededError, emptySnapshot, snapshotPixelCount } from './mask-buffer.js';
+export {
+  MaskCapacityExceededError,
+  emptySnapshot,
+  snapshotCellCount,
+  snapshotPixelCount,
+} from './mask-buffer.js';
+
+// Resolution: masks stored on a coarser cell grid than the image.
+export {
+  MAX_MASK_DOWNSAMPLE,
+  assertMaskDownsample,
+  chooseMaskDownsample,
+  isMaskDownsample,
+  maskDownsampleOf,
+  maskGridSize,
+  snapshotImageBox,
+  upsampleSnapshot,
+} from './downsample.js';
 export { BoundedDenseMaskBuffer, DEFAULT_MAX_MASK_PIXELS } from './bounded-dense-mask-buffer.js';
 export {
   assertBoxInsideImage,

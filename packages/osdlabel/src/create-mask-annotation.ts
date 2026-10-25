@@ -8,7 +8,12 @@ import {
 } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { ImageId } from '@osdlabel/viewer-api';
-import { encodeCanonical, snapshotPixelCount, type MaskSnapshot } from '@osdlabel/mask';
+import {
+  encodeCanonical,
+  snapshotImageBox,
+  snapshotPixelCount,
+  type MaskSnapshot,
+} from '@osdlabel/mask';
 import type { OsdAnnotation } from './types.js';
 
 /** Options for {@link createMaskAnnotation}. */
@@ -55,12 +60,19 @@ export interface MaskAnnotationFields {
  * recomputed from the pixels, not the payload rewritten.
  */
 export function maskGeometryFromSnapshot(snapshot: MaskSnapshot): MaskGeometry {
+  // A snapshot's box is in cells; the geometry's is in image pixels at every
+  // downsample, as is `pixelCount`, so every consumer of the geometry —
+  // `area()`, a label anchor, a constraint — reads it without knowing the
+  // payload's resolution.
+  const box = snapshotImageBox(snapshot);
+  const downsample = snapshot.downsample ?? 1;
   return {
     type: 'mask',
-    origin: { x: snapshot.x, y: snapshot.y },
-    width: snapshot.width,
-    height: snapshot.height,
+    origin: { x: box.x, y: box.y },
+    width: box.width,
+    height: box.height,
     pixelCount: snapshotPixelCount(snapshot),
+    ...(downsample !== 1 && box.width > 0 ? { downsample } : {}),
   };
 }
 

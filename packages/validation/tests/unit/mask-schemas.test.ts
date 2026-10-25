@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import * as v from 'valibot';
-import { MAX_IMAGE_DIMENSION, MAX_MASK_COUNTS_LENGTH } from '../../src/schemas/constants.js';
+import {
+  MAX_IMAGE_DIMENSION,
+  MAX_MASK_COUNTS_LENGTH,
+  MAX_MASK_DOWNSAMPLE,
+  MAX_MASK_PIXELS,
+} from '../../src/schemas/constants.js';
 import {
   GeometrySchema,
   MaskGeometrySchema,
@@ -250,5 +255,49 @@ describe('geometry coordinates reject the infinities', () => {
     expect(() => v.parse(PointSchema, { x: Number.POSITIVE_INFINITY, y: 0 })).toThrow();
     expect(() => v.parse(PointSchema, { x: 0, y: Number.NEGATIVE_INFINITY })).toThrow();
     expect(v.parse(PointSchema, { x: 1.5, y: -2.5 })).toEqual({ x: 1.5, y: -2.5 });
+  });
+});
+
+describe('downsampled masks', () => {
+  it('keeps the downsample on both the geometry and the payload', () => {
+    const geometry = { ...validMask, downsample: 8 };
+    expect(v.parse(MaskGeometrySchema, geometry)).toEqual(geometry);
+    const raw = { ...validRaw, data: { ...validRaw.data, x: 8, y: 16, width: 32, downsample: 8 } };
+    // `v.object` strips unknown keys; dropping this one would turn the payload
+    // into a full-resolution one whose runs no longer fill its box.
+    expect(v.parse(MaskRawAnnotationDataSchema, raw).data.downsample).toBe(8);
+  });
+
+  it('accepts only powers of two up to the maximum', () => {
+    for (const downsample of [1, 2, 1024, MAX_MASK_DOWNSAMPLE]) {
+      expect(() => v.parse(MaskGeometrySchema, { ...validMask, downsample })).not.toThrow();
+    }
+    for (const downsample of [0, 3, 1.5, -2, MAX_MASK_DOWNSAMPLE * 2]) {
+      expect(() => v.parse(MaskGeometrySchema, { ...validMask, downsample })).toThrow();
+      expect(() =>
+        v.parse(MaskRawAnnotationDataSchema, {
+          ...validRaw,
+          data: { ...validRaw.data, downsample },
+        }),
+      ).toThrow();
+    }
+  });
+
+  it('caps a payload by its cells, not its image-pixel box', () => {
+    // 16384^2 image pixels is four times the cap; at 2x it is exactly the cap.
+    const data = {
+      ...validRaw.data,
+      x: 0,
+      y: 0,
+      width: 16_384,
+      height: 16_384,
+      imageWidth: 20_000,
+      imageHeight: 20_000,
+    };
+    expect(16_384 * 16_384).toBeGreaterThan(MAX_MASK_PIXELS);
+    expect(() => v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data })).toThrow(/cells/);
+    expect(() =>
+      v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data: { ...data, downsample: 2 } }),
+    ).not.toThrow();
   });
 });

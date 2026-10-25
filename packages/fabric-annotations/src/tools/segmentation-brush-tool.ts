@@ -7,6 +7,7 @@ import {
   BoundedDenseMaskBuffer,
   DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
+  chooseMaskDownsample,
   stampCircle,
   strokeSegment,
   type MaskBuffer,
@@ -193,11 +194,14 @@ export class SegmentationBrushTool extends BaseTool {
       this.targetId = target?.annotationId ?? null;
       this.targetFill = target?.fill;
 
+      // A refined mask keeps the resolution it was stored at; a new one gets
+      // the finest at which the part of the image on screen fits the cap.
       this.buffer = target
         ? BoundedDenseMaskBuffer.fromSnapshot(target.snapshot, this.maxPixelsOption())
         : new BoundedDenseMaskBuffer({
             imageWidth: imageSize.width,
             imageHeight: imageSize.height,
+            downsample: this.newMaskDownsample(imageSize),
             ...this.maxPixelsOption(),
           });
     } catch (error) {
@@ -348,6 +352,87 @@ export class SegmentationBrushTool extends BaseTool {
     return this.erasing ? 0 : 1;
   }
 
+  /**
+   * The downsample a new mask starts at: the smallest power of two at which
+   * the image region on screen — padded by the brush, and by the cells the
+   * rasterizer reserves around each stamp — fits the pixel cap.
+   *
+   * So a stroke that stays in view always fits, whatever the zoom. Zoomed in
+   * far enough that the view covers at most the cap in image pixels (8192^2
+   * by default) this is 1, exactly the behaviour before downsampling existed;
+   * zoomed out over a whole-slide image it is the coarsest grid still finer
+   * than the screen, since a screen is far smaller than the cap.
+   *
+   * An overlay whose canvas does not report a viewport (a stand-in in a test,
+   * say) gets 1.
+   */
+  private newMaskDownsample(imageSize: { width: number; height: number }): number {
+    const visible = this.visibleImageRegion();
+    if (!visible) return 1;
+    const pad = this.radius();
+    return chooseMaskDownsample(
+      {
+        x: visible.x - pad,
+        y: visible.y - pad,
+        width: visible.width + 2 * pad,
+        height: visible.height + 2 * pad,
+      },
+      imageSize.width,
+      imageSize.height,
+      this.maxPixelsOption().maxPixels ?? DEFAULT_MAX_MASK_PIXELS,
+      2,
+    );
+  }
+
+  /**
+   * The image-space box the canvas currently shows: its corners mapped back
+   * through the inverse viewport transform. Rotation and flip are in that
+   * transform, so the box of all four corners covers them.
+   */
+  private visibleImageRegion(): MaskRegion | null {
+    const canvas = this.overlay?.canvas as
+      | {
+          readonly viewportTransform?: unknown;
+          readonly getWidth?: unknown;
+          readonly getHeight?: unknown;
+        }
+      | undefined;
+    const vpt = canvas?.viewportTransform;
+    if (
+      !canvas ||
+      !Array.isArray(vpt) ||
+      vpt.length !== 6 ||
+      typeof canvas.getWidth !== 'function' ||
+      typeof canvas.getHeight !== 'function'
+    ) {
+      return null;
+    }
+    const [a, b, c, d, e, f] = vpt as readonly number[];
+    const det = a! * d! - b! * c!;
+    const width = Number(canvas.getWidth.call(canvas));
+    const height = Number(canvas.getHeight.call(canvas));
+    if (!Number.isFinite(det) || det === 0 || !(width > 0) || !(height > 0)) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const [sx, sy] of [
+      [0, 0],
+      [width, 0],
+      [0, height],
+      [width, height],
+    ] as const) {
+      const x = (d! * (sx - e!) - c! * (sy - f!)) / det;
+      const y = (a! * (sy - f!) - b! * (sx - e!)) / det;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+    if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+
   private maxPixelsOption(): { maxPixels?: number } {
     // Screened, not just forwarded. The buffer raises a plain `RangeError` for
     // a non-positive or non-finite cap, which is not the
@@ -368,6 +453,17 @@ export class SegmentationBrushTool extends BaseTool {
    */
   private paint(apply: () => void, touched: MaskRegion): void {
     if (!this.buffer) return;
+    // `touched` arrives in image pixels; the preview, like the buffer, is in
+    // cells. Rounded outward so a partly-touched cell is still repainted.
+    const d = this.buffer.downsample;
+    const left = Math.floor(touched.x / d);
+    const top = Math.floor(touched.y / d);
+    const touchedCells: MaskRegion = {
+      x: left,
+      y: top,
+      width: Math.ceil((touched.x + touched.width) / d) - left,
+      height: Math.ceil((touched.y + touched.height) / d) - top,
+    };
     try {
       apply();
     } catch (error) {
@@ -379,7 +475,7 @@ export class SegmentationBrushTool extends BaseTool {
       throw error;
     }
     try {
-      this.syncPreview(touched);
+      this.syncPreview(touchedCells);
     } catch (error) {
       // The pixel cap bounds the one-byte buffer, but the preview is a
       // four-byte RGBA raster over up to 1.5x the buffer's box in each axis,
@@ -489,8 +585,9 @@ export class SegmentationBrushTool extends BaseTool {
     // The buffer's size is the right one because it is the space the buffer
     // actually writes in: clamping to it makes the preview and the pixels it
     // displays agree by construction.
-    const imageWidth = this.buffer?.imageWidth ?? bounds.x + bounds.width;
-    const imageHeight = this.buffer?.imageHeight ?? bounds.y + bounds.height;
+    // In cells, like `bounds`: the buffer's grid is the space it writes in.
+    const imageWidth = this.buffer?.gridWidth ?? bounds.x + bounds.width;
+    const imageHeight = this.buffer?.gridHeight ?? bounds.y + bounds.height;
     const marginX = Math.ceil(bounds.width / 2);
     const marginY = Math.ceil(bounds.height / 2);
 
@@ -564,9 +661,15 @@ export class SegmentationBrushTool extends BaseTool {
     this.previewCanvas = canvas;
     this.previewBounds = bounds;
     this.previewPixels = pixels;
+    // One preview pixel per cell, scaled to the image pixels it covers — the
+    // same placement `buildMaskFabricObject` gives the committed mask, so the
+    // stroke does not shift when it is committed.
+    const downsample = this.buffer?.downsample ?? 1;
     this.preview = new FabricImage(canvas, {
-      left: bounds.x,
-      top: bounds.y,
+      left: bounds.x * downsample,
+      top: bounds.y * downsample,
+      scaleX: downsample,
+      scaleY: downsample,
       originX: 'left',
       originY: 'top',
       selectable: false,

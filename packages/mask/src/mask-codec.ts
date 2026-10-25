@@ -29,6 +29,18 @@ export interface MaskDecodeOptions {
 export interface MaskCodec<T = unknown> {
   /** Stable identifier, e.g. `'coco-rle'`. */
   readonly format: string;
+  /**
+   * Whether `encode` honours a snapshot's `downsample`.
+   *
+   * A snapshot's box is in cells, which are image pixels only at downsample 1.
+   * A codec written before downsampled masks existed reads the box as image
+   * pixels and would place such a mask at a fraction of its true position,
+   * silently. So the default is "no": `serialize` refuses to hand a codec that
+   * has not opted in a downsampled snapshot, rather than let it mis-export
+   * one. (Upsampling for it first, through `upsampleSnapshot`, is the
+   * alternative, at `downsample`-squared the memory.)
+   */
+  readonly encodesDownsampled?: boolean | undefined;
   encode(snapshot: MaskSnapshot): T;
   decode?(payload: T, options?: MaskDecodeOptions): MaskSnapshot;
 }

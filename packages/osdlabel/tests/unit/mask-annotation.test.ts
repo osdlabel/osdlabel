@@ -7,6 +7,8 @@ import {
   createMaskCodecRegistry,
   decodeCanonical,
   stampCircle,
+  upsampleSnapshot,
+  type MaskCodec,
 } from '@osdlabel/mask';
 import { MASK_RAW_FORMAT, createAnnotationId } from '@osdlabel/annotation';
 import { Rect } from 'fabric';
@@ -200,5 +202,79 @@ describe('processObjectModified with a mask annotation', () => {
 
     const result = processObjectModified(moved, stateWith(rect), imageId);
     expect(result?.geometry).toMatchObject({ origin: { x: 40, y: 50 } });
+  });
+});
+
+describe('a downsampled mask', () => {
+  /** A 4x mask on a 401x301 image, reaching its clipped last column and row. */
+  function downsampledSnapshot() {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 401, imageHeight: 301, downsample: 4 });
+    stampCircle(buffer, 380, 280, 30, 1);
+    stampCircle(buffer, 384, 284, 6, 0);
+    return buffer.snapshot();
+  }
+
+  it('keeps its geometry in image pixels, with the downsample alongside', () => {
+    const snapshot = downsampledSnapshot();
+    const annotation = createMaskAnnotation(snapshot, { imageId, contextId });
+    if (annotation.geometry.type !== 'mask') throw new Error('expected mask');
+    const expanded = upsampleSnapshot(snapshot, Infinity);
+    expect(annotation.geometry).toEqual({
+      type: 'mask',
+      origin: { x: expanded.x, y: expanded.y },
+      width: expanded.width,
+      height: expanded.height,
+      // Exact image pixels, clipped cells included: what `area()` reports.
+      pixelCount: expanded.data.reduce((sum, v) => sum + v, 0),
+      downsample: 4,
+    });
+    expect(expanded.x + expanded.width).toBe(401);
+    expect(expanded.y + expanded.height).toBe(301);
+  });
+
+  it('round-trips through serialize/deserialize at its own resolution', () => {
+    const snapshot = downsampledSnapshot();
+    const annotation = createMaskAnnotation(snapshot, { imageId, contextId });
+    const restored = deserialize(JSON.parse(JSON.stringify(serialize(stateWith(annotation)))));
+    expect(restored.skipped).toEqual([]);
+    const back = restored.byImage[imageId]?.[annotation.id];
+    expect(back).toBeDefined();
+    expect(back!.geometry).toEqual(annotation.geometry);
+    if (back!.rawAnnotationData.format !== MASK_RAW_FORMAT) throw new Error('expected mask');
+    expect(back!.rawAnnotationData.data.downsample).toBe(4);
+    expect(decodeCanonical(back!.rawAnnotationData.data)).toEqual(snapshot);
+  });
+
+  it('exports to COCO as the level-0 mask it stands for', () => {
+    const snapshot = downsampledSnapshot();
+    const mask = createMaskAnnotation(snapshot, { imageId, contextId });
+    const doc = serialize(stateWith(mask), { maskCodec: cocoRleCodec });
+    const exported = doc.find((a) => a.id === mask.id)!;
+    expect(exported.rawAnnotationData.data).toEqual(
+      cocoRleCodec.encode(upsampleSnapshot(snapshot, Infinity)),
+    );
+  });
+
+  it('refuses a codec that has not opted in, rather than mis-placing the mask', () => {
+    const mask = createMaskAnnotation(downsampledSnapshot(), { imageId, contextId });
+    const legacy: MaskCodec = { format: 'legacy', encode: (s) => ({ x: s.x, y: s.y }) };
+    expect(() => serialize(stateWith(mask), { maskCodec: legacy })).toThrow(
+      /does not declare encodesDownsampled/,
+    );
+    // A full-resolution mask still goes through it, as before.
+    const fine = createMaskAnnotation(paintedSnapshot(), { imageId, contextId });
+    expect(() => serialize(stateWith(fine), { maskCodec: legacy })).not.toThrow();
+  });
+
+  it('skips a payload whose downsample is unusable, without losing the document', () => {
+    const good = createMaskAnnotation(paintedSnapshot(), { imageId, contextId });
+    const bad = createMaskAnnotation(downsampledSnapshot(), { imageId, contextId });
+    const doc = JSON.parse(JSON.stringify(serialize(stateWith(good, bad))));
+    const badEntry = doc.find((a: { id: string }) => a.id === bad.id);
+    badEntry.rawAnnotationData.data.downsample = 3;
+    const restored = deserialize(doc);
+    expect(restored.byImage[imageId]?.[good.id]).toBeDefined();
+    expect(restored.skipped.map((s) => s.id)).toEqual([bad.id]);
+    expect(restored.skipped[0]!.reason).toMatch(/power of two/);
   });
 });

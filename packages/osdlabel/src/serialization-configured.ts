@@ -155,6 +155,15 @@ export function serialize(
       snapshot = decodeCanonical(annotation.rawAnnotationData.data, {
         maxPixels: options.maxMaskPixels,
       });
+      // A codec that has not said it honours `downsample` reads a snapshot's
+      // cell box as image pixels, and would export the mask shrunk towards the
+      // origin by that factor without a word. Refusing is the safe default.
+      if ((snapshot.downsample ?? 1) !== 1 && codec.encodesDownsampled !== true) {
+        throw new RangeError(
+          `codec "${codec.format}" does not declare encodesDownsampled, and this mask is ` +
+            `stored at downsample ${snapshot.downsample}`,
+        );
+      }
       encoded = codec.encode(snapshot);
     } catch (err) {
       throw new SerializationError(

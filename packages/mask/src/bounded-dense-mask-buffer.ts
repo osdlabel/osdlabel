@@ -11,6 +11,7 @@ import {
   assertDecodableOrigin,
 } from './decode-guard.js';
 import type { MaskDecodeOptions } from './mask-codec.js';
+import { assertMaskDownsample, maskGridSize } from './downsample.js';
 
 /**
  * Allocation is rounded outward to a multiple of this so that repeated strokes
@@ -31,8 +32,15 @@ export const DEFAULT_MAX_MASK_PIXELS = 64 * 1024 * 1024;
 export interface BoundedDenseMaskBufferOptions {
   readonly imageWidth: number;
   readonly imageHeight: number;
-  /** Maximum allocated pixels before {@link MaskCapacityExceededError}. */
+  /** Maximum allocated cells before {@link MaskCapacityExceededError}. */
   readonly maxPixels?: number | undefined;
+  /**
+   * Image pixels per cell along each axis: a power of two, default 1. The
+   * buffer then addresses the image's `ceil(side / downsample)` cell grid, and
+   * the cap counts cells, so a coarser grid reaches further across the image
+   * for the same memory.
+   */
+  readonly downsample?: number | undefined;
 }
 
 /**
@@ -49,6 +57,9 @@ export interface BoundedDenseMaskBufferOptions {
 export class BoundedDenseMaskBuffer implements MaskBuffer {
   readonly imageWidth: number;
   readonly imageHeight: number;
+  readonly downsample: number;
+  readonly gridWidth: number;
+  readonly gridHeight: number;
   private readonly maxPixels: number;
 
   /** Allocated region (a superset of the set pixels). */
@@ -69,6 +80,12 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
       throw new RangeError(`maxPixels must be a positive finite number, got ${maxPixels}`);
     }
     this.maxPixels = maxPixels;
+    const downsample = options.downsample ?? 1;
+    assertMaskDownsample(downsample);
+    this.downsample = downsample;
+    const grid = maskGridSize(this.imageWidth, this.imageHeight, downsample);
+    this.gridWidth = grid.width;
+    this.gridHeight = grid.height;
   }
 
   /** Rebuilds a buffer from a snapshot (e.g. after loading a saved annotation). */
@@ -77,6 +94,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
       imageWidth: snapshot.imageWidth,
       imageHeight: snapshot.imageHeight,
       ...(options?.maxPixels !== undefined ? { maxPixels: options.maxPixels } : {}),
+      ...(snapshot.downsample !== undefined ? { downsample: snapshot.downsample } : {}),
     });
     if (snapshot.width > 0 && snapshot.height > 0) buffer.blit(snapshot);
     return buffer;
@@ -106,8 +124,8 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
       snapshot.y,
       snapshot.width,
       snapshot.height,
-      this.imageWidth,
-      this.imageHeight,
+      this.gridWidth,
+      this.gridHeight,
     );
 
     this.reserve({
@@ -158,7 +176,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     // nowhere while still moving pixelCount — leaving the buffer claiming
     // pixels it does not have, and snapshot() reporting negative dimensions.
     if (!Number.isInteger(x) || !Number.isInteger(y)) return;
-    if (x < 0 || y < 0 || x >= this.imageWidth || y >= this.imageHeight) return;
+    if (x < 0 || y < 0 || x >= this.gridWidth || y >= this.gridHeight) return;
 
     let col = x - this.ax;
     let row = y - this.ay;
@@ -225,6 +243,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
       data: cropped,
       imageWidth: this.imageWidth,
       imageHeight: this.imageHeight,
+      ...(this.downsample !== 1 ? { downsample: this.downsample } : {}),
     };
   }
 
@@ -249,8 +268,8 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     }
     const left = Math.max(0, Math.floor(region.x));
     const top = Math.max(0, Math.floor(region.y));
-    const right = Math.min(this.imageWidth, Math.ceil(region.x + region.width));
-    const bottom = Math.min(this.imageHeight, Math.ceil(region.y + region.height));
+    const right = Math.min(this.gridWidth, Math.ceil(region.x + region.width));
+    const bottom = Math.min(this.gridHeight, Math.ceil(region.y + region.height));
     if (right <= left || bottom <= top) return;
     if (
       this.aw > 0 &&
@@ -275,8 +294,8 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
 
     let nx = Math.max(0, Math.floor(minX / GROWTH_CHUNK) * GROWTH_CHUNK);
     let ny = Math.max(0, Math.floor(minY / GROWTH_CHUNK) * GROWTH_CHUNK);
-    let nRight = Math.min(this.imageWidth, Math.ceil((maxX + 1) / GROWTH_CHUNK) * GROWTH_CHUNK);
-    let nBottom = Math.min(this.imageHeight, Math.ceil((maxY + 1) / GROWTH_CHUNK) * GROWTH_CHUNK);
+    let nRight = Math.min(this.gridWidth, Math.ceil((maxX + 1) / GROWTH_CHUNK) * GROWTH_CHUNK);
+    let nBottom = Math.min(this.gridHeight, Math.ceil((maxY + 1) / GROWTH_CHUNK) * GROWTH_CHUNK);
 
     // The chunk rounding is a convenience, not a demand: when it alone would
     // overrun the cap, settle for exactly the region asked for. Otherwise a

@@ -46,6 +46,12 @@ export const MAX_IMAGE_DIMENSION = 67_108_864 as const; // 2 ** 26
  */
 export const MAX_MASK_PIXELS = 64 * 1024 * 1024;
 /**
+ * Coarsest mask grid: image pixels per cell side, mirroring
+ * `MAX_MASK_DOWNSAMPLE` in `@osdlabel/mask` (`osdlabel` asserts at compile
+ * time that they agree).
+ */
+export const MAX_MASK_DOWNSAMPLE = 65_536 as const; // 2 ** 16
+/**
  * Upper bound on an encoded mask payload, **derived** from
  * {@link MAX_MASK_PIXELS} rather than chosen.
  *

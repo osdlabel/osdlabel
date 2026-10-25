@@ -23,7 +23,9 @@ export function area(geometry: Geometry): number {
     case 'polygon':
       return polygonShoelaceArea(geometry.points);
     case 'mask':
-      // Exact: a painted mask knows precisely how many pixels it covers.
+      // Exact: a painted mask knows precisely how many pixels it covers. In
+      // image pixels at every downsample — a coarser grid changes how the
+      // payload stores the mask, not the unit this field is in.
       return geometry.pixelCount;
     case 'line':
     case 'point':

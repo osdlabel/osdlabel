@@ -29,10 +29,10 @@ export const MASK_RAW_FORMAT = 'osdlabel-mask' as const;
 /**
  * The pixel payload carried by a mask annotation.
  *
- * Carries the same seven wire fields as `CanonicalMaskData` in
+ * Carries the same eight wire fields as `CanonicalMaskData` in
  * `@osdlabel/mask` — and, for the same zero-dependency reason, is declared
  * separately. `osdlabel` depends on both and asserts at compile time that
- * those seven still agree exactly, in `mask-wire-format.ts`.
+ * those eight still agree exactly, in `mask-wire-format.ts`.
  *
  * The two types are not interchangeable, and deliberately so. `fill` is an
  * annotation-only field: the codec has no business knowing how a mask is
@@ -51,7 +51,11 @@ export const MASK_RAW_FORMAT = 'osdlabel-mask' as const;
  * path — it also validates the snapshot.
  */
 export interface MaskRawData extends Record<string, unknown> {
-  /** Bounding-box placement in image-space pixels. */
+  /**
+   * Bounding-box placement in image-space (level-0) pixels, at every
+   * downsample. At a downsample `d` above 1, `x` and `y` are multiples of `d`,
+   * and the box's right and bottom edges are too unless they are the image's.
+   */
   readonly x: number;
   readonly y: number;
   readonly width: number;
@@ -59,8 +63,17 @@ export interface MaskRawData extends Record<string, unknown> {
   /** Dimensions of the full image, which formats like COCO RLE require. */
   readonly imageWidth: number;
   readonly imageHeight: number;
-  /** Base64 of LEB128 run lengths, row-major, starting with background. */
+  /**
+   * Base64 of LEB128 run lengths, row-major, starting with background, over
+   * the box's cell grid: `ceil(width / d) x ceil(height / d)` cells.
+   */
   readonly counts: string;
+  /**
+   * Image pixels per stored cell along each axis: a power of two. Absent
+   * means `1`, which is what every payload written before the field existed
+   * meant, so it is written only when above 1.
+   */
+  readonly downsample?: number;
   /**
    * Tint the mask renders with, as a CSS colour. Carried here for the same
    * reason the Fabric envelope carries `fill` — the raw data is the
