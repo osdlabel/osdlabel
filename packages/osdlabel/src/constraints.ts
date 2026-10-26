@@ -104,8 +104,12 @@ export function countAnnotationsForContextAndType(
   return count;
 }
 
-/** Whether the selection is a mask the brush may refine: on this image, in the active context. */
-function canRefineSelectedMask(
+/**
+ * Whether the selection is a mask the brush may refine: on this image, in the
+ * active context. When it is not, the next paint stroke creates a mask — what
+ * a "New mask" control shows as pressed.
+ */
+export function canRefineSelectedMask(
   annotationState: AnnotationState<OsdFields>,
   currentImageId: ImageId,
   activeContextId: AnnotationContextId,

@@ -113,6 +113,13 @@ const CONTEXTS: AnnotationContext[] = [
       { type: 'segmentationBrush' },
     ],
   },
+  {
+    // One mask per image: the brush's New mask control is disabled once it
+    // exists, and a stroke may only refine it.
+    id: 'ctx-4' as AnnotationContextId,
+    label: 'Single mask',
+    tools: [{ type: 'segmentationBrush', maxCount: 1, countScope: 'per-image' }],
+  },
 ];
 
 /** Mask formats the import panel can read back in, beyond the canonical one. */

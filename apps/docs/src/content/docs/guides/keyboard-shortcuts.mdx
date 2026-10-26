@@ -29,6 +29,7 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 | `]`                    | Add a grid row                                                        |
 | `[`                    | Remove a grid row                                                     |
 | `]` / `[`              | Grow / shrink the brush (brush active)                                |
+| `n`                    | New mask: deselect, keeping the brush (brush active)                  |
 | `.` / `>`              | Activate the next annotation context                                  |
 | `,` / `<`              | Activate the previous annotation context                              |
 
@@ -55,6 +56,14 @@ both come from the shortcut map:
   }}
 />
 ```
+
+### New mask
+
+While the segmentation brush is the active tool, `n` (`newMask`) deselects and
+keeps the brush, so the next stroke starts a separate mask instead of refining
+the selected one. It does what the first `Escape` does, but a second press never
+leaves the brush. Outside the brush it does nothing. `Shift+N` is still
+`toggleNegative`.
 
 ### Annotation context cycling
 

@@ -608,4 +608,94 @@ test.describe('Segmentation brush', () => {
       expect(await page.getByTestId('annotations-json').textContent()).toBe(before);
     });
   });
+
+  test.describe('New mask', () => {
+    const boxOf = (a: StoredAnnotation) => ({
+      x: a.geometry.origin!.x,
+      y: a.geometry.origin!.y,
+      w: a.geometry.width!,
+      h: a.geometry.height!,
+    });
+    const newMask = (page: Page) => page.getByTestId('brush-new-mask');
+
+    test('the button makes the next stroke a second mask', async ({ page }) => {
+      const box = await page.locator('canvas.upper-canvas').boundingBox();
+      if (!box) throw new Error('canvas not found');
+      await page.getByTestId('tool-segmentationBrush').click();
+      // Nothing selected: the next stroke creates, and the button says so.
+      await expect(newMask(page)).toHaveAttribute('aria-pressed', 'true');
+
+      await stroke(page, { x: box.x + 200, y: box.y + 160 }, { x: box.x + 260, y: box.y + 160 });
+      expect(await readAnnotations(page)).toHaveLength(1);
+      // The new mask is selected, so the next stroke would refine it.
+      await expect(newMask(page)).toHaveAttribute('aria-pressed', 'false');
+
+      await newMask(page).click();
+      await expect(newMask(page)).toHaveAttribute('aria-pressed', 'true');
+      // Still the brush.
+      await expect(page.getByTestId('brush-eraser')).toBeVisible();
+      await stroke(page, { x: box.x + 200, y: box.y + 240 }, { x: box.x + 260, y: box.y + 240 });
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(2);
+      expect(annotations.every((a) => (a.geometry.pixelCount ?? 0) > 0)).toBe(true);
+    });
+
+    test('the n key does the same, and keeps the brush', async ({ page }) => {
+      const box = await page.locator('canvas.upper-canvas').boundingBox();
+      if (!box) throw new Error('canvas not found');
+      await page.getByTestId('tool-segmentationBrush').click();
+      await stroke(page, { x: box.x + 200, y: box.y + 160 }, { x: box.x + 260, y: box.y + 160 });
+      await expect(newMask(page)).toHaveAttribute('aria-pressed', 'false');
+
+      await page.keyboard.press('n');
+      await expect(newMask(page)).toHaveAttribute('aria-pressed', 'true');
+      // A second press does not leave the brush, as a second Escape would.
+      await page.keyboard.press('n');
+      await expect(page.getByTestId('brush-eraser')).toBeVisible();
+
+      await stroke(page, { x: box.x + 200, y: box.y + 240 }, { x: box.x + 260, y: box.y + 240 });
+      expect(await readAnnotations(page)).toHaveLength(2);
+    });
+
+    test('a stroke over the first mask after New mask makes an overlapping one', async ({
+      page,
+    }) => {
+      const box = await page.locator('canvas.upper-canvas').boundingBox();
+      if (!box) throw new Error('canvas not found');
+      await page.getByTestId('tool-segmentationBrush').click();
+      const from = { x: box.x + 200, y: box.y + 160 };
+      const to = { x: box.x + 260, y: box.y + 160 };
+      await stroke(page, from, to);
+      const [first] = await readAnnotations(page);
+
+      await newMask(page).click();
+      await stroke(page, from, to);
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(2);
+      // The first is untouched; the second covers the same ground.
+      const again = annotations.find((a) => boxOf(a).x === boxOf(first!).x && a !== annotations[1]);
+      expect(again?.geometry.pixelCount).toBe(first!.geometry.pixelCount);
+      const [a, b] = annotations.map(boxOf);
+      expect(a!.x < b!.x + b!.w && b!.x < a!.x + a!.w).toBe(true);
+      expect(a!.y < b!.y + b!.h && b!.y < a!.y + a!.h).toBe(true);
+    });
+
+    test('is disabled in a one-mask context once the mask exists', async ({ page }) => {
+      const box = await page.locator('canvas.upper-canvas').boundingBox();
+      if (!box) throw new Error('canvas not found');
+      await page.getByRole('combobox').selectOption({ label: 'Single mask' });
+      await page.getByTestId('tool-segmentationBrush').click();
+      await expect(newMask(page)).toBeEnabled();
+
+      await stroke(page, { x: box.x + 200, y: box.y + 160 }, { x: box.x + 260, y: box.y + 160 });
+      expect(await readAnnotations(page)).toHaveLength(1);
+      await expect(newMask(page)).toBeDisabled();
+      await expect(newMask(page)).toHaveAttribute('title', /limit of 1 masks is reached/);
+
+      // A stroke with nothing selected is still refused, as before.
+      await page.keyboard.press('n');
+      await stroke(page, { x: box.x + 200, y: box.y + 240 }, { x: box.x + 260, y: box.y + 240 });
+      expect(await readAnnotations(page)).toHaveLength(1);
+    });
+  });
 });

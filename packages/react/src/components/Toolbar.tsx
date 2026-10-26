@@ -1,7 +1,7 @@
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ToolType } from '@osdlabel/annotation';
 import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
-import { preventButtonFocusSteal } from 'osdlabel';
+import { canAddAnnotation, canRefineSelectedMask, preventButtonFocusSteal } from 'osdlabel';
 
 const TOOL_LABELS: Record<ToolType, string> = {
   rectangle: 'Rect',
@@ -14,8 +14,15 @@ const TOOL_LABELS: Record<ToolType, string> = {
 };
 
 export default function Toolbar() {
-  const { uiState, contextState, annotationState, constraintStatus, actions, activeImageId } =
-    useAnnotator();
+  const {
+    uiState,
+    contextState,
+    annotationState,
+    constraintStatus,
+    actions,
+    activeImageId,
+    shortcuts,
+  } = useAnnotator();
 
   const activeContext = (() => {
     if (!contextState.activeContextId) return undefined;
@@ -35,6 +42,24 @@ export default function Toolbar() {
     if (!activeImageId) return undefined;
     return annotationState.byImage[activeImageId]?.[id];
   })();
+  // The brush's next stroke creates a mask unless a mask it can refine is
+  // selected: the same rule the constraints apply, so the two cannot disagree.
+  const activeContextId = contextState.activeContextId;
+  const nextStrokeCreates =
+    !activeImageId ||
+    !activeContextId ||
+    !canRefineSelectedMask(
+      annotationState,
+      activeImageId,
+      activeContextId,
+      uiState.selectedAnnotationId,
+    );
+  const canAddMask = canAddAnnotation(constraintStatus, 'segmentationBrush');
+  const newMaskTitle = canAddMask
+    ? `New mask (${shortcuts.newMask})`
+    : `This context's limit of ${constraintStatus.segmentationBrush.maxCount} masks is ` +
+      `reached; select a mask to refine it`;
+
   const showConvertToRect = selectedAnnotation?.geometry.type === 'circle';
   const canConvertToRect = showConvertToRect && constraintStatus.rectangle.enabled;
 
@@ -166,6 +191,27 @@ export default function Toolbar() {
             }}
           >
             Erase
+          </button>
+          <button
+            data-testid="brush-new-mask"
+            aria-pressed={nextStrokeCreates}
+            disabled={!canAddMask}
+            title={newMaskTitle}
+            // Deselect, keeping the brush: the next stroke starts a mask.
+            onClick={() => actions.setSelectedAnnotation(null)}
+            style={{
+              padding: '4px 10px',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: canAddMask ? 'pointer' : 'not-allowed',
+              opacity: canAddMask ? 1 : 0.5,
+              background: nextStrokeCreates && canAddMask ? '#2196F3' : '#333',
+              color: '#fff',
+              fontWeight: nextStrokeCreates ? 'bold' : 'normal',
+              fontSize: '13px',
+            }}
+          >
+            New mask
           </button>
         </div>
       )}

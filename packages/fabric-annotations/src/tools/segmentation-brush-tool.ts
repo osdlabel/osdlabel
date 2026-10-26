@@ -1,4 +1,4 @@
-import { Circle, Color, FabricImage, type FabricObject } from 'fabric';
+import { Circle, Color, FabricImage, Path, type FabricObject } from 'fabric';
 import { BaseTool, type ToolCallbacks } from './base-tool.js';
 import type { AnnotationId, Point, ToolType } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
@@ -31,6 +31,12 @@ export interface BrushStrokeCommit {
   readonly snapshot: MaskRaster;
 }
 
+/** What the next stroke would paint into, answered without resolving it. */
+export interface BrushTargetPreview {
+  /** The downsample of the mask it would refine. */
+  readonly downsample: number;
+}
+
 /** The mask a stroke should paint into, resolved by the host. */
 export interface BrushTarget {
   readonly annotationId: AnnotationId;
@@ -60,6 +66,14 @@ export interface SegmentationBrushToolConfig {
   /** Persists a finished stroke (create or update). */
   readonly onCommit: (commit: BrushStrokeCommit) => void;
   /**
+   * Whether the next stroke would refine a mask (and at what downsample) or
+   * create one (`null`), without decoding anything: the cursor asks on every
+   * pointer move, to draw a solid ring for refining and a dashed one for
+   * creating. Omitted, the ring is drawn solid, as if refining. Must agree
+   * with {@link SegmentationBrushToolConfig.getTarget}.
+   */
+  readonly peekTarget?: (() => BrushTargetPreview | null) | undefined;
+  /**
    * Tint for painted pixels, overriding whatever the target mask recorded.
    *
    * Only reachable by building the config directly — the `Annotator` path does
@@ -84,6 +98,18 @@ export interface SegmentationBrushToolConfig {
   readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
   readonly maxPixels?: number | undefined;
 }
+
+/** The cursor cue's look; never an annotation (no `id`), never interactive. */
+const CURSOR_STYLE = {
+  fill: 'transparent',
+  stroke: 'rgba(255, 255, 255, 0.9)',
+  strokeWidth: 1,
+  strokeUniform: true,
+  selectable: false,
+  evented: false,
+  _readOnly: true,
+  objectCaching: false,
+} as const;
 
 /**
  * Freehand raster brush: paints (or erases) pixels into a mask annotation.
@@ -123,6 +149,14 @@ export class SegmentationBrushTool extends BaseTool {
 
   /** Ring showing the brush footprint under the cursor. */
   private cursor: Circle | null = null;
+  /**
+   * At a downsample above 1, the outline of the cells a dab there would set,
+   * shown instead of the ring: a circle would promise a precision the mask
+   * does not have.
+   */
+  private cursorCells: Path | null = null;
+  /** Where the cursor was last drawn, to redraw it when what it shows changes. */
+  private cursorPoint: Point | null = null;
 
   /**
    * The committed object for the mask being refined, hidden for the duration of
@@ -325,14 +359,25 @@ export class SegmentationBrushTool extends BaseTool {
     if (this.config.onAdjustRadius && this.shortcuts) {
       if (event.key === this.shortcuts.increaseBrushRadius) {
         this.config.onAdjustRadius(1);
-        this.refreshCursorRadius();
+        this.refreshCursor();
         return true;
       }
       if (event.key === this.shortcuts.decreaseBrushRadius) {
         this.config.onAdjustRadius(-1);
-        this.refreshCursorRadius();
+        this.refreshCursor();
         return true;
       }
+    }
+    // New mask and cancel change what the next stroke paints into, and the
+    // host applies them after this handler returns: redraw the cue then,
+    // rather than leave it stale until the pointer moves.
+    if (
+      !this.painting &&
+      this.shortcuts &&
+      (event.key.toLowerCase() === this.shortcuts.newMask.toLowerCase() ||
+        event.key === this.shortcuts.cancel)
+    ) {
+      queueMicrotask(() => this.refreshCursor());
     }
     if (this.painting && this.shortcuts) {
       if (event.key === this.shortcuts.cancel) {
@@ -748,16 +793,9 @@ export class SegmentationBrushTool extends BaseTool {
       // reactive host cannot accidentally make the tool's lifetime depend on
       // the brush size.
       radius: 1,
-      fill: 'transparent',
-      stroke: 'rgba(255, 255, 255, 0.9)',
-      strokeWidth: 1,
-      strokeUniform: true,
+      ...CURSOR_STYLE,
       originX: 'center',
       originY: 'center',
-      selectable: false,
-      evented: false,
-      _readOnly: true,
-      objectCaching: false,
       visible: false,
     });
     this.overlay.canvas.add(this.cursor);
@@ -765,10 +803,34 @@ export class SegmentationBrushTool extends BaseTool {
 
   private updateCursor(imagePoint: Point): void {
     if (!this.cursor || !this.overlay) return;
+    this.cursorPoint = imagePoint;
+    // Solid when the next stroke refines a mask, dashed when it creates one.
+    // During a stroke, the stroke's own buffer says which grid it paints on.
+    const peek = this.config.peekTarget?.();
+    const creating = peek === null;
+    const downsample = this.buffer?.downsample ?? peek?.downsample ?? 1;
+    const dash = creating ? [5, 4] : null;
+    const cells = downsample > 1 ? this.dabOutline(imagePoint, downsample) : null;
+
+    if (this.cursorCells) {
+      this.overlay.canvas.remove(this.cursorCells);
+      this.cursorCells = null;
+    }
+    if (cells) {
+      this.cursor.set({ visible: false, dirty: true });
+      this.cursorCells = new Path(cells, {
+        ...CURSOR_STYLE,
+        strokeDashArray: dash,
+      });
+      this.overlay.canvas.add(this.cursorCells);
+      this.overlay.canvas.bringObjectToFront(this.cursorCells);
+      return;
+    }
     this.cursor.set({
       left: imagePoint.x,
       top: imagePoint.y,
       radius: this.radius(),
+      strokeDashArray: dash,
       visible: true,
       dirty: true,
     });
@@ -778,21 +840,70 @@ export class SegmentationBrushTool extends BaseTool {
     this.overlay.canvas.bringObjectToFront(this.cursor);
   }
 
+  /**
+   * The outline of the cells a dab at `point` would set on a `downsample`
+   * grid, as path data in image pixels, or `null` when it sets none (off the
+   * image). Computed with the rasterizer itself, so the outline is exactly
+   * the footprint and never an approximation of it.
+   */
+  private dabOutline(point: Point, downsample: number): string | null {
+    const size = this.config.getImageSize();
+    if (!size) return null;
+    const probe = new BoundedDenseMaskBuffer({
+      imageWidth: size.width,
+      imageHeight: size.height,
+      downsample,
+    });
+    stampCircle(probe, point.x, point.y, this.radius(), 1);
+    const { cells, data, imageWidth, imageHeight } = probe.snapshot();
+    if (cells.width === 0 || cells.height === 0) return null;
+    const at = (cx: number, cy: number): boolean =>
+      cx >= cells.x &&
+      cy >= cells.y &&
+      cx < cells.x + cells.width &&
+      cy < cells.y + cells.height &&
+      data[(cy - cells.y) * cells.width + (cx - cells.x)] === 1;
+    const x = (cx: number) => Math.min(cx * downsample, imageWidth);
+    const y = (cy: number) => Math.min(cy * downsample, imageHeight);
+    // One segment per cell edge with an unset cell beyond it.
+    const segments: string[] = [];
+    for (let cy = cells.y; cy < cells.y + cells.height; cy++) {
+      for (let cx = cells.x; cx < cells.x + cells.width; cx++) {
+        if (!at(cx, cy)) continue;
+        if (!at(cx, cy - 1)) segments.push(`M ${x(cx)} ${y(cy)} L ${x(cx + 1)} ${y(cy)}`);
+        if (!at(cx, cy + 1)) segments.push(`M ${x(cx)} ${y(cy + 1)} L ${x(cx + 1)} ${y(cy + 1)}`);
+        if (!at(cx - 1, cy)) segments.push(`M ${x(cx)} ${y(cy)} L ${x(cx)} ${y(cy + 1)}`);
+        if (!at(cx + 1, cy)) segments.push(`M ${x(cx + 1)} ${y(cy)} L ${x(cx + 1)} ${y(cy + 1)}`);
+      }
+    }
+    return segments.join(' ');
+  }
+
   private hideCursor(): void {
     if (!this.cursor) return;
     this.cursor.set({ visible: false, dirty: true });
+    if (this.cursorCells && this.overlay) this.overlay.canvas.remove(this.cursorCells);
+    this.cursorCells = null;
+    this.cursorPoint = null;
     this.overlay?.canvas.requestRenderAll();
   }
 
-  /** After `]` / `[` without a pointer move, the ring would show the old size. */
-  private refreshCursorRadius(): void {
-    if (!this.cursor?.visible) return;
-    this.cursor.set({ radius: this.radius(), dirty: true });
+  /**
+   * Redraws the cue in place after something it shows changed without a
+   * pointer move: the radius (`]` / `[`), or whether the next stroke refines
+   * or creates (New mask, cancel).
+   */
+  private refreshCursor(): void {
+    if (!this.cursorPoint) return;
+    this.updateCursor(this.cursorPoint);
     this.overlay?.canvas.requestRenderAll();
   }
 
   private removeCursor(): void {
     if (this.overlay && this.cursor) this.overlay.canvas.remove(this.cursor);
+    if (this.overlay && this.cursorCells) this.overlay.canvas.remove(this.cursorCells);
     this.cursor = null;
+    this.cursorCells = null;
+    this.cursorPoint = null;
   }
 }

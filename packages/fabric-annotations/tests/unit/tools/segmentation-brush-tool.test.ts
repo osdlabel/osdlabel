@@ -19,6 +19,7 @@ import { SegmentationBrushTool } from '../../../src/tools/segmentation-brush-too
 import type {
   BrushStrokeCommit,
   BrushTarget,
+  BrushTargetPreview,
   SegmentationBrushToolConfig,
 } from '../../../src/tools/segmentation-brush-tool.js';
 import type { ToolOverlay } from '../../../src/types.js';
@@ -71,6 +72,8 @@ function harness(
     readonly radius?: number;
     readonly existingObjects?: FabricObject[];
     readonly activeObjects?: FabricObject[];
+    /** The host's answer to "refine or create?", for the cursor cue. */
+    readonly peekTarget?: () => BrushTargetPreview | null;
     /** Runs on every commit, after it is recorded; stands in for the host's rebuild. */
     readonly onCommit?: (commit: BrushStrokeCommit) => void;
     /**
@@ -122,6 +125,7 @@ function harness(
     onAdjustRadius: (direction) => radiusAdjustments.push(direction),
     onCapacityExceeded: (error) => capacityErrors.push(error),
     ...(options.maxPixels !== undefined ? { maxPixels: options.maxPixels } : {}),
+    ...(options.peekTarget !== undefined ? { peekTarget: options.peekTarget } : {}),
   };
 
   const callbacks: ToolCallbacks = {
@@ -932,6 +936,107 @@ describe('the cursor ring', () => {
     h.tool.onKeyDown({ key: shortcuts.increaseBrushRadius } as KeyboardEvent);
     expect(h.radiusAdjustments).toEqual([1]);
     expect(cursorOf(h)?.radius).toBe(13);
+  });
+});
+
+describe('the cursor cue: refine or create', () => {
+  const ringOf = (h: Harness) =>
+    h.objects.find((o) => !o.id && o.type === 'circle') as
+      | (FabricObject & { visible: boolean; strokeDashArray: number[] | null })
+      | undefined;
+  const cellsOf = (h: Harness) =>
+    h.objects.find((o) => !o.id && o.type === 'path') as
+      | (FabricObject & { path: [string, number, number][]; strokeDashArray: number[] | null })
+      | undefined;
+
+  it('is solid when the next stroke refines a mask, dashed when it creates one', () => {
+    let peek: BrushTargetPreview | null = { downsample: 1 };
+    const h = harness({ peekTarget: () => peek });
+    move(h.tool, 100, 100);
+    expect(ringOf(h)?.visible).toBe(true);
+    expect(ringOf(h)?.strokeDashArray).toBeNull();
+
+    peek = null;
+    move(h.tool, 101, 100);
+    expect(ringOf(h)?.strokeDashArray).not.toBeNull();
+    expect(ringOf(h)!.strokeDashArray!.length).toBeGreaterThan(0);
+  });
+
+  it('stays solid for a host that does not say', () => {
+    const h = harness();
+    move(h.tool, 100, 100);
+    expect(ringOf(h)?.strokeDashArray).toBeNull();
+  });
+
+  it('redraws after New mask or cancel, without waiting for the pointer', async () => {
+    let peek: BrushTargetPreview | null = { downsample: 1 };
+    const h = harness({ peekTarget: () => peek });
+    move(h.tool, 100, 100);
+    expect(ringOf(h)?.strokeDashArray).toBeNull();
+
+    // The host deselects after the tool lets the key through.
+    expect(h.tool.onKeyDown({ key: shortcuts.newMask } as KeyboardEvent)).toBe(false);
+    peek = null;
+    await Promise.resolve();
+    expect(ringOf(h)?.strokeDashArray).not.toBeNull();
+  });
+
+  it('at downsample 4, outlines exactly the cells one dab sets', () => {
+    const radius = 9;
+    const at = { x: 101.3, y: 57.8 };
+    const h = harness({ radius, peekTarget: () => ({ downsample: 4 }) });
+    move(h.tool, at.x, at.y);
+    expect(ringOf(h)?.visible).toBe(false);
+    const outline = cellsOf(h);
+    expect(outline).toBeDefined();
+    expect(outline!.strokeDashArray).toBeNull();
+
+    // Every edge of the outline, to ray-cast cell centres against: an
+    // independent reading of the footprint, not a re-run of the code that drew it.
+    const segments: [number, number, number, number][] = [];
+    for (let i = 0; i + 1 < outline!.path.length; i += 2) {
+      const [, x0, y0] = outline!.path[i]!;
+      const [, x1, y1] = outline!.path[i + 1]!;
+      segments.push([x0, y0, x1, y1]);
+    }
+    const inside = (px: number, py: number) => {
+      let crossings = 0;
+      for (const [x0, y0, x1, y1] of segments) {
+        if (x0 !== x1 || x0 <= px) continue;
+        if (py >= Math.min(y0, y1) && py < Math.max(y0, y1)) crossings++;
+      }
+      return crossings % 2 === 1;
+    };
+
+    const expected = new BoundedDenseMaskBuffer({
+      imageWidth: IMAGE.width,
+      imageHeight: IMAGE.height,
+      downsample: 4,
+    });
+    stampCircle(expected, at.x, at.y, radius, 1);
+    const raster = expected.raster();
+    let set = 0;
+    for (let cy = 0; cy < IMAGE.height / 4; cy++) {
+      for (let cx = 0; cx < IMAGE.width / 4; cx++) {
+        const want = raster.get(cx, cy) === 1;
+        expect(inside(cx * 4 + 2, cy * 4 + 2), `cell ${cx},${cy}`).toBe(want);
+        if (want) set++;
+      }
+    }
+    expect(set).toBeGreaterThan(10);
+  });
+
+  it('shows the dashed ring, not cells, when the stroke would create a mask', () => {
+    // A new mask is always full resolution, so creating never draws cells.
+    let peek: BrushTargetPreview | null = { downsample: 4 };
+    const h = harness({ peekTarget: () => peek });
+    move(h.tool, 100, 100);
+    expect(cellsOf(h)).toBeDefined();
+    peek = null;
+    move(h.tool, 100, 100);
+    expect(cellsOf(h)).toBeUndefined();
+    expect(ringOf(h)?.visible).toBe(true);
+    expect(ringOf(h)?.strokeDashArray).not.toBeNull();
   });
 });
 

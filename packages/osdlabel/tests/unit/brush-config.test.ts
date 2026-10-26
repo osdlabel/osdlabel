@@ -11,7 +11,8 @@ import {
   emptySnapshot,
   stampCircle,
 } from '@osdlabel/mask';
-import { MASK_RAW_FORMAT, createAnnotationId } from '@osdlabel/annotation';
+import { MASK_RAW_FORMAT, createAnnotationId, type AnnotationId } from '@osdlabel/annotation';
+import { MaskCanvasTooLargeError, type BrushCapacityError } from '@osdlabel/fabric-annotations';
 import { buildSegmentationBrushConfig, nextBrushRadius } from '../../src/brush-config.js';
 import { applyUIAction } from '../../src/actions.js';
 import { createInitialUIState } from '../../src/initial-state.js';
@@ -371,5 +372,152 @@ describe('buildSegmentationBrushConfig pixel cap handling', () => {
   it('passes a usable cap through unchanged', () => {
     expect(configWith(5000).maxPixels).toBe(5000);
     expect(configWith(undefined).maxPixels).toBeUndefined();
+  });
+});
+
+describe('New mask', () => {
+  /** A config over live state, the way a binding wires it. */
+  function live(newMaskKey?: string) {
+    let selected: AnnotationId | null = null;
+    let annotations: OsdAnnotation[] = [];
+    const reported: BrushCapacityError[] = [];
+    const config = buildSegmentationBrushConfig(
+      {
+        getBrushRadius: () => 10,
+        isErasing: () => false,
+        getImageSize: () => ({ width: 300, height: 200 }),
+        getSelectedAnnotationId: () => selected,
+        getAnnotationState: () => stateWith(...annotations),
+        getImageId: () => imageId,
+        getActiveContextId: () => contextId,
+        ...(newMaskKey !== undefined ? { getNewMaskShortcut: () => newMaskKey } : {}),
+      },
+      {
+        addAnnotation: (annotation) => annotations.push(annotation),
+        updateAnnotation: (id, _imageId, patch) => {
+          annotations = annotations.map((a) => (a.id === id ? { ...a, ...patch } : a));
+        },
+        deleteAnnotation: (id) => {
+          annotations = annotations.filter((a) => a.id !== id);
+        },
+        setSelectedAnnotation: (id) => {
+          selected = id;
+        },
+        adjustBrushRadius: vi.fn(),
+        onCapacityExceeded: (error) => reported.push(error),
+      },
+    );
+    /** One stroke, the way the tool commits it: into whatever `getTarget` resolves. */
+    const stroke = (x: number) => {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200 });
+      stampCircle(buffer, x, 80, 6, 1);
+      config.onCommit({
+        annotationId: config.getTarget()?.annotationId ?? null,
+        imageId,
+        contextId,
+        snapshot: buffer.raster(),
+      });
+    };
+    return {
+      config,
+      stroke,
+      reported,
+      get selected() {
+        return selected;
+      },
+      get annotations() {
+        return annotations;
+      },
+      /** What the New mask button and shortcut dispatch. */
+      newMask: () => {
+        selected = null;
+      },
+    };
+  }
+
+  it('selects a new mask before adding it, so the brush is never at its limit with nothing selected', () => {
+    const { config, dispatchers } = harness({ selectedId: null });
+    config.onCommit({ annotationId: null, imageId, contextId, snapshot: snapshot() });
+    expect(dispatchers.setSelectedAnnotation).toHaveBeenCalledTimes(1);
+    expect(dispatchers.addAnnotation).toHaveBeenCalledTimes(1);
+    const selectedAt = dispatchers.setSelectedAnnotation.mock.invocationCallOrder[0]!;
+    const addedAt = dispatchers.addAnnotation.mock.invocationCallOrder[0]!;
+    expect(selectedAt).toBeLessThan(addedAt);
+    expect(dispatchers.setSelectedAnnotation.mock.calls[0]![0]).toBe(
+      (dispatchers.addAnnotation.mock.calls[0]![0] as OsdAnnotation).id,
+    );
+  });
+
+  it('makes the next stroke create a second mask, and select it', () => {
+    const h = live();
+    h.stroke(60);
+    expect(h.annotations).toHaveLength(1);
+    const first = h.annotations[0]!.id;
+    expect(h.selected).toBe(first);
+
+    // The default, as before: the next stroke refines the selected mask.
+    expect(h.config.peekTarget!()).toEqual({ downsample: 1 });
+    h.stroke(70);
+    expect(h.annotations).toHaveLength(1);
+
+    h.newMask();
+    expect(h.config.peekTarget!()).toBeNull();
+    h.stroke(200);
+    expect(h.annotations).toHaveLength(2);
+    const second = h.annotations[1]!.id;
+    expect(second).not.toBe(first);
+    expect(h.selected).toBe(second);
+    // And the first mask is untouched by it.
+    expect(h.annotations[0]!.id).toBe(first);
+  });
+
+  it('peeks the same answer getTarget resolves, without decoding', () => {
+    const coarse = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200, downsample: 4 });
+    stampCircle(coarse, 150, 100, 12, 1);
+    const mask4 = createMaskAnnotation(coarse.raster(), {
+      id: createAnnotationId('m4'),
+      imageId,
+      contextId,
+    });
+    const other = createMaskAnnotation(snapshot(), {
+      id: createAnnotationId('other'),
+      imageId,
+      contextId: createAnnotationContextId('elsewhere'),
+    });
+    const rect = createAnnotationFromGeometry(
+      { type: 'rectangle', origin: { x: 1, y: 1 }, width: 5, height: 5, rotation: 0 },
+      { id: createAnnotationId('rect'), imageId, contextId, toolType: 'rectangle' },
+    );
+    for (const [selectedId, expected] of [
+      [null, null],
+      ['m4', { downsample: 4 }],
+      ['other', null],
+      ['rect', null],
+      ['gone', null],
+    ] as const) {
+      const { config } = harness({ selectedId, annotations: [mask4, other, rect] });
+      expect(config.peekTarget!(), String(selectedId)).toEqual(expected);
+      expect(config.getTarget() === null, String(selectedId)).toBe(expected === null);
+    }
+  });
+
+  it('points a capacity failure at New mask, by its bound key', () => {
+    const h = live('m');
+    h.config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50, 2));
+    const error = h.reported[0] as MaskCapacityExceededError;
+    expect(error).toBeInstanceOf(MaskCapacityExceededError);
+    expect([error.requestedCells, error.maxCells, error.downsample]).toEqual([100, 50, 2]);
+    expect(error.message).toMatch(/Start a separate mask with New mask \(m\)\.$/);
+
+    // A canvas too long to draw is not a matter of starting another mask.
+    const tooLong = new MaskCanvasTooLargeError(40_000, 10);
+    h.config.onCapacityExceeded!(tooLong);
+    expect(h.reported[1]).toBe(tooLong);
+
+    // Without a key to name, the error goes through as it was.
+    const plain = live();
+    const original = new MaskCapacityExceededError(100, 50);
+    plain.config.onCapacityExceeded!(original);
+    expect(plain.reported[0]).toBe(original);
   });
 });

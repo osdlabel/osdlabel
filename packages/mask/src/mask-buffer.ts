@@ -140,11 +140,20 @@ export class MaskCapacityExceededError extends Error {
   /** Image pixels per cell along each axis. */
   readonly downsample: number;
 
-  constructor(requestedCells: number, maxCells: number, downsample = 1) {
+  /**
+   * @param advice What to do about it, ending the message. A host that knows
+   * its own controls says so: the brush names its New mask shortcut.
+   */
+  constructor(
+    requestedCells: number,
+    maxCells: number,
+    downsample = 1,
+    advice = 'Paint a smaller region, or start a separate mask.',
+  ) {
     super(
       `Mask would need ${requestedCells} cells at downsample ${downsample}, more than its ` +
         `limit of ${maxCells} — an image-pixel bounding box of ${maxCells * downsample * downsample} ` +
-        `at that downsample. Paint a smaller region, or start a separate mask.`,
+        `at that downsample. ${advice}`,
     );
     this.name = 'MaskCapacityExceededError';
     this.requestedCells = requestedCells;

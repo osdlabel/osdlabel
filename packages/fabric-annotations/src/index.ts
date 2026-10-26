@@ -37,6 +37,7 @@ export type {
   SegmentationBrushToolConfig,
   BrushStrokeCommit,
   BrushTarget,
+  BrushTargetPreview,
 } from './tools/segmentation-brush-tool.js';
 export {
   PolyVertexEditor,

@@ -342,6 +342,73 @@ describe('mapKeyEventToActions — the segmentation brush', () => {
   });
 });
 
+describe('mapKeyEventToActions — New mask', () => {
+  const selected = 'mask-1' as AnnotationId;
+  const brush: KeyboardMappingState = {
+    ...STATE,
+    activeTool: 'segmentationBrush',
+    selectedAnnotationId: selected,
+  };
+
+  it('deselects and keeps the brush, so the next stroke creates a mask', () => {
+    const actions = mapKeyEventToActions(
+      'n',
+      false,
+      DEFAULT_KEYBOARD_SHORTCUTS,
+      brush,
+      ALL_ENABLED,
+    );
+    expect(actions).toEqual([{ type: 'SET_SELECTED_ANNOTATION', payload: null }]);
+    expect(actions.some((a) => a.type === 'SET_ACTIVE_TOOL')).toBe(false);
+  });
+
+  it('never leaves the brush, unlike a second cancel', () => {
+    const nothingSelected = { ...brush, selectedAnnotationId: null };
+    expect(
+      mapKeyEventToActions('n', false, DEFAULT_KEYBOARD_SHORTCUTS, nothingSelected, ALL_ENABLED),
+    ).toEqual([]);
+    expect(
+      mapKeyEventToActions(
+        'Escape',
+        false,
+        DEFAULT_KEYBOARD_SHORTCUTS,
+        nothingSelected,
+        ALL_ENABLED,
+      ),
+    ).toEqual([{ type: 'SET_ACTIVE_TOOL', payload: null }]);
+  });
+
+  it('does nothing outside the brush', () => {
+    for (const activeTool of [null, 'select', 'rectangle', 'polyline'] as const) {
+      expect(
+        mapKeyEventToActions(
+          'n',
+          false,
+          DEFAULT_KEYBOARD_SHORTCUTS,
+          { ...brush, activeTool },
+          ALL_ENABLED,
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it('does not collide with toggleNegative on Shift+N', () => {
+    expect(DEFAULT_KEYBOARD_SHORTCUTS.newMask).toBe('n');
+    expect(DEFAULT_KEYBOARD_SHORTCUTS.toggleNegative).toBe('N');
+    expect(mapKeyEventToActions('N', true, DEFAULT_KEYBOARD_SHORTCUTS, brush, ALL_ENABLED)).toEqual(
+      [{ type: 'TOGGLE_NEGATIVE', payload: { cellIndex: 3 } }],
+    );
+  });
+
+  it('follows a rebinding', () => {
+    const shortcuts = { ...DEFAULT_KEYBOARD_SHORTCUTS, newMask: 'm' };
+    expect(mapKeyEventToActions('n', false, shortcuts, brush, ALL_ENABLED)).toEqual([]);
+    expect(mapKeyEventToActions('m', false, shortcuts, brush, ALL_ENABLED)).toEqual([
+      { type: 'SET_SELECTED_ANNOTATION', payload: null },
+    ]);
+  });
+});
+
 describe('computeConstraintStatus — tool coverage', () => {
   it('reports on the segmentation brush like every other tool', () => {
     // The constraint layer's tool list is what the toolbar and the keyboard

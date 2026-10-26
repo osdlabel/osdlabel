@@ -65,9 +65,9 @@ the following places:
 - **`OsdFieldsSchema.rawAnnotationData` is now a variant**, so
   `v.InferOutput<typeof OsdAnnotationSchema>` widens correspondingly.
 - **`KeyboardShortcutMap` gained `segmentationBrushTool`,
-  `increaseBrushRadius`, and `decreaseBrushRadius`.** Passing a partial map to
-  `keyboardShortcuts` is unaffected; constructing a complete
-  `KeyboardShortcutMap` literal needs the three new keys. Spread
+  `increaseBrushRadius`, `decreaseBrushRadius`, and `newMask`.** Passing a
+  partial map to `keyboardShortcuts` is unaffected; constructing a complete
+  `KeyboardShortcutMap` literal needs the four new keys. Spread
   `DEFAULT_KEYBOARD_SHORTCUTS` instead of listing fields.
 
   Note the default bindings for the last two are `]` and `[`, **the same keys
@@ -216,6 +216,25 @@ whose live preview would pass the limit is refused through
   `Annotator` and `AnnotatorProvider` (`maxPixels`, `onCapacityExceeded`,
   `maskStyle`), plus `setBrushRadius`, `setBrushErasing`, and
   `adjustBrushRadius` actions.
+
+## Which mask a stroke paints into is explicit
+
+A paint stroke refines the selected mask in the active context and otherwise
+creates one, which is then selected; the brush never guesses from where you
+press. A **New mask** button beside Erase in both Toolbars
+(`data-testid="brush-new-mask"`) and the `newMask` shortcut (default `n`, brush
+only) deselect while keeping the brush, so the next stroke starts a separate
+mask. The button is `aria-pressed` while the next stroke will create a mask and
+disabled at the context's `maxCount`. The cursor ring is solid when the next
+stroke refines and dashed when it creates, and on a mask at a downsample above
+1 it is drawn as the cells one dab sets. A capacity failure now says "Start a
+separate mask with New mask (n)", naming the bound key. For hosts:
+`canRefineSelectedMask` (the rule the button and the constraints share),
+`SegmentationBrushToolConfig.peekTarget` with `BrushTargetPreview`,
+`BrushConfigAccessors.getNewMaskShortcut`, and an optional `advice` argument on
+`MaskCapacityExceededError`. A context's last allowed mask is now selected
+before it is added, which fixes the Solid binding switching to the select tool
+the moment that mask was painted.
 
 ## The selected mask is told apart from the others
 

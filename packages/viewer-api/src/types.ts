@@ -160,6 +160,12 @@ export interface KeyboardShortcutMap {
    */
   readonly increaseBrushRadius: string;
   readonly decreaseBrushRadius: string;
+  /**
+   * Start a separate mask: deselect, keeping the brush, so the next stroke
+   * creates a mask instead of refining the selected one. Only while the brush
+   * is the active tool. Unlike `cancel`, a second press never leaves the brush.
+   */
+  readonly newMask: string;
   readonly cancel: string;
   readonly delete: string;
   readonly deleteAlt: string;

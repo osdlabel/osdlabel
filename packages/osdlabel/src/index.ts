@@ -158,6 +158,7 @@ export type {
   BrushCapacityError,
   BrushStrokeCommit,
   BrushTarget,
+  BrushTargetPreview,
   BuildMaskFabricObjectOptions,
   CreateFabricObjectOptions,
   PolyVertexEditorOptions,
@@ -324,6 +325,7 @@ export {
   computeConstraintStatus,
   countAnnotationsForContextAndType,
   canAddAnnotation,
+  canRefineSelectedMask,
 } from './constraints.js';
 
 // Drag-driven viewer control registry

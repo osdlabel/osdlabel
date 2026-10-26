@@ -51,6 +51,7 @@ export function createTestKeyboardShortcuts(): KeyboardShortcutMap {
     decreaseExposure: 'D',
     increaseContrast: 'C',
     decreaseContrast: 'X',
+    newMask: 'n',
     increaseBrushRadius: ']',
     decreaseBrushRadius: '[',
     nextContext: '.',

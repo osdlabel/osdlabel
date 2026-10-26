@@ -7,7 +7,11 @@ import {
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { AnnotationState, ImageId } from '@osdlabel/viewer-api';
 import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
-import { DEFAULT_MAX_MASK_PIXELS, decodeCanonicalRaster } from '@osdlabel/mask';
+import {
+  DEFAULT_MAX_MASK_PIXELS,
+  MaskCapacityExceededError,
+  decodeCanonicalRaster,
+} from '@osdlabel/mask';
 import type {
   BrushCapacityError,
   BrushStrokeCommit,
@@ -50,6 +54,12 @@ export interface BrushConfigAccessors {
    * `DEFAULT_MAX_MASK_PIXELS` ceiling — see {@link BrushOptions.maxPixels}.
    */
   readonly maxPixels?: number | undefined;
+  /**
+   * The key bound to the New mask shortcut (`KeyboardShortcutMap.newMask`), so
+   * the capacity message can point to it: "Start a separate mask with New
+   * mask (n)".
+   */
+  readonly getNewMaskShortcut?: (() => string) | undefined;
 }
 
 /** State mutations the brush triggers. */
@@ -103,10 +113,10 @@ export function buildSegmentationBrushConfig(
   /** The fill recorded on the mask currently being refined, if any. */
   let targetFill: string | undefined;
 
-  const resolveTarget = (): BrushTarget | null => {
+  /** The selected mask a stroke would refine, or `null` when it would create one. */
+  const selectedMask = () => {
     const id = accessors.getSelectedAnnotationId();
     const imageId = accessors.getImageId();
-    targetFill = undefined;
     if (!id || !imageId) return null;
 
     const annotation = accessors.getAnnotationState().byImage[imageId]?.[id];
@@ -116,20 +126,27 @@ export function buildSegmentationBrushConfig(
     // user is not working in — that annotation may not even be displayed.
     const activeContextId = accessors.getActiveContextId();
     if (activeContextId && annotation.contextId !== activeContextId) return null;
+    return { id, data: annotation.rawAnnotationData.data };
+  };
+
+  const resolveTarget = (): BrushTarget | null => {
+    targetFill = undefined;
+    const selected = selectedMask();
+    if (!selected) return null;
 
     // Remember the mask's own tint; re-encoding without it would silently
     // repaint an imported red mask in the default blue.
-    targetFill = annotation.rawAnnotationData.data.fill;
+    targetFill = selected.data.fill;
     // Handed to the tool so the live preview paints in the colour the mask is
     // currently *shown* in — the host's selected tint if there is one, else the
     // mask's own — instead of flashing the default blue for the stroke.
     const previewFill = accessors.getSelectedFill?.() ?? targetFill;
     return {
-      annotationId: id,
+      annotationId: selected.id,
       // The same cap the buffer will use, so a mask the host's lowered cap
       // cannot hold is refused here, where it costs one decode, rather than by
       // the buffer after it.
-      snapshot: decodeCanonicalRaster(annotation.rawAnnotationData.data, { maxPixels }),
+      snapshot: decodeCanonicalRaster(selected.data, { maxPixels }),
       ...(previewFill !== undefined ? { fill: previewFill } : {}),
     };
   };
@@ -159,16 +176,19 @@ export function buildSegmentationBrushConfig(
 
     const fill = accessors.getFill?.();
     const id = createAnnotationId(generateId());
-    dispatchers.addAnnotation(
-      createMaskAnnotation(stroke.snapshot, {
-        id,
-        imageId: stroke.imageId,
-        contextId: stroke.contextId,
-        ...(fill !== undefined ? { fill } : {}),
-      }),
-    );
-    // Select it so the next stroke refines this mask instead of starting another.
+    const annotation = createMaskAnnotation(stroke.snapshot, {
+      id,
+      imageId: stroke.imageId,
+      contextId: stroke.contextId,
+      ...(fill !== undefined ? { fill } : {}),
+    });
+    // Select it so the next stroke refines this mask instead of starting
+    // another — and select it *first*. A context's last allowed mask leaves the
+    // brush enabled only because that mask is selected; added first, there was
+    // a moment at the limit with nothing selected, and a host whose effects run
+    // on every write (Solid's do) switched the brush off in it.
     dispatchers.setSelectedAnnotation(id);
+    dispatchers.addAnnotation(annotation);
   };
 
   return {
@@ -176,12 +196,43 @@ export function buildSegmentationBrushConfig(
     isErasing: accessors.isErasing,
     getImageSize: accessors.getImageSize,
     getTarget: resolveTarget,
+    // The same answer as `getTarget`, without decoding: the cursor asks on
+    // every pointer move.
+    peekTarget: () => {
+      const selected = selectedMask();
+      return selected ? { downsample: selected.data.downsample ?? 1 } : null;
+    },
     onCommit: commit,
     onAdjustRadius: dispatchers.adjustBrushRadius,
     ...(accessors.getFill !== undefined ? { getFill: accessors.getFill } : {}),
     ...(maxPixels !== undefined ? { maxPixels } : {}),
     ...(dispatchers.onCapacityExceeded !== undefined
-      ? { onCapacityExceeded: dispatchers.onCapacityExceeded }
+      ? { onCapacityExceeded: withNewMaskAdvice(dispatchers.onCapacityExceeded, accessors) }
       : {}),
+  };
+}
+
+/**
+ * Points a capacity failure at the remedy the brush offers: a separate mask,
+ * started with the New mask action. The error is otherwise unchanged.
+ */
+function withNewMaskAdvice(
+  report: (error: BrushCapacityError) => void,
+  accessors: BrushConfigAccessors,
+): (error: BrushCapacityError) => void {
+  return (error) => {
+    const key = accessors.getNewMaskShortcut?.();
+    if (!(error instanceof MaskCapacityExceededError) || key === undefined || key === '') {
+      report(error);
+      return;
+    }
+    report(
+      new MaskCapacityExceededError(
+        error.requestedCells,
+        error.maxCells,
+        error.downsample,
+        `Start a separate mask with New mask (${key}).`,
+      ),
+    );
   };
 }

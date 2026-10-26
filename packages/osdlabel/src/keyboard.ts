@@ -47,6 +47,7 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   decreaseExposure: 'D',
   increaseContrast: 'C',
   decreaseContrast: 'X',
+  newMask: 'n',
   increaseBrushRadius: ']',
   decreaseBrushRadius: '[',
   nextContext: '.',
@@ -164,6 +165,17 @@ export function mapKeyEventToActions(
   } else if (!shiftKey && keyLower === shortcuts.segmentationBrushTool.toLowerCase()) {
     if (constraintStatus.segmentationBrush.enabled)
       actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'segmentationBrush' });
+  }
+
+  // New mask: only the brush has one, and it keeps the brush either way.
+  else if (
+    !shiftKey &&
+    state.activeTool === 'segmentationBrush' &&
+    keyLower === shortcuts.newMask.toLowerCase()
+  ) {
+    if (state.selectedAnnotationId !== null) {
+      actions.push({ type: 'SET_SELECTED_ANNOTATION', payload: null });
+    }
   }
 
   // Cancel / Escape

@@ -1567,7 +1567,8 @@ stays enabled while a mask it can refine is selected — one of the active
 context's masks on the current image — and a stroke on empty canvas is refused
 rather than starting another mask. With nothing refinable selected it is
 disabled like any other tool at its limit, and the annotator switches to the
-select tool; selecting a mask enables it again.
+select tool; selecting a mask enables it again. New mask is disabled at the
+limit too, its title saying why — there is no new mask to start.
 
 ## Using it
 
@@ -1579,6 +1580,7 @@ select tool; selecting a mask enables it again.
 | `]` / `[`              | Grow / shrink the brush                        |
 | Brush slider           | Set the radius directly                        |
 | `b`                    | Activate the brush                             |
+| `n` / `New mask`       | Make the next stroke start a separate mask     |
 | `Escape` (mid-stroke)  | Abandon the stroke, leaving the mask unchanged |
 
 Alt-to-erase follows QuPath's brush (CVAT erases with a separate tool). The toolbar toggle is
@@ -1604,16 +1606,34 @@ zoom in.
 
 ### Painting into an existing mask
 
-A stroke **refines the selected mask** if one is selected, and otherwise
-**starts a new one** — which is then selected, so the stroke after that
-continues refining it rather than stacking a second annotation.
+Which mask a stroke paints into is **explicit**; the brush never guesses from
+where you press. A stroke **refines the selected mask** if one is selected in
+the active context, and otherwise **starts a new one** — which is then
+selected, so the stroke after that continues refining it rather than stacking a
+second annotation.
+
+**To start a separate mask, use New mask.** The `New mask` button beside
+`Erase`, or the `n` key (`KeyboardShortcutMap.newMask`), deselects and keeps
+the brush, so the next stroke creates a mask — even one overlapping the first.
+The button shows as pressed whenever the next stroke will create a mask, which
+is the cue on touch and pen, where there is no hover. `Escape` between strokes
+also deselects, but a second press leaves the brush; New mask never does.
+
+**The cursor says the same thing.** The ring is solid when the next stroke will
+refine the selected mask and dashed when it will create one. On a mask stored at
+a downsample above 1, the ring is drawn as the cells one dab sets rather than as
+a circle, since that is all the precision the mask has.
 
 **To switch which mask you are refining, use the select tool.** While the brush
 is active nothing on the canvas is clickable — the overlay puts it in a `paint`
 mode where objects are inert, so that a stroke over a shape paints instead of
 dragging it. Press `v`, click the mask you want, then press `b` and keep
-painting. `Escape` between strokes clears the selection without leaving the
-brush, so the next stroke starts a fresh mask.
+painting.
+
+**If a stroke went into the wrong mask,** erase it back out of that mask (Alt +
+drag over it, or the `Erase` toggle), or, if it started a mask you did not
+want, select that mask and press Delete. There is no undo yet
+([#242](https://github.com/osdlabel/osdlabel/issues/242)).
 
 Two consequences worth knowing:
 
@@ -2087,6 +2107,7 @@ osdlabel is designed for high-throughput annotation tasks with a comprehensive s
 | `]`                    | Add a grid row                                                        |
 | `[`                    | Remove a grid row                                                     |
 | `]` / `[`              | Grow / shrink the brush (brush active)                                |
+| `n`                    | New mask: deselect, keeping the brush (brush active)                  |
 | `.` / `>`              | Activate the next annotation context                                  |
 | `,` / `<`              | Activate the previous annotation context                              |
 
@@ -2113,6 +2134,14 @@ both come from the shortcut map:
   }}
 />
 ```
+
+### New mask
+
+While the segmentation brush is the active tool, `n` (`newMask`) deselects and
+keeps the brush, so the next stroke starts a separate mask instead of refining
+the selected one. It does what the first `Escape` does, but a second press never
+leaves the brush. Outside the brush it does nothing. `Shift+N` is still
+`toggleNegative`.
 
 ### Annotation context cycling
 

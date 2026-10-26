@@ -146,6 +146,8 @@ export function useAnnotationTool(
           maxPixels: annotator.brushOptions.maxPixels,
           // Read per stroke, inside the accessor, so it is not a dependency here.
           getSelectedFill: () => annotator.brushOptions.maskStyle?.selectedFill,
+          // Read when a capacity failure is reported, not a dependency here.
+          getNewMaskShortcut: () => annotator.shortcuts.newMask,
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),

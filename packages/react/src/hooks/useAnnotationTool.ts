@@ -154,6 +154,8 @@ export function useAnnotationTool(
           getActiveContextId: () => store.getSnapshot().contextState.activeContextId,
           maxPixels: brushOptions.maxPixels,
           getSelectedFill: () => brushOptionsRef.current.maskStyle?.selectedFill,
+          // `shortcuts` is already a dependency: the tool is activated with it.
+          getNewMaskShortcut: () => shortcuts.newMask,
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),

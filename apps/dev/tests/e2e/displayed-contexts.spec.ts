@@ -1,7 +1,8 @@
 import { test, expect } from './helpers/fixtures.js';
 import { selectedAnnotationId } from './helpers/selection.js';
 
-// The dev app has 3 contexts: Fracture (ctx-1), Pneumothorax (ctx-2), General (ctx-3).
+// The dev app has 4 contexts: Fracture (ctx-1), Pneumothorax (ctx-2), General (ctx-3),
+// and Single mask (ctx-4).
 // Fracture is active by default, scoped to [landscape, portrait].
 // The "Show:" checkboxes control displayedContextIds via data-testid="display-ctx-{id}".
 
