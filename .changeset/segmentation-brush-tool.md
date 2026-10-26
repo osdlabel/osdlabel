@@ -115,7 +115,12 @@ about storage: `cells` (the box, in cells), the image size, `downsample`,
 one and `decode` returns one, and a decoded canonical payload keeps its runs as
 runs without allocating its box. `MaskSnapshot` and `MaskRaster` nest their box
 as `cells`, so reading cells as image pixels is a compile error;
-`MaskBuffer.cellCount` and `MaskBuffer.cellBounds` are in cells too. A codec
+`MaskBuffer.cellCount` and `MaskBuffer.cellBounds` are in cells too. `denseRaster` refuses
+data that does not fill its box exactly, so a codec's malformed output is
+skipped on import rather than loaded truncated; the readers that turn cells
+into image pixels refuse a box off its image grid, and a pixel count is always
+taken from the spans, never from a raster's own `cellCount`. A payload's
+`downsample: null` is refused like any other unusable factor. A codec
 receives a downsampled mask only if it sets `encodesDownsampled: true`;
 `serialize` refuses to hand one to a codec that has not, rather than let it
 misplace the mask. The COCO codecs opt in and export the level-0 mask, refusing

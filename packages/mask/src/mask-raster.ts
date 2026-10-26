@@ -1,4 +1,10 @@
-import { assertDecodableArea } from './decode-guard.js';
+import {
+  assertBoxInsideImage,
+  assertDecodableArea,
+  assertDecodableOrigin,
+  assertPixelDimensions,
+} from './decode-guard.js';
+import { assertMaskDownsample, maskGridSize } from './downsample.js';
 import { emptySnapshot, type MaskCellBox, type MaskSnapshot } from './mask-buffer.js';
 
 /**
@@ -173,7 +179,25 @@ export type MaskLevel0SpanVisitor = (y: number, x0: number, x1: number) => void;
  * proportional to the image rows covered times the spans per row, never to
  * the box's area.
  */
+/**
+ * Refuses a raster whose box breaks the grid conventions: a factor that is not
+ * a power of two, a fractional or negative origin, or a box outside its
+ * image's cell grid. The encoders and the buffer already refuse such input;
+ * the readers that turn cells into image pixels check it here, so they do not
+ * clip, or place at negative image columns, what the writers would refuse.
+ * Applied to any raster, including a host's own.
+ */
+function assertRasterOnGrid(raster: MaskRaster): void {
+  const { x, y, width, height } = raster.cells;
+  assertMaskDownsample(raster.downsample);
+  assertDecodableOrigin(x, y);
+  assertPixelDimensions(width, height);
+  const grid = maskGridSize(raster.imageWidth, raster.imageHeight, raster.downsample);
+  assertBoxInsideImage(x, y, width, height, grid.width, grid.height);
+}
+
 export function forEachLevel0Span(raster: MaskRaster, visit: MaskLevel0SpanVisitor): void {
+  if (raster.cells.width > 0 && raster.cells.height > 0) assertRasterOnGrid(raster);
   const d = raster.downsample;
   const { imageWidth, imageHeight } = raster;
   let row = -1;
@@ -213,6 +237,16 @@ class DenseMaskRaster implements MaskRaster {
   private count: number | undefined;
 
   constructor(snapshot: MaskSnapshot) {
+    // The data is the box's cells, row-major: nothing else. A shorter array
+    // read its missing cells as clear, and a longer one was counted but never
+    // drawn or encoded — both silently, now that codecs return rasters.
+    const { width, height } = snapshot.cells;
+    assertPixelDimensions(width, height);
+    if (snapshot.data.length !== width * height) {
+      throw new RangeError(
+        `Snapshot data has ${snapshot.data.length} pixels but its box describes ${width * height}`,
+      );
+    }
     this.dense = snapshot;
     this.cells = snapshot.cells;
     this.imageWidth = snapshot.imageWidth;
@@ -444,6 +478,7 @@ export function toDenseSnapshot(raster: MaskRasterInput, maxCells?: number): Mas
   if (box.width === 0 || box.height === 0) {
     return emptySnapshot(raster.imageWidth, raster.imageHeight);
   }
+  assertRasterOnGrid(raster);
   assertDecodableArea(box.width, box.height, maxCells, raster.downsample);
   const data = new Uint8Array(box.width * box.height);
   const { x, y, width } = box;
@@ -466,8 +501,20 @@ export function toDenseSnapshot(raster: MaskRasterInput, maxCells?: number): Mas
  * count at their clipped size.
  */
 export function rasterPixelCount(raster: MaskRaster): number {
+  const box = raster.cells;
+  if (box.width === 0 || box.height === 0) return 0;
+  assertRasterOnGrid(raster);
   const d = raster.downsample;
-  if (d === 1) return raster.cellCount;
+  // Counted from the spans at every downsample, never taken from `cellCount`:
+  // a host raster's count is a claim, and the geometry written from this
+  // would disagree with the payload until the next round trip replaced it.
+  if (d === 1) {
+    let cells = 0;
+    forEachCheckedSpan(raster, (_cy, x0, x1) => {
+      cells += x1 - x0;
+    });
+    return cells;
+  }
   const lastCol = Math.ceil(raster.imageWidth / d) - 1;
   const lastRow = Math.ceil(raster.imageHeight / d) - 1;
   const clipCol = d - (raster.imageWidth - lastCol * d);

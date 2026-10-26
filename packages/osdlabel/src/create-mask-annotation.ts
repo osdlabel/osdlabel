@@ -72,7 +72,7 @@ export function maskGeometryFromSnapshot(snapshot: MaskRasterInput): MaskGeometr
     width: box.width,
     height: box.height,
     pixelCount: snapshotPixelCount(snapshot),
-    ...(downsample !== 1 && box.width > 0 ? { downsample } : {}),
+    ...(downsample !== 1 && box.width > 0 && box.height > 0 ? { downsample } : {}),
   };
 }
 

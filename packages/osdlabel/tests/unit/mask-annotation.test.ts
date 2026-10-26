@@ -77,6 +77,28 @@ describe('createMaskAnnotation', () => {
   });
 });
 
+describe('a mask with an empty box', () => {
+  it('has empty geometry with no downsample, whatever box it was left with', () => {
+    const annotation = createMaskAnnotation(
+      {
+        cells: { x: 10, y: 3, width: 5, height: 0 },
+        data: new Uint8Array(0),
+        imageWidth: 100,
+        imageHeight: 100,
+        downsample: 4,
+      },
+      { imageId, contextId },
+    );
+    expect(annotation.geometry).toEqual({
+      type: 'mask',
+      origin: { x: 0, y: 0 },
+      width: 0,
+      height: 0,
+      pixelCount: 0,
+    });
+  });
+});
+
 describe('a mask past the format cap', () => {
   // 13,000 square with one painted cell: built from runs, never allocated.
   const SIDE = 13_000;

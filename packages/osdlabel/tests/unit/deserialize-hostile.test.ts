@@ -4,6 +4,7 @@ import {
   createMaskCodecRegistry,
   cocoRleCodec,
   cocoRleUncompressedCodec,
+  denseRaster,
   encodeCanonical,
 } from '@osdlabel/mask';
 import { MAX_MASK_COUNTS_LENGTH, MAX_MASK_PIXELS } from '@osdlabel/validation';
@@ -725,7 +726,9 @@ describe('deserialize: a hostile payload at a downsample', () => {
   }
 
   it('skips a downsample that is not a power of two from 2 to 2^16', () => {
-    for (const downsample of [3, 6, 0, -4, 1.5, 2 ** 17, 2 ** 30, Number.MAX_SAFE_INTEGER]) {
+    // `null` too: only an absent field means 1. It used to pass the decode as
+    // 1 and then fail the schema, which costs the whole document.
+    for (const downsample of [3, 6, 0, -4, 1.5, 2 ** 17, 2 ** 30, Number.MAX_SAFE_INTEGER, null]) {
       const doc = [maskAnnotation(solidAt(downsample, 2)), vectorAnnotation('img-1', 'rect')];
       const { byImage, skipped } = deserialize(doc);
       expect(Object.keys(byImage['img-1' as never]!)).toEqual(['rect']);
@@ -780,5 +783,42 @@ describe('deserialize: a hostile payload at a downsample', () => {
     expect(() => deserialize(doc, { maxTotalMaskPixels: 1024 * 1024 - 1 })).toThrow(
       SerializationError,
     );
+  });
+});
+
+describe('deserialize: a codec that returns a raster its data does not fill', () => {
+  // A third-party codec that builds its own snapshot. Wrapped with
+  // `denseRaster`, a too-short array read its missing cells as clear and a
+  // too-long one inflated the pixel count; both were imported as valid.
+  const fill = (length: number) => ({
+    format: 'short-or-long',
+    encode: () => ({}),
+    decode: () =>
+      denseRaster({
+        cells: { x: 0, y: 0, width: 4, height: 4 },
+        data: new Uint8Array(length).fill(1),
+        imageWidth: 16,
+        imageHeight: 16,
+        downsample: 1,
+      }),
+  });
+
+  it('skips a mask whose decoded data is too short or too long', () => {
+    for (const length of [15, 17]) {
+      const { byImage, skipped } = deserialize(
+        [maskAnnotation({ any: 'thing' }, 'short-or-long'), vectorAnnotation('img-1', 'rect')],
+        { maskCodecs: createMaskCodecRegistry(fill(length)) },
+      );
+      expect(Object.keys(byImage['img-1' as never]!)).toEqual(['rect']);
+      expect(skipped).toHaveLength(1);
+      expect(skipped[0]!.reason).toMatch(
+        new RegExp(`Snapshot data has ${length} pixels but its box describes 16`),
+      );
+    }
+    // The same codec with data that fills its box loads.
+    const { skipped } = deserialize([maskAnnotation({ any: 'thing' }, 'short-or-long')], {
+      maskCodecs: createMaskCodecRegistry(fill(16)),
+    });
+    expect(skipped).toEqual([]);
   });
 });

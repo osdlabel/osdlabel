@@ -11,7 +11,6 @@ import type { MaskCodec, MaskDecodeOptions } from './mask-codec.js';
 import { assertMaskDownsample, maskGridSize, snapshotImageBox } from './downsample.js';
 import {
   asMaskRaster,
-  isMaskRaster,
   rasterToRuns,
   runRaster,
   toDenseSnapshot,
@@ -149,13 +148,9 @@ export function encodeCanonical(input: MaskRasterInput): CanonicalMaskData {
  */
 export function encodeCanonicalUncapped(input: MaskRasterInput): CanonicalMaskData {
   const area = input.cells.width * input.cells.height;
-  if (!isMaskRaster(input) && input.data.length !== area) {
-    throw new RangeError(
-      `Snapshot data has ${input.data.length} pixels but its box describes ${area}`,
-    );
-  }
   // Everything below reads the mask through the raster interface, so the
-  // payload is the same whatever stores the cells.
+  // payload is the same whatever stores the cells. Wrapping a dense snapshot
+  // checks that its data fills its box exactly.
   const snapshot = asMaskRaster(input);
   const downsample = snapshot.downsample;
   assertMaskDownsample(downsample);
@@ -260,7 +255,8 @@ export function decodeCanonicalRaster(
   data: CanonicalMaskData,
   options?: MaskDecodeOptions,
 ): MaskRaster {
-  const downsample = data.downsample ?? 1;
+  // Only an absent field means 1: `null` is a value, and not a power of two.
+  const downsample = data.downsample === undefined ? 1 : data.downsample;
   assertMaskDownsample(downsample);
   assertPixelDimensions(data.width, data.height);
   const cellsWide = Math.ceil(data.width / downsample);

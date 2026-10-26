@@ -79,9 +79,10 @@ export function maskGridSize(
 export function snapshotImageBox(snapshot: MaskBoxFields): MaskRegion {
   const d = snapshot.downsample;
   const cells = snapshot.cells;
-  if (d === 1 || cells.width === 0 || cells.height === 0) {
-    return { x: cells.x, y: cells.y, width: cells.width, height: cells.height };
-  }
+  // A box with no area is the empty mask, whatever origin it was left with —
+  // in cells, which at d > 1 are not image pixels.
+  if (cells.width === 0 || cells.height === 0) return { x: 0, y: 0, width: 0, height: 0 };
+  if (d === 1) return { x: cells.x, y: cells.y, width: cells.width, height: cells.height };
   const x = cells.x * d;
   const y = cells.y * d;
   return {

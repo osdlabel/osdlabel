@@ -32,8 +32,10 @@ dense one without touching the brush tool, the codecs, or the renderer.
 Everything that reads a mask — the codecs, the renderer, the exporters — reads
 it through `MaskRaster`, a read-only view that makes no promise about storage:
 `cells` (the box, in cells), the image size, `downsample`, `cellCount`,
-`get(cx, cy)`, and `forEachSpan(visit, within?)`, which visits maximal runs of
-set cells in row order, optionally limited to a window. `denseRaster` wraps a
+`get(cx, cy)`, and `forEachSpan(visit, within?)`, which visits disjoint spans
+of set cells in row order, optionally limited to a window. Spans may touch — a
+decoded payload or a tiled store splits runs where its storage does — so
+merge touching spans if you need maximal runs, as `forEachLevel0Span` does. `denseRaster` wraps a
 snapshot, `decodeCanonicalRaster` keeps a payload's runs as runs without
 allocating its box, and `forEachCheckedSpan` enforces the span contract on any
 raster a host supplies. `forEachLevel0Span` walks the image pixels a raster

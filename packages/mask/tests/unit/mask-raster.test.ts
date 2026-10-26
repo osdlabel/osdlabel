@@ -8,8 +8,11 @@ import {
   forEachCheckedSpan,
   forEachLevel0Span,
   rasterPixelCount,
+  snapshotImageBox,
   snapshotPixelCount,
   stampCircle,
+  toDenseSnapshot,
+  encodeCanonical as encode,
   strokeSegment,
   upsampleSnapshot,
   type MaskCellBox,
@@ -220,5 +223,116 @@ describe('the cell box is nested', () => {
     // @ts-expect-error -- likewise on a raster
     expect(raster.width).toBeUndefined();
     expect(snapshot.cells).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+  });
+});
+
+describe('a dense snapshot must fill its box', () => {
+  const box = { x: 2, y: 3, width: 4, height: 2 };
+  const withData = (length: number) => ({
+    cells: box,
+    data: new Uint8Array(length).fill(1),
+    imageWidth: 20,
+    imageHeight: 20,
+    downsample: 1,
+  });
+
+  it('refuses data shorter or longer than the box, by name', () => {
+    for (const length of [7, 9, 0]) {
+      expect(() => denseRaster(withData(length))).toThrow(
+        new RangeError(`Snapshot data has ${length} pixels but its box describes 8`),
+      );
+      // Every writer and reader reached through it refuses too.
+      expect(() => encode(withData(length))).toThrow(RangeError);
+    }
+    expect(denseRaster(withData(8)).cellCount).toBe(8);
+  });
+
+  it('refuses a box with fractional or negative sides', () => {
+    for (const cells of [
+      { x: 0, y: 0, width: 0.5, height: 4 },
+      { x: 0, y: 0, width: -2, height: -4 },
+    ]) {
+      expect(() =>
+        denseRaster({
+          cells,
+          data: new Uint8Array(2),
+          imageWidth: 20,
+          imageHeight: 20,
+          downsample: 1,
+        }),
+      ).toThrow(RangeError);
+    }
+  });
+});
+
+describe('pixel counts come from the spans, not from what a raster claims', () => {
+  /** A host raster whose `cellCount` disagrees with its spans. */
+  const lying = (raster: MaskRaster, claimed: number): MaskRaster => ({
+    cells: raster.cells,
+    imageWidth: raster.imageWidth,
+    imageHeight: raster.imageHeight,
+    downsample: raster.downsample,
+    cellCount: claimed,
+    get: (cx, cy) => raster.get(cx, cy),
+    forEachSpan: (visit, within) => raster.forEachSpan(visit, within),
+  });
+
+  it('at every downsample', () => {
+    for (const downsample of [1, 4]) {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: 64, imageHeight: 64, downsample });
+      for (let cx = 2; cx < 6; cx++) for (let cy = 2; cy < 6; cy++) buffer.set(cx, cy, 1);
+      const honest = buffer.raster();
+      expect(rasterPixelCount(lying(honest, 3))).toBe(rasterPixelCount(honest));
+      expect(snapshotPixelCount(lying(honest, 3))).toBe(16 * downsample * downsample);
+    }
+  });
+});
+
+describe('the level-0 readers refuse a box off its image grid', () => {
+  /** A one-span host raster with whatever box it is given. */
+  const offGrid = (cells: MaskCellBox, downsample = 4): MaskRaster => ({
+    cells,
+    imageWidth: 37,
+    imageHeight: 23,
+    downsample,
+    cellCount: 1,
+    get: () => 0,
+    forEachSpan: (visit) => visit(cells.y, cells.x, cells.x + 1),
+  });
+
+  it('outside the cell grid, at a negative origin, or at an unusable factor', () => {
+    const bad: MaskRaster[] = [
+      offGrid({ x: 9, y: 2, width: 2, height: 1 }), // the grid is 10 cells wide
+      offGrid({ x: -1, y: 2, width: 2, height: 1 }),
+      offGrid({ x: 2.5, y: 2, width: 2, height: 1 }),
+      offGrid({ x: 2, y: 2, width: 2, height: 1 }, 3),
+    ];
+    for (const raster of bad) {
+      expect(() => forEachLevel0Span(raster, () => {})).toThrow(RangeError);
+      expect(() => toDenseSnapshot(raster, Infinity)).toThrow(RangeError);
+      expect(() => rasterPixelCount(raster)).toThrow(RangeError);
+    }
+    // On the grid, the same raster reads fine.
+    const good = offGrid({ x: 8, y: 2, width: 2, height: 1 });
+    expect(rasterPixelCount(good)).toBe(16);
+  });
+});
+
+describe('a box with no area is the empty mask, in every unit', () => {
+  it('whatever origin and width a host left it with', () => {
+    const degenerate = {
+      cells: { x: 10, y: 3, width: 5, height: 0 },
+      data: new Uint8Array(0),
+      imageWidth: 100,
+      imageHeight: 100,
+      downsample: 4,
+    };
+    expect(snapshotImageBox(degenerate)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+    expect(snapshotImageBox({ ...degenerate, downsample: 1 })).toEqual({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    });
   });
 });

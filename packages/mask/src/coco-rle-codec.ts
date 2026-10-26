@@ -19,7 +19,6 @@ import {
   asMaskRaster,
   denseRaster,
   forEachCheckedSpan,
-  isMaskRaster,
   type MaskRasterInput,
 } from './mask-raster.js';
 
@@ -207,11 +206,7 @@ interface CocoSweep {
  */
 function prepareCocoSweep(input: MaskRasterInput): CocoSweep {
   const cells = input.cells;
-  if (!isMaskRaster(input) && input.data.length !== cells.width * cells.height) {
-    throw new RangeError(
-      `Snapshot data has ${input.data.length} pixels but its box describes ${cells.width * cells.height}`,
-    );
-  }
+  // Wrapping a dense snapshot checks that its data fills its box exactly.
   const raster = asMaskRaster(input);
   const { imageWidth, imageHeight } = raster;
   const { x, y, width, height } = cells;

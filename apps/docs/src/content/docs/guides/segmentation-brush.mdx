@@ -435,13 +435,16 @@ interface MaskRaster {
   readonly downsample: number; // image px per cell, a power of two
   readonly cellCount: number; // set cells
   get(cx: number, cy: number): 0 | 1;
-  /** Each maximal run of set cells, row by row; `within` limits the walk. */
+  /** Disjoint spans of set cells, row by row; they may touch. `within` limits the walk. */
   forEachSpan(visit: (cy: number, x0: number, x1: number) => void, within?: MaskCellBox): void;
 }
 ```
 
 `forEachSpan` visits spans in row order, left to right, in absolute cell
-coordinates (`x1` exclusive). Pass a `within` window to visit only the spans
+coordinates (`x1` exclusive). Spans are disjoint but may touch — a decoded
+payload splits a run where one of its runs ends, a tiled store at its tile
+edges — so merge touching spans if you need maximal runs, as
+`forEachLevel0Span` does. Pass a `within` window to visit only the spans
 that intersect it, clipped to it; a raster may ignore the hint, so read through
 `forEachCheckedSpan(raster, visit, within)` from `@osdlabel/mask` when you need
 the clipping guaranteed — it also rejects spans that are empty, overlapping,
