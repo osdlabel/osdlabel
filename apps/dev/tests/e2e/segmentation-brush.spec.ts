@@ -92,7 +92,7 @@ async function zoomOnto(page: Page, point: { x: number; y: number }, zoom: numbe
 async function zoomToImageScale(
   page: Page,
   point: { x: number; y: number },
-  screenPerImage: number,
+  screenPerImage: number | null,
 ): Promise<void> {
   await page.evaluate(
     ([pt, scale]) => {
@@ -102,8 +102,10 @@ async function zoomToImageScale(
               viewport: {
                 imageToViewportCoordinates(x: number, y: number): unknown;
                 imageToViewportZoom(imageZoom: number): number;
+                getMinZoom(): number;
                 zoomTo(zoom: number, ref: unknown, immediately: boolean): void;
                 panTo(center: unknown, immediately: boolean): void;
+                applyConstraints(immediately: boolean): void;
               };
             };
           })
@@ -111,12 +113,28 @@ async function zoomToImageScale(
       const viewport = el?.__osdViewer?.viewport;
       if (!viewport) throw new Error('test hooks not installed');
       const center = viewport.imageToViewportCoordinates(pt.x, pt.y);
-      viewport.zoomTo(viewport.imageToViewportZoom(scale), center, true);
+      // `null` asks for the farthest out the viewer allows. Anything past its
+      // limits springs back on the next interaction, so the view the stroke
+      // is pressed in would depend on timing; settle it now instead.
+      const zoom = scale === null ? viewport.getMinZoom() : viewport.imageToViewportZoom(scale);
+      viewport.zoomTo(zoom, center, true);
       viewport.panTo(center, true);
+      viewport.applyConstraints(true);
     },
     [point, screenPerImage] as const,
   );
   await page.waitForTimeout(300);
+}
+
+/** Image pixels per screen pixel in the active cell, as the overlay maps them. */
+function imagePerScreen(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const el = document.querySelector('.openseadragon-canvas') as
+      | (Element & { __osdOverlay?: { canvas: { getZoom(): number } } })
+      | null;
+    if (!el?.__osdOverlay) throw new Error('test hooks not installed');
+    return 1 / el.__osdOverlay.canvas.getZoom();
+  });
 }
 
 /** Unsigned LEB128 run lengths, base64'd: the canonical payload's `counts`. */
@@ -165,6 +183,23 @@ const COARSE_DOC = [
     },
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
+/** The same block at downsample 2: 60 x 40 cells. */
+const COARSE2_DOC = [
+  {
+    ...COARSE_DOC[0]!,
+    id: 'coarse-mask-2',
+    geometry: { ...COARSE_DOC[0]!.geometry, downsample: 2 },
+    rawAnnotationData: {
+      format: 'osdlabel-mask',
+      data: {
+        ...COARSE_DOC[0]!.rawAnnotationData.data,
+        counts: canonicalCounts([0, 60 * 40]),
+        downsample: 2,
+      },
+    },
   },
 ];
 
@@ -669,10 +704,12 @@ test.describe('Segmentation brush', () => {
       await page.getByTestId('tool-segmentationBrush').click();
     }
 
-    test('a stroke made zoomed out keeps downsample 4', async ({ page }) => {
-      await importDocument(page, COARSE_DOC);
-      // Four image pixels to a screen pixel: nothing finer than d=4 is shown.
-      await zoomToImageScale(page, inside, 0.25);
+    test('zoomed out as far as the viewer goes, a d=2 mask keeps its grid', async ({ page }) => {
+      await importDocument(page, COARSE2_DOC);
+      await zoomToImageScale(page, inside, null);
+      // This viewer stops at under three image pixels a screen pixel: nothing
+      // finer than d=2 is shown, so a stroke paints at the mask's own grid.
+      expect(await imagePerScreen(page)).toBeGreaterThanOrEqual(2);
       await refineCoarse(page);
       const from = await imageToClient(page, { x: 340, y: 200 });
       const to = await imageToClient(page, { x: 450, y: 200 });
@@ -681,14 +718,36 @@ test.describe('Segmentation brush', () => {
       const annotations = await readAnnotations(page);
       expect(annotations).toHaveLength(1);
       const { geometry, rawAnnotationData } = annotations[0]!;
-      expect(geometry.downsample).toBe(4);
-      expect(rawAnnotationData?.data?.['downsample']).toBe(4);
-      // Grew to the right, still on the 4-pixel grid.
+      expect(geometry.downsample).toBe(2);
+      expect(rawAnnotationData?.data?.['downsample']).toBe(2);
+      // Grew to the right, still on the 2-pixel grid.
       expect(geometry.origin).toEqual({ x: COARSE_BOX.x, y: COARSE_BOX.y });
       expect(geometry.width!).toBeGreaterThan(COARSE_BOX.width + 60);
-      expect(geometry.width! % 4).toBe(0);
+      expect(geometry.width! % 2).toBe(0);
       expect(geometry.pixelCount!).toBeGreaterThan(COARSE_BOX.width * COARSE_BOX.height);
-      expect(geometry.pixelCount! % 16).toBe(0);
+      expect(geometry.pixelCount! % 4).toBe(0);
+    });
+
+    test('zoomed out, a d=4 mask re-grids only as finely as the view shows', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      await zoomToImageScale(page, inside, null);
+      // The finest power of two the view shows, read from the overlay rather
+      // than assumed: the viewer's limits depend on its size.
+      const perScreen = await imagePerScreen(page);
+      let expected = 1;
+      while (expected * 2 <= perScreen * (1 + 1e-9) && expected < 4) expected *= 2;
+      expect(expected).toBeGreaterThan(1);
+      await refineCoarse(page);
+      const from = await imageToClient(page, { x: 340, y: 200 });
+      const to = await imageToClient(page, { x: 450, y: 200 });
+      await stroke(page, from, to);
+
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      const { geometry } = annotations[0]!;
+      expect(geometry.downsample).toBe(expected);
+      expect(geometry.origin).toEqual({ x: COARSE_BOX.x, y: COARSE_BOX.y });
+      expect(geometry.width!).toBeGreaterThan(COARSE_BOX.width + 60);
     });
 
     test('a stroke made closer in re-grids it finer, losing nothing', async ({ page }) => {
