@@ -78,6 +78,26 @@ describe('the cap on write', () => {
     expect(() => encodeCanonical(over)).toThrow(MaskCapacityExceededError);
   });
 
+  it('says what was asked for in cells, at what downsample, and what the limit allows', () => {
+    let caught: unknown;
+    try {
+      encodeCanonical(oneCellAt(8193, 16_386, 2));
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(MaskCapacityExceededError);
+    const error = caught as MaskCapacityExceededError;
+    expect(error.requestedCells).toBe(8193 * 8193);
+    expect(error.maxCells).toBe(DEFAULT_MAX_MASK_PIXELS);
+    expect(error.downsample).toBe(2);
+    expect(error.message).toContain(`${8193 * 8193} cells at downsample 2`);
+    // 64 Mi cells at downsample 2 is a 256 Mi-pixel box of the image.
+    expect(error.message).toContain(`${DEFAULT_MAX_MASK_PIXELS * 4}`);
+    // The cap is a ceiling every reader applies; raising it is not advice.
+    expect(error.message).not.toMatch(/raise/i);
+    expect(error.message).toMatch(/separate mask/);
+  });
+
   it('counts the box in cells: a 16384-square box at downsample 2 is at the cap, not past it', () => {
     const atCap = oneCellAt(8192, 16_384, 2);
     expect(8192 * 8192).toBe(DEFAULT_MAX_MASK_PIXELS);

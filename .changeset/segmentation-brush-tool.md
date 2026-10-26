@@ -134,6 +134,10 @@ write — `encodeCanonical`, `createMaskAnnotation` and `maskAnnotationFields`
 throw `MaskCapacityExceededError` past it, so the library never writes a
 payload a reader would refuse. `deserialize` clamps `maxMaskPixels` to it, and
 the brush tool clamps its own `maxPixels`.
+`MaskCapacityExceededError` reports in the same terms — `requestedCells`,
+`maxCells` and `downsample` — and its message gives the cells asked for, the
+downsample, and the image-pixel box the limit allows there; it no longer
+suggests raising a cap that cannot be raised.
 
 ## New API
 

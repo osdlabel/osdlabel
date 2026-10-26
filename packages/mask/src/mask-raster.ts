@@ -444,7 +444,7 @@ export function toDenseSnapshot(raster: MaskRasterInput, maxCells?: number): Mas
   if (box.width === 0 || box.height === 0) {
     return emptySnapshot(raster.imageWidth, raster.imageHeight);
   }
-  assertDecodableArea(box.width, box.height, maxCells);
+  assertDecodableArea(box.width, box.height, maxCells, raster.downsample);
   const data = new Uint8Array(box.width * box.height);
   const { x, y, width } = box;
   forEachCheckedSpan(raster, (cy, x0, x1) => {

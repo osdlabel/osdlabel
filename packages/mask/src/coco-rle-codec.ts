@@ -510,7 +510,7 @@ function cocoCountsToCells(
   const width = Math.floor(bounds.maxCol / d) - cx0 + 1;
   const height = Math.floor(bounds.maxRow / d) - cy0 + 1;
   // In cells: that is what is allocated.
-  assertDecodableArea(width, height, maxPixels);
+  assertDecodableArea(width, height, maxPixels, d);
   const data = new Uint8Array(width * height);
 
   const refuse = (): never => {

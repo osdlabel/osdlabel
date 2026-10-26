@@ -138,7 +138,7 @@ export function encodeCanonical(input: MaskRasterInput): CanonicalMaskData {
   // this was the one path that could produce an over-cap payload, which the
   // next reader then refuses.
   const cells = input.cells;
-  assertDecodableArea(cells.width, cells.height);
+  assertDecodableArea(cells.width, cells.height, undefined, input.downsample);
   return encodeCanonicalUncapped(input);
 }
 
@@ -265,7 +265,7 @@ export function decodeCanonicalRaster(
   assertPixelDimensions(data.width, data.height);
   const cellsWide = Math.ceil(data.width / downsample);
   const cellsHigh = Math.ceil(data.height / downsample);
-  assertDecodableArea(cellsWide, cellsHigh, options?.maxPixels);
+  assertDecodableArea(cellsWide, cellsHigh, options?.maxPixels, downsample);
   assertDecodableOrigin(data.x, data.y);
   // The image dimensions travel with the mask and are what COCO export uses to
   // place it. A fractional one is as meaningless here as on the COCO path,

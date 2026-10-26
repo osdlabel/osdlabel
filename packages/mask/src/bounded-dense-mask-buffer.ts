@@ -129,7 +129,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     assertDecodableOrigin(box.x, box.y);
     // The dense cap is this buffer's own policy: it is what this
     // implementation allocates, not a property of the mask.
-    assertDecodableArea(box.width, box.height, this.maxPixels);
+    assertDecodableArea(box.width, box.height, this.maxPixels, this.downsample);
     // Every in-tree caller arrives via a decoder, which already checked this.
     // A host handing us a snapshot it built itself — a model's output, say —
     // does not, and `reserve` clips the overhang away: the mask would come
@@ -317,7 +317,9 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     const nh = nBottom - ny;
 
     const requested = nw * nh;
-    if (requested > this.maxPixels) throw new MaskCapacityExceededError(requested, this.maxPixels);
+    if (requested > this.maxPixels) {
+      throw new MaskCapacityExceededError(requested, this.maxPixels, this.downsample);
+    }
 
     const next = new Uint8Array(requested);
     if (hasRegion) {

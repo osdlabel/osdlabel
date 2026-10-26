@@ -78,7 +78,7 @@ describe('a document holding a mask past the cap', () => {
     expect(Object.keys(byImage['img-1' as never]!)).toEqual(['rect']);
     expect(skipped).toHaveLength(1);
     expect(skipped[0]!.id).toBe('big');
-    expect(skipped[0]!.reason).toMatch(/pixel cap/);
+    expect(skipped[0]!.reason).toMatch(/more than its limit of 67108864/);
   });
 
   it('is skipped even with maxMaskPixels: Infinity', () => {
@@ -89,6 +89,6 @@ describe('a document holding a mask past the cap', () => {
     expect(Object.keys(byImage['img-1' as never]!)).toEqual(['rect']);
     expect(skipped).toHaveLength(1);
     expect(skipped[0]!.id).toBe('big');
-    expect(skipped[0]!.reason).toMatch(/pixel cap/);
+    expect(skipped[0]!.reason).toMatch(/more than its limit of 67108864/);
   });
 });

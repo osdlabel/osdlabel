@@ -39,19 +39,22 @@ export interface BrushOptions {
    */
   readonly maskStyle?: MaskStyle | undefined;
   /**
-   * Cap on the pixels one mask may allocate, in pixels.
+   * Cap on the cells one mask's box may hold (image pixels at full
+   * resolution).
    *
-   * **Lowers** the limit; it cannot raise it. `DEFAULT_MAX_MASK_PIXELS` (64
-   * megapixels) is a ceiling the whole library shares — the validation schema
+   * **Lowers** the limit; it cannot raise it. `DEFAULT_MAX_MASK_PIXELS` (64 Mi
+   * cells) is a ceiling the whole library shares — the validation schema
    * enforces it on every mask that is loaded, and it is a module constant, not
    * a per-call option. A mask painted above it would render, export, and
    * re-import as an error, so a larger value here is clamped rather than
    * honoured.
    *
-   * The cap exists for the pathological case rather than the ordinary one: a
-   * mask is stored cropped to what you painted, but strokes at opposite corners
-   * of a deep-zoom image have a bounding box the size of the image even though
-   * almost nothing is painted. Lower it to fail fast on that.
+   * It is not only a guard against pathological strokes. A mask is stored
+   * cropped to what you painted, so the cap bounds its bounding box: 8192 x
+   * 8192 image pixels at full resolution — about 2 mm square on a slide
+   * scanned at 0.25 µm a pixel — whether the box is solid or holds two dabs at
+   * opposite corners. A larger region is a separate mask. Lower the cap to
+   * fail sooner, or below a device's canvas limits.
    */
   readonly maxPixels?: number | undefined;
   /**

@@ -84,7 +84,7 @@ export interface SegmentationBrushToolConfig {
  * during the stroke, so nothing touches reactive state until the pointer is
  * released — one dispatch per stroke rather than one per pointer sample.
  *
- * Erasing is Alt-held (matching CVAT and QuPath) or a host-driven toggle,
+ * Erasing is Alt-held (matching QuPath's brush) or a host-driven toggle,
  * expressed as painting with value `0` rather than as a separate mode.
  */
 export class SegmentationBrushTool extends BaseTool {
@@ -405,7 +405,7 @@ export class SegmentationBrushTool extends BaseTool {
       this.syncPreview(touchedCells);
     } catch (error) {
       // The pixel cap bounds the one-byte buffer, but the preview is a
-      // four-byte RGBA raster over up to 1.5x the buffer's box in each axis,
+      // four-byte RGBA raster over up to 2x the buffer's box in each axis,
       // and an engine refuses a canvas or `ImageData` past its own limit (iOS
       // Safari at about 16 megapixels of area) with a plain `RangeError`.
       // That is a capacity failure in every way that matters to the host:
@@ -417,6 +417,7 @@ export class SegmentationBrushTool extends BaseTool {
           : new MaskCapacityExceededError(
               bounds.width * bounds.height,
               this.maxPixelsOption().maxPixels ?? DEFAULT_MAX_MASK_PIXELS,
+              this.buffer.downsample,
             ),
       );
       this.endStroke();

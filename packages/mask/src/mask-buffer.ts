@@ -124,19 +124,32 @@ export interface MaskBuffer {
   raster(): MaskRaster;
 }
 
-/** Thrown when a mask would need to allocate more pixels than its configured cap. */
+/**
+ * Thrown when a mask's box would hold more cells than its cap.
+ *
+ * The cap counts cells, which are image pixels only at downsample 1, so the
+ * message gives both: the cells asked for, the limit, and the image-pixel box
+ * that limit allows at this downsample. It does not suggest raising the cap —
+ * `DEFAULT_MAX_MASK_PIXELS` is a ceiling every reader enforces.
+ */
 export class MaskCapacityExceededError extends Error {
-  readonly requestedPixels: number;
-  readonly maxPixels: number;
+  /** Cells the mask's box would hold. */
+  readonly requestedCells: number;
+  /** The most it may hold. */
+  readonly maxCells: number;
+  /** Image pixels per cell along each axis. */
+  readonly downsample: number;
 
-  constructor(requestedPixels: number, maxPixels: number) {
+  constructor(requestedCells: number, maxCells: number, downsample = 1) {
     super(
-      `Mask would require ${requestedPixels} pixels, exceeding the ${maxPixels} pixel cap. ` +
-        `Paint in a more localized region or raise maxPixels.`,
+      `Mask would need ${requestedCells} cells at downsample ${downsample}, more than its ` +
+        `limit of ${maxCells} — an image-pixel bounding box of ${maxCells * downsample * downsample} ` +
+        `at that downsample. Paint a smaller region, or start a separate mask.`,
     );
     this.name = 'MaskCapacityExceededError';
-    this.requestedPixels = requestedPixels;
-    this.maxPixels = maxPixels;
+    this.requestedCells = requestedCells;
+    this.maxCells = maxCells;
+    this.downsample = downsample;
   }
 }
 

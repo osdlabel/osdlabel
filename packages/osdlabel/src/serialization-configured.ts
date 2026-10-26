@@ -53,10 +53,10 @@ export interface SerializeOptions {
    */
   readonly maskCodec: MaskCodec;
   /**
-   * The largest mask, in pixels of bounding box, that re-encoding will decode.
-   * Defaults to `DEFAULT_MAX_MASK_PIXELS`. A host that raised the brush's
-   * `maxPixels` above that has masks in state the default refuses; pass the
-   * same value here, or export throws on the first of them.
+   * The largest mask, in cells of bounding box, that re-encoding will decode.
+   * Defaults to `DEFAULT_MAX_MASK_PIXELS`, which no mask in state can exceed:
+   * the cap is checked when a mask is painted, created and imported. Pass a
+   * lower value to fail fast on large masks; a higher one changes nothing.
    */
   readonly maxMaskPixels?: number | undefined;
 }

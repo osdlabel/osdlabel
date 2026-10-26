@@ -149,6 +149,7 @@ export function chooseMaskDownsample(
   throw new MaskCapacityExceededError(
     cellsFor(region, imageWidth, imageHeight, MAX_MASK_DOWNSAMPLE, marginCells),
     maxPixels,
+    MAX_MASK_DOWNSAMPLE,
   );
 }
 

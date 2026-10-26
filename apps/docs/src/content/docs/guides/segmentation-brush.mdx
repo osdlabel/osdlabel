@@ -50,7 +50,7 @@ select tool; selecting a mask enables it again.
 | `b`                    | Activate the brush                             |
 | `Escape` (mid-stroke)  | Abandon the stroke, leaving the mask unchanged |
 
-Alt-to-erase follows the convention in CVAT and QuPath. The toolbar toggle is
+Alt-to-erase follows QuPath's brush (CVAT erases with a separate tool). The toolbar toggle is
 sticky, for when you are erasing for a while.
 
 The mid-stroke cancel is the `cancel` shortcut, the same key that clears the
@@ -357,6 +357,11 @@ if (skipped.length > 0) {
 }
 ```
 
+A mask that is skipped is gone from the state you loaded, so **re-saving that
+document drops it** — including a mask skipped only because you lowered
+`maxMaskPixels` below what it needs. Keep the original file if you import with
+tight bounds and save afterwards.
+
 Everything else still throws: a schema violation, or a document that blows the
 decode budget, is a property of the file rather than of one annotation in it,
 and loading part of it silently would be worse than refusing.
@@ -461,10 +466,13 @@ the same model CVAT (bbox-cropped masks) and 3D Slicer (per-segment extent plus
 offset) settled on. Cost scales with what you paint, not with the size of the
 image, which is what makes painting on a deep-zoom slide affordable.
 
-There is a cap. `maxPixels` defaults to 64 Mi cells (≈64 MB at one byte per
-cell — at full resolution a cell is a pixel) and bounds the pathological case: strokes scattered across opposite
-corners of a huge image, whose bounding box is the whole image even though
-almost nothing is painted.
+There is a cap, and ordinary work reaches it. `maxPixels` defaults to 64 Mi
+cells (≈64 MB at one byte per cell; at full resolution a cell is a pixel), and
+it bounds a mask's **bounding box**, not what is painted inside it: 8192×8192
+image pixels at full resolution, about 2 mm square on a slide scanned at
+0.25 µm a pixel. A solid region that size reaches it, and so do two dabs at
+opposite corners of a larger area, whose bounding box spans everything between
+them. A larger region is a separate mask.
 
 ```tsx
 <Annotator
@@ -486,8 +494,8 @@ no path through the library produces a payload a reader would refuse.
 
 The cap is on the one-byte pixel buffer. Rendering a mask, and the live preview
 while painting, use a four-byte RGBA raster over the mask's box (the preview
-over up to 1.5x the box in each axis), so the memory a mask costs on screen is
-four to nine times the cap suggests, and an engine can refuse a canvas that
+over up to 2x the box in each axis), so the memory a mask costs on screen is
+four to sixteen times the cap suggests, and an engine can refuse a canvas that
 large before the cap is reached — iOS Safari at about 16 megapixels of area. A
 refused preview is reported through `onCapacityExceeded` and the stroke is
 abandoned with the mask unchanged; a mask too large to render is skipped and
@@ -507,7 +515,8 @@ nothing happened.
 - **Cross-annotation exclusivity.** Masks may overlap. Each annotation owns its
   own pixels, which maps directly onto COCO instance segmentation; painting into
   one never erases from another.
-- **Raising the 64 Mi-cell ceiling.** It is fixed for now (#155), because the
+- **Raising the 64 Mi-cell ceiling** (8192×8192 cells; image pixels at full
+  resolution). It is fixed for now (#155), because the
   validation schema enforces it as a module constant. Making it configurable
   means threading a bound through validation, rendering, and export together.
 - **Sub-pixel or feathered edges.** Pixels are binary. The mask is rendered with

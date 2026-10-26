@@ -469,7 +469,7 @@ describe('SegmentationBrushTool: capacity', () => {
     up(h.tool, 9500, 9500);
 
     expect(h.capacityErrors).toHaveLength(1);
-    expect(h.capacityErrors[0]!.maxPixels).toBe(DEFAULT_MAX_MASK_PIXELS);
+    expect(h.capacityErrors[0]!.maxCells).toBe(DEFAULT_MAX_MASK_PIXELS);
     expect(h.commits).toHaveLength(0);
   });
 

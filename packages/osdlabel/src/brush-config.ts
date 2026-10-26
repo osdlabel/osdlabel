@@ -129,8 +129,9 @@ export function buildSegmentationBrushConfig(
     const previewFill = accessors.getSelectedFill?.() ?? targetFill;
     return {
       annotationId: id,
-      // The same cap the buffer will use. Decoding under the default while the
-      // host raised it would refuse to reopen a mask the host allowed to exist.
+      // The same cap the buffer will use, so a mask the host's lowered cap
+      // cannot hold is refused here, where it costs one decode, rather than by
+      // the buffer after it.
       snapshot: decodeCanonicalRaster(annotation.rawAnnotationData.data, { maxPixels }),
       ...(previewFill !== undefined ? { fill: previewFill } : {}),
     };

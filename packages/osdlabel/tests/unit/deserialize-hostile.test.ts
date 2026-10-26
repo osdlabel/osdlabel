@@ -111,7 +111,7 @@ describe('deserialize: bounding the work a document can demand', () => {
     // it by first doing the work.
     const { skipped, byImage } = deserialize(doc, { maskCodecs: registry });
     expect(skipped).toHaveLength(1);
-    expect(skipped[0]!.reason).toMatch(/pixel cap/);
+    expect(skipped[0]!.reason).toMatch(/more than its limit of 67108864/);
     expect(Object.keys(byImage)).toHaveLength(0);
   });
 
@@ -677,8 +677,8 @@ describe('serialize: the decode cap follows the host', () => {
   };
 
   it('re-encodes under the cap it is given', () => {
-    // A host that raised the brush's `maxPixels` has masks in state the
-    // default cap refuses; without an option here, export threw on the first.
+    // A host may export under a tighter cap than the default; a mask past it
+    // fails the export rather than being silently dropped from it.
     expect(() =>
       serialize(state(), { maskCodec: cocoRleUncompressedCodec, maxMaskPixels: 1 }),
     ).toThrow(SerializationError);

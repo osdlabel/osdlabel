@@ -31,11 +31,16 @@ export function assertPixelDimensions(width: number, height: number): void {
   }
 }
 
-export function assertDecodableArea(width: number, height: number, maxPixels?: number): void {
+export function assertDecodableArea(
+  width: number,
+  height: number,
+  maxPixels?: number,
+  downsample = 1,
+): void {
   assertPixelDimensions(width, height);
   const cap = maxPixels ?? DEFAULT_MAX_MASK_PIXELS;
   const area = width * height;
-  if (area > cap) throw new MaskCapacityExceededError(area, cap);
+  if (area > cap) throw new MaskCapacityExceededError(area, cap, downsample);
 }
 
 /**
