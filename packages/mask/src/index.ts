@@ -1,6 +1,37 @@
 // Runtime pixel storage.
 export type { MaskBuffer, MaskSnapshot, MaskRegion } from './mask-buffer.js';
-export { MaskCapacityExceededError, emptySnapshot, snapshotPixelCount } from './mask-buffer.js';
+
+// The read-only raster contract every reader speaks; storage-agnostic.
+export type { MaskRaster, MaskRasterInput, MaskSpanVisitor } from './mask-raster.js';
+export {
+  asMaskRaster,
+  denseRaster,
+  forEachCheckedSpan,
+  isMaskRaster,
+  rasterPixelCount,
+  rasterToRuns,
+  runRaster,
+  toDenseSnapshot,
+} from './mask-raster.js';
+export type { MaskBoxFields } from './downsample.js';
+export {
+  MaskCapacityExceededError,
+  emptySnapshot,
+  snapshotCellCount,
+  snapshotPixelCount,
+} from './mask-buffer.js';
+
+// Resolution: masks stored on a coarser cell grid than the image.
+export {
+  MAX_MASK_DOWNSAMPLE,
+  assertMaskDownsample,
+  chooseMaskDownsample,
+  isMaskDownsample,
+  maskDownsampleOf,
+  maskGridSize,
+  snapshotImageBox,
+  upsampleSnapshot,
+} from './downsample.js';
 export { BoundedDenseMaskBuffer, DEFAULT_MAX_MASK_PIXELS } from './bounded-dense-mask-buffer.js';
 export {
   assertBoxInsideImage,
@@ -25,6 +56,7 @@ export {
   canonicalMaskCodec,
   encodeCanonical,
   decodeCanonical,
+  decodeCanonicalRaster,
   toRuns,
   fromRuns,
 } from './canonical-codec.js';

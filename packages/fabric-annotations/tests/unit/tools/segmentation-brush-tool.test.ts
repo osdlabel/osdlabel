@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { FabricObject, Rect } from 'fabric';
+import { FabricImage, FabricObject, Rect } from 'fabric';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createAnnotationId } from '@osdlabel/annotation';
@@ -7,9 +7,12 @@ import {
   BoundedDenseMaskBuffer,
   MaskCapacityExceededError,
   emptySnapshot,
+  snapshotCellCount,
+  snapshotImageBox,
   snapshotPixelCount,
   stampCircle,
-  type MaskSnapshot,
+  toDenseSnapshot,
+  type MaskRaster,
 } from '@osdlabel/mask';
 import { SegmentationBrushTool } from '../../../src/tools/segmentation-brush-tool.js';
 import type {
@@ -27,13 +30,13 @@ const shortcuts = createTestKeyboardShortcuts();
 const IMAGE = { width: 400, height: 300 } as const;
 
 /** A painted snapshot to stand in for an existing mask. */
-function paintedSnapshot(radius = 6): MaskSnapshot {
+function paintedSnapshot(radius = 6): MaskRaster {
   const buffer = new BoundedDenseMaskBuffer({
     imageWidth: IMAGE.width,
     imageHeight: IMAGE.height,
   });
   stampCircle(buffer, 100.5, 80.5, radius, 1);
-  return buffer.snapshot();
+  return buffer.raster();
 }
 
 interface Harness {
@@ -64,6 +67,12 @@ function harness(
     readonly activeObjects?: FabricObject[];
     /** Runs on every commit, after it is recorded; stands in for the host's rebuild. */
     readonly onCommit?: (commit: BrushStrokeCommit) => void;
+    /**
+     * A viewport for the stand-in canvas: a uniform zoom and the canvas size
+     * in screen pixels. Without one the canvas reports none, and a new mask
+     * starts at downsample 1, as before downsampling existed.
+     */
+    readonly viewport?: { readonly zoom: number; readonly width: number; readonly height: number };
   } = {},
 ): Harness {
   const objects: FabricObject[] = [...(options.existingObjects ?? [])];
@@ -86,6 +95,13 @@ function harness(
     discardActiveObject: vi.fn(),
     bringObjectToFront: vi.fn(),
     requestRenderAll: vi.fn(),
+    ...(options.viewport
+      ? {
+          viewportTransform: [options.viewport.zoom, 0, 0, options.viewport.zoom, 0, 0],
+          getWidth: () => options.viewport!.width,
+          getHeight: () => options.viewport!.height,
+        }
+      : {}),
   };
 
   const config: SegmentationBrushToolConfig = {
@@ -402,7 +418,7 @@ describe('SegmentationBrushTool: capacity', () => {
     const big = new BoundedDenseMaskBuffer({ imageWidth: 4096, imageHeight: 4096 });
     stampCircle(big, 2048, 2048, 900, 1);
     const h = harness({
-      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.snapshot() },
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.raster() },
       maxPixels: 64 * 64,
     });
 
@@ -444,7 +460,7 @@ describe('SegmentationBrushTool: capacity', () => {
     const big = new BoundedDenseMaskBuffer({ imageWidth: 4096, imageHeight: 4096 });
     stampCircle(big, 2048, 2048, 900, 1);
     const h = harness({
-      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.snapshot() },
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.raster() },
       maxPixels: 64 * 64,
       existingObjects: [existing],
     });
@@ -493,7 +509,9 @@ describe('SegmentationBrushTool: an entirely erased stroke', () => {
 
     expect(h.commits).toHaveLength(1);
     expect(snapshotPixelCount(h.commits[0]!.snapshot)).toBe(0);
-    expect(h.commits[0]!.snapshot).toEqual(emptySnapshot(IMAGE.width, IMAGE.height));
+    expect(toDenseSnapshot(h.commits[0]!.snapshot)).toEqual(
+      emptySnapshot(IMAGE.width, IMAGE.height),
+    );
   });
 });
 
@@ -674,7 +692,7 @@ describe('SegmentationBrushTool: when the image and the mask disagree about size
     stampCircle(big, 500, 500, 20, 1);
 
     const h = harness({
-      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.snapshot() },
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: big.raster() },
       imageSize: { width: 200, height: 160 },
     });
 
@@ -968,5 +986,103 @@ describe('a stroke whose press the platform cancelled', () => {
     move(h.tool, 120, 80);
     up(h.tool, 120, 80);
     expect(h.commits).toHaveLength(1);
+  });
+});
+
+describe('SegmentationBrushTool: resolution of a new mask', () => {
+  // A 20000 px square image under a 64 Ki-cell cap: 6100x the cap at level 0.
+  const BIG = { width: 20_000, height: 20_000 } as const;
+  const CAP = 64 * 1024;
+
+  it('starts at full resolution when the view fits the cap, as before', () => {
+    // Zoom 4 on an 800 px canvas shows 200 image px a side.
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      viewport: { zoom: 4, width: 800, height: 800 },
+    });
+    down(h.tool, 5000, 5000);
+    up(h.tool, 5000, 5000);
+    expect(h.commits[0]!.snapshot.downsample).toBe(1);
+  });
+
+  it('paints a stroke wider than the cap allows at level 0, on a coarser grid', () => {
+    // Zoom 0.04 on an 800 px canvas shows the whole image.
+    const viewport = { zoom: 0.04, width: 800, height: 800 } as const;
+    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 300, viewport });
+    down(h.tool, 1000, 1000);
+    move(h.tool, 19_000, 19_000);
+    up(h.tool, 19_000, 19_000);
+
+    expect(h.capacityErrors).toHaveLength(0);
+    const snapshot = h.commits[0]!.snapshot;
+    // 64 would need 313^2 = 97969 cells for the view; 128 needs 157^2.
+    expect(snapshot.downsample).toBe(128);
+    expect(snapshot.width * snapshot.height).toBeLessThanOrEqual(CAP);
+    const box = snapshotImageBox(snapshot);
+    expect(box.x).toBeLessThanOrEqual(1000 - 300);
+    expect(box.x + box.width).toBeGreaterThanOrEqual(19_000 + 300 - 128);
+    expect(snapshotPixelCount(snapshot)).toBe(snapshotCellCount(snapshot) * 128 * 128);
+
+    // The same stroke with no viewport to size it from stays at level 0, and
+    // is refused exactly as every such stroke was before.
+    const level0 = harness({ imageSize: BIG, maxPixels: CAP, radius: 300 });
+    down(level0.tool, 1000, 1000);
+    move(level0.tool, 19_000, 19_000);
+    up(level0.tool, 19_000, 19_000);
+    expect(level0.capacityErrors).toHaveLength(1);
+    expect(level0.commits).toHaveLength(0);
+  });
+
+  it('places the live preview where the committed mask will render', () => {
+    const viewport = { zoom: 0.04, width: 800, height: 800 } as const;
+    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 300, viewport });
+    down(h.tool, 6000, 4000);
+    const preview = h.objects.find((obj) => obj instanceof FabricImage) as FabricImage;
+    expect(preview).toBeDefined();
+    expect(preview.scaleX).toBe(128);
+    expect(preview.scaleY).toBe(128);
+    // On the cell grid: its corner is a whole number of cells from the origin.
+    expect(preview.left % 128).toBe(0);
+    expect(preview.top % 128).toBe(0);
+    expect(preview.left).toBeLessThanOrEqual(6000 - 300);
+    expect(preview.left + preview.width * 128).toBeGreaterThanOrEqual(6000 + 300);
+    up(h.tool, 6000, 4000);
+  });
+
+  it('refines an existing mask at its own resolution, whatever the zoom', () => {
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: BIG.width,
+      imageHeight: BIG.height,
+      downsample: 4,
+    });
+    stampCircle(buffer, 5000, 5000, 40, 1);
+    const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      target,
+      viewport: { zoom: 4, width: 800, height: 800 },
+    });
+    down(h.tool, 5050, 5000);
+    up(h.tool, 5050, 5000);
+    const committed = h.commits[0]!.snapshot;
+    expect(committed.downsample).toBe(4);
+    expect(snapshotCellCount(committed)).toBeGreaterThan(snapshotCellCount(target.snapshot));
+  });
+
+  it('reports a cap too small for any grid, rather than throwing', () => {
+    // Under one cell: not even the coarsest grid's single cell fits. (A cap
+    // of 2 would not do — it fits at 2^15, one cell for the whole image; the
+    // chooser has no floor tied to screen resolution.)
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: 0.5,
+      viewport: { zoom: 0.04, width: 800, height: 800 },
+    });
+    down(h.tool, 1000, 1000);
+    up(h.tool, 1000, 1000);
+    expect(h.capacityErrors).toHaveLength(1);
+    expect(h.commits).toHaveLength(0);
   });
 });

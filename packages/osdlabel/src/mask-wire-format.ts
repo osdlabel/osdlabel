@@ -1,6 +1,14 @@
 import { MASK_RAW_FORMAT, type MaskRawData } from '@osdlabel/annotation';
-import { CANONICAL_MASK_FORMAT, MAX_IMAGE_SIDE, type CanonicalMaskData } from '@osdlabel/mask';
-import { MAX_IMAGE_DIMENSION } from '@osdlabel/validation';
+import {
+  CANONICAL_MASK_FORMAT,
+  MAX_IMAGE_SIDE,
+  MAX_MASK_DOWNSAMPLE,
+  type CanonicalMaskData,
+} from '@osdlabel/mask';
+import {
+  MAX_IMAGE_DIMENSION,
+  MAX_MASK_DOWNSAMPLE as MAX_SCHEMA_DOWNSAMPLE,
+} from '@osdlabel/validation';
 
 /**
  * Compile-time proof that the mask wire format is declared consistently.
@@ -25,7 +33,15 @@ type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 /** The fields both declarations must describe identically. */
-type WireField = 'x' | 'y' | 'width' | 'height' | 'imageWidth' | 'imageHeight' | 'counts';
+type WireField =
+  | 'x'
+  | 'y'
+  | 'width'
+  | 'height'
+  | 'imageWidth'
+  | 'imageHeight'
+  | 'counts'
+  | 'downsample';
 
 // The format strings are the same literal, checked both ways.
 export type MaskFormatLiteralsAgree = Assert<
@@ -56,3 +72,9 @@ export type CanonicalHasNoExtraFields = Assert<Extends<keyof CanonicalMaskData, 
 // The longest image side the codec will encode is the longest the schema will
 // read back: otherwise `serialize` writes a document `deserialize` throws on.
 export type ImageSideBoundsAgree = Assert<Equal<typeof MAX_IMAGE_SIDE, typeof MAX_IMAGE_DIMENSION>>;
+
+// Likewise the coarsest downsample: the codec must not write one the schema
+// refuses.
+export type DownsampleBoundsAgree = Assert<
+  Equal<typeof MAX_MASK_DOWNSAMPLE, typeof MAX_SCHEMA_DOWNSAMPLE>
+>;

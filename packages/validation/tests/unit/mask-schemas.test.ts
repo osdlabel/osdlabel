@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import * as v from 'valibot';
-import { MAX_IMAGE_DIMENSION, MAX_MASK_COUNTS_LENGTH } from '../../src/schemas/constants.js';
+import {
+  MAX_IMAGE_DIMENSION,
+  MAX_MASK_COUNTS_LENGTH,
+  MAX_MASK_DOWNSAMPLE,
+  MAX_MASK_PIXELS,
+} from '../../src/schemas/constants.js';
 import {
   GeometrySchema,
   MaskGeometrySchema,
@@ -222,22 +227,19 @@ describe('image dimensions are bounded separately from the mask', () => {
     expect(MAX_IMAGE_DIMENSION).toBe(2 ** 26);
   });
 
-  it('rejects a mask whose box area exceeds the pixel cap', () => {
-    // Two sides each well inside `MAX_MASK_DIMENSION` still multiply into an
-    // allocation big enough to exhaust memory. Nothing else checks that the
-    // product check exists — the whole `v.check` could be deleted silently.
-    expect(() =>
-      v.parse(MaskRawAnnotationDataSchema, {
-        ...validRaw,
-        data: {
-          ...validRaw.data,
-          width: 100_000,
-          height: 100_000,
-          imageWidth: 2 ** 26,
-          imageHeight: 2 ** 26,
-        },
-      }),
-    ).toThrow(/pixels/);
+  it('leaves the box area to the reader: a box past the dense cap is a valid document', () => {
+    // How much a reader will hold is its policy (the decoders' `maxPixels`),
+    // not the format's. A schema bound here would make every document a
+    // sparse-storage reader writes invalid, whole, to every reader before it.
+    const data = {
+      ...validRaw.data,
+      width: 100_000,
+      height: 100_000,
+      imageWidth: 2 ** 26,
+      imageHeight: 2 ** 26,
+    };
+    expect(100_000 * 100_000).toBeGreaterThan(MAX_MASK_PIXELS);
+    expect(v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data }).data).toEqual(data);
   });
 });
 
@@ -250,5 +252,50 @@ describe('geometry coordinates reject the infinities', () => {
     expect(() => v.parse(PointSchema, { x: Number.POSITIVE_INFINITY, y: 0 })).toThrow();
     expect(() => v.parse(PointSchema, { x: 0, y: Number.NEGATIVE_INFINITY })).toThrow();
     expect(v.parse(PointSchema, { x: 1.5, y: -2.5 })).toEqual({ x: 1.5, y: -2.5 });
+  });
+});
+
+describe('downsampled masks', () => {
+  it('keeps the downsample on both the geometry and the payload', () => {
+    const geometry = { ...validMask, downsample: 8 };
+    expect(v.parse(MaskGeometrySchema, geometry)).toEqual(geometry);
+    const raw = { ...validRaw, data: { ...validRaw.data, x: 8, y: 16, width: 32, downsample: 8 } };
+    // `v.object` strips unknown keys; dropping this one would turn the payload
+    // into a full-resolution one whose runs no longer fill its box.
+    expect(v.parse(MaskRawAnnotationDataSchema, raw).data.downsample).toBe(8);
+  });
+
+  it('accepts only powers of two up to the maximum', () => {
+    for (const downsample of [1, 2, 1024, MAX_MASK_DOWNSAMPLE]) {
+      expect(() => v.parse(MaskGeometrySchema, { ...validMask, downsample })).not.toThrow();
+    }
+    for (const downsample of [0, 3, 1.5, -2, MAX_MASK_DOWNSAMPLE * 2]) {
+      expect(() => v.parse(MaskGeometrySchema, { ...validMask, downsample })).toThrow();
+      expect(() =>
+        v.parse(MaskRawAnnotationDataSchema, {
+          ...validRaw,
+          data: { ...validRaw.data, downsample },
+        }),
+      ).toThrow();
+    }
+  });
+
+  it('validates a payload the same at every downsample, whatever its size', () => {
+    // 16384^2 image pixels is four times the dense cap; at 2x it is exactly
+    // the cap. Neither is the schema's business.
+    const data = {
+      ...validRaw.data,
+      x: 0,
+      y: 0,
+      width: 16_384,
+      height: 16_384,
+      imageWidth: 20_000,
+      imageHeight: 20_000,
+    };
+    expect(16_384 * 16_384).toBeGreaterThan(MAX_MASK_PIXELS);
+    expect(() => v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data })).not.toThrow();
+    expect(() =>
+      v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data: { ...data, downsample: 2 } }),
+    ).not.toThrow();
   });
 });

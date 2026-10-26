@@ -4,8 +4,8 @@ import type { ImageId } from '@osdlabel/viewer-api';
 import type { AnnotationState } from '@osdlabel/viewer-api';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import { OsdAnnotationSchema } from '@osdlabel/validation';
-import { DEFAULT_MAX_MASK_PIXELS, decodeCanonical } from '@osdlabel/mask';
-import type { CanonicalMaskData, MaskCodec, MaskCodecRegistry, MaskSnapshot } from '@osdlabel/mask';
+import { DEFAULT_MAX_MASK_PIXELS, decodeCanonicalRaster } from '@osdlabel/mask';
+import type { CanonicalMaskData, MaskCodec, MaskCodecRegistry, MaskRaster } from '@osdlabel/mask';
 import { maskAnnotationFields, maskGeometryFromSnapshot } from './create-mask-annotation.js';
 import type { OsdFields } from './types.js';
 import * as v from 'valibot';
@@ -77,10 +77,10 @@ export interface DeserializeOptions {
    */
   readonly maskCodecs?: MaskCodecRegistry | undefined;
   /**
-   * Cap on the pixels any one mask may decode to. Defaults to
-   * `DEFAULT_MAX_MASK_PIXELS` (64 megapixels), which is also the ceiling — a
-   * larger value is clamped, because the validation schema enforces the same
-   * bound a moment later and is not per-call configurable.
+   * Cap on the cells any one mask's box may span. Defaults to
+   * `DEFAULT_MAX_MASK_PIXELS` (64 Mi). A reader's policy, not the format's:
+   * a mask above it is skipped (see {@link DeserializeResult.skipped}), and a
+   * host may raise it.
    *
    * Worth lowering when the document is genuinely untrusted: the default is
    * sized for what a user can paint, not for what an attacker can declare.
@@ -149,12 +149,21 @@ export function serialize(
     // Both halves wrapped, not just the decode: `encode` is the one that raises
     // domain errors — a box outside its own image, a format's own limits — and
     // leaving it bare let a `RangeError` from a codec escape a documented API.
-    let snapshot: MaskSnapshot;
+    let snapshot: MaskRaster;
     let encoded: unknown;
     try {
-      snapshot = decodeCanonical(annotation.rawAnnotationData.data, {
+      snapshot = decodeCanonicalRaster(annotation.rawAnnotationData.data, {
         maxPixels: options.maxMaskPixels,
       });
+      // A codec that has not said it honours `downsample` reads a snapshot's
+      // cell box as image pixels, and would export the mask shrunk towards the
+      // origin by that factor without a word. Refusing is the safe default.
+      if (snapshot.downsample !== 1 && codec.encodesDownsampled !== true) {
+        throw new RangeError(
+          `codec "${codec.format}" does not declare encodesDownsampled, and this mask is ` +
+            `stored at downsample ${snapshot.downsample}`,
+        );
+      }
       encoded = codec.encode(snapshot);
     } catch (err) {
       throw new SerializationError(
@@ -262,13 +271,13 @@ function normalizeMasks(
   // individually legal, and decoding them in sequence blocks the main thread
   // for minutes. The document-wide budget is what makes import cost
   // proportional to the document rather than to what it claims.
-  // `perMask` is clamped down to the shared ceiling: `MAX_MASK_PIXELS` in the
-  // validation schema is a module constant, so a mask above it is rejected a
-  // moment later no matter what was asked for here. Honouring a larger value
-  // would only move the failure, not remove it.
+  // `perMask` is this reader's policy, not the format's: the schema has no
+  // area bound, and a canonical payload decodes to runs without allocating
+  // its box, so a host may raise it (the renderer and the brush still apply
+  // their own dense cap, and report rather than throw).
   //
-  // `budget` is not clamped — it bounds a whole document, and its own default
-  // is several times the per-mask ceiling.
+  // `budget` bounds a whole document, and its own default is several times
+  // the per-mask default.
   //
   // Validated, not just defaulted: `NaN` propagates through every comparison
   // below as `false`, so an unvalidated bound does not merely misbehave — it
@@ -289,10 +298,7 @@ function normalizeMasks(
     }
     return value;
   };
-  const perMask = Math.min(
-    bound(options.maxMaskPixels, DEFAULT_MAX_MASK_PIXELS, 'maxMaskPixels'),
-    DEFAULT_MAX_MASK_PIXELS,
-  );
+  const perMask = bound(options.maxMaskPixels, DEFAULT_MAX_MASK_PIXELS, 'maxMaskPixels');
   const budget = bound(
     options.maxTotalMaskPixels,
     DEFAULT_MAX_TOTAL_MASK_PIXELS,
@@ -326,7 +332,7 @@ function normalizeMasks(
   // after it, so a document can overrun it by one payload's run count; the
   // next mask then pays for both. Billing the runs first would need the
   // payload parsed, which is the cost being bounded.
-  const charge = (snapshot: MaskSnapshot, runs: number): MaskSnapshot => {
+  const charge = (snapshot: MaskRaster, runs: number): MaskRaster => {
     spent += snapshot.width * snapshot.height + runs;
     return snapshot;
   };
@@ -348,10 +354,10 @@ function normalizeMasks(
     // rendering isolate each annotation. A blown budget is deliberately *not*
     // caught here: that is a property of the document, and quietly loading
     // half of one would be worse than refusing it.
-    const decode = (maxPixels: number): MaskSnapshot =>
+    const decode = (maxPixels: number): MaskRaster =>
       codec?.decode !== undefined
         ? codec.decode(data, { maxPixels })
-        : decodeCanonical(data as CanonicalMaskData, { maxPixels });
+        : decodeCanonicalRaster(data as CanonicalMaskData, { maxPixels });
 
     const { cap, limitedByBudget } = capFor();
     try {

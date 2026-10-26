@@ -7,6 +7,7 @@ import {
   BoundedDenseMaskBuffer,
   DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
+  denseRaster,
   emptySnapshot,
   stampCircle,
 } from '@osdlabel/mask';
@@ -24,7 +25,7 @@ const contextId = createAnnotationContextId('ctx-1');
 function snapshot() {
   const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200 });
   stampCircle(buffer, 100.5, 80.5, 6, 1);
-  return buffer.snapshot();
+  return buffer.raster();
 }
 
 function stateWith(...annotations: OsdAnnotation[]): AnnotationState<OsdFields> {
@@ -195,7 +196,7 @@ describe('buildSegmentationBrushConfig commit', () => {
       annotationId: null,
       imageId,
       contextId,
-      snapshot: emptySnapshot(300, 200),
+      snapshot: denseRaster(emptySnapshot(300, 200)),
     });
 
     expect(dispatchers.addAnnotation).not.toHaveBeenCalled();
@@ -206,7 +207,12 @@ describe('buildSegmentationBrushConfig commit', () => {
     const { config, dispatchers } = harness({ selectedId: 'mask-1' });
     const id = createAnnotationId('mask-1');
 
-    config.onCommit({ annotationId: id, imageId, contextId, snapshot: emptySnapshot(300, 200) });
+    config.onCommit({
+      annotationId: id,
+      imageId,
+      contextId,
+      snapshot: denseRaster(emptySnapshot(300, 200)),
+    });
 
     expect(dispatchers.deleteAnnotation).toHaveBeenCalledWith(id, imageId);
     expect(dispatchers.setSelectedAnnotation).toHaveBeenCalledWith(null);

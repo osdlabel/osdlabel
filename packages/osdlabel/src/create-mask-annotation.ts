@@ -8,7 +8,12 @@ import {
 } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { ImageId } from '@osdlabel/viewer-api';
-import { encodeCanonical, snapshotPixelCount, type MaskSnapshot } from '@osdlabel/mask';
+import {
+  encodeCanonical,
+  snapshotImageBox,
+  snapshotPixelCount,
+  type MaskRasterInput,
+} from '@osdlabel/mask';
 import type { OsdAnnotation } from './types.js';
 
 /** Options for {@link createMaskAnnotation}. */
@@ -54,17 +59,27 @@ export interface MaskAnnotationFields {
  * row-major RLE it dominates the decode it follows. Import needs the geometry
  * recomputed from the pixels, not the payload rewritten.
  */
-export function maskGeometryFromSnapshot(snapshot: MaskSnapshot): MaskGeometry {
+export function maskGeometryFromSnapshot(snapshot: MaskRasterInput): MaskGeometry {
+  // A snapshot's box is in cells; the geometry's is in image pixels at every
+  // downsample, as is `pixelCount`, so every consumer of the geometry —
+  // `area()`, a label anchor, a constraint — reads it without knowing the
+  // payload's resolution.
+  const box = snapshotImageBox(snapshot);
+  const downsample = snapshot.downsample ?? 1;
   return {
     type: 'mask',
-    origin: { x: snapshot.x, y: snapshot.y },
-    width: snapshot.width,
-    height: snapshot.height,
+    origin: { x: box.x, y: box.y },
+    width: box.width,
+    height: box.height,
     pixelCount: snapshotPixelCount(snapshot),
+    ...(downsample !== 1 && box.width > 0 ? { downsample } : {}),
   };
 }
 
-export function maskAnnotationFields(snapshot: MaskSnapshot, fill?: string): MaskAnnotationFields {
+export function maskAnnotationFields(
+  snapshot: MaskRasterInput,
+  fill?: string,
+): MaskAnnotationFields {
   return {
     geometry: maskGeometryFromSnapshot(snapshot),
     rawAnnotationData: {
@@ -85,7 +100,7 @@ export function maskAnnotationFields(snapshot: MaskSnapshot, fill?: string): Mas
  * encoding — export formats are applied later, at serialization.
  */
 export function createMaskAnnotation(
-  snapshot: MaskSnapshot,
+  snapshot: MaskRasterInput,
   options: CreateMaskAnnotationOptions,
 ): OsdAnnotation {
   const id = options.id ?? createAnnotationId(generateId());

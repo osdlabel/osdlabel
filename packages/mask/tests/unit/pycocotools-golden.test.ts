@@ -8,6 +8,8 @@ import {
   cocoRleCodec,
   cocoRleUncompressedCodec,
   snapshotToCocoCounts,
+  denseRaster,
+  toDenseSnapshot,
   type MaskSnapshot,
 } from '../../src/index.js';
 
@@ -93,14 +95,14 @@ describe('pycocotools golden fixtures', () => {
       const snapshot = toSnapshot(testCase);
 
       it('encodes to byte-identical compressed counts', () => {
-        const encoded = cocoRleCodec.encode(snapshot);
+        const encoded = cocoRleCodec.encode(denseRaster(snapshot));
         expect(encoded.counts).toBe(testCase.pycocotools.counts);
         expect(encoded.size).toEqual(testCase.pycocotools.size);
       });
 
       it('encodes to identical uncompressed run lengths', () => {
         expect(snapshotToCocoCounts(snapshot)).toEqual(testCase.pycocotools.uncompressedCounts);
-        expect(cocoRleUncompressedCodec.encode(snapshot).counts).toEqual(
+        expect(cocoRleUncompressedCodec.encode(denseRaster(snapshot)).counts).toEqual(
           testCase.pycocotools.uncompressedCounts,
         );
       });
@@ -111,7 +113,7 @@ describe('pycocotools golden fixtures', () => {
           size: [height, width],
           counts: testCase.pycocotools.counts,
         });
-        expect(decoded).toEqual(snapshot);
+        expect(toDenseSnapshot(decoded)).toEqual(snapshot);
       });
 
       it('reports the same area and bbox as pycocotools', () => {

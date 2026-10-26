@@ -9,7 +9,7 @@ import type { AnnotationState, ImageId } from '@osdlabel/viewer-api';
 import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
 import {
   DEFAULT_MAX_MASK_PIXELS,
-  decodeCanonical,
+  decodeCanonicalRaster,
   type MaskCapacityExceededError,
 } from '@osdlabel/mask';
 import type {
@@ -131,7 +131,7 @@ export function buildSegmentationBrushConfig(
       annotationId: id,
       // The same cap the buffer will use. Decoding under the default while the
       // host raised it would refuse to reopen a mask the host allowed to exist.
-      snapshot: decodeCanonical(annotation.rawAnnotationData.data, { maxPixels }),
+      snapshot: decodeCanonicalRaster(annotation.rawAnnotationData.data, { maxPixels }),
       ...(previewFill !== undefined ? { fill: previewFill } : {}),
     };
   };

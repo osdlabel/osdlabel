@@ -8,6 +8,16 @@ import {
 } from './decode-guard.js';
 import { emptySnapshot, type MaskSnapshot } from './mask-buffer.js';
 import type { MaskCodec, MaskDecodeOptions } from './mask-codec.js';
+import { assertMaskDownsample, maskGridSize, snapshotImageBox } from './downsample.js';
+import {
+  asMaskRaster,
+  isMaskRaster,
+  rasterToRuns,
+  runRaster,
+  toDenseSnapshot,
+  type MaskRaster,
+  type MaskRasterInput,
+} from './mask-raster.js';
 
 /**
  * Format identifier for osdlabel's internal mask representation.
@@ -33,14 +43,33 @@ export const CANONICAL_MASK_FORMAT = 'osdlabel-mask' as const;
  * leaking into painting, undo, or rendering.
  */
 export interface CanonicalMaskData {
+  /**
+   * The box in image (level-0) pixels at every downsample, so a reader that
+   * only wants to know where a mask is never needs the factor. At a
+   * downsample `d` above 1 the box is cell-aligned: `x` and `y` are multiples
+   * of `d`, and so are its right and bottom edges unless they are the image's.
+   */
   readonly x: number;
   readonly y: number;
   readonly width: number;
   readonly height: number;
   readonly imageWidth: number;
   readonly imageHeight: number;
-  /** Base64 of LEB128 run lengths, row-major, starting with background. */
+  /**
+   * Base64 of LEB128 run lengths, row-major, starting with background, over
+   * the box's `ceil(width / d) x ceil(height / d)` cells.
+   */
   readonly counts: string;
+  /**
+   * Image pixels per cell along each axis, a power of two; absent means 1 and
+   * is how 1 is written, so a full-resolution payload is byte-for-byte what it
+   * was before the field existed.
+   *
+   * A reader that predates the field and drops it does not misplace the mask:
+   * it reads the box as a level-0 grid of `width x height` cells, the runs sum
+   * to the coarser grid instead, and `fromRuns` refuses the payload.
+   */
+  readonly downsample?: number;
 }
 
 /** Extracts alternating run lengths (starting with background) from row-major pixels. */
@@ -103,13 +132,18 @@ export function fromRuns(runs: readonly number[], length: number): Uint8Array {
  * surfaces one save-and-reload later as an annotation that vanishes — or worse,
  * one silently truncated by the next stroke that touches it.
  */
-export function encodeCanonical(snapshot: MaskSnapshot): CanonicalMaskData {
-  const area = snapshot.width * snapshot.height;
-  if (snapshot.data.length !== area) {
+export function encodeCanonical(input: MaskRasterInput): CanonicalMaskData {
+  const area = input.width * input.height;
+  if (!isMaskRaster(input) && input.data.length !== area) {
     throw new RangeError(
-      `Snapshot data has ${snapshot.data.length} pixels but its box describes ${area}`,
+      `Snapshot data has ${input.data.length} pixels but its box describes ${area}`,
     );
   }
+  // Everything below reads the mask through the raster interface, so the
+  // payload is the same whatever stores the cells.
+  const snapshot = asMaskRaster(input);
+  const downsample = snapshot.downsample;
+  assertMaskDownsample(downsample);
   // Not covered by the length check above: a fractional box can still multiply
   // out to a whole number (0.5 x 4), and two negative sides multiply out to a
   // positive area. `assertDecodableArea` refuses both on the way back in.
@@ -132,23 +166,52 @@ export function encodeCanonical(snapshot: MaskSnapshot): CanonicalMaskData {
       counts: '',
     };
   }
+  // In cells, against the image's cell grid: that is the space the box and
+  // its data are in.
+  const grid = maskGridSize(snapshot.imageWidth, snapshot.imageHeight, downsample);
   assertBoxInsideImage(
     snapshot.x,
     snapshot.y,
     snapshot.width,
     snapshot.height,
-    snapshot.imageWidth,
-    snapshot.imageHeight,
+    grid.width,
+    grid.height,
   );
+  const box = snapshotImageBox(snapshot);
   return {
-    x: snapshot.x,
-    y: snapshot.y,
-    width: snapshot.width,
-    height: snapshot.height,
+    x: box.x,
+    y: box.y,
+    width: box.width,
+    height: box.height,
     imageWidth: snapshot.imageWidth,
     imageHeight: snapshot.imageHeight,
-    counts: bytesToBase64(encodeVarints(toRuns(snapshot.data))),
+    counts: bytesToBase64(encodeVarints(rasterToRuns(snapshot))),
+    ...(downsample !== 1 ? { downsample } : {}),
   };
+}
+
+/**
+ * Rejects a downsampled box that does not sit on its cell grid.
+ *
+ * The encoder only writes aligned boxes, so an unaligned one is corrupt — and
+ * reading it anyway would shift every cell by the misalignment, or round the
+ * box to a grid it was not painted on. Edges that are the image's own are
+ * exempt: the last cell of a row or column is clipped there.
+ */
+function assertCellAligned(data: CanonicalMaskData, downsample: number): void {
+  const right = data.x + data.width;
+  const bottom = data.y + data.height;
+  if (
+    data.x % downsample !== 0 ||
+    data.y % downsample !== 0 ||
+    (right % downsample !== 0 && right !== data.imageWidth) ||
+    (bottom % downsample !== 0 && bottom !== data.imageHeight)
+  ) {
+    throw new RangeError(
+      `Mask box ${data.width}x${data.height} at (${data.x}, ${data.y}) is not aligned ` +
+        `to its ${downsample}-pixel cells`,
+    );
+  }
 }
 
 /**
@@ -176,41 +239,69 @@ function assertCountsFitBox(counts: unknown, area: number): void {
 }
 
 /**
- * Decodes a canonical payload.
+ * Decodes a canonical payload to a {@link MaskRaster} that keeps the runs as
+ * runs: memory and work are proportional to the payload, never to the box.
  *
  * Payloads routinely arrive from disk or the network, so the dimensions are
- * treated as untrusted: an absurd `width * height` is rejected before any
- * allocation rather than surfacing as an out-of-memory crash, and the run
- * lengths are bounded by the box before they are decoded.
+ * treated as untrusted, and the run lengths are bounded by the box before
+ * they are decoded. The box's size in cells is checked against
+ * `options.maxPixels` (default `DEFAULT_MAX_MASK_PIXELS`): that is the
+ * reader's policy for what it is prepared to hold, not a limit of the format,
+ * and a reader that never materialises the box may pass `Infinity`.
  */
-export function decodeCanonical(
+export function decodeCanonicalRaster(
   data: CanonicalMaskData,
   options?: MaskDecodeOptions,
-): MaskSnapshot {
-  assertDecodableArea(data.width, data.height, options?.maxPixels);
+): MaskRaster {
+  const downsample = data.downsample ?? 1;
+  assertMaskDownsample(downsample);
+  assertPixelDimensions(data.width, data.height);
+  const cellsWide = Math.ceil(data.width / downsample);
+  const cellsHigh = Math.ceil(data.height / downsample);
+  assertDecodableArea(cellsWide, cellsHigh, options?.maxPixels);
   assertDecodableOrigin(data.x, data.y);
   // The image dimensions travel with the mask and are what COCO export uses to
   // place it. A fractional one is as meaningless here as on the COCO path,
   // which already rejects it — no cap, since nothing allocates from these.
   assertCountableImage(data.imageWidth, data.imageHeight);
   assertBoxInsideImage(data.x, data.y, data.width, data.height, data.imageWidth, data.imageHeight);
-  const area = data.width * data.height;
-  if (area === 0) return emptySnapshot(data.imageWidth, data.imageHeight);
+  const area = cellsWide * cellsHigh;
+  if (area === 0) {
+    const empty = emptySnapshot(data.imageWidth, data.imageHeight);
+    return runRaster({ ...empty, downsample: 1 }, [0]);
+  }
+  if (downsample !== 1) assertCellAligned(data, downsample);
   assertCountsFitBox(data.counts, area);
-  return {
-    x: data.x,
-    y: data.y,
-    width: data.width,
-    height: data.height,
-    data: fromRuns(decodeVarints(base64ToBytes(data.counts)), area),
-    imageWidth: data.imageWidth,
-    imageHeight: data.imageHeight,
-  };
+  return runRaster(
+    {
+      x: data.x / downsample,
+      y: data.y / downsample,
+      width: cellsWide,
+      height: cellsHigh,
+      imageWidth: data.imageWidth,
+      imageHeight: data.imageHeight,
+      downsample,
+    },
+    decodeVarints(base64ToBytes(data.counts)),
+  );
+}
+
+/**
+ * Decodes a canonical payload to a dense snapshot over its box — for a host
+ * that wants the pixel array. Bounded by `options.maxPixels` like
+ * {@link decodeCanonicalRaster}, which it builds on.
+ */
+export function decodeCanonical(
+  data: CanonicalMaskData,
+  options?: MaskDecodeOptions,
+): MaskSnapshot {
+  return toDenseSnapshot(decodeCanonicalRaster(data, options), options?.maxPixels);
 }
 
 /** The codec used for masks held in annotation state. */
 export const canonicalMaskCodec: MaskCodec<CanonicalMaskData> = {
   format: CANONICAL_MASK_FORMAT,
+  encodesDownsampled: true,
   encode: encodeCanonical,
-  decode: decodeCanonical,
+  decode: decodeCanonicalRaster,
 };

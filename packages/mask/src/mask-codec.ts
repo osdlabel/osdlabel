@@ -1,4 +1,4 @@
-import type { MaskSnapshot } from './mask-buffer.js';
+import type { MaskRaster } from './mask-raster.js';
 
 /**
  * Converts a mask between osdlabel's internal representation and an external
@@ -16,12 +16,14 @@ import type { MaskSnapshot } from './mask-buffer.js';
 /** Limits an importer imposes on a decode. */
 export interface MaskDecodeOptions {
   /**
-   * Refuse to decode a mask larger than this, in pixels.
+   * Refuse to decode a mask whose box exceeds this many cells.
    *
-   * A decoder reads its dimensions out of the payload, so without a ceiling
-   * supplied from outside, a document decides for itself how much work it is
-   * worth. Importers pass their remaining budget here; a codec should check it
-   * **before** allocating or scanning, not after.
+   * A reader's policy, not a property of the format: a decoder reads its
+   * dimensions out of the payload, so without a ceiling supplied from outside,
+   * a document decides for itself how much work it is worth. Importers pass
+   * their remaining budget here; a codec should check it **before**
+   * allocating or scanning, not after. A codec whose output does not allocate
+   * the box may bound its own work by the payload instead.
    */
   readonly maxPixels?: number | undefined;
 }
@@ -29,8 +31,25 @@ export interface MaskDecodeOptions {
 export interface MaskCodec<T = unknown> {
   /** Stable identifier, e.g. `'coco-rle'`. */
   readonly format: string;
-  encode(snapshot: MaskSnapshot): T;
-  decode?(payload: T, options?: MaskDecodeOptions): MaskSnapshot;
+  /**
+   * Whether `encode` honours a raster's `downsample`.
+   *
+   * A raster's box is in cells, which are image pixels only at downsample 1.
+   * A codec written before downsampled masks existed reads the box as image
+   * pixels and would place such a mask at a fraction of its true position,
+   * silently. So the default is "no": `serialize` refuses to hand a codec that
+   * has not opted in a downsampled snapshot, rather than let it mis-export
+   * one. (Upsampling for it first, through `upsampleSnapshot`, is the
+   * alternative, at `downsample`-squared the memory.)
+   */
+  readonly encodesDownsampled?: boolean | undefined;
+  /**
+   * Reads the mask only through the {@link MaskRaster} interface, so it
+   * works whatever stores the cells. `denseRaster` wraps a dense snapshot.
+   */
+  encode(raster: MaskRaster): T;
+  /** Any {@link MaskRaster}; a codec need not materialise the box. */
+  decode?(payload: T, options?: MaskDecodeOptions): MaskRaster;
 }
 
 /** A lookup of codecs by format, used to resolve a format name at (de)serialization time. */

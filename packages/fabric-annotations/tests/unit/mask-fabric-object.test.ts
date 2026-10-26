@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { FabricImage } from 'fabric';
+import { FabricImage, Point, util } from 'fabric';
 import { MASK_RAW_FORMAT, type MaskRawAnnotationData } from '@osdlabel/annotation';
-import { BoundedDenseMaskBuffer, encodeCanonical, stampCircle } from '@osdlabel/mask';
+import {
+  BoundedDenseMaskBuffer,
+  encodeCanonical,
+  stampCircle,
+  strokeSegment,
+} from '@osdlabel/mask';
 import { buildMaskFabricObject } from '../../src/mask-fabric-object.js';
 import { initFabricModule } from '../../src/fabric-module.js';
 
@@ -97,5 +102,52 @@ describe('raw data that is not a mask', () => {
     expect(() =>
       buildMaskFabricObject({ format: 'fabric', data: {} } as never, { id: 'ann-1' as never }),
     ).toThrow(TypeError);
+  });
+});
+
+describe('a downsampled mask', () => {
+  /** An 8x mask on a 1001x601 image whose last cell column / row are clipped. */
+  function downsampledEnvelope(): MaskRawAnnotationData {
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: 1001,
+      imageHeight: 601,
+      downsample: 8,
+    });
+    strokeSegment(buffer, 300, 200, 998, 598, 60, 1);
+    return { format: MASK_RAW_FORMAT, data: { ...encodeCanonical(buffer.snapshot()) } };
+  }
+
+  it('renders one canvas pixel per cell, scaled to the image pixels it covers', () => {
+    const raw = downsampledEnvelope();
+    expect(raw.data.downsample).toBe(8);
+    const object = buildMaskFabricObject(raw, { id: 'ann-1' }) as FabricImage;
+    expect(object.left).toBe(raw.data.x);
+    expect(object.top).toBe(raw.data.y);
+    expect(object.scaleX).toBe(8);
+    expect(object.scaleY).toBe(8);
+    expect(object.width).toBe(Math.ceil(raw.data.width / 8));
+    expect(object.height).toBe(Math.ceil(raw.data.height / 8));
+    // Still crisp: a cell is a block, not a blur.
+    expect(object.imageSmoothing).toBe(false);
+  });
+
+  it('puts every cell centre exactly where the payload says it is', () => {
+    const raw = downsampledEnvelope();
+    const object = buildMaskFabricObject(raw, { id: 'ann-1' }) as FabricImage;
+    const matrix = object.calcTransformMatrix();
+    const cellsWide = object.width;
+    const cellsHigh = object.height;
+    let worst = 0;
+    for (let row = 0; row < cellsHigh; row++) {
+      for (let col = 0; col < cellsWide; col++) {
+        // Fabric's object space is centred on the object.
+        const local = new Point(col + 0.5 - cellsWide / 2, row + 0.5 - cellsHigh / 2);
+        const placed = util.transformPoint(local, matrix);
+        const expectedX = raw.data.x + (col + 0.5) * 8;
+        const expectedY = raw.data.y + (row + 0.5) * 8;
+        worst = Math.max(worst, Math.abs(placed.x - expectedX), Math.abs(placed.y - expectedY));
+      }
+    }
+    expect(worst).toBeLessThan(1e-9);
   });
 });

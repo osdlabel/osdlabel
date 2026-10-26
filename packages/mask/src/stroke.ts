@@ -1,9 +1,15 @@
 import type { MaskBuffer } from './mask-buffer.js';
 
 /**
- * Pixel (px, py) covers the area [px, px+1) x [py, py+1), so its centre is at
- * (px + 0.5, py + 0.5). A pixel belongs to the brush when its centre lies
- * within `radius` of the brush centre.
+ * Cell (px, py) covers the area [px, px+1) x [py, py+1) of the buffer's grid,
+ * so its centre is at (px + 0.5, py + 0.5). A cell belongs to the brush when
+ * its centre lies within `radius` of the brush centre.
+ *
+ * Everything below the two exported functions works in grid units. The
+ * exported ones take image pixels — as the brush and every caller think — and
+ * divide by the buffer's `downsample` once, so a radius means the same image
+ * distance at every resolution. At downsample 1 the division is by one and
+ * nothing changes.
  */
 const PIXEL_CENTRE = 0.5;
 
@@ -46,13 +52,26 @@ function reserveDisc(
 
 /**
  * Paints (or erases) a filled disc of `radius` image pixels centred on
- * (`cx`, `cy`). Radii below `MIN_COVERING_RADIUS` still mark the single
- * pixel under the centre, so a fine brush never becomes a no-op.
+ * (`cx`, `cy`), also in image pixels. On a downsampled buffer the disc is
+ * rasterized on its cell grid: a cell is painted when its centre is inside.
+ * Radii below `MIN_COVERING_RADIUS` cells still mark the single cell under
+ * the centre, so a fine brush never becomes a no-op.
  *
  * Painting is all-or-nothing: if the mask cannot grow to hold the disc, a
  * {@link MaskCapacityExceededError} is raised before the first pixel is set.
  */
 export function stampCircle(
+  buffer: MaskBuffer,
+  cx: number,
+  cy: number,
+  radius: number,
+  value: 0 | 1,
+): void {
+  const d = buffer.downsample;
+  stampCircleCells(buffer, cx / d, cy / d, radius / d, value);
+}
+
+function stampCircleCells(
   buffer: MaskBuffer,
   cx: number,
   cy: number,
@@ -74,7 +93,7 @@ export function stampCircle(
   // to MAX_BRUSH_RADIUS, so this protects a caller driving the rasterizer
   // directly.
   const firstRow = Math.max(0, Math.ceil(cy - radius - PIXEL_CENTRE));
-  const lastRow = Math.min(buffer.imageHeight - 1, Math.floor(cy + radius - PIXEL_CENTRE));
+  const lastRow = Math.min(buffer.gridHeight - 1, Math.floor(cy + radius - PIXEL_CENTRE));
   const radiusSquared = radius * radius;
 
   for (let py = firstRow; py <= lastRow; py++) {
@@ -83,7 +102,7 @@ export function stampCircle(
     if (halfSpanSquared < 0) continue;
     const halfSpan = Math.sqrt(halfSpanSquared);
     const firstCol = Math.max(0, Math.ceil(cx - halfSpan - PIXEL_CENTRE));
-    const lastCol = Math.min(buffer.imageWidth - 1, Math.floor(cx + halfSpan - PIXEL_CENTRE));
+    const lastCol = Math.min(buffer.gridWidth - 1, Math.floor(cx + halfSpan - PIXEL_CENTRE));
     for (let px = firstCol; px <= lastCol; px++) {
       buffer.set(px, py, value);
     }
@@ -111,6 +130,25 @@ export function strokeSegment(
   radius: number,
   value: 0 | 1,
 ): void {
+  const d = buffer.downsample;
+  strokeSegmentCells(buffer, x0 / d, y0 / d, x1 / d, y1 / d, radius / d, value);
+}
+
+/**
+ * {@link strokeSegment} in grid units. Converting once, before the stamps are
+ * spaced, keeps the spacing proportional to the radius *in cells*: spacing in
+ * image pixels instead would stamp a radius-2 brush on an 8x grid sixteen times
+ * per cell crossed, every stamp after the first painting nothing new.
+ */
+function strokeSegmentCells(
+  buffer: MaskBuffer,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  radius: number,
+  value: 0 | 1,
+): void {
   if (
     !Number.isFinite(x0) ||
     !Number.isFinite(y0) ||
@@ -125,7 +163,7 @@ export function strokeSegment(
   const length = Math.sqrt(dx * dx + dy * dy);
 
   if (length === 0) {
-    stampCircle(buffer, x0, y0, radius, value);
+    stampCircleCells(buffer, x0, y0, radius, value);
     return;
   }
 
@@ -148,6 +186,6 @@ export function strokeSegment(
   const steps = Math.ceil(length / step);
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
-    stampCircle(buffer, x0 + dx * t, y0 + dy * t, radius, value);
+    stampCircleCells(buffer, x0 + dx * t, y0 + dy * t, radius, value);
   }
 }

@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { MAX_IMAGE_DIMENSION } from './constants.js';
+import { MaskDownsampleSchema } from './mask-data.js';
 
 /** Finite number check (rejects NaN, Infinity, -Infinity) */
 const FiniteNumber = v.pipe(v.number(), v.finite());
@@ -63,7 +64,10 @@ export const MaskGeometrySchema = v.pipe(
     // can paint. See MAX_IMAGE_DIMENSION.
     width: v.pipe(FiniteNumber, v.minValue(0), v.maxValue(MAX_IMAGE_DIMENSION)),
     height: v.pipe(FiniteNumber, v.minValue(0), v.maxValue(MAX_IMAGE_DIMENSION)),
+    // Image pixels covered, at every downsample — so the check below holds
+    // against the box in image pixels whatever the grid.
     pixelCount: v.pipe(FiniteNumber, v.minValue(0)),
+    downsample: v.optional(MaskDownsampleSchema),
   }),
   // A mask cannot contain more painted pixels than its own bounding box holds;
   // area() trusts pixelCount, so an inflated value would report a false area.
