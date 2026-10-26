@@ -170,6 +170,8 @@ export class SegmentationBrushTool extends BaseTool {
    * just under the canvas limit is not refused for its rounding.
    */
   private paintedBounds: MaskCellBox | null = null;
+  /** The buffer's change count when the stroke began, to tell a no-op stroke. */
+  private changesAtStart: number | undefined;
 
   /**
    * The committed object for the mask being refined, hidden for the duration of
@@ -261,6 +263,7 @@ export class SegmentationBrushTool extends BaseTool {
             imageHeight: imageSize.height,
             ...this.maxPixelsOption(),
           });
+      this.changesAtStart = this.buffer.changeCount;
       const targetCells = target?.snapshot.cells;
       this.paintedBounds =
         targetCells && targetCells.width > 0 && targetCells.height > 0 ? { ...targetCells } : null;
@@ -349,6 +352,15 @@ export class SegmentationBrushTool extends BaseTool {
   /** Commits the stroke in progress, if there is one worth committing, and ends it. */
   private finishStroke(): void {
     if (!this.painting || !this.buffer || !this.imageId || !this.contextId) {
+      this.endStroke();
+      return;
+    }
+
+    // A stroke that changed no cell — painting over paint, erasing where there
+    // was none — commits nothing: re-encoding an unchanged mask is the
+    // expensive half of a commit, and it would mark the annotation updated.
+    const changes = this.buffer.changeCount;
+    if (changes !== undefined && changes === this.changesAtStart) {
       this.endStroke();
       return;
     }
@@ -825,6 +837,7 @@ export class SegmentationBrushTool extends BaseTool {
     this.lastPoint = null;
     this.buffer = null;
     this.paintedBounds = null;
+    this.changesAtStart = undefined;
     this.targetId = null;
     this.contextId = null;
     if (this.overlay && this.preview) this.overlay.canvas.remove(this.preview);

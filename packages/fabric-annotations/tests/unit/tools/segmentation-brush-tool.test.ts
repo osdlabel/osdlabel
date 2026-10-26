@@ -253,8 +253,9 @@ describe('SegmentationBrushTool: committing a stroke', () => {
       target: { annotationId: createAnnotationId('mask-1'), snapshot },
     });
 
-    down(h.tool, 100, 80);
-    up(h.tool, 100, 80);
+    // Beside the painted disc, so the stroke changes cells.
+    down(h.tool, 110, 80);
+    up(h.tool, 110, 80);
 
     expect(h.commits[0]!.annotationId).toBe('mask-1');
     // The stroke adds to what was there rather than replacing it.
@@ -304,9 +305,41 @@ describe('SegmentationBrushTool: committing a stroke', () => {
       canAdd: false,
       target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
     });
-    down(h.tool, 100, 80);
-    up(h.tool, 100, 80);
+    down(h.tool, 110, 80);
+    up(h.tool, 110, 80);
     expect(h.commits).toHaveLength(1);
+  });
+
+  it('commits nothing for a stroke that changes no cell', () => {
+    // Painting over paint, and erasing where there is none: the mask is
+    // unchanged, so there is nothing to re-encode or mark updated.
+    const existing = committedObject('mask-1');
+    const painted = harness({
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
+      existingObjects: [existing],
+    });
+    down(painted.tool, 100, 80);
+    up(painted.tool, 100, 80);
+    expect(painted.commits).toHaveLength(0);
+    // The committed mask hidden for the stroke is shown again.
+    expect(existing.visible).not.toBe(false);
+
+    const erasing = harness({
+      erasing: true,
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
+    });
+    down(erasing.tool, 250, 200);
+    move(erasing.tool, 280, 200);
+    up(erasing.tool, 280, 200);
+    expect(erasing.commits).toHaveLength(0);
+
+    // A tap beside the disc adds cells, so it does commit.
+    const touched = harness({
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
+    });
+    down(touched.tool, 120, 80);
+    up(touched.tool, 120, 80);
+    expect(touched.commits).toHaveLength(1);
   });
 
   it('does nothing until the image size is known', () => {
@@ -324,10 +357,10 @@ describe('SegmentationBrushTool: cancelling', () => {
     const h = harness({
       target: { annotationId: createAnnotationId('m1'), snapshot: paintedSnapshot() },
     });
-    down(h.tool, 100, 80);
+    down(h.tool, 110, 80);
     expect(h.tool.onKeyDown({ key: 'Delete' } as KeyboardEvent)).toBe(true);
     expect(h.tool.onKeyDown({ key: 'Backspace' } as KeyboardEvent)).toBe(true);
-    up(h.tool, 100, 80);
+    up(h.tool, 110, 80);
     expect(h.commits).toHaveLength(1);
   });
 

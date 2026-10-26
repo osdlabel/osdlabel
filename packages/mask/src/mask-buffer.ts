@@ -126,6 +126,15 @@ export interface MaskBuffer {
    */
   copyRow?(cy: number, x0: number, x1: number, into: Uint8Array): void;
   /**
+   * How many writes have changed a cell's value since the buffer was made: a
+   * write of the value already there does not count. A reader compares two
+   * readings to learn whether anything changed in between — a stroke that
+   * painted over painted cells, or erased clear ones, changed nothing.
+   *
+   * Optional — callers treat its absence as "something may have changed".
+   */
+  readonly changeCount?: number;
+  /**
    * A tightly-cropped, read-only view of the current cells, detached from
    * later writes. Its storage is the implementation's business.
    */

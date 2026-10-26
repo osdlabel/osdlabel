@@ -77,6 +77,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
   private ah = 0;
   private data = new Uint8Array(0);
   private count = 0;
+  private changes = 0;
 
   constructor(options: BoundedDenseMaskBufferOptions) {
     // Math.floor(NaN) is NaN, which would slip past every subsequent bounds
@@ -158,6 +159,10 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     return this.count;
   }
 
+  get changeCount(): number {
+    return this.changes;
+  }
+
   /** The currently allocated cells — a superset of the set cells. */
   get cellBounds(): MaskCellBox {
     return { x: this.ax, y: this.ay, width: this.aw, height: this.ah };
@@ -206,6 +211,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     if (previous === value) return;
     this.data[index] = value;
     this.count += value === 1 ? 1 : -1;
+    this.changes++;
   }
 
   /** The current cells as a {@link MaskRaster}: a dense, tightly-cropped copy. */
