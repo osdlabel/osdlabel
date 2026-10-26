@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot, createComponent } from 'solid-js';
+import { createStore } from 'solid-js/store';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationId } from '@osdlabel/annotation';
@@ -14,6 +15,7 @@ import {
   decodeCanonicalRaster,
   maskAnnotationFields,
   stampCircle,
+  type BrushOptions,
   type MaskObjectSeed,
 } from 'osdlabel';
 import { createMockAnnotator } from '../hooks/mock-annotator.js';
@@ -184,6 +186,16 @@ function mask(id: typeof m1, radius = 4) {
   return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
 }
 
+/**
+ * A mask whose box straddles the 2^16 cell boundary in both axes: 2x2 cells
+ * even at the coarsest grid, so no mip fits a one-cell display budget.
+ */
+function straddlingMask(id: typeof m1) {
+  const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100_000, imageHeight: 100_000 });
+  stampCircle(buffer, 65_536, 65_536, 6, 1);
+  return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
+}
+
 const build = vi.mocked(createFabricObjectFromRawData);
 const buildsFor = (id: string) => build.mock.calls.filter(([a]) => a.id === id).length;
 const byId = (id: string) => objects.find((o) => o.id === id)!;
@@ -191,8 +203,14 @@ const byId = (id: string) => objects.find((o) => o.id === id)!;
 // A reactive annotation store, so a state write re-runs the rebuild effect as
 // it would in the real provider.
 const { state: annotationState, setState: setAnnotations } = createAnnotationStore();
+// A store, as the provider's getters are, so a budget change is observed.
+// A mutable shape: the store's setter refuses `BrushOptions`' readonly fields.
+const [brushOptions, setBrushOptions] = createStore<{
+  maxCanvasPixels?: BrushOptions['maxCanvasPixels'];
+}>({});
 const mockState = createMockAnnotator({
   annotationState,
+  brushOptions,
   contextState: { activeContextId: contextId, contexts: [], displayedContextIds: [] },
 });
 
@@ -217,6 +235,7 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     openHandlers.length = 0;
     buildGate = undefined;
     realRenderer = false;
+    setBrushOptions('maxCanvasPixels', undefined);
     build.mockClear();
     setAnnotations('byImage', { [imageId]: { [m1]: mask(m1), [m2]: mask(m2) } });
   });
@@ -323,11 +342,8 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     expect(buildsFor('m2')).toBe(1);
   });
 
-  it('reports a mask too long to draw, and still renders the others', async () => {
-    realRenderer = true;
-    const report = vi.mocked(mockState.reportAnnotationRenderError);
-    report.mockClear();
-    setAnnotations('byImage', { [imageId]: { [m1]: tooLongMask(m1), [m2]: mask(m2) } });
+  /** Mounts the cell over the store's annotations; the caller sets them first. */
+  function mountCell(): void {
     dispose = createRoot((disposeFn) => {
       createComponent(ViewerCell, {
         imageSource: { id: imageId, tileSource: 'x.png' },
@@ -338,12 +354,55 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
       return disposeFn;
     });
     openHandlers[0]!();
+  }
+
+  it('draws a mask too long for one canvas from a display mip', async () => {
+    realRenderer = true;
+    const report = vi.mocked(mockState.reportAnnotationRenderError);
+    report.mockClear();
+    setAnnotations('byImage', { [imageId]: { [m1]: tooLongMask(m1), [m2]: mask(m2) } });
+    mountCell();
+
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    const drawn = byId('m1') as unknown as { width: number; height: number; scaleX: number };
+    expect([drawn.width, drawn.height, drawn.scaleX]).toEqual([20_000, 800, 2]);
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it('reports a mask no display mip fits, and still renders the others', async () => {
+    realRenderer = true;
+    setBrushOptions('maxCanvasPixels', 1);
+    const report = vi.mocked(mockState.reportAnnotationRenderError);
+    report.mockClear();
+    // m2 is 1x1 cell at its coarsest grid, so it fits even this budget.
+    setAnnotations('byImage', { [imageId]: { [m1]: straddlingMask(m1), [m2]: mask(m2) } });
+    mountCell();
 
     await vi.waitFor(() => expect(report).toHaveBeenCalled());
     const failure = report.mock.calls[0]![0];
     expect(failure.annotation.id).toBe(m1);
     expect(failure.error).toBeInstanceOf(MaskCanvasTooLargeError);
-    expect(objects.map((o) => o.id)).toEqual(['m2']);
+    await vi.waitFor(() => expect(objects.map((o) => o.id)).toEqual(['m2']));
+  });
+
+  it('redraws every mask when the display budget changes, and only then', async () => {
+    realRenderer = true;
+    setAnnotations('byImage', { [imageId]: { [m1]: mask(m1, 40), [m2]: mask(m2) } });
+    mountCell();
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    expect((byId('m1') as unknown as { scaleX: number }).scaleX).toBe(1);
+
+    // 81x81 cells: a 1,000-cell budget takes it to 21x21 at 4x.
+    setBrushOptions('maxCanvasPixels', 1_000);
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    expect(buildsFor('m2')).toBe(2);
+    await vi.waitFor(() => expect((byId('m1') as unknown as { scaleX: number }).scaleX).toBe(4));
+
+    // The same value again is no change.
+    setBrushOptions('maxCanvasPixels', 1_000);
+    setAnnotations('byImage', imageId, m2, mask(m2, 3));
+    await vi.waitFor(() => expect(buildsFor('m2')).toBe(3));
+    expect(buildsFor('m1')).toBe(2);
   });
 
   /** A refining stroke's commit: the new payload, and the object its preview made. */

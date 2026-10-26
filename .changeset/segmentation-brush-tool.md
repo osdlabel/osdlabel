@@ -153,13 +153,19 @@ the brush tool clamps its own `maxPixels`.
 downsample, and the image-pixel box the limit allows there; it no longer
 suggests raising a cap that cannot be raised.
 
-A mask more than `MAX_MASK_CANVAS_SIDE` (32,767, Firefox's limit) cells wide
-or tall — a long strip can be, well inside the cap — is not drawn blank: the
-renderer throws `MaskCanvasTooLargeError`, reported through
-`onAnnotationRenderError` while the other annotations render, and a stroke
-whose live preview would pass the limit is refused through
+A mask past the **display budget**, `MAX_MASK_CANVAS_PIXELS` (16 Mi, what iOS
+Safari draws), or more than `MAX_MASK_CANVAS_SIDE` (32,767, Firefox's limit)
+cells wide or tall, is drawn from a display mip instead of blank or refused:
+halved by `majorityCoarsen` until it fits, placed at `d · 2^k`, and never
+stored. `brushOptions.maxCanvasPixels` moves the budget (`Infinity` draws every
+mask at full resolution), and `createFabricObjectFromRawData` and
+`buildMaskFabricObject` take it as `maxCanvasPixels`. The renderer throws
+`MaskCanvasTooLargeError` only if not even the coarsest mip fits, reported
+through `onAnnotationRenderError` while the other annotations render. A stroke
+whose live preview would pass the side limit is refused through
 `onCapacityExceeded`, whose argument is now `BrushCapacityError`
-(`MaskCapacityExceededError | MaskCanvasTooLargeError`).
+(`MaskCapacityExceededError | MaskCanvasTooLargeError`). The preview's margin
+costs at most the larger of the mask's own area and the display budget (#158).
 
 ## New API
 
@@ -173,7 +179,8 @@ whose live preview would pass the limit is refused through
   `forEachCheckedSpan`, `forEachLevel0Span`, `decodeCanonicalRaster`);
   downsampling (`MAX_MASK_DOWNSAMPLE`, `assertMaskDownsample`,
   `isMaskDownsample`, `maskDownsampleOf`, `maskGridSize`, `snapshotImageBox`,
-  `upsampleSnapshot`, `MaskBoxFields`);
+  `upsampleSnapshot`, `MaskBoxFields`, and `majorityCoarsen` /
+  `CoarsenStrategy`, which halve a raster's resolution);
   `stampCircle`, `strokeSegment`, `MaskCapacityExceededError`,
   `DEFAULT_MAX_MASK_PIXELS`, `assertDecodableArea`, `assertDecodableCount`,
   `assertDecodableOrigin`; the canonical codec
@@ -199,7 +206,9 @@ whose live preview would pass the limit is refused through
 - **`@osdlabel/fabric-annotations`**: `SegmentationBrushTool`,
   `SegmentationBrushToolConfig`, `BrushStrokeCommit`, `BrushTarget`,
   `buildMaskFabricObject`, `BuildMaskFabricObjectOptions`,
-  `DEFAULT_MASK_FILL`, `AnnotationRawData`.
+  `DEFAULT_MASK_FILL`, `AnnotationRawData`, and the canvas limits
+  `MAX_MASK_CANVAS_SIDE`, `MAX_MASK_CANVAS_PIXELS`, `MaskCanvasTooLargeError`
+  and `BrushCapacityError`.
 - **`@osdlabel/fabric-osd`**: the `'paint'` `OverlayMode`;
   `FabricOverlay.applyModeToObject(obj, readOnly)`, now the single authority for
   an object's interaction flags and needed by any host with a custom cell

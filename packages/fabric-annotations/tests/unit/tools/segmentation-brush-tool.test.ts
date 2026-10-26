@@ -27,6 +27,7 @@ import type {
 } from '../../../src/tools/segmentation-brush-tool.js';
 import type { ToolOverlay } from '../../../src/types.js';
 import {
+  MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
   type BrushCapacityError,
@@ -905,6 +906,33 @@ describe('SegmentationBrushTool: when the image and the mask disagree about size
     const preview = h.objects.find((o) => o.type === 'image')!;
     // The stroke reached x=250 with radius 6, so the preview must extend past it.
     expect(preview.left! + preview.width!).toBeGreaterThanOrEqual(256);
+  });
+
+  it('gives the preview no more margin than the mask, or the display budget (#158)', () => {
+    // A mask whose corners are 4,000 x 3,000 apart: half its extent of margin
+    // on every side made an 8,000 x 6,000 preview, 48 M cells of RGBA. The
+    // buffer allocates 4,096 x 3,072 of it, so the margin may add at most the
+    // larger of that and the 16 Mi budget.
+    const corners = new BoundedDenseMaskBuffer({ imageWidth: 10_000, imageHeight: 10_000 });
+    stampCircle(corners, 3_000, 3_000, 3, 1);
+    stampCircle(corners, 6_997, 5_997, 3, 1);
+    const h = harness({
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: corners.raster() },
+      imageSize: { width: 10_000, height: 10_000 },
+      radius: 3,
+    });
+
+    down(h.tool, 5_000, 4_500);
+    const preview = h.objects.find((o) => o.type === 'image')!;
+    const allocated = 4_096 * 3_072;
+    expect(preview.width! * preview.height!).toBeLessThanOrEqual(
+      allocated + Math.max(allocated, MAX_MASK_CANVAS_PIXELS),
+    );
+    // It still covers the whole mask, with what margin the budget leaves.
+    expect(preview.left!).toBeLessThan(2_997);
+    expect(preview.top!).toBeLessThan(2_997);
+    expect(preview.left! + preview.width!).toBeGreaterThan(7_000);
+    expect(preview.top! + preview.height!).toBeGreaterThan(6_000);
   });
 });
 

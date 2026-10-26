@@ -314,6 +314,7 @@ export function AnnotatorProvider({
   // that kept invalidating it. The callback goes through a ref instead and only
   // the primitive participates.
   const maxPixels = brushOptionsProp?.maxPixels;
+  const maxCanvasPixels = brushOptionsProp?.maxCanvasPixels;
   const selectedFill = brushOptionsProp?.maskStyle?.selectedFill;
   const unselectedOpacity = brushOptionsProp?.maskStyle?.unselectedOpacity;
   const onCapacityExceededRef = useRef(brushOptionsProp?.onCapacityExceeded);
@@ -328,9 +329,10 @@ export function AnnotatorProvider({
     () => ({
       maxPixels,
       maskStyle,
+      maxCanvasPixels,
       onCapacityExceeded: (error) => onCapacityExceededRef.current?.(error),
     }),
-    [maxPixels, maskStyle],
+    [maxPixels, maskStyle, maxCanvasPixels],
   );
 
   // Fire onAnnotationsChange when annotations change (skip initial render)

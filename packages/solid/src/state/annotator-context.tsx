@@ -242,6 +242,9 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     get maskStyle() {
       return props.brushOptions?.maskStyle;
     },
+    get maxCanvasPixels() {
+      return props.brushOptions?.maxCanvasPixels;
+    },
   };
 
   // Load initial annotations if provided

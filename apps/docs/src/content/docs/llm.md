@@ -2049,25 +2049,34 @@ is checked on write: `encodeCanonical`, `createMaskAnnotation` and
 no path through the library produces a payload a reader would refuse.
 
 The cap is on the one-byte pixel buffer. Rendering a mask, and the live preview
-while painting, use a four-byte RGBA raster over the mask's box (the preview
-over up to 2x the box in each axis), so the memory a mask costs on screen is
-four to sixteen times the cap suggests, and an engine can refuse a canvas that
-large before the cap is reached — iOS Safari at about 16 megapixels of area. A
-refused preview is reported through `onCapacityExceeded` and the stroke is
-abandoned with the mask unchanged; a mask too large to render is skipped and
-reported like any other annotation that cannot be revived. On devices with
-such limits, set `maxPixels` below them.
+while painting, use a four-byte RGBA raster, and an engine can refuse a canvas
+long before the cap is reached: iOS Safari draws about 16 megapixels of area.
+So a mask is drawn under a **display budget**, `MAX_MASK_CANVAS_PIXELS` (16 Mi,
+4,096²). A mask with more cells is drawn from a display mip: halved by the
+majority rule (`majorityCoarsen`) until it fits, and placed at `d · 2^k`, so it
+covers the same image region and is only blockier at high zoom. The stored
+mask, and everything exported, are untouched. `brushOptions.maxCanvasPixels`
+moves the budget: raise it where the engine allows, or set `Infinity` to always
+draw at full resolution. Changing it redraws the cell's masks.
+
+The live preview grows ahead of the stroke, so it is not rebuilt at every step,
+but its margin never costs more than the larger of the mask itself and the
+display budget. A preview the engine refuses to allocate is reported through
+`onCapacityExceeded`, and the stroke is abandoned with the mask unchanged.
 
 A canvas also has a longest side: Firefox draws none past 32,767 pixels
 (Chromium's limit is 65,535), and past it a canvas is allocated but drawn
 blank. A mask is one canvas pixel per cell, so a long strip can reach that well
-inside the cell cap — 70,000×900 is 63 million cells, about 60 Mi. Such a mask is not drawn:
-the renderer throws `MaskCanvasTooLargeError` (`MAX_MASK_CANVAS_SIDE`), the
-cell reports it through `onAnnotationRenderError` and renders the rest, and the
-mask itself stays in state and exports as usual. A stroke whose live preview
-would pass the limit is refused the same way, through `onCapacityExceeded`
-(whose argument is now a `BrushCapacityError`: either error); the preview's
-room to grow gives way first, so only a mask that is itself too long is refused.
+inside the cell cap — 70,000×900 is 63 million cells, about 60 Mi. The
+renderer draws such a mask from a mip as well, coarse enough that each side
+fits (`MAX_MASK_CANVAS_SIDE`). The brush's live preview is drawn at the mask's
+own resolution, so a stroke on a mask past that side is refused, through
+`onCapacityExceeded`, whose argument is a `BrushCapacityError` (a
+`MaskCapacityExceededError` or a `MaskCanvasTooLargeError`). The preview's room
+to grow gives way first, so only a mask that is itself too long is refused.
+The renderer throws `MaskCanvasTooLargeError` only when not even its coarsest
+mip fits, which a valid mask reaches only under a budget of a few pixels. The
+cell reports that through `onAnnotationRenderError` and renders the rest.
 
 A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
 before any pixel is written, so the mask is left exactly as it was rather than

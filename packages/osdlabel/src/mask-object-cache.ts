@@ -1,6 +1,10 @@
 import type { FabricObject } from 'fabric';
 import type { Annotation } from '@osdlabel/annotation';
-import type { FabricFields } from '@osdlabel/fabric-annotations';
+import {
+  MAX_MASK_CANVAS_PIXELS,
+  MAX_MASK_CANVAS_SIDE,
+  type FabricFields,
+} from '@osdlabel/fabric-annotations';
 
 interface Entry {
   /** The payload the object was rasterized from, compared by identity. */
@@ -95,7 +99,16 @@ export class MaskObjectCache {
     rawAnnotationData: unknown,
     fill: string | undefined,
     object: FabricObject,
+    maxCanvasPixels: number = MAX_MASK_CANVAS_PIXELS,
   ): void {
+    // The preview is at the mask's own resolution; a mask the cell draws from
+    // a display mip must not be shown at that resolution instead.
+    const { width, height } = object;
+    const budget =
+      Number.isFinite(maxCanvasPixels) && maxCanvasPixels > 0 ? maxCanvasPixels : Infinity;
+    if (width > MAX_MASK_CANVAS_SIDE || height > MAX_MASK_CANVAS_SIDE || width * height > budget) {
+      return;
+    }
     this.entries.set(id, { raw: rawAnnotationData, fill, object, seeded: true });
   }
 

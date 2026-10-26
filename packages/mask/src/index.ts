@@ -87,3 +87,6 @@ export {
   COCO_MAX_INTEROP_IMAGE_PIXELS,
 } from './coco-rle-codec.js';
 export type { CocoRleSegmentation, CocoRleUncompressedSegmentation } from './coco-rle-codec.js';
+
+// Halving a mask's resolution, for display and for coarsening on overflow.
+export { majorityCoarsen, type CoarsenStrategy } from './coarsen.js';

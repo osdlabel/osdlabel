@@ -8,24 +8,44 @@ import type { MaskCapacityExceededError } from '@osdlabel/mask';
  */
 export const MAX_MASK_CANVAS_SIDE = 32_767;
 
-/** Thrown instead of drawing a mask, or its live preview, on a canvas too long to draw. */
+/**
+ * The default display budget: the most canvas pixels one mask is drawn with.
+ * 16 Mi is 4,096², what iOS Safari draws; a mask with more cells is drawn from
+ * a display mip (see `buildMaskFabricObject`), slightly blockier at high zoom
+ * and never stored. A host may raise or lower it (`BrushOptions.maxCanvasPixels`).
+ */
+export const MAX_MASK_CANVAS_PIXELS = 16 * 1024 * 1024;
+
+/**
+ * Thrown instead of drawing a brush stroke's live preview on a canvas too long
+ * to draw, and by the renderer when not even its coarsest display mip fits —
+ * which a valid mask reaches only under a host display budget of a few pixels.
+ */
 export class MaskCanvasTooLargeError extends RangeError {
   /** The canvas asked for, in canvas pixels (one per cell). */
   readonly width: number;
   readonly height: number;
   /** The longest side that can be drawn, {@link MAX_MASK_CANVAS_SIDE}. */
   readonly maxSide: number;
+  /** The display budget it was drawn under, when that is what it missed. */
+  readonly maxPixels: number | undefined;
 
-  constructor(width: number, height: number) {
+  constructor(width: number, height: number, maxPixels?: number) {
+    const tooLong = width > MAX_MASK_CANVAS_SIDE || height > MAX_MASK_CANVAS_SIDE;
     super(
-      `A mask ${width} x ${height} cells wide cannot be drawn: browsers refuse a canvas side ` +
-        `longer than ${MAX_MASK_CANVAS_SIDE} pixels. It is kept, and exports as usual; ` +
-        `paint a narrower region, or split it into separate masks.`,
+      tooLong || maxPixels === undefined
+        ? `A mask ${width} x ${height} cells wide cannot be drawn: browsers refuse a canvas side ` +
+            `longer than ${MAX_MASK_CANVAS_SIDE} pixels. It is kept, and exports as usual; ` +
+            `paint a narrower region, or split it into separate masks.`
+        : `A mask ${width} x ${height} cells wide at its coarsest cannot be drawn within a ` +
+            `display budget of ${maxPixels} canvas pixels. It is kept, and exports as usual; ` +
+            `raise brushOptions.maxCanvasPixels.`,
     );
     this.name = 'MaskCanvasTooLargeError';
     this.width = width;
     this.height = height;
     this.maxSide = MAX_MASK_CANVAS_SIDE;
+    this.maxPixels = tooLong ? undefined : maxPixels;
   }
 }
 

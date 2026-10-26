@@ -129,7 +129,13 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       // A brush commit's mask, from its preview: the rebuild its write
       // triggers then reuses it instead of re-rasterizing (#238).
       seedMaskObject: (seed) =>
-        maskObjects.seed(seed.annotationId, seed.rawAnnotationData, seed.fill, seed.object),
+        maskObjects.seed(
+          seed.annotationId,
+          seed.rawAnnotationData,
+          seed.fill,
+          seed.object,
+          untrack(() => brushOptions.maxCanvasPixels),
+        ),
     },
   );
 
@@ -154,6 +160,8 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
   onCleanup(() => maskObjects.clear());
   /** Which mask is drawn in the override tint; shared by the two effects below. */
   const tintState = new MaskTintState();
+  /** The display budget the cached masks were drawn under; a change clears them. */
+  let builtUnderBudget: number | undefined;
 
   // Sync annotations from state to canvas (full clear-and-reload)
   createEffect(() => {
@@ -172,6 +180,13 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     }
 
     const matching = visibleAnnotations();
+    // Tracked: a new display budget redraws every mask, so the cache built
+    // under the old one is dropped.
+    const maxCanvasPixels = brushOptions.maxCanvasPixels;
+    if (maxCanvasPixels !== builtUnderBudget) {
+      maskObjects.clear();
+      builtUnderBudget = maxCanvasPixels;
+    }
 
     // Clear all existing annotation objects from canvas
     const toRemove = ov.canvas.getObjects().filter((obj) => obj.id);
@@ -205,7 +220,8 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
         const fill = maskFillFor(ann.id, selectedId, maskStyle);
         const isMask = ann.geometry.type === 'mask';
         const cached = isMask ? maskObjects.get(ann, fill) : undefined;
-        const obj = cached ?? (await createFabricObjectFromRawData(ann, { maskFill: fill }));
+        const obj =
+          cached ?? (await createFabricObjectFromRawData(ann, { maskFill: fill, maxCanvasPixels }));
         // Not after this run was superseded: a newer run has already retained
         // its own set, and a write now would outlive that until the next
         // rebuild, which a cell showing a static image never has.
@@ -254,6 +270,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
         annotations: new Map(matching.map((a) => [a.id as string, a] as const)),
         opacityFor: (id) => maskOpacityFor(id, selectedMaskNow, styleNow),
         isCancelled: () => cancelled,
+        maxCanvasPixels,
       });
       if (containerRef) {
         containerRef.dataset.annotationCount = String(objects.length);
@@ -306,6 +323,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       annotations: masks,
       opacityFor: (id) => maskOpacityFor(id, selectedMaskId, maskStyle),
       isCancelled: () => cancelled,
+      maxCanvasPixels: untrack(() => brushOptions.maxCanvasPixels),
     });
   });
 

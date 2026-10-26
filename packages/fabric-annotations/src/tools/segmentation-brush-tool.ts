@@ -16,11 +16,13 @@ import {
 } from '@osdlabel/mask';
 import { DEFAULT_MASK_FILL, packRgba } from '../mask-fabric-object.js';
 import {
+  MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
   type BrushCapacityError,
 } from '../mask-canvas-limit.js';
 import type { ToolOverlay } from '../types.js';
+import { marginScale } from './margin-scale.js';
 
 /** The painted result of one stroke, handed to the host to persist. */
 export interface BrushStrokeCommit {
@@ -689,17 +691,31 @@ export class SegmentationBrushTool extends BaseTool {
     // Never growing a side past what a canvas can draw: the margin is a
     // convenience, and a preview refused for its margin alone would abandon a
     // stroke whose mask draws fine once committed.
-    const marginX = Math.max(
+    const sideX = Math.max(
       0,
       Math.min(Math.ceil(bounds.width / 2), Math.floor((MAX_MASK_CANVAS_SIDE - bounds.width) / 2)),
     );
-    const marginY = Math.max(
+    const sideY = Math.max(
       0,
       Math.min(
         Math.ceil(bounds.height / 2),
         Math.floor((MAX_MASK_CANVAS_SIDE - bounds.height) / 2),
       ),
     );
+    // Nor letting the margin cost more than the mask itself, or the display
+    // budget while the mask is under it (#158): half the extent on every side
+    // made a preview up to 4x the buffer — 466 MB of RGBA for a 53 MB mask.
+    // The margin still scales with the extent, so growth stays geometric.
+    const area = bounds.width * bounds.height;
+    const scale = marginScale(
+      bounds.width,
+      bounds.height,
+      sideX,
+      sideY,
+      area + Math.max(area, MAX_MASK_CANVAS_PIXELS),
+    );
+    const marginX = Math.floor(sideX * scale);
+    const marginY = Math.floor(sideY * scale);
 
     // `min`/`max` against `bounds` on both sides, so containment is structural
     // rather than a property the margins happen to preserve. Whatever the

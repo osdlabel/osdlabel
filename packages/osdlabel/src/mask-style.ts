@@ -146,6 +146,8 @@ export async function replaceMaskObject(
   fill: string | undefined,
   prepare: (next: FabricObject, previous: FabricObject) => void,
   isCancelled: () => boolean,
+  /** The display budget the replacement is drawn under; see `BrushOptions.maxCanvasPixels`. */
+  maxCanvasPixels?: number,
 ): Promise<MaskSwapOutcome> {
   const previous = canvas.getObjects().find((obj) => obj.id === annotation.id);
   if (!previous) return 'absent';
@@ -154,7 +156,10 @@ export async function replaceMaskObject(
   // show committed and preview together and leave the brush restoring a
   // detached object. The stroke's commit rebuilds in the right tint anyway.
   if (previous.visible === false) return 'hidden';
-  const next = await createFabricObjectFromRawData(annotation, { maskFill: fill });
+  const next = await createFabricObjectFromRawData(annotation, {
+    maskFill: fill,
+    maxCanvasPixels,
+  });
   if (isCancelled() || !next) return 'cancelled';
   const index = canvas.getObjects().indexOf(previous);
   if (index < 0) return 'absent';
@@ -235,6 +240,8 @@ export interface MaskTintSwapHost {
   readonly opacityFor: (id: string) => number;
   /** Whether the effect that issued the swaps has been cleaned up. */
   readonly isCancelled: () => boolean;
+  /** The display budget replacements are drawn under; see `BrushOptions.maxCanvasPixels`. */
+  readonly maxCanvasPixels?: number | undefined;
 }
 
 /**
@@ -263,6 +270,7 @@ export function swapMaskTints(
         next.set('opacity', host.opacityFor(id));
       },
       () => host.isCancelled() || !state.isCurrent(generation),
+      host.maxCanvasPixels,
     ).then((outcome) => {
       if (outcome === 'replaced') state.landed(id, fill, generation);
     });

@@ -15,6 +15,7 @@ export {
   DEFAULT_MASK_FILL,
 } from './mask-fabric-object.js';
 export {
+  MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
   type BrushCapacityError,

@@ -65,3 +65,44 @@ describe('MaskObjectCache', () => {
     expect(cache.size).toBe(0);
   });
 });
+
+describe('MaskObjectCache.seed', () => {
+  /** An object of `width` x `height` canvas pixels, as the brush's preview makes. */
+  const sized = (width: number, height: number) => ({ width, height }) as unknown as FabricObject;
+
+  it("serves a seed to the store's copy of the payload, matched by content once", () => {
+    const cache = new MaskObjectCache();
+    const a = mask('m1');
+    const seeded = sized(10, 10);
+    cache.seed(a.id, a.rawAnnotationData, undefined, seeded);
+    // What a store hands back: an equal payload in a different object.
+    const copy = { ...a, rawAnnotationData: structuredClone(a.rawAnnotationData) };
+    expect(cache.get(copy, undefined)).toBe(seeded);
+    expect(cache.get(copy, undefined)).toBe(seeded);
+    // After that first match it is keyed by identity, like any other entry.
+    const another = { ...a, rawAnnotationData: structuredClone(a.rawAnnotationData) };
+    expect(cache.get(another, undefined)).toBeUndefined();
+  });
+
+  it('does not match a different payload or tint by content', () => {
+    const cache = new MaskObjectCache();
+    const a = mask('m1');
+    cache.seed(a.id, a.rawAnnotationData, undefined, sized(10, 10));
+    expect(cache.get({ ...a, ...mask('m1', 6) }, undefined)).toBeUndefined();
+    cache.seed(a.id, a.rawAnnotationData, undefined, sized(10, 10));
+    expect(cache.get(a, 'red')).toBeUndefined();
+  });
+
+  it('skips an object the cell would draw from a display mip', () => {
+    const cache = new MaskObjectCache();
+    const a = mask('m1');
+    cache.seed(a.id, a.rawAnnotationData, undefined, sized(5_000, 4_000));
+    expect(cache.size).toBe(0);
+    cache.seed(a.id, a.rawAnnotationData, undefined, sized(40_000, 10), Infinity);
+    expect(cache.size).toBe(0);
+    cache.seed(a.id, a.rawAnnotationData, undefined, sized(100, 100), 9_999);
+    expect(cache.size).toBe(0);
+    cache.seed(a.id, a.rawAnnotationData, undefined, sized(5_000, 4_000), Infinity);
+    expect(cache.size).toBe(1);
+  });
+});

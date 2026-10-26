@@ -61,6 +61,13 @@ export default function ViewerCell({
   // every annotation; the selection effect handles it.
   const maskStyleRef = useRef(brushOptions.maskStyle);
   maskStyleRef.current = brushOptions.maskStyle;
+  // The display budget: a dependency of the rebuild, which redraws every mask
+  // when it changes, and read through a ref by the swaps and the brush's seed.
+  const maxCanvasPixels = brushOptions.maxCanvasPixels;
+  const maxCanvasPixelsRef = useRef(maxCanvasPixels);
+  maxCanvasPixelsRef.current = maxCanvasPixels;
+  /** The budget the cached masks were drawn under; a change clears them. */
+  const builtUnderBudgetRef = useRef<number | undefined>(undefined);
   /** Which mask is drawn in the override tint; shared by the two effects below. */
   const tintStateRef = useRef<MaskTintState | undefined>(undefined);
   tintStateRef.current ??= new MaskTintState();
@@ -140,7 +147,13 @@ export default function ViewerCell({
   // rebuild its write triggers then reuses it instead of re-rasterizing (#238).
   useAnnotationTool(overlay, imageSource?.id, isActive, {
     seedMaskObject: (seed) =>
-      maskObjects.seed(seed.annotationId, seed.rawAnnotationData, seed.fill, seed.object),
+      maskObjects.seed(
+        seed.annotationId,
+        seed.rawAnnotationData,
+        seed.fill,
+        seed.object,
+        maxCanvasPixelsRef.current,
+      ),
   });
 
   // Track only the annotation dictionary for this cell's image. Immer keeps
@@ -173,6 +186,10 @@ export default function ViewerCell({
 
     const activeContextId = contextState.activeContextId;
     const matching = visibleAnnotations;
+    if (maxCanvasPixels !== builtUnderBudgetRef.current) {
+      maskObjects.clear();
+      builtUnderBudgetRef.current = maxCanvasPixels;
+    }
 
     // Clear existing annotation objects
     const toRemove = overlay.canvas.getObjects().filter((obj) => obj.id);
@@ -203,7 +220,8 @@ export default function ViewerCell({
         const fill = maskFillFor(ann.id, selectedId, maskStyle);
         const isMask = ann.geometry.type === 'mask';
         const cached = isMask ? maskObjects.get(ann, fill) : undefined;
-        const obj = cached ?? (await createFabricObjectFromRawData(ann, { maskFill: fill }));
+        const obj =
+          cached ?? (await createFabricObjectFromRawData(ann, { maskFill: fill, maxCanvasPixels }));
         // Not after this run was superseded: a newer run has already retained
         // its own set, and a write now would outlive that until the next
         // rebuild, which a cell showing a static image never has.
@@ -249,6 +267,7 @@ export default function ViewerCell({
         annotations: new Map(matching.map((a) => [a.id as string, a] as const)),
         opacityFor: (id) => maskOpacityFor(id, selectedMaskNow, styleNow),
         isCancelled: () => cancelled,
+        maxCanvasPixels,
       });
       if (containerRef.current) {
         containerRef.current.dataset.annotationCount = String(objects.length);
@@ -272,6 +291,7 @@ export default function ViewerCell({
     store,
     maskObjects,
     tintState,
+    maxCanvasPixels,
   ]);
 
   // Selected-mask styling. A selected mask has no handles to show, so the
@@ -318,6 +338,7 @@ export default function ViewerCell({
       annotations: masks,
       opacityFor: (id) => maskOpacityFor(id, selectedMaskId, maskStyle),
       isCancelled: () => cancelled,
+      maxCanvasPixels: maxCanvasPixelsRef.current,
     });
     return () => {
       cancelled = true;

@@ -10,7 +10,11 @@ import {
   strokeSegment,
 } from '@osdlabel/mask';
 import { buildMaskFabricObject } from '../../src/mask-fabric-object.js';
-import { MAX_MASK_CANVAS_SIDE, MaskCanvasTooLargeError } from '../../src/mask-canvas-limit.js';
+import {
+  MAX_MASK_CANVAS_PIXELS,
+  MAX_MASK_CANVAS_SIDE,
+  MaskCanvasTooLargeError,
+} from '../../src/mask-canvas-limit.js';
 import { initFabricModule } from '../../src/fabric-module.js';
 
 initFabricModule();
@@ -211,27 +215,107 @@ describe('a mask too long for a canvas', () => {
     },
   });
 
-  it('is refused by name rather than drawn blank, inside the cell cap', () => {
-    // 63 M and 64 M cells: both under the 64 Mi cap, both past Firefox's
-    // 32,767-pixel canvas side.
-    for (const [width, height] of [
-      [70_000, 900],
-      [40_000, 1_600],
-      [900, 70_000],
-    ] as const) {
-      let caught: unknown;
-      try {
-        buildMaskFabricObject(solid(width, height), { id: 'ann-1' });
-      } catch (error) {
-        caught = error;
+  // Halves three masks of 63-64 M cells, twice for two of them: a few seconds
+  // of real work, past the default timeout under a parallel run.
+  it(
+    'draws from a display mip rather than refusing, inside the cell cap',
+    { timeout: 30_000 },
+    () => {
+      // 63 M and 64 M cells: both under the 64 Mi cap, both past Firefox's
+      // 32,767-pixel canvas side and the 16 Mi display budget.
+      for (const [width, height, scale] of [
+        [70_000, 900, 4],
+        [40_000, 1_600, 2],
+        [900, 70_000, 4],
+      ] as const) {
+        const object = buildMaskFabricObject(solid(width, height), { id: 'ann-1' }) as FabricImage;
+        expect(object.scaleX, `${width}x${height}`).toBe(scale);
+        expect(object.scaleY).toBe(scale);
+        // The mip covers the same image region: the box is cell-aligned at 0.
+        expect(object.width).toBe(Math.ceil(width / scale));
+        expect(object.height).toBe(Math.ceil(height / scale));
+        expect(object.width).toBeLessThanOrEqual(MAX_MASK_CANVAS_SIDE);
+        expect(object.width * object.height).toBeLessThanOrEqual(MAX_MASK_CANVAS_PIXELS);
       }
-      expect(caught).toBeInstanceOf(MaskCanvasTooLargeError);
-      expect(caught).toMatchObject({ width, height, maxSide: MAX_MASK_CANVAS_SIDE });
+    },
+  );
+
+  it('refuses by name only when no mip up to the largest downsample fits', () => {
+    // A box straddling the 2^16 cell boundary in both axes is 2x2 cells even at
+    // the coarsest grid, so a one-cell budget is out of reach.
+    const straddling: MaskRawAnnotationData = {
+      format: MASK_RAW_FORMAT,
+      data: {
+        ...encodeCanonical(
+          runRaster(
+            {
+              cells: { x: 65_530, y: 65_530, width: 12, height: 12 },
+              imageWidth: 100_000,
+              imageHeight: 100_000,
+              downsample: 1,
+            },
+            [0, 144],
+          ),
+        ),
+      },
+    };
+    let caught: unknown;
+    try {
+      buildMaskFabricObject(straddling, { id: 'ann-1', maxCanvasPixels: 1 });
+    } catch (error) {
+      caught = error;
     }
+    expect(caught).toBeInstanceOf(MaskCanvasTooLargeError);
+    expect(caught).toMatchObject({ width: 2, height: 2, maxPixels: 1 });
+    expect((caught as Error).message).toMatch(/display budget of 1 canvas pixels/);
   });
 
   it('still draws a mask exactly as long as the limit', () => {
     const object = buildMaskFabricObject(solid(MAX_MASK_CANVAS_SIDE, 1), { id: 'ann-1' });
     expect((object as FabricImage).width).toBe(MAX_MASK_CANVAS_SIDE);
+    expect((object as FabricImage).scaleX).toBe(1);
+  });
+});
+
+describe('the display budget', () => {
+  /** A solid 6,000 x 5,000 mask: 30 M cells, under the cap and every side limit. */
+  const large = (): MaskRawAnnotationData => ({
+    format: MASK_RAW_FORMAT,
+    data: {
+      ...encodeCanonical(
+        runRaster(
+          {
+            cells: { x: 0, y: 0, width: 6_000, height: 5_000 },
+            imageWidth: 8_000,
+            imageHeight: 8_000,
+            downsample: 1,
+          },
+          [0, 30_000_000],
+        ),
+      ),
+    },
+  });
+
+  // 30 M cells per mask, as for the strips above.
+  it('draws a mask past 16 Mi cells from a 2x mip', { timeout: 30_000 }, () => {
+    const object = buildMaskFabricObject(large(), { id: 'ann-1' }) as FabricImage;
+    expect([object.width, object.height, object.scaleX, object.scaleY]).toEqual([
+      3_000, 2_500, 2, 2,
+    ]);
+    expect([object.left, object.top]).toEqual([0, 0]);
+  });
+
+  it('takes a host budget in place of the default', { timeout: 30_000 }, () => {
+    const full = buildMaskFabricObject(large(), {
+      id: 'ann-1',
+      maxCanvasPixels: Infinity,
+    }) as FabricImage;
+    expect([full.width, full.scaleX]).toEqual([6_000, 1]);
+    // 30 M / 4^2 is under 2 M, 30 M / 4 is not: two halvings.
+    const small = buildMaskFabricObject(large(), {
+      id: 'ann-1',
+      maxCanvasPixels: 2 * 1024 * 1024,
+    }) as FabricImage;
+    expect([small.width, small.height, small.scaleX]).toEqual([1_500, 1_250, 4]);
   });
 });

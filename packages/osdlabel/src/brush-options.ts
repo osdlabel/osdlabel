@@ -39,6 +39,15 @@ export interface BrushOptions {
    */
   readonly maskStyle?: MaskStyle | undefined;
   /**
+   * The display budget: the most canvas pixels one mask is drawn with.
+   * Defaults to `MAX_MASK_CANVAS_PIXELS` (16 Mi, 4,096², what iOS Safari
+   * draws). A mask with more cells is drawn from a display mip — halved by the
+   * built-in majority rule until it fits, so slightly blockier at high zoom —
+   * and the stored mask is never touched. `Infinity` draws every mask in full,
+   * up to the 32,767-pixel side every browser draws.
+   */
+  readonly maxCanvasPixels?: number | undefined;
+  /**
    * Cap on the cells one mask's box may hold (image pixels at full
    * resolution).
    *

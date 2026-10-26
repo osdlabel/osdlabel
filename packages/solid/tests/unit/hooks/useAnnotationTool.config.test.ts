@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { batch, createComponent, createRoot, createSignal, untrack, type Setter } from 'solid-js';
+import {
+  batch,
+  createComponent,
+  createRenderEffect,
+  createRoot,
+  createSignal,
+  untrack,
+  type Setter,
+} from 'solid-js';
 import { version as FABRIC_VERSION } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import {
@@ -398,5 +406,36 @@ describe('the brush config names the bound New mask key (m19)', () => {
     config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
     expect(reported).toHaveLength(1);
     expect(reported[0]!.message).toMatch(/Start a separate mask with New mask \(m\)\.$/);
+  });
+});
+
+describe("the provider's brush options", () => {
+  afterEach(() => {
+    dispose?.();
+    dispose = undefined;
+  });
+
+  it('hand on the display budget, and a change to it is observed', () => {
+    const [budget, setBudget] = createSignal<number | undefined>(1_000);
+    const seen: (number | undefined)[] = [];
+    createRoot((d) => {
+      dispose = d;
+      createComponent(AnnotatorProvider, {
+        get brushOptions() {
+          return { maxCanvasPixels: budget() };
+        },
+        get children() {
+          untrack(() => {
+            const { brushOptions } = useAnnotator();
+            // How `ViewerCell`'s rebuild reads it: tracked, inside an effect.
+            createRenderEffect(() => seen.push(brushOptions.maxCanvasPixels));
+          });
+          return null;
+        },
+      });
+    });
+    expect(seen).toEqual([1_000]);
+    setBudget(2_000);
+    expect(seen).toEqual([1_000, 2_000]);
   });
 });
