@@ -179,8 +179,10 @@ costs at most the larger of the mask's own area and the display budget (#158).
   `forEachCheckedSpan`, `forEachLevel0Span`, `decodeCanonicalRaster`);
   downsampling (`MAX_MASK_DOWNSAMPLE`, `assertMaskDownsample`,
   `isMaskDownsample`, `maskDownsampleOf`, `maskGridSize`, `snapshotImageBox`,
-  `upsampleSnapshot`, `MaskBoxFields`, and `majorityCoarsen` /
-  `CoarsenStrategy`, which halve a raster's resolution);
+  `upsampleSnapshot`, `MaskBoxFields`; `majorityCoarsen` / `CoarsenStrategy`,
+  which halve a raster's resolution, `verifyCoarsenStrategy`, which checks a
+  strategy against the contract the brush relies on, and `refineRaster`, which
+  re-grids a mask finer without loss);
   `stampCircle`, `strokeSegment`, `MaskCapacityExceededError`,
   `DEFAULT_MAX_MASK_PIXELS`, `assertDecodableArea`, `assertDecodableCount`,
   `assertDecodableOrigin`; the canonical codec

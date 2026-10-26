@@ -297,6 +297,15 @@ class DenseMaskRaster implements MaskRaster {
 }
 
 /** Puts a dense snapshot behind the {@link MaskRaster} interface, without copying it. */
+/**
+ * The dense snapshot behind a raster `denseRaster` built, without a copy, or
+ * `null` for any other raster: for a reader in this package with a faster
+ * path over bytes than over spans. Off the barrel.
+ */
+export function denseSnapshotOf(raster: MaskRaster): MaskSnapshot | null {
+  return raster instanceof DenseMaskRaster ? raster.dense : null;
+}
+
 export function denseRaster(snapshot: MaskSnapshot): MaskRaster {
   return new DenseMaskRaster(snapshot);
 }

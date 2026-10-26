@@ -90,3 +90,6 @@ export type { CocoRleSegmentation, CocoRleUncompressedSegmentation } from './coc
 
 // Halving a mask's resolution, for display and for coarsening on overflow.
 export { majorityCoarsen, type CoarsenStrategy } from './coarsen.js';
+export { verifyCoarsenStrategy } from './verify-coarsen-strategy.js';
+// Re-gridding a mask finer, losslessly.
+export { refineRaster } from './regrid.js';
