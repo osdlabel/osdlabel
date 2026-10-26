@@ -75,6 +75,7 @@ function harness(options: { selectedFill?: string; fill?: string } = {}) {
     canvas.width = snapshot.cells.width;
     canvas.height = snapshot.cells.height;
     config.onCommit({
+      startDownsample: 1,
       annotationId: target?.annotationId ?? null,
       imageId,
       contextId,
@@ -144,6 +145,7 @@ describe('the brush seeds the cell with its preview', () => {
   it('not at all without a preview', () => {
     const h = harness();
     h.config.onCommit({
+      startDownsample: 1,
       annotationId: null,
       imageId,
       contextId,

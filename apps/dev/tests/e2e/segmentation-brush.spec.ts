@@ -84,6 +84,41 @@ async function zoomOnto(page: Page, point: { x: number; y: number }, zoom: numbe
   await page.waitForTimeout(300);
 }
 
+/**
+ * Zooms the active viewer onto an image point at once, at `screenPerImage`
+ * screen pixels to an image pixel — what decides the grid a stroke on a
+ * downsampled mask paints on.
+ */
+async function zoomToImageScale(
+  page: Page,
+  point: { x: number; y: number },
+  screenPerImage: number,
+): Promise<void> {
+  await page.evaluate(
+    ([pt, scale]) => {
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & {
+            __osdViewer?: {
+              viewport: {
+                imageToViewportCoordinates(x: number, y: number): unknown;
+                imageToViewportZoom(imageZoom: number): number;
+                zoomTo(zoom: number, ref: unknown, immediately: boolean): void;
+                panTo(center: unknown, immediately: boolean): void;
+              };
+            };
+          })
+        | null;
+      const viewport = el?.__osdViewer?.viewport;
+      if (!viewport) throw new Error('test hooks not installed');
+      const center = viewport.imageToViewportCoordinates(pt.x, pt.y);
+      viewport.zoomTo(viewport.imageToViewportZoom(scale), center, true);
+      viewport.panTo(center, true);
+    },
+    [point, screenPerImage] as const,
+  );
+  await page.waitForTimeout(300);
+}
+
 /** Unsigned LEB128 run lengths, base64'd: the canonical payload's `counts`. */
 function canonicalCounts(runs: readonly number[]): string {
   const bytes: number[] = [];
@@ -625,15 +660,20 @@ test.describe('Segmentation brush', () => {
       expect(await fabricAlphaAt(page, past.x, past.y)).toBe(0);
     });
 
-    test('a stroke on it keeps downsample 4', async ({ page }) => {
-      await importDocument(page, COARSE_DOC);
-      // Select it, so the brush refines it rather than starting a new mask.
+    /** Selects the imported mask, then takes the brush, so a stroke refines it. */
+    async function refineCoarse(page: Page): Promise<void> {
       await page.getByTestId('tool-select').click();
       const click = await imageToClient(page, inside);
       await page.mouse.click(click.x, click.y);
       await page.waitForTimeout(200);
-
       await page.getByTestId('tool-segmentationBrush').click();
+    }
+
+    test('a stroke made zoomed out keeps downsample 4', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      // Four image pixels to a screen pixel: nothing finer than d=4 is shown.
+      await zoomToImageScale(page, inside, 0.25);
+      await refineCoarse(page);
       const from = await imageToClient(page, { x: 340, y: 200 });
       const to = await imageToClient(page, { x: 450, y: 200 });
       await stroke(page, from, to);
@@ -649,6 +689,29 @@ test.describe('Segmentation brush', () => {
       expect(geometry.width! % 4).toBe(0);
       expect(geometry.pixelCount!).toBeGreaterThan(COARSE_BOX.width * COARSE_BOX.height);
       expect(geometry.pixelCount! % 16).toBe(0);
+    });
+
+    test('a stroke made closer in re-grids it finer, losing nothing', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      // An image pixel to a screen pixel: the stroke paints at d=1.
+      await zoomToImageScale(page, inside, 1);
+      await refineCoarse(page);
+      const from = await imageToClient(page, { x: 340, y: 200 });
+      const to = await imageToClient(page, { x: 450, y: 200 });
+      await stroke(page, from, to);
+
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      const { geometry, rawAnnotationData } = annotations[0]!;
+      // d=1 is never written.
+      expect(geometry.downsample).toBeUndefined();
+      expect(rawAnnotationData?.data?.['downsample']).toBeUndefined();
+      expect(geometry.origin).toEqual({ x: COARSE_BOX.x, y: COARSE_BOX.y });
+      // Every pixel of the old block is still there, and the stroke added more.
+      expect(geometry.width!).toBeGreaterThan(COARSE_BOX.width + 60);
+      expect(geometry.pixelCount!).toBeGreaterThan(COARSE_BOX.width * COARSE_BOX.height);
+      const corner = await imageToClient(page, { x: COARSE_BOX.x + 1, y: COARSE_BOX.y + 1 });
+      expect(await fabricAlphaAt(page, corner.x, corner.y)).toBeGreaterThan(60);
     });
 
     test('a COCO export comes back at downsample 4', async ({ page }) => {

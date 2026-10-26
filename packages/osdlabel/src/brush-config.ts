@@ -262,10 +262,13 @@ export function buildSegmentationBrushConfig(
     getImageSize: accessors.getImageSize,
     getTarget: resolveTarget,
     // The same answer as `getTarget`, without decoding: the cursor asks on
-    // every pointer move.
+    // every pointer move. The payload's box is in image pixels, so the cue
+    // can show the grid a press would re-grid the mask to.
     peekTarget: () => {
       const selected = selectedMask();
-      return selected ? { downsample: selected.data.downsample ?? 1 } : null;
+      if (!selected) return null;
+      const { x, y, width, height } = selected.data;
+      return { downsample: selected.data.downsample ?? 1, box: { x, y, width, height } };
     },
     onCommit: commit,
     onAdjustRadius: dispatchers.adjustBrushRadius,

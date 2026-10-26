@@ -6,9 +6,15 @@ import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import {
   BoundedDenseMaskBuffer,
   DEFAULT_MAX_MASK_PIXELS,
+  MAX_MASK_DOWNSAMPLE,
   MaskCapacityExceededError,
+  isMaskDownsample,
+  majorityCoarsen,
+  refineRaster,
+  snapshotImageBox,
   stampCircle,
   strokeSegment,
+  type CoarsenStrategy,
   type MaskBuffer,
   type MaskCellBox,
   type MaskRaster,
@@ -33,6 +39,12 @@ export interface BrushStrokeCommit {
   /** The mask after the stroke, through the storage-agnostic raster interface. */
   readonly snapshot: MaskRaster;
   /**
+   * The downsample the mask had before the stroke: the refined mask's, or 1
+   * for a new one. `snapshot.downsample` is above it when the stroke coarsened
+   * the mask to fit its cap, and below it when the stroke re-gridded it finer.
+   */
+  readonly startDownsample: number;
+  /**
    * The mask as the stroke's live preview drew it: one canvas pixel per cell
    * of `snapshot.cells`, in `fill`. A host can show it without decoding and
    * re-rasterizing the mask (`maskFabricObjectFromCanvas`), the most expensive
@@ -45,6 +57,12 @@ export interface BrushStrokeCommit {
 export interface BrushTargetPreview {
   /** The downsample of the mask it would refine. */
   readonly downsample: number;
+  /**
+   * The mask's box in image (level-0) pixels — its geometry's, no decode
+   * needed. With it the cue shows the grid the stroke will paint on after
+   * re-gridding finer; without it, the mask's own.
+   */
+  readonly box?: MaskRegion | undefined;
 }
 
 /** The mask a stroke should paint into, resolved by the host. */
@@ -107,6 +125,22 @@ export interface SegmentationBrushToolConfig {
    */
   readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
   readonly maxPixels?: number | undefined;
+  /**
+   * The coarsest downsample a stroke may push its mask to when it would
+   * outgrow the cap: on overflow the stroke's buffer is halved by the coarsen
+   * strategy, its preview redrawn, and the segment painted again, until it fits
+   * or this is reached, when the whole stroke is refused as it is without it.
+   * A power of two; 1 (the default, and what any other value means) never
+   * coarsens. Read at each press.
+   */
+  readonly getMaxDownsample?: (() => number) | undefined;
+  /**
+   * The rule a stroke coarsens by (default `majorityCoarsen`). Read at each
+   * overflow, at most once per overflow between pointer events, so a slow host
+   * strategy delays one segment rather than every one. It must meet the
+   * contract `verifyCoarsenStrategy` checks.
+   */
+  readonly getCoarsenStrategy?: (() => CoarsenStrategy) | undefined;
 }
 
 /** The cursor cue's line width, in screen pixels whatever the zoom. */
@@ -181,6 +215,10 @@ export class SegmentationBrushTool extends BaseTool {
   private paintedBounds: MaskCellBox | null = null;
   /** The buffer's change count when the stroke began, to tell a no-op stroke. */
   private changesAtStart: number | undefined;
+  /** The mask's downsample before the stroke, for the commit. */
+  private startDownsample = 1;
+  /** The coarsest downsample this stroke may coarsen to; 1 never coarsens. */
+  private strokeMaxDownsample = 1;
 
   /**
    * The committed object for the mask being refined, hidden for the duration of
@@ -261,21 +299,36 @@ export class SegmentationBrushTool extends BaseTool {
       this.targetId = target?.annotationId ?? null;
       this.targetFill = target?.fill;
 
-      // A refined mask keeps the resolution it was stored at. A new one
-      // starts at full resolution whatever the zoom: choosing from the view
-      // coarsened small strokes, and made the result depend on the size of
-      // the monitor it was painted on.
-      this.buffer = target
-        ? BoundedDenseMaskBuffer.fromSnapshot(target.snapshot, this.maxPixelsOption())
-        : new BoundedDenseMaskBuffer({
-            imageWidth: imageSize.width,
-            imageHeight: imageSize.height,
-            ...this.maxPixelsOption(),
-          });
+      // A new mask starts at full resolution whatever the zoom: choosing from
+      // the view coarsened small strokes, and made the result depend on the
+      // size of the monitor it was painted on. A refined one keeps its own
+      // resolution, unless the view is close enough to paint it finer and the
+      // finer box fits; re-gridding finer replicates cells, so it loses nothing.
+      this.strokeMaxDownsample = this.maxDownsample();
+      this.startDownsample = target?.snapshot.downsample ?? 1;
+      if (target) {
+        const downsample = this.strokeDownsample(
+          target.snapshot.downsample,
+          snapshotImageBox(target.snapshot),
+          imagePoint,
+          this.strokeMaxDownsample,
+        );
+        const source =
+          downsample < target.snapshot.downsample
+            ? refineRaster(target.snapshot, downsample, this.capacity())
+            : target.snapshot;
+        this.buffer = BoundedDenseMaskBuffer.fromSnapshot(source, this.maxPixelsOption());
+      } else {
+        this.buffer = new BoundedDenseMaskBuffer({
+          imageWidth: imageSize.width,
+          imageHeight: imageSize.height,
+          ...this.maxPixelsOption(),
+        });
+      }
       this.changesAtStart = this.buffer.changeCount;
-      const targetCells = target?.snapshot.cells;
+      const targetCells = this.buffer.raster().cells;
       this.paintedBounds =
-        targetCells && targetCells.width > 0 && targetCells.height > 0 ? { ...targetCells } : null;
+        target && targetCells.width > 0 && targetCells.height > 0 ? { ...targetCells } : null;
     } catch (error) {
       if (error instanceof MaskCapacityExceededError) {
         this.config.onCapacityExceeded?.(error);
@@ -381,6 +434,7 @@ export class SegmentationBrushTool extends BaseTool {
       imageId: this.imageId,
       contextId: this.contextId,
       snapshot,
+      startDownsample: this.startDownsample,
       ...(preview ? { preview } : {}),
     };
     this.endStroke();
@@ -511,6 +565,100 @@ export class SegmentationBrushTool extends BaseTool {
       : {};
   }
 
+  /** The cell cap a stroke's buffer is held to. */
+  private capacity(): number {
+    return this.maxPixelsOption().maxPixels ?? DEFAULT_MAX_MASK_PIXELS;
+  }
+
+  /** The host's `maxDownsample`, screened: a power of two, else 1. */
+  private maxDownsample(): number {
+    const value = this.config.getMaxDownsample?.();
+    return value !== undefined && isMaskDownsample(value) ? value : 1;
+  }
+
+  /**
+   * The downsample a stroke pressed at `point` paints a `downsample` mask at:
+   * the finest power of two no finer than the view shows (an image pixel per
+   * screen pixel or more), whose box — the mask's, `box` in image pixels, and
+   * the first dab's — fits. A context that coarsens (`maxDownsample` above 1)
+   * may fill the cap; one that
+   * does not keeps three quarters of it free, so re-gridding never turns a
+   * stroke that would have fitted at the mask's own resolution into a refusal.
+   * The mask's own downsample when nothing finer fits.
+   */
+  private strokeDownsample(
+    downsample: number,
+    box: MaskRegion,
+    point: Point,
+    maxDownsample: number,
+  ): number {
+    if (downsample <= 1 || !this.overlay) return downsample;
+    const size = this.config.getImageSize();
+    const zoom = this.overlay.canvas.getZoom();
+    const perScreenPixel = Number.isFinite(zoom) && zoom > 0 ? 1 / zoom : 1;
+    let finest = 1;
+    while (finest * 2 <= perScreenPixel && finest < downsample) finest *= 2;
+    const dab = this.discRegion(point.x, point.y);
+    const imageWidth = size?.width ?? Infinity;
+    const imageHeight = size?.height ?? Infinity;
+    const hasBox = box.width > 0 && box.height > 0;
+    const left = Math.max(0, Math.min(hasBox ? box.x : Infinity, dab.x));
+    const top = Math.max(0, Math.min(hasBox ? box.y : Infinity, dab.y));
+    const right = Math.min(
+      imageWidth,
+      Math.max(hasBox ? box.x + box.width : -Infinity, dab.x + dab.width),
+    );
+    const bottom = Math.min(
+      imageHeight,
+      Math.max(hasBox ? box.y + box.height : -Infinity, dab.y + dab.height),
+    );
+    if (right <= left || bottom <= top) return downsample;
+    const limit = maxDownsample > 1 ? this.capacity() : this.capacity() / 4;
+    for (let d = finest; d < downsample; d *= 2) {
+      const cells =
+        (Math.ceil(right / d) - Math.floor(left / d)) *
+        (Math.ceil(bottom / d) - Math.floor(top / d));
+      if (cells <= limit) return d;
+    }
+    return downsample;
+  }
+
+  /**
+   * Halves the stroke's buffer after it outgrew its cap, if the stroke may
+   * coarsen that far, and returns whether it did. The preview is dropped, to
+   * be redrawn whole on the coarser grid, and the stroke is marked changed:
+   * a coarsened mask is a different mask even where no cell was painted.
+   */
+  private coarsenBuffer(): boolean {
+    const buffer = this.buffer;
+    if (!buffer) return false;
+    const d = buffer.downsample;
+    if (d * 2 > this.strokeMaxDownsample || d * 2 > MAX_MASK_DOWNSAMPLE) return false;
+    const strategy = this.config.getCoarsenStrategy?.() ?? majorityCoarsen;
+    const coarse = strategy(buffer.raster());
+    if (coarse.downsample !== d * 2) {
+      throw new RangeError(
+        `A coarsen strategy returned downsample ${coarse.downsample} for ${d}, not ${d * 2}`,
+      );
+    }
+    this.buffer = BoundedDenseMaskBuffer.fromSnapshot(coarse, this.maxPixelsOption());
+    this.changesAtStart = undefined;
+    const painted = this.paintedBounds;
+    if (painted) {
+      const x = Math.floor(painted.x / 2);
+      const y = Math.floor(painted.y / 2);
+      this.paintedBounds = {
+        x,
+        y,
+        width: Math.ceil((painted.x + painted.width) / 2) - x,
+        height: Math.ceil((painted.y + painted.height) / 2) - y,
+      };
+    }
+    this.previewBounds = null;
+    this.previewPixels = null;
+    return true;
+  }
+
   /**
    * Runs a rasterization step, then mirrors the touched pixels onto the preview.
    *
@@ -520,9 +668,34 @@ export class SegmentationBrushTool extends BaseTool {
    */
   private paint(apply: () => void, touched: MaskRegion): void {
     if (!this.buffer) return;
+    // A step that would outgrow the cap writes nothing — the buffer grows
+    // before any cell is set — so after coarsening it is painted again whole.
+    for (;;) {
+      try {
+        apply();
+        break;
+      } catch (error) {
+        if (!(error instanceof MaskCapacityExceededError)) throw error;
+        let coarsened: boolean;
+        try {
+          coarsened = this.coarsenBuffer();
+        } catch (coarsenError) {
+          if (!(coarsenError instanceof MaskCapacityExceededError)) throw coarsenError;
+          coarsened = false;
+        }
+        if (!coarsened) {
+          this.config.onCapacityExceeded?.(this.refusal(error));
+          this.endStroke();
+          return;
+        }
+      }
+    }
     // `touched` arrives in image pixels; the preview, like the buffer, is in
-    // cells. Rounded outward so a partly-touched cell is still repainted.
-    const d = this.buffer.downsample;
+    // cells — after any coarsening, the coarser ones. Rounded outward so a
+    // partly-touched cell is still repainted.
+    const buffer = this.buffer;
+    if (!buffer) return;
+    const d = buffer.downsample;
     const left = Math.floor(touched.x / d);
     const top = Math.floor(touched.y / d);
     const touchedCells: MaskRegion = {
@@ -531,16 +704,6 @@ export class SegmentationBrushTool extends BaseTool {
       width: Math.ceil((touched.x + touched.width) / d) - left,
       height: Math.ceil((touched.y + touched.height) / d) - top,
     };
-    try {
-      apply();
-    } catch (error) {
-      if (error instanceof MaskCapacityExceededError) {
-        this.config.onCapacityExceeded?.(error);
-        this.endStroke();
-        return;
-      }
-      throw error;
-    }
     this.growPaintedBounds(touchedCells);
     try {
       this.syncPreview(touchedCells);
@@ -563,6 +726,21 @@ export class SegmentationBrushTool extends BaseTool {
       );
       this.endStroke();
     }
+  }
+
+  /**
+   * The error a stroke refused at its cap reports: the buffer's own, or — in a
+   * context that coarsens — one saying the coarsest allowed grid was reached.
+   */
+  private refusal(error: MaskCapacityExceededError): MaskCapacityExceededError {
+    if (this.strokeMaxDownsample <= 1) return error;
+    return new MaskCapacityExceededError(
+      error.requestedCells,
+      error.maxCells,
+      error.downsample,
+      `It is already at the coarsest downsample this context allows (maxDownsample ` +
+        `${this.strokeMaxDownsample}). Paint a smaller region, or start a separate mask.`,
+    );
   }
 
   /** Grows {@link paintedBounds} by a touched region, clipped to the buffer's grid. */
@@ -908,6 +1086,8 @@ export class SegmentationBrushTool extends BaseTool {
     this.buffer = null;
     this.paintedBounds = null;
     this.changesAtStart = undefined;
+    this.startDownsample = 1;
+    this.strokeMaxDownsample = 1;
     this.targetId = null;
     this.contextId = null;
     if (this.overlay && this.preview) this.overlay.canvas.remove(this.preview);
@@ -946,7 +1126,22 @@ export class SegmentationBrushTool extends BaseTool {
     // During a stroke, the stroke's own buffer says which grid it paints on.
     const peek = this.config.peekTarget?.();
     const creating = peek === null;
-    const downsample = this.buffer?.downsample ?? peek?.downsample ?? 1;
+    // Between strokes, the grid the next press would paint on: the mask's own,
+    // or a finer one it would be re-gridded to there — chosen as the press
+    // chooses it, so the cue never shows a grid the stroke does not use.
+    let downsample = this.buffer?.downsample;
+    if (downsample === undefined) {
+      if (!peek) downsample = 1;
+      else if (!peek.box) downsample = peek.downsample;
+      else {
+        downsample = this.strokeDownsample(
+          peek.downsample,
+          peek.box,
+          imagePoint,
+          this.maxDownsample(),
+        );
+      }
+    }
     // In screen pixels, as the drawing tools' previews are: the objects live
     // in image space, and `strokeUniform` cancels their own scale but not the
     // viewport's zoom, so at a whole-slide zoom of 0.1 a 1-pixel ring and its

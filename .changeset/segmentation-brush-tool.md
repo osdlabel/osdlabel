@@ -106,8 +106,12 @@ along an image edge that is not a multiple of `d` are clipped by it, and
 `pixelCount` counts image pixels exactly. A missing `downsample` means 1 and 1
 is never written, so full-resolution payloads are unchanged, and the format
 string stays `osdlabel-mask`. The brush starts every new mask at full
-resolution, whatever the zoom; a stroke on an existing mask paints at that
-mask's own downsample. The grid conventions are in the Serialization guide.
+resolution, whatever the zoom. A stroke on an existing mask paints at that
+mask's own downsample, or re-grids it finer, losing nothing, when the view
+shows finer and the finer box fits. `BrushStrokeCommit.startDownsample` says
+which: the mask's downsample before the stroke. `BrushTargetPreview.box` lets
+the cue show the grid the press will use. The grid conventions are in the
+Serialization guide.
 
 Every reader goes through `MaskRaster`, a read-only view that makes no promise
 about storage: `cells` (the box, in cells), the image size, `downsample`,

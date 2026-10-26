@@ -10,6 +10,7 @@ import {
   denseRaster,
   emptySnapshot,
   stampCircle,
+  snapshotImageBox,
 } from '@osdlabel/mask';
 import { MASK_RAW_FORMAT, createAnnotationId, type AnnotationId } from '@osdlabel/annotation';
 import { MaskCanvasTooLargeError, type BrushCapacityError } from '@osdlabel/fabric-annotations';
@@ -94,6 +95,7 @@ describe('the live preview tint while refining', () => {
     expect(target?.fill).toBe('#00ff00');
 
     config.onCommit({
+      startDownsample: 1,
       annotationId: target!.annotationId,
       imageId,
       contextId,
@@ -165,7 +167,13 @@ describe('buildSegmentationBrushConfig commit', () => {
   it('creates and then selects a new mask, so the next stroke refines it', () => {
     const { config, dispatchers } = harness({ selectedId: null });
 
-    config.onCommit({ annotationId: null, imageId, contextId, snapshot: snapshot() });
+    config.onCommit({
+      startDownsample: 1,
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: snapshot(),
+    });
 
     expect(dispatchers.addAnnotation).toHaveBeenCalledOnce();
     const created = dispatchers.addAnnotation.mock.calls[0]![0] as OsdAnnotation;
@@ -179,7 +187,13 @@ describe('buildSegmentationBrushConfig commit', () => {
     const { config, dispatchers } = harness({ selectedId: 'mask-1' });
     const id = createAnnotationId('mask-1');
 
-    config.onCommit({ annotationId: id, imageId, contextId, snapshot: snapshot() });
+    config.onCommit({
+      startDownsample: 1,
+      annotationId: id,
+      imageId,
+      contextId,
+      snapshot: snapshot(),
+    });
 
     expect(dispatchers.addAnnotation).not.toHaveBeenCalled();
     expect(dispatchers.updateAnnotation).toHaveBeenCalledOnce();
@@ -194,6 +208,7 @@ describe('buildSegmentationBrushConfig commit', () => {
     const { config, dispatchers } = harness({ selectedId: null });
 
     config.onCommit({
+      startDownsample: 1,
       annotationId: null,
       imageId,
       contextId,
@@ -209,6 +224,7 @@ describe('buildSegmentationBrushConfig commit', () => {
     const id = createAnnotationId('mask-1');
 
     config.onCommit({
+      startDownsample: 1,
       annotationId: id,
       imageId,
       contextId,
@@ -232,6 +248,7 @@ describe('buildSegmentationBrushConfig commit', () => {
     // Resolving the target is what records the fill, exactly as a stroke does.
     expect(config.getTarget()).not.toBeNull();
     config.onCommit({
+      startDownsample: 1,
       annotationId: createAnnotationId('mask-1'),
       imageId,
       contextId,
@@ -412,6 +429,7 @@ describe('New mask', () => {
       const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200 });
       stampCircle(buffer, x, 80, 6, 1);
       config.onCommit({
+        startDownsample: 1,
         annotationId: config.getTarget()?.annotationId ?? null,
         imageId,
         contextId,
@@ -437,7 +455,13 @@ describe('New mask', () => {
 
   it('selects a new mask before adding it, so the brush is never at its limit with nothing selected', () => {
     const { config, dispatchers } = harness({ selectedId: null });
-    config.onCommit({ annotationId: null, imageId, contextId, snapshot: snapshot() });
+    config.onCommit({
+      startDownsample: 1,
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: snapshot(),
+    });
     expect(dispatchers.setSelectedAnnotation).toHaveBeenCalledTimes(1);
     expect(dispatchers.addAnnotation).toHaveBeenCalledTimes(1);
     const selectedAt = dispatchers.setSelectedAnnotation.mock.invocationCallOrder[0]!;
@@ -456,7 +480,7 @@ describe('New mask', () => {
     expect(h.selected).toBe(first);
 
     // The default, as before: the next stroke refines the selected mask.
-    expect(h.config.peekTarget!()).toEqual({ downsample: 1 });
+    expect(h.config.peekTarget!()).toMatchObject({ downsample: 1 });
     h.stroke(70);
     expect(h.annotations).toHaveLength(1);
 
@@ -490,14 +514,17 @@ describe('New mask', () => {
     );
     for (const [selectedId, expected] of [
       [null, null],
-      ['m4', { downsample: 4 }],
+      ['m4', { downsample: 4, box: snapshotImageBox(coarse.raster()) }],
       ['other', null],
       ['rect', null],
       ['gone', null],
     ] as const) {
       const { config } = harness({ selectedId, annotations: [mask4, other, rect] });
       expect(config.peekTarget!(), String(selectedId)).toEqual(expected);
-      expect(config.getTarget() === null, String(selectedId)).toBe(expected === null);
+      const target = config.getTarget();
+      expect(target === null, String(selectedId)).toBe(expected === null);
+      // The box is the decoded mask's, in image pixels: the cue re-grids from it.
+      if (target) expect(snapshotImageBox(target.snapshot)).toEqual(expected!.box);
     }
   });
 
