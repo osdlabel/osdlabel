@@ -1578,6 +1578,18 @@ describe('SegmentationBrushTool: coarsening on overflow', () => {
     expect(h.commits[0]!.snapshot.downsample).toBe(2 ** calls.length);
   });
 
+  it('coarsens a first dab that alone overflows, twice, before any cell is set', () => {
+    // A radius-120 dab is 241 x 241 cells at d=1 and 121 x 121 at d=2, both
+    // past a 64 x 64 cap; it fits at d=4. The buffer is empty at the second
+    // halving, and an empty buffer must still report its own grid.
+    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 120, maxDownsample: 4 });
+    down(h.tool, 2000, 2000);
+    up(h.tool, 2000, 2000);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    expect(h.commits[0]!.snapshot.downsample).toBe(4);
+    expect(h.commits[0]!.snapshot.get(500, 500)).toBe(1);
+  });
+
   it('commits a coarsened stroke even where it painted nothing new', () => {
     // A block of 100 x 21 cells under a cap of 2,150, and a stroke inside it
     // along its top row: every cell it paints is set already, but the region

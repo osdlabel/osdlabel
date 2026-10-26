@@ -485,7 +485,7 @@ export function toDenseSnapshot(raster: MaskRasterInput, maxCells?: number): Mas
   if (raster instanceof DenseMaskRaster) return raster.dense;
   const box = raster.cells;
   if (box.width === 0 || box.height === 0) {
-    return emptySnapshot(raster.imageWidth, raster.imageHeight);
+    return emptySnapshot(raster.imageWidth, raster.imageHeight, raster.downsample);
   }
   assertRasterOnGrid(raster);
   assertDecodableArea(box.width, box.height, maxCells, raster.downsample);

@@ -382,6 +382,10 @@ degrades alone instead of blanking its whole grid cell.
   default).
 - **A mask is hit-tested by its pixels**, not its bounding box, so a click
   through a sparse mask reaches the shape beneath it.
+- **An empty mask keeps its downsample.** An empty buffer, an empty raster
+  read back dense, and an empty canonical payload all reported downsample 1
+  whatever their grid (`emptySnapshot` now takes one). A coarsening stroke whose
+  first dab overflowed twice, before any cell was set, threw.
 - **A thin stroke near the cap is no longer refused for rounding.** The
   buffer rounds its allocation out to 64-cell chunks, and gave way to the cap
   only for the region being added, so a long stroke whose own box fitted was

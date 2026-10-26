@@ -228,7 +228,9 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     const tight = this.count === 0 ? null : this.tightBox();
     // Belt-and-braces: a count that disagreed with the stored pixels finds no
     // box, rather than a negative-sized snapshot.
-    if (!tight) return emptySnapshot(this.imageWidth, this.imageHeight);
+    // At the buffer's own downsample even when empty: a mask is on its grid
+    // whether or not a cell is set, and a coarsening reads it from here.
+    if (!tight) return emptySnapshot(this.imageWidth, this.imageHeight, this.downsample);
     const { minCol, minRow, maxCol, maxRow } = tight;
 
     const width = maxCol - minCol + 1;

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { BoundedDenseMaskBuffer, MaskCapacityExceededError, stampCircle } from '../../src/index.js';
+import {
+  BoundedDenseMaskBuffer,
+  MaskCapacityExceededError,
+  decodeCanonicalRaster,
+  runRaster,
+  stampCircle,
+  toDenseSnapshot,
+} from '../../src/index.js';
 
 const buffer = (w = 1000, h = 1000, maxPixels?: number) =>
   new BoundedDenseMaskBuffer({
@@ -194,5 +201,34 @@ describe('growth at the cap', () => {
     stampCircle(b, 100, 160, 4, 1);
     expect(() => stampCircle(b, 300, 100, 4, 1)).toThrow(MaskCapacityExceededError);
     expect(b.get(100, 160)).toBe(1);
+  });
+});
+
+describe('an empty buffer keeps its grid', () => {
+  it('snapshots and rasters at its own downsample, not at 1', () => {
+    const b = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100, downsample: 4 });
+    expect(b.snapshot().downsample).toBe(4);
+    expect(b.raster().downsample).toBe(4);
+    // And after everything painted is erased again.
+    b.set(3, 3, 1);
+    b.set(3, 3, 0);
+    expect(b.raster().downsample).toBe(4);
+  });
+});
+
+describe('an empty mask on a coarse grid, read back', () => {
+  it('decodes and densifies at its own downsample', () => {
+    const empty = decodeCanonicalRaster({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      imageWidth: 100,
+      imageHeight: 100,
+      counts: '',
+      downsample: 4,
+    });
+    expect(empty.downsample).toBe(4);
+    expect(toDenseSnapshot(runRaster(empty, [0])).downsample).toBe(4);
   });
 });

@@ -226,13 +226,17 @@ export function snapshotPixelCount(input: MaskRasterInput): number {
   return total;
 }
 
-/** An empty snapshot for an image of the given size, at downsample 1. */
-export function emptySnapshot(imageWidth: number, imageHeight: number): MaskSnapshot {
+/** An empty snapshot for an image of the given size, on the grid of `downsample` (1 by default). */
+export function emptySnapshot(
+  imageWidth: number,
+  imageHeight: number,
+  downsample = 1,
+): MaskSnapshot {
   return {
     cells: { x: 0, y: 0, width: 0, height: 0 },
     data: new Uint8Array(0),
     imageWidth,
     imageHeight,
-    downsample: 1,
+    downsample,
   };
 }
