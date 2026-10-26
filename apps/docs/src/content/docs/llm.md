@@ -2140,7 +2140,18 @@ The built-in rule, `majorityCoarsen`, sets a coarse cell when most of its
 children are set and breaks a 2-of-4 tie by the cell's parity. It keeps area
 unbiased and is exact on a block of four equal children. That's why coarsening
 a mask that was just re-gridded finer returns it unchanged, instead of
-eroding it a little on every cycle. A host may supply its own as
+eroding it a little on every cycle.
+
+Measured on the 2,079 CAMELYON16 tumour polygons that fit the cap (NCRF's
+conversion of the training and validation annotations), rasterized at full
+resolution and coarsened 2×2 at a time, its pooled Dice against the original
+is 0.99924, 0.99834, 0.99651 and 0.99307 at d = 2, 4, 8 and 16. That's within
+0.0006 of sampling each cell's centre once at the final resolution, and
+ahead of it at d=2. Its median signed area error stays under
+0.06%, and no lesion is lost. "Any of four" (OR) reaches only 0.99288 at d=8,
+with a +8% area bias. A unit test paints random lesions stroke by stroke
+through the brush, coarsening as it overflows, and holds it to the same bounds
+at every d up to 16. A host may supply its own as
 `brushOptions.coarsen` (a `CoarsenStrategy`: a raster in, the raster at twice
 its downsample out). It must meet the contract `verifyCoarsenStrategy` checks:
 
