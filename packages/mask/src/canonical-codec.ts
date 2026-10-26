@@ -134,6 +134,20 @@ export function fromRuns(runs: readonly number[], length: number): Uint8Array {
  * one silently truncated by the next stroke that touches it.
  */
 export function encodeCanonical(input: MaskRasterInput): CanonicalMaskData {
+  // The write side of the cap the schema and every decoder apply. Without it
+  // this was the one path that could produce an over-cap payload, which the
+  // next reader then refuses.
+  const cells = input.cells;
+  assertDecodableArea(cells.width, cells.height);
+  return encodeCanonicalUncapped(input);
+}
+
+/**
+ * {@link encodeCanonical} without the cap: for tests that need an over-cap
+ * payload to show a reader refusing it. Deliberately not on the package's
+ * barrel.
+ */
+export function encodeCanonicalUncapped(input: MaskRasterInput): CanonicalMaskData {
   const area = input.cells.width * input.cells.height;
   if (!isMaskRaster(input) && input.data.length !== area) {
     throw new RangeError(
@@ -239,9 +253,8 @@ function assertCountsFitBox(counts: unknown, area: number): void {
  * Payloads routinely arrive from disk or the network, so the dimensions are
  * treated as untrusted, and the run lengths are bounded by the box before
  * they are decoded. The box's size in cells is checked against
- * `options.maxPixels` (default `DEFAULT_MAX_MASK_PIXELS`): that is the
- * reader's policy for what it is prepared to hold, not a limit of the format,
- * and a reader that never materialises the box may pass `Infinity`.
+ * `options.maxPixels` (default `DEFAULT_MAX_MASK_PIXELS`, the format's cap,
+ * which the validation schema and the encoder also apply).
  */
 export function decodeCanonicalRaster(
   data: CanonicalMaskData,

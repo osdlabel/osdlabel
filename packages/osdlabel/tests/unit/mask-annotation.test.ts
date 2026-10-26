@@ -3,17 +3,20 @@ import { createImageId, type AnnotationState } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import {
   BoundedDenseMaskBuffer,
+  DEFAULT_MAX_MASK_PIXELS,
+  MaskCapacityExceededError,
   cocoRleCodec,
   createMaskCodecRegistry,
   decodeCanonical,
   stampCircle,
   upsampleSnapshot,
   denseRaster,
+  runRaster,
   type MaskCodec,
 } from '@osdlabel/mask';
 import { MASK_RAW_FORMAT, createAnnotationId } from '@osdlabel/annotation';
 import { Rect } from 'fabric';
-import { createMaskAnnotation } from '../../src/create-mask-annotation.js';
+import { createMaskAnnotation, maskAnnotationFields } from '../../src/create-mask-annotation.js';
 import { processObjectModified } from '../../src/tool-factory.js';
 import { createAnnotationFromGeometry } from '../../src/create-annotation.js';
 import { serialize, deserialize } from '../../src/serialization-configured.js';
@@ -69,6 +72,28 @@ describe('createMaskAnnotation', () => {
     if (annotation.rawAnnotationData.format !== MASK_RAW_FORMAT) throw new Error('expected mask');
     expect(annotation.rawAnnotationData.data.imageWidth).toBe(400);
     expect(annotation.rawAnnotationData.data.imageHeight).toBe(300);
+  });
+});
+
+describe('a mask past the format cap', () => {
+  // 13,000 square with one painted cell: built from runs, never allocated.
+  const SIDE = 13_000;
+  const over = runRaster(
+    {
+      cells: { x: 0, y: 0, width: SIDE, height: SIDE },
+      imageWidth: 20_000,
+      imageHeight: 20_000,
+      downsample: 1,
+    },
+    [0, 1, SIDE * SIDE - 1],
+  );
+
+  it('is refused on write, so the annotator never holds a mask a reader refuses', () => {
+    expect(SIDE * SIDE).toBeGreaterThan(DEFAULT_MAX_MASK_PIXELS);
+    expect(() => createMaskAnnotation(over, { imageId, contextId })).toThrow(
+      MaskCapacityExceededError,
+    );
+    expect(() => maskAnnotationFields(over)).toThrow(MaskCapacityExceededError);
   });
 });
 

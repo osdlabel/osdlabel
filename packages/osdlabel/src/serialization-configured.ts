@@ -78,9 +78,10 @@ export interface DeserializeOptions {
   readonly maskCodecs?: MaskCodecRegistry | undefined;
   /**
    * Cap on the cells any one mask's box may span. Defaults to
-   * `DEFAULT_MAX_MASK_PIXELS` (64 Mi). A reader's policy, not the format's:
-   * a mask above it is skipped (see {@link DeserializeResult.skipped}), and a
-   * host may raise it.
+   * `DEFAULT_MAX_MASK_PIXELS` (64 Mi cells), which is also the ceiling — a
+   * larger value is clamped, because the validation schema enforces the same
+   * bound and is not per-call configurable. A mask above it is skipped (see
+   * {@link DeserializeResult.skipped}) rather than failing the document.
    *
    * Worth lowering when the document is genuinely untrusted: the default is
    * sized for what a user can paint, not for what an attacker can declare.
@@ -271,13 +272,14 @@ function normalizeMasks(
   // individually legal, and decoding them in sequence blocks the main thread
   // for minutes. The document-wide budget is what makes import cost
   // proportional to the document rather than to what it claims.
-  // `perMask` is this reader's policy, not the format's: the schema has no
-  // area bound, and a canonical payload decodes to runs without allocating
-  // its box, so a host may raise it (the renderer and the brush still apply
-  // their own dense cap, and report rather than throw).
+  // `perMask` is clamped down to the shared ceiling: `MAX_MASK_PIXELS` in the
+  // validation schema is a module constant, so a mask above it would be
+  // rejected a moment later no matter what was asked for here, and rejected
+  // as a schema failure that costs the whole document. Clamping keeps the
+  // refusal here, where it skips that one mask.
   //
-  // `budget` bounds a whole document, and its own default is several times
-  // the per-mask default.
+  // `budget` is not clamped — it bounds a whole document, and its own default
+  // is several times the per-mask ceiling.
   //
   // Validated, not just defaulted: `NaN` propagates through every comparison
   // below as `false`, so an unvalidated bound does not merely misbehave — it
@@ -298,7 +300,10 @@ function normalizeMasks(
     }
     return value;
   };
-  const perMask = bound(options.maxMaskPixels, DEFAULT_MAX_MASK_PIXELS, 'maxMaskPixels');
+  const perMask = Math.min(
+    bound(options.maxMaskPixels, DEFAULT_MAX_MASK_PIXELS, 'maxMaskPixels'),
+    DEFAULT_MAX_MASK_PIXELS,
+  );
   const budget = bound(
     options.maxTotalMaskPixels,
     DEFAULT_MAX_TOTAL_MASK_PIXELS,

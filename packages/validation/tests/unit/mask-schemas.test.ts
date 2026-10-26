@@ -226,21 +226,6 @@ describe('image dimensions are bounded separately from the mask', () => {
     ).toThrow();
     expect(MAX_IMAGE_DIMENSION).toBe(2 ** 26);
   });
-
-  it('leaves the box area to the reader: a box past the dense cap is a valid document', () => {
-    // How much a reader will hold is its policy (the decoders' `maxPixels`),
-    // not the format's. A schema bound here would make every document a
-    // sparse-storage reader writes invalid, whole, to every reader before it.
-    const data = {
-      ...validRaw.data,
-      width: 100_000,
-      height: 100_000,
-      imageWidth: 2 ** 26,
-      imageHeight: 2 ** 26,
-    };
-    expect(100_000 * 100_000).toBeGreaterThan(MAX_MASK_PIXELS);
-    expect(v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data }).data).toEqual(data);
-  });
 });
 
 describe('geometry coordinates reject the infinities', () => {
@@ -280,9 +265,8 @@ describe('downsampled masks', () => {
     }
   });
 
-  it('validates a payload the same at every downsample, whatever its size', () => {
-    // 16384^2 image pixels is four times the dense cap; at 2x it is exactly
-    // the cap. Neither is the schema's business.
+  it('caps a payload by its cells, not its image-pixel box', () => {
+    // 16384^2 image pixels is four times the cap; at 2x it is exactly the cap.
     const data = {
       ...validRaw.data,
       x: 0,
@@ -293,7 +277,7 @@ describe('downsampled masks', () => {
       imageHeight: 20_000,
     };
     expect(16_384 * 16_384).toBeGreaterThan(MAX_MASK_PIXELS);
-    expect(() => v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data })).not.toThrow();
+    expect(() => v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data })).toThrow(/cells/);
     expect(() =>
       v.parse(MaskRawAnnotationDataSchema, { ...validRaw, data: { ...data, downsample: 2 } }),
     ).not.toThrow();

@@ -7,6 +7,7 @@ import {
   MAX_IMAGE_DIMENSION,
   MAX_MASK_COUNTS_LENGTH,
   MAX_MASK_DOWNSAMPLE,
+  MAX_MASK_PIXELS,
   MAX_STRING_LENGTH,
 } from './constants.js';
 
@@ -43,6 +44,12 @@ export const MaskDownsampleSchema = v.pipe(
   v.check((d) => (d & (d - 1)) === 0, 'Mask downsample must be a power of two'),
 );
 
+/** Cells in a box of image pixels at a downsample: what a decode allocates. */
+function cellArea(width: number, height: number, downsample: number | undefined): number {
+  const d = downsample ?? 1;
+  return Math.ceil(width / d) * Math.ceil(height / d);
+}
+
 /**
  * A schema for MaskRawAnnotationData — the pixel payload of a mask annotation.
  *
@@ -52,27 +59,33 @@ export const MaskDownsampleSchema = v.pipe(
  * payload can reach a decoder before it reaches this schema: `deserialize`
  * converts foreign mask formats to canonical *first*, then validates.
  *
- * Deliberately **no** bound on the box's area. How large a mask a reader is
- * prepared to hold is that reader's policy — a dense buffer and a sparse
- * tiled one differ by orders of magnitude — and a policy written into the
- * document schema would make every document a more capable reader writes
- * invalid, whole, to every reader before it. The runtime caps
- * (`DEFAULT_MAX_MASK_PIXELS` and the per-call `maxPixels` options) apply per
- * mask, where a refusal costs that mask and not the document.
+ * The box is bounded by {@link MAX_MASK_PIXELS} **cells**: a downsampled mask
+ * allocates its cell grid, not its image-pixel box. Moving this bound out of
+ * the schema waits for the cap to be raised (#155); until then osdlabel's own
+ * reader skips an over-cap mask before validation, so it costs that mask and
+ * never the document.
  */
 export const MaskRawAnnotationDataSchema = v.object({
   format: v.literal(MASK_RAW_FORMAT),
-  data: v.object({
-    x: Coordinate,
-    y: Coordinate,
-    width: Dimension,
-    height: Dimension,
-    imageWidth: Dimension,
-    imageHeight: Dimension,
-    counts: v.pipe(v.string(), v.maxLength(MAX_MASK_COUNTS_LENGTH)),
-    fill: v.optional(v.pipe(v.string(), v.maxLength(MAX_STRING_LENGTH))),
-    // Without this entry `v.object` would strip the field, and the payload
-    // would then fail to decode as a full-resolution one.
-    downsample: v.optional(MaskDownsampleSchema),
-  }),
+  data: v.pipe(
+    v.object({
+      x: Coordinate,
+      y: Coordinate,
+      width: Dimension,
+      height: Dimension,
+      imageWidth: Dimension,
+      imageHeight: Dimension,
+      counts: v.pipe(v.string(), v.maxLength(MAX_MASK_COUNTS_LENGTH)),
+      fill: v.optional(v.pipe(v.string(), v.maxLength(MAX_STRING_LENGTH))),
+      // Without this entry `v.object` would strip the field, and the payload
+      // would then fail to decode as a full-resolution one.
+      downsample: v.optional(MaskDownsampleSchema),
+    }),
+    // Cells, not image pixels: the cap bounds what a decode allocates, and a
+    // downsampled mask allocates its cell grid.
+    v.check(
+      (d) => cellArea(d.width, d.height, d.downsample) <= MAX_MASK_PIXELS,
+      `Mask box must not exceed ${MAX_MASK_PIXELS} cells`,
+    ),
+  ),
 });

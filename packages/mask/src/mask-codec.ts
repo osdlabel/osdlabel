@@ -18,12 +18,11 @@ export interface MaskDecodeOptions {
   /**
    * Refuse to decode a mask whose box exceeds this many cells.
    *
-   * A reader's policy, not a property of the format: a decoder reads its
-   * dimensions out of the payload, so without a ceiling supplied from outside,
-   * a document decides for itself how much work it is worth. Importers pass
-   * their remaining budget here; a codec should check it **before**
-   * allocating or scanning, not after. A codec whose output does not allocate
-   * the box may bound its own work by the payload instead.
+   * A decoder reads its dimensions out of the payload, so without a ceiling
+   * supplied from outside, a document decides for itself how much work it is
+   * worth. Importers pass their remaining budget here, never more than the
+   * format's cap (`DEFAULT_MAX_MASK_PIXELS`); a codec should check it
+   * **before** allocating or scanning, not after.
    */
   readonly maxPixels?: number | undefined;
 }

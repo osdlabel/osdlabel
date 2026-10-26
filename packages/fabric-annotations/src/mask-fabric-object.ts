@@ -44,9 +44,8 @@ export function buildMaskFabricObject(
     );
   }
 
-  // Read as runs; this renderer then draws one canvas over the box, so the
-  // decode's default cap — the dense policy — is this renderer's own limit,
-  // not the format's. A tiled renderer would draw the same raster per tile.
+  // Read as runs, under the format's cap; this renderer then draws one canvas
+  // over the box. A tiled renderer would draw the same raster per tile.
   const raster = decodeCanonicalRaster(raw.data);
   const cells = raster.cells;
   if (cells.width === 0 || cells.height === 0) return null;

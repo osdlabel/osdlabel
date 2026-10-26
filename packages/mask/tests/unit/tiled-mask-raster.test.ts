@@ -24,6 +24,7 @@ import {
   type MaskRaster,
   type MaskSnapshot,
 } from '../../src/index.js';
+import { encodeCanonicalUncapped } from '../../src/canonical-codec.js';
 import { TiledMaskRaster } from './tiled-mask-raster.js';
 
 /**
@@ -208,7 +209,7 @@ describe('a mask whose box is past the dense cap', () => {
   // A 9000x9000 solid region and a dab 10,000 cells away on a 20,000-square
   // image: 13,000 x 13,000 = 169,000,000 cells of box, 2.5x the cap, and
   // 81,000,000 painted. Two far-apart dabs are exactly what the brush
-  // abandons today.
+  // refuses, and the format's cap refuses with it.
   const box = { x: 0, y: 0, width: 13_000, height: 13_000 } as const;
   const image = { imageWidth: 20_000, imageHeight: 20_000, downsample: 1 } as const;
   const big = new TiledMaskRaster({ cells: box, ...image }, 256);
@@ -220,21 +221,28 @@ describe('a mask whose box is past the dense cap', () => {
     expect(big.cellCount).toBe(81_000_000 + 100);
   });
 
-  it('encodes to an ordinary canonical payload without allocating the box', () => {
-    const payload = encodeCanonical(big);
+  it('is refused on write, as every reader refuses it', () => {
+    expect(() => encodeCanonical(big)).toThrow(MaskCapacityExceededError);
+  });
+
+  it('encodes, uncapped, to an ordinary payload without allocating the box', () => {
+    // A payload past the cap exists only in tests: the format's cap is
+    // checked on write, so nothing the library writes is one.
+    const payload = encodeCanonicalUncapped(big);
     expect(payload).toMatchObject({ x: 0, y: 0, width: 13_000, height: 13_000 });
     expect(payload.downsample).toBeUndefined();
     // About four runs a row: a few dozen kilobytes for 169 M cells.
     expect(payload.counts.length).toBeLessThan(200_000);
 
-    // The dense decode refuses it — that is a reader's policy, not the format.
+    // The dense decode refuses it, under the format's cap.
     expect(() => decodeCanonical(payload)).toThrow(MaskCapacityExceededError);
 
-    // A reader that keeps runs as runs holds it in O(runs), byte for byte.
+    // Raised past the cap, a reader that keeps runs as runs holds it in
+    // O(runs), byte for byte: the storage never allocates the box.
     const runs = decodeCanonicalRaster(payload, { maxPixels: Infinity });
     expect(runs.cellCount).toBe(big.cellCount);
     expect(rasterPixelCount(runs)).toBe(81_000_100);
-    expect(encodeCanonical(runs)).toEqual(payload);
+    expect(encodeCanonicalUncapped(runs)).toEqual(payload);
     for (const [cx, cy] of [
       [0, 0],
       [8999, 8999],
@@ -259,7 +267,9 @@ describe('a mask whose box is past the dense cap', () => {
     // One foreground run per image column the mask touches: 9000 + 10.
     expect((counts.length - 1) / 2).toBe(9010);
     expect(
-      snapshotToCocoCounts(decodeCanonicalRaster(encodeCanonical(big), { maxPixels: Infinity })),
+      snapshotToCocoCounts(
+        decodeCanonicalRaster(encodeCanonicalUncapped(big), { maxPixels: Infinity }),
+      ),
     ).toEqual(counts);
   });
 });

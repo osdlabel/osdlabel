@@ -361,8 +361,14 @@ export class SegmentationBrushTool extends BaseTool {
     // value escaped into Fabric's dispatch on every pointer-down. Ignoring it
     // falls back to the default cap, which is how the tool treats every other
     // unusable input.
+    //
+    // Clamped to the format's cap as `buildSegmentationBrushConfig` does: a
+    // host driving the tool directly could otherwise paint a mask that no
+    // encoder will write and no reader will load.
     const cap = this.config.maxPixels;
-    return cap !== undefined && Number.isFinite(cap) && cap > 0 ? { maxPixels: cap } : {};
+    return cap !== undefined && Number.isFinite(cap) && cap > 0
+      ? { maxPixels: Math.min(cap, DEFAULT_MAX_MASK_PIXELS) }
+      : {};
   }
 
   /**
@@ -410,7 +416,7 @@ export class SegmentationBrushTool extends BaseTool {
           ? error
           : new MaskCapacityExceededError(
               bounds.width * bounds.height,
-              this.config.maxPixels ?? DEFAULT_MAX_MASK_PIXELS,
+              this.maxPixelsOption().maxPixels ?? DEFAULT_MAX_MASK_PIXELS,
             ),
       );
       this.endStroke();

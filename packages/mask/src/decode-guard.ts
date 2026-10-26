@@ -20,10 +20,10 @@ import { MaskCapacityExceededError } from './mask-buffer.js';
  * catch, because the product comes out small or positive. Nothing legitimate
  * produces either: masks are pixels.
  *
- * Separate from {@link assertDecodableArea} because encoding has to make the
- * same demand without imposing that function's allocation cap — the buffer's
- * `maxPixels` is configurable, and encoding what a host was allowed to paint
- * is not the place to second-guess it.
+ * Separate from {@link assertDecodableArea} because some checks need the
+ * dimensions screened without the cap: the encoder screens them on its
+ * uncapped path, and applies the cap itself — at the default, the format's
+ * ceiling, since a payload over it would be refused by every reader.
  */
 export function assertPixelDimensions(width: number, height: number): void {
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 0 || height < 0) {

@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   BoundedDenseMaskBuffer,
+  DEFAULT_MAX_MASK_PIXELS,
+  MaskCapacityExceededError,
   decodeCanonical,
+  decodeCanonicalRaster,
+  runRaster,
   encodeCanonical,
   fromRuns,
   toRuns,
@@ -52,5 +56,33 @@ describe('canonical codec', () => {
     b.set(300, 200, 1);
     const encoded = encodeCanonical(b.snapshot());
     expect(encoded).toMatchObject({ x: 300, y: 200, imageWidth: 640, imageHeight: 480 });
+  });
+});
+
+describe('the cap on write', () => {
+  // Built from runs, so neither box is allocated.
+  const oneCellAt = (side: number, image: number, downsample: number) =>
+    runRaster(
+      {
+        cells: { x: 0, y: 0, width: side, height: side },
+        imageWidth: image,
+        imageHeight: image,
+        downsample,
+      },
+      [0, 1, side * side - 1],
+    );
+
+  it('refuses a box past the cap, as every reader would refuse the payload', () => {
+    const over = oneCellAt(8193, 8193, 1);
+    expect(8193 * 8193).toBeGreaterThan(DEFAULT_MAX_MASK_PIXELS);
+    expect(() => encodeCanonical(over)).toThrow(MaskCapacityExceededError);
+  });
+
+  it('counts the box in cells: a 16384-square box at downsample 2 is at the cap, not past it', () => {
+    const atCap = oneCellAt(8192, 16_384, 2);
+    expect(8192 * 8192).toBe(DEFAULT_MAX_MASK_PIXELS);
+    const payload = encodeCanonical(atCap);
+    expect(payload).toMatchObject({ width: 16_384, height: 16_384, downsample: 2 });
+    expect(decodeCanonicalRaster(payload).cellCount).toBe(1);
   });
 });

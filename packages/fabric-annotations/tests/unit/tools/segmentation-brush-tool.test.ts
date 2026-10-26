@@ -5,6 +5,7 @@ import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createAnnotationId } from '@osdlabel/annotation';
 import {
   BoundedDenseMaskBuffer,
+  DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
   emptySnapshot,
   snapshotCellCount,
@@ -453,6 +454,23 @@ describe('SegmentationBrushTool: capacity', () => {
       up(h.tool, 50, 50);
       expect(h.commits).toHaveLength(1);
     }
+  });
+
+  it('clamps a cap above the format cap to the format cap', () => {
+    // A 9,020-square stroke box is 81 M cells: inside a host's 100 M, past the
+    // format's 64 Mi. Painting it would leave a mask no encoder writes.
+    const h = harness({
+      imageSize: { width: 10_000, height: 10_000 },
+      maxPixels: 100_000_000,
+      radius: 10,
+    });
+    down(h.tool, 500, 500);
+    move(h.tool, 9500, 9500);
+    up(h.tool, 9500, 9500);
+
+    expect(h.capacityErrors).toHaveLength(1);
+    expect(h.capacityErrors[0]!.maxPixels).toBe(DEFAULT_MAX_MASK_PIXELS);
+    expect(h.commits).toHaveLength(0);
   });
 
   it('restores the hidden target when a capacity failure aborts the stroke', () => {
