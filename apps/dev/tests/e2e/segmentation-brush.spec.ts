@@ -935,3 +935,122 @@ test.describe('Segmentation brush', () => {
     });
   });
 });
+
+test.describe('Segmentation brush: coarsening on overflow', () => {
+  // 256 x 256 cells, so a stroke that fits on screen reaches the cap.
+  const CAP = 65_536;
+
+  /** Opens the app under the low cap, on the landscape image, in `context`. */
+  async function open(page: Page, context: string): Promise<void> {
+    await page.goto(`/?brushMaxPixels=${CAP}`);
+    await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10000 });
+    await page.getByTestId('filmstrip-item-landscape').click();
+    await page.getByRole('combobox').selectOption({ label: context });
+    await page.locator('canvas.upper-canvas').waitFor({ state: 'attached', timeout: 15000 });
+    await page.waitForTimeout(1000);
+    await page.getByTestId('tool-segmentationBrush').click();
+  }
+
+  /**
+   * An L-shaped stroke in image pixels, (200, 200) to (600, 200) to
+   * (600, 500): about 424 x 324 with the brush, 137 K cells at d=1, more than
+   * twice the cap.
+   */
+  async function paintL(page: Page, modifiers: 'Alt'[] = []): Promise<void> {
+    const a = await imageToClient(page, { x: 200, y: 200 });
+    const b = await imageToClient(page, { x: 600, y: 200 });
+    const c = await imageToClient(page, { x: 600, y: 500 });
+    for (const key of modifiers) await page.keyboard.down(key);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 30 });
+    await page.mouse.move(c.x, c.y, { steps: 30 });
+    await page.mouse.up();
+    for (const key of modifiers) await page.keyboard.up(key);
+    await page.waitForTimeout(300);
+  }
+
+  /** Cells a box of image pixels holds at downsample `d`, on that grid. */
+  const cellsAt = (
+    g: { origin?: { x: number; y: number }; width?: number; height?: number },
+    d: number,
+  ) => {
+    const x = g.origin!.x;
+    const y = g.origin!.y;
+    return (
+      (Math.ceil((x + g.width!) / d) - Math.floor(x / d)) *
+      (Math.ceil((y + g.height!) / d) - Math.floor(y / d))
+    );
+  };
+
+  test('a region past the cap commits coarsened, and says so', async ({ page }) => {
+    await open(page, 'Brush (coarsen)');
+    await expect(page.getByTestId('brush-coarsen-notice')).toHaveCount(0);
+    await paintL(page);
+
+    const annotations = await readAnnotations(page);
+    expect(annotations).toHaveLength(1);
+    const { geometry } = annotations[0]!;
+    const d = geometry.downsample ?? 1;
+    // The coarsest grid the stroke needed, from its own box: it fits at d,
+    // and would not have at d / 2.
+    expect(d).toBeGreaterThan(1);
+    expect(cellsAt(geometry, d)).toBeLessThanOrEqual(CAP);
+    expect(cellsAt(geometry, d / 2)).toBeGreaterThan(CAP);
+    // The far end of the stroke, painted after the coarsening, is there.
+    const end = await imageToClient(page, { x: 600, y: 490 });
+    expect(await fabricAlphaAt(page, end.x, end.y)).toBeGreaterThan(60);
+    await expect(page.getByTestId('brush-coarsen-notice')).toHaveText(
+      `The mask was coarsened from 1x to ${d}x to fit its cap.`,
+    );
+  });
+
+  test('the same stroke is refused where the context does not coarsen', async ({ page }) => {
+    await open(page, 'General');
+    const dialogs: string[] = [];
+    page.on('dialog', (dialog) => {
+      dialogs.push(dialog.message());
+      void dialog.dismiss();
+    });
+    await paintL(page);
+    expect(await readAnnotations(page)).toHaveLength(0);
+    expect(dialogs).toHaveLength(1);
+    expect(dialogs[0]).toMatch(/^Stroke too large: Mask would need \d+ cells at downsample 1/);
+    await expect(page.getByTestId('brush-coarsen-notice')).toHaveCount(0);
+  });
+
+  test('erased down, a stroke made closer in re-grids it to full resolution', async ({ page }) => {
+    await open(page, 'Brush (coarsen)');
+    await paintL(page);
+    const coarse = (await readAnnotations(page))[0]!;
+    expect(coarse.geometry.downsample).toBeGreaterThan(1);
+
+    // A wide eraser along all but the start of the stroke leaves a small
+    // mask: its box at d=1 now fits the cap.
+    for (let i = 0; i < 4; i++) await page.keyboard.press(']');
+    const from = await imageToClient(page, { x: 260, y: 200 });
+    const corner = await imageToClient(page, { x: 600, y: 200 });
+    const end = await imageToClient(page, { x: 600, y: 520 });
+    await page.keyboard.down('Alt');
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(corner.x, corner.y, { steps: 30 });
+    await page.mouse.move(end.x, end.y, { steps: 30 });
+    await page.mouse.up();
+    await page.keyboard.up('Alt');
+    await page.waitForTimeout(300);
+    for (let i = 0; i < 4; i++) await page.keyboard.press('[');
+    const erased = (await readAnnotations(page))[0]!;
+    expect(erased.geometry.width!).toBeLessThan(120);
+    expect(erased.geometry.downsample).toBe(coarse.geometry.downsample);
+
+    // At an image pixel a screen pixel, the next stroke paints at d=1.
+    await zoomToImageScale(page, { x: 220, y: 200 }, 1);
+    const a = await imageToClient(page, { x: 210, y: 200 });
+    const b = await imageToClient(page, { x: 240, y: 230 });
+    await stroke(page, a, b);
+    const fine = (await readAnnotations(page))[0]!;
+    expect(fine.geometry.downsample).toBeUndefined();
+    expect(fine.geometry.pixelCount!).toBeGreaterThan(erased.geometry.pixelCount!);
+  });
+});

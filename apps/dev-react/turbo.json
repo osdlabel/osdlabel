@@ -3,10 +3,18 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/dev/src/viewer-cell-harness.ts"]
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/apps/dev/src/viewer-cell-harness.ts",
+        "$TURBO_ROOT$/apps/dev/src/brush-query.ts"
+      ]
     },
     "typecheck": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/dev/src/viewer-cell-harness.ts"]
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/apps/dev/src/viewer-cell-harness.ts",
+        "$TURBO_ROOT$/apps/dev/src/brush-query.ts"
+      ]
     }
   }
 }
