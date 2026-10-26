@@ -1,4 +1,4 @@
-import type { CDPSession, Page } from '@playwright/test';
+import type { CDPSession, Dialog, Page } from '@playwright/test';
 import { test, expect } from './helpers/fixtures.js';
 
 interface StoredAnnotation {
@@ -54,6 +54,36 @@ function imageToClient(page: Page, point: { x: number; y: number }) {
   }, point);
 }
 
+/**
+ * Zooms the active viewer onto an image point at once, so that one image pixel
+ * spans several screen pixels and a probe a pixel inside an edge cannot be
+ * rounded onto it.
+ */
+async function zoomOnto(page: Page, point: { x: number; y: number }, zoom: number): Promise<void> {
+  await page.evaluate(
+    ([pt, z]) => {
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & {
+            __osdViewer?: {
+              viewport: {
+                imageToViewportCoordinates(x: number, y: number): unknown;
+                zoomTo(zoom: number, ref: unknown, immediately: boolean): void;
+                panTo(center: unknown, immediately: boolean): void;
+              };
+            };
+          })
+        | null;
+      const viewport = el?.__osdViewer?.viewport;
+      if (!viewport) throw new Error('test hooks not installed');
+      const center = viewport.imageToViewportCoordinates(pt.x, pt.y);
+      viewport.zoomTo(z, center, true);
+      viewport.panTo(center, true);
+    },
+    [point, zoom] as const,
+  );
+  await page.waitForTimeout(300);
+}
+
 /** Unsigned LEB128 run lengths, base64'd: the canonical payload's `counts`. */
 function canonicalCounts(runs: readonly number[]): string {
   const bytes: number[] = [];
@@ -103,12 +133,40 @@ const COARSE_DOC = [
   },
 ];
 
-/** Loads a document through the demo's Import JSON panel. */
+/**
+ * Loads a document through the demo's Import JSON panel, and fails unless it
+ * loaded cleanly.
+ *
+ * Both demos report a refused document, and any skipped annotation, with
+ * `alert()` and leave state as it was. Playwright dismisses dialogs unseen, so
+ * without these checks a re-import that was rejected outright left the old
+ * state in place and passed every assertion made about it.
+ */
 async function importDocument(page: Page, doc: unknown): Promise<void> {
-  await page.getByRole('button', { name: 'Import JSON', exact: true }).click();
-  await page.getByPlaceholder('Paste exported JSON here...').fill(JSON.stringify(doc));
-  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await page.waitForTimeout(300);
+  const dialogs: string[] = [];
+  const onDialog = (dialog: Dialog) => {
+    dialogs.push(dialog.message());
+    void dialog.dismiss();
+  };
+  page.on('dialog', onDialog);
+  try {
+    await page.getByRole('button', { name: 'Import JSON', exact: true }).click();
+    const input = page.getByPlaceholder('Paste exported JSON here...');
+    await input.fill(JSON.stringify(doc));
+    await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+    // The panel closes only after `loadAnnotations` ran.
+    await expect(input).toBeHidden();
+    await page.waitForTimeout(300);
+  } finally {
+    page.off('dialog', onDialog);
+  }
+  expect(dialogs, 'the import raised a dialog').toEqual([]);
+}
+
+/** Empties the annotation state, so a re-import cannot pass by leaving it unchanged. */
+async function clearAnnotations(page: Page): Promise<void> {
+  await importDocument(page, []);
+  expect(await readAnnotations(page)).toHaveLength(0);
 }
 
 /** Drags a short stroke across the canvas, sampling a few intermediate points. */
@@ -256,8 +314,9 @@ test.describe('Segmentation brush', () => {
     expect(doc[0]?.rawAnnotationData.data.size).toHaveLength(2);
     expect(doc[0]?.rawAnnotationData.data.counts.length).toBeGreaterThan(0);
 
-    // And it reads back as the same mask.
+    // And it reads back as the same mask, into empty state.
     const [before] = await readAnnotations(page);
+    await clearAnnotations(page);
     await importDocument(page, doc);
     const [after] = await readAnnotations(page);
     expect(after?.rawAnnotationData?.format).toBe('osdlabel-mask');
@@ -527,6 +586,26 @@ test.describe('Segmentation brush', () => {
       expect(await at({ x: 300, y: 150 })).toBe(0);
     });
 
+    test('draws every edge where its cells end, on both axes', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      // Close in, so a cell is several screen pixels across.
+      await zoomOnto(page, inside, 4);
+      const at = async (p: { x: number; y: number }) => {
+        const client = await imageToClient(page, p);
+        return fabricAlphaAt(page, client.x, client.y);
+      };
+      // Just inside and just outside each edge of the [240, 360) x [160, 240) box.
+      for (const [name, insidePoint, outsidePoint] of [
+        ['left', { x: 242, y: 200 }, { x: 236, y: 200 }],
+        ['right', { x: 358, y: 200 }, { x: 364, y: 200 }],
+        ['top', { x: 300, y: 162 }, { x: 300, y: 156 }],
+        ['bottom', { x: 300, y: 238 }, { x: 300, y: 244 }],
+      ] as const) {
+        expect(await at(insidePoint), `inside the ${name} edge`).toBeGreaterThan(60);
+        expect(await at(outsidePoint), `outside the ${name} edge`).toBe(0);
+      }
+    });
+
     test('draws where its cells are under a horizontal flip', async ({ page }) => {
       await importDocument(page, COARSE_DOC);
       const unflipped = await imageToClient(page, inside);
@@ -583,6 +662,7 @@ test.describe('Segmentation brush', () => {
       // COCO's runs are image pixels; the geometry is what carries the factor.
       expect(exported[0]!.geometry.downsample).toBe(4);
 
+      await clearAnnotations(page);
       await importDocument(page, exported);
       const annotations = await readAnnotations(page);
       expect(annotations).toHaveLength(1);
@@ -604,6 +684,7 @@ test.describe('Segmentation brush', () => {
 
       // And reading the export back gives the same state.
       const before = await page.getByTestId('annotations-json').textContent();
+      await clearAnnotations(page);
       await importDocument(page, exported);
       expect(await page.getByTestId('annotations-json').textContent()).toBe(before);
     });
