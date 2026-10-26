@@ -31,7 +31,6 @@ export {
 export {
   MAX_MASK_DOWNSAMPLE,
   assertMaskDownsample,
-  chooseMaskDownsample,
   isMaskDownsample,
   maskDownsampleOf,
   maskGridSize,

@@ -32,7 +32,6 @@ export {
   snapshotCellCount,
   snapshotPixelCount,
   MAX_MASK_DOWNSAMPLE,
-  chooseMaskDownsample,
   isMaskDownsample,
   maskGridSize,
   snapshotImageBox,

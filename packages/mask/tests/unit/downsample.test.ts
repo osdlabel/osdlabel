@@ -4,7 +4,6 @@ import {
   DEFAULT_MAX_MASK_PIXELS,
   MAX_MASK_DOWNSAMPLE,
   MaskCapacityExceededError,
-  chooseMaskDownsample,
   cocoArea,
   cocoBbox,
   cocoCountsToSnapshot,
@@ -25,6 +24,8 @@ import {
   type CanonicalMaskData,
   type MaskSnapshot,
 } from '../../src/index.js';
+// Not on the barrel: kept for coarsening on overflow, which picks a grid by size.
+import { chooseMaskDownsample } from '../../src/downsample.js';
 
 /** A hand-built snapshot: `rows` of '#'/'.' over cells, placed at cell (x, y). */
 function cells(
