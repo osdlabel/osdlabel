@@ -597,7 +597,10 @@ export class SegmentationBrushTool extends BaseTool {
     const zoom = this.overlay.canvas.getZoom();
     const perScreenPixel = Number.isFinite(zoom) && zoom > 0 ? 1 / zoom : 1;
     let finest = 1;
-    while (finest * 2 <= perScreenPixel && finest < downsample) finest *= 2;
+    // With a relative tolerance: a view at exactly 4 image pixels a screen
+    // pixel reads a zoom of 0.24999999999994 or 0.2500000000001 depending on
+    // the viewer's size, and the grid must not flip between the two.
+    while (finest * 2 <= perScreenPixel * (1 + 1e-9) && finest < downsample) finest *= 2;
     const dab = this.discRegion(point.x, point.y);
     const imageWidth = size?.width ?? Infinity;
     const imageHeight = size?.height ?? Infinity;

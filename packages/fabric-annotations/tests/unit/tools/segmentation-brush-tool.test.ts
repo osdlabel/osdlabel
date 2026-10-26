@@ -1444,6 +1444,28 @@ describe('SegmentationBrushTool: resolution of a new mask', () => {
     }
   });
 
+  it('picks the same grid on either side of a rounding at an exact power of two', () => {
+    // Four image pixels a screen pixel, as the viewer reports it at two sizes.
+    for (const zoom of [0.24999999999994316, 0.2500000000001]) {
+      const buffer = new BoundedDenseMaskBuffer({
+        imageWidth: BIG.width,
+        imageHeight: BIG.height,
+        downsample: 4,
+      });
+      stampCircle(buffer, 5000, 5000, 40, 1);
+      const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.raster() };
+      const h = harness({
+        imageSize: BIG,
+        maxPixels: CAP,
+        target,
+        viewport: { zoom, width: 800, height: 800 },
+      });
+      down(h.tool, 5050, 5000);
+      up(h.tool, 5050, 5000);
+      expect(h.commits[0]!.snapshot.downsample, `zoom ${zoom}`).toBe(4);
+    }
+  });
+
   it('keeps a coarse mask at its own resolution when the finer box lacks headroom', () => {
     // A context that does not coarsen re-grids only into a quarter of the
     // cap: past that, the next stroke could overflow where at d=4 it fitted.
