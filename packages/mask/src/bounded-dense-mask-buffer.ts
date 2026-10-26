@@ -225,34 +225,11 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
    * {@link BoundedDenseMaskBuffer.raster}.
    */
   snapshot(): MaskSnapshot {
-    if (this.count === 0) return emptySnapshot(this.imageWidth, this.imageHeight);
-
-    // Tight bounding box of set pixels within the allocated region.
-    //
-    // Found once per stroke rather than tracked while painting: tracking costs
-    // four comparisons per painted pixel, about 10% of the brush's per-frame
-    // budget. Each row is searched from both ends with the typed array's own
-    // `indexOf` / `lastIndexOf`, so an empty row costs one native scan and a
-    // set one stops at its first and last cells: 3 ms instead of 60 on a 4000²
-    // mask (#238).
-    let minCol = this.aw;
-    let minRow = this.ah;
-    let maxCol = -1;
-    let maxRow = -1;
-    for (let row = 0; row < this.ah; row++) {
-      const line = this.data.subarray(row * this.aw, (row + 1) * this.aw);
-      const first = line.indexOf(1);
-      if (first < 0) continue;
-      const last = line.lastIndexOf(1);
-      if (first < minCol) minCol = first;
-      if (last > maxCol) maxCol = last;
-      if (row < minRow) minRow = row;
-      maxRow = row;
-    }
-
-    // Belt-and-braces: if count disagreed with the stored pixels we would fall
-    // through with the sentinels intact and emit a negative-sized snapshot.
-    if (maxCol < 0 || maxRow < 0) return emptySnapshot(this.imageWidth, this.imageHeight);
+    const tight = this.count === 0 ? null : this.tightBox();
+    // Belt-and-braces: a count that disagreed with the stored pixels finds no
+    // box, rather than a negative-sized snapshot.
+    if (!tight) return emptySnapshot(this.imageWidth, this.imageHeight);
+    const { minCol, minRow, maxCol, maxRow } = tight;
 
     const width = maxCol - minCol + 1;
     const height = maxRow - minRow + 1;
@@ -269,6 +246,34 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
       imageHeight: this.imageHeight,
       downsample: this.downsample,
     };
+  }
+
+  /**
+   * The tight box of the set cells, relative to the allocation, or `null`
+   * when none is set.
+   *
+   * Found when needed rather than tracked while painting: tracking costs four
+   * comparisons per painted pixel, about 10% of the brush's per-frame budget.
+   * Each row is searched from both ends with the typed array's own `indexOf`
+   * / `lastIndexOf`, so an empty row costs one native scan and a set one stops
+   * at its first and last cells: 3 ms instead of 60 on a 4000² mask (#238).
+   */
+  private tightBox(): { minCol: number; minRow: number; maxCol: number; maxRow: number } | null {
+    let minCol = this.aw;
+    let minRow = this.ah;
+    let maxCol = -1;
+    let maxRow = -1;
+    for (let row = 0; row < this.ah; row++) {
+      const line = this.data.subarray(row * this.aw, (row + 1) * this.aw);
+      const first = line.indexOf(1);
+      if (first < 0) continue;
+      const last = line.lastIndexOf(1);
+      if (first < minCol) minCol = first;
+      if (last > maxCol) maxCol = last;
+      if (row < minRow) minRow = row;
+      maxRow = row;
+    }
+    return maxCol < 0 || maxRow < 0 ? null : { minCol, minRow, maxCol, maxRow };
   }
 
   /**
@@ -311,10 +316,22 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
   /** Expands the allocated region to include (x, y), preserving existing pixels. */
   private grow(x: number, y: number, x2: number = x, y2: number = y): void {
     const hasRegion = this.aw > 0 && this.ah > 0;
-    const minX = hasRegion ? Math.min(this.ax, x) : x;
-    const minY = hasRegion ? Math.min(this.ay, y) : y;
-    const maxX = hasRegion ? Math.max(this.ax + this.aw - 1, x2) : x2;
-    const maxY = hasRegion ? Math.max(this.ay + this.ah - 1, y2) : y2;
+    let minX = hasRegion ? Math.min(this.ax, x) : x;
+    let minY = hasRegion ? Math.min(this.ay, y) : y;
+    let maxX = hasRegion ? Math.max(this.ax + this.aw - 1, x2) : x2;
+    let maxY = hasRegion ? Math.max(this.ay + this.ah - 1, y2) : y2;
+
+    // The allocation may be wider than what is set — rounded out to chunks by
+    // an earlier growth — so when keeping all of it would pass the cap, keep
+    // only the set cells. Otherwise a long thin stroke was refused for the
+    // rows a dab's rounding added a hundred cells back.
+    if (hasRegion && (maxX - minX + 1) * (maxY - minY + 1) > this.maxPixels) {
+      const tight = this.count === 0 ? null : this.tightBox();
+      minX = tight ? Math.min(this.ax + tight.minCol, x) : x;
+      minY = tight ? Math.min(this.ay + tight.minRow, y) : y;
+      maxX = tight ? Math.max(this.ax + tight.maxCol, x2) : x2;
+      maxY = tight ? Math.max(this.ay + tight.maxRow, y2) : y2;
+    }
 
     let nx = Math.max(0, Math.floor(minX / GROWTH_CHUNK) * GROWTH_CHUNK);
     let ny = Math.max(0, Math.floor(minY / GROWTH_CHUNK) * GROWTH_CHUNK);
@@ -341,11 +358,15 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
 
     const next = new Uint8Array(requested);
     if (hasRegion) {
-      const colOffset = this.ax - nx;
-      const rowOffset = this.ay - ny;
-      for (let row = 0; row < this.ah; row++) {
-        const src = row * this.aw;
-        next.set(this.data.subarray(src, src + this.aw), (row + rowOffset) * nw + colOffset);
+      // Only the part of the old allocation the new one covers: all of it,
+      // or — when the allocation was cut back to the set cells — those.
+      const fromCol = Math.max(this.ax, nx);
+      const toCol = Math.min(this.ax + this.aw, nx + nw);
+      const fromRow = Math.max(this.ay, ny);
+      const toRow = Math.min(this.ay + this.ah, ny + nh);
+      for (let y = fromRow; y < toRow; y++) {
+        const src = (y - this.ay) * this.aw + (fromCol - this.ax);
+        next.set(this.data.subarray(src, src + (toCol - fromCol)), (y - ny) * nw + (fromCol - nx));
       }
     }
 

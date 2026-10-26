@@ -170,3 +170,29 @@ describe('copyRow', () => {
     }
   });
 });
+
+describe('growth at the cap', () => {
+  it("keeps only the set cells when the rounded allocation would not fit, so a thin stroke isn't refused", () => {
+    // The first dab rounds the allocation to a 64 x 64 chunk, the whole cap.
+    // A stroke 200 cells long and 9 tall then fits the cap; the allocation it
+    // grew from does not.
+    const b = buffer(1000, 1000, 64 * 64);
+    stampCircle(b, 100, 100, 4, 1);
+    expect(b.cellBounds.height).toBe(64);
+    for (let x = 100; x <= 300; x++) stampCircle(b, x, 100, 4, 1);
+    expect(b.cellBounds.width * b.cellBounds.height).toBeLessThanOrEqual(64 * 64);
+    // Every painted cell survived the cut.
+    for (let x = 96; x <= 303; x++) expect(b.get(x, 100), `x=${x}`).toBe(1);
+    expect(b.get(304, 100)).toBe(0);
+    expect(b.get(100, 96)).toBe(1);
+    expect(b.get(100, 105)).toBe(0);
+  });
+
+  it('still refuses a region whose set cells alone pass the cap', () => {
+    const b = buffer(1000, 1000, 64 * 64);
+    stampCircle(b, 100, 100, 4, 1);
+    stampCircle(b, 100, 160, 4, 1);
+    expect(() => stampCircle(b, 300, 100, 4, 1)).toThrow(MaskCapacityExceededError);
+    expect(b.get(100, 160)).toBe(1);
+  });
+});

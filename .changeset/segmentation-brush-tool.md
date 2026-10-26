@@ -356,6 +356,12 @@ degrades alone instead of blanking its whole grid cell.
   default).
 - **A mask is hit-tested by its pixels**, not its bounding box, so a click
   through a sparse mask reaches the shape beneath it.
+- **A thin stroke near the cap is no longer refused for rounding.** The
+  buffer rounds its allocation out to 64-cell chunks, and gave way to the cap
+  only for the region being added, so a long stroke whose own box fitted was
+  refused for the rows an earlier dab's rounding had added. Past the cap it
+  now keeps just the set cells, and refuses only when they and the new region
+  do not fit.
 - **A preview the engine refuses to allocate is a capacity failure.** The
   RGBA preview is four bytes a pixel over a box larger than the buffer's, and
   an engine past its canvas limit throws a plain error that escaped into
