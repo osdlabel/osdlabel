@@ -17,7 +17,7 @@ import {
   VIEWER_CONTROL_SPECS,
   canAddAnnotation,
 } from 'osdlabel';
-import type { DragAxisBehavior, ViewerControlAxisSpec } from 'osdlabel';
+import type { DragAxisBehavior, MaskObjectSeed, ViewerControlAxisSpec } from 'osdlabel';
 import type { ToolCallbacks } from '@osdlabel/fabric-annotations';
 import { useAnnotator } from '../state/annotator-context.js';
 
@@ -32,6 +32,12 @@ export function useAnnotationTool(
   overlay: () => FabricOverlay | undefined,
   imageId: () => ImageId | undefined,
   isActive: () => boolean,
+  /**
+   * The cell's hooks into a brush commit: `seedMaskObject` receives the
+   * committed mask's object before the write, so the cell can show it
+   * without re-rasterizing (see `BrushConfigDispatchers.seedMaskObject`).
+   */
+  cell?: { readonly seedMaskObject?: (seed: MaskObjectSeed) => void },
 ) {
   const annotator = useAnnotator();
   const {
@@ -162,6 +168,7 @@ export function useAnnotationTool(
           // signal would rebuild the tool — and discard an in-progress stroke —
           // when only the callback changed. React defers it for the same reason.
           onCapacityExceeded: (error) => annotator.brushOptions.onCapacityExceeded?.(error),
+          seedMaskObject: (seed) => cell?.seedMaskObject?.(seed),
         },
       ),
     });

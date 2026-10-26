@@ -9,7 +9,11 @@ export {
   DEFAULT_FIRST_VERTEX_MARKER_RADIUS_PX,
 } from './vertex-markers.js';
 export type { VertexMarkerOptions } from './vertex-markers.js';
-export { buildMaskFabricObject, DEFAULT_MASK_FILL } from './mask-fabric-object.js';
+export {
+  buildMaskFabricObject,
+  maskFabricObjectFromCanvas,
+  DEFAULT_MASK_FILL,
+} from './mask-fabric-object.js';
 export {
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,

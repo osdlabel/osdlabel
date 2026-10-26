@@ -2,12 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { FabricImage, FabricObject, Rect } from 'fabric';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
-import { createAnnotationId } from '@osdlabel/annotation';
+import { MASK_RAW_FORMAT, createAnnotationId } from '@osdlabel/annotation';
 import {
   BoundedDenseMaskBuffer,
   DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
   emptySnapshot,
+  encodeCanonical,
   runRaster,
   snapshotCellCount,
   snapshotImageBox,
@@ -17,6 +18,7 @@ import {
   type MaskRaster,
 } from '@osdlabel/mask';
 import { SegmentationBrushTool } from '../../../src/tools/segmentation-brush-tool.js';
+import { buildMaskFabricObject } from '../../../src/mask-fabric-object.js';
 import type {
   BrushStrokeCommit,
   BrushTarget,
@@ -347,6 +349,56 @@ describe('SegmentationBrushTool: committing a stroke', () => {
     down(h.tool, 50, 50);
     up(h.tool, 50, 50);
     expect(h.commits).toHaveLength(0);
+  });
+});
+
+describe('SegmentationBrushTool: the commit carries its preview', () => {
+  it('pixel for pixel what the renderer draws from the committed payload', () => {
+    for (const target of [
+      null,
+      { annotationId: createAnnotationId('m'), snapshot: paintedSnapshot(9) },
+    ]) {
+      const h = harness({ target, radius: 7 });
+      down(h.tool, 60, 50);
+      move(h.tool, 140, 90);
+      up(h.tool, 140, 90);
+      expect(h.commits).toHaveLength(1);
+      const commit = h.commits[0]!;
+      expect(commit.preview).toBeDefined();
+      const { canvas, fill } = commit.preview!;
+      const cells = commit.snapshot.cells;
+      expect([canvas.width, canvas.height]).toEqual([cells.width, cells.height]);
+
+      const rendered = buildMaskFabricObject(
+        { format: MASK_RAW_FORMAT, data: { ...encodeCanonical(commit.snapshot), fill } },
+        { id: 'x' },
+      ) as FabricImage;
+      const expected = (rendered.getElement() as HTMLCanvasElement)
+        .getContext('2d')!
+        .getImageData(0, 0, cells.width, cells.height).data;
+      const actual = canvas.getContext('2d')!.getImageData(0, 0, cells.width, cells.height).data;
+      // Compared on alpha and on the colour of painted pixels: a clear pixel
+      // is transparent in both, whatever colour channels it carries.
+      for (let i = 0; i < expected.length; i += 4) {
+        expect(actual[i + 3], `alpha at ${i / 4}`).toBe(expected[i + 3]);
+        if (expected[i + 3]! > 0) {
+          expect([actual[i], actual[i + 1], actual[i + 2]]).toEqual([
+            expected[i],
+            expected[i + 1],
+            expected[i + 2],
+          ]);
+        }
+      }
+    }
+  });
+
+  it('is absent when nothing was previewed', () => {
+    // No overlay canvas to preview on: the commit still lands, without one.
+    const h = harness();
+    (h.tool as unknown as { overlay: unknown }).overlay = null;
+    down(h.tool, 60, 50);
+    up(h.tool, 60, 50);
+    expect(h.commits[0]?.preview).toBeUndefined();
   });
 });
 

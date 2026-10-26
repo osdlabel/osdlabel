@@ -254,6 +254,17 @@ constraints share), `SegmentationBrushToolConfig.peekTarget` with
 before it is added, which fixes the Solid binding switching to the select tool
 the moment that mask was painted.
 
+## Committing a stroke on a large mask is cheaper (#238)
+
+A stroke that changes no cell commits nothing (`MaskBuffer.changeCount`). The
+buffer finds its tight box per row with native `indexOf` / `lastIndexOf`, the
+renderer and the brush preview fill pixels a 32-bit word at a time
+(`MaskBuffer.copyRow`), and a commit carries its live preview cropped to the
+mask (`BrushStrokeCommit.preview`), from which the committing cell seeds
+`MaskObjectCache` (`seed`, through `BrushConfigDispatchers.seedMaskObject` and
+`maskFabricObjectFromCanvas`) so its rebuild does not decode and re-rasterize
+the mask.
+
 ## The selected mask is told apart from the others
 
 A mask has no handles to show when selected, and every mask renders in its

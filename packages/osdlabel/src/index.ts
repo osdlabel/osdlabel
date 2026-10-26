@@ -272,7 +272,11 @@ export {
 } from './mask-style.js';
 export type { MaskSwapOutcome, MaskTintOverride, MaskTintSwapHost } from './mask-style.js';
 export { MaskObjectCache } from './mask-object-cache.js';
-export type { BrushConfigAccessors, BrushConfigDispatchers } from './brush-config.js';
+export type {
+  BrushConfigAccessors,
+  BrushConfigDispatchers,
+  MaskObjectSeed,
+} from './brush-config.js';
 export type {
   CreateMaskAnnotationOptions,
   MaskAnnotationFields,

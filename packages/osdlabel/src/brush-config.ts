@@ -1,8 +1,10 @@
+import type { FabricObject } from 'fabric';
 import {
   MASK_RAW_FORMAT,
   createAnnotationId,
   generateId,
   type AnnotationId,
+  type MaskRawAnnotationData,
 } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { AnnotationState, ImageId } from '@osdlabel/viewer-api';
@@ -12,6 +14,7 @@ import {
   MaskCapacityExceededError,
   decodeCanonicalRaster,
 } from '@osdlabel/mask';
+import { DEFAULT_MASK_FILL, maskFabricObjectFromCanvas } from '@osdlabel/fabric-annotations';
 import type {
   BrushCapacityError,
   BrushStrokeCommit,
@@ -87,6 +90,23 @@ export interface BrushConfigDispatchers {
    * happened.
    */
   readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
+  /**
+   * Hands the cell the committed mask's object, built from the stroke's live
+   * preview, before the commit is written — so the rebuild the write triggers
+   * shows it without decoding and re-rasterizing the mask (#238). `fill` is
+   * the tint override the object was drawn in, `undefined` for the mask's own;
+   * the cell keys its cache on it (`MaskObjectCache.seed`).
+   */
+  readonly seedMaskObject?: ((seed: MaskObjectSeed) => void) | undefined;
+}
+
+/** A committed mask's object, built from the brush's preview; see `seedMaskObject`. */
+export interface MaskObjectSeed {
+  readonly annotationId: AnnotationId;
+  readonly rawAnnotationData: MaskRawAnnotationData;
+  /** The tint override it is drawn in, or `undefined` for the mask's own. */
+  readonly fill: string | undefined;
+  readonly object: FabricObject;
 }
 
 /**
@@ -172,11 +192,9 @@ export function buildSegmentationBrushConfig(
         dispatchers.setSelectedAnnotation(null);
         return;
       }
-      dispatchers.updateAnnotation(
-        stroke.annotationId,
-        stroke.imageId,
-        maskAnnotationFields(stroke.snapshot, accessors.getFill?.() ?? targetFill),
-      );
+      const fields = maskAnnotationFields(stroke.snapshot, accessors.getFill?.() ?? targetFill);
+      seed(stroke, stroke.annotationId, fields.rawAnnotationData);
+      dispatchers.updateAnnotation(stroke.annotationId, stroke.imageId, fields);
       return;
     }
 
@@ -197,8 +215,45 @@ export function buildSegmentationBrushConfig(
     // brush enabled only because that mask is selected; added first, there was
     // a moment at the limit with nothing selected, and a host whose effects run
     // on every write (Solid's do) switched the brush off in it.
+    if (annotation.rawAnnotationData.format === MASK_RAW_FORMAT) {
+      seed(stroke, id, annotation.rawAnnotationData);
+    }
     dispatchers.setSelectedAnnotation(id);
     dispatchers.addAnnotation(annotation);
+  };
+
+  /**
+   * Seeds the cell with the stroke's preview, when its tint is the one the
+   * cell will draw the mask in: the selected tint the host overrides with, or
+   * the mask's own when it overrides none. Anything else, the cell rebuilds.
+   */
+  const seed = (
+    stroke: BrushStrokeCommit,
+    annotationId: AnnotationId,
+    rawAnnotationData: MaskRawAnnotationData,
+  ): void => {
+    const preview = stroke.preview;
+    if (!preview || !dispatchers.seedMaskObject) return;
+    const selectedFill = accessors.getSelectedFill?.();
+    const ownFill = rawAnnotationData.data.fill ?? DEFAULT_MASK_FILL;
+    let fill: string | undefined;
+    if (selectedFill !== undefined) {
+      if (preview.fill !== selectedFill) return;
+      fill = selectedFill;
+    } else if (preview.fill !== ownFill) {
+      return;
+    }
+    dispatchers.seedMaskObject({
+      annotationId,
+      rawAnnotationData,
+      fill,
+      object: maskFabricObjectFromCanvas(
+        preview.canvas,
+        stroke.snapshot.cells,
+        stroke.snapshot.downsample,
+        annotationId,
+      ),
+    });
   };
 
   return {

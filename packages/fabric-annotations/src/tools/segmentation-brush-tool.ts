@@ -30,6 +30,13 @@ export interface BrushStrokeCommit {
   readonly contextId: AnnotationContextId;
   /** The mask after the stroke, through the storage-agnostic raster interface. */
   readonly snapshot: MaskRaster;
+  /**
+   * The mask as the stroke's live preview drew it: one canvas pixel per cell
+   * of `snapshot.cells`, in `fill`. A host can show it without decoding and
+   * re-rasterizing the mask (`maskFabricObjectFromCanvas`), the most expensive
+   * part of a commit on a large mask. Absent when there was no preview.
+   */
+  readonly preview?: { readonly canvas: HTMLCanvasElement; readonly fill: string } | undefined;
 }
 
 /** What the next stroke would paint into, answered without resolving it. */
@@ -366,14 +373,58 @@ export class SegmentationBrushTool extends BaseTool {
     }
 
     const snapshot = this.buffer.raster();
+    const preview = this.croppedPreview(snapshot.cells);
     const commit: BrushStrokeCommit = {
       annotationId: this.targetId,
       imageId: this.imageId,
       contextId: this.contextId,
       snapshot,
+      ...(preview ? { preview } : {}),
     };
     this.endStroke();
     this.config.onCommit(commit);
+  }
+
+  /**
+   * The live preview cut down to `cells`, the committed mask's box: a single
+   * `drawImage`, about 15 ms on a 4000-square mask against 200–280 for a
+   * decode and re-raster (#238). `null` when there is no preview, it does not
+   * cover the box, or the engine refuses the canvas.
+   */
+  private croppedPreview(cells: MaskCellBox): { canvas: HTMLCanvasElement; fill: string } | null {
+    const source = this.previewCanvas;
+    const bounds = this.previewBounds;
+    if (!source || !bounds || cells.width === 0 || cells.height === 0) return null;
+    if (
+      cells.x < bounds.x ||
+      cells.y < bounds.y ||
+      cells.x + cells.width > bounds.x + bounds.width ||
+      cells.y + cells.height > bounds.y + bounds.height
+    ) {
+      return null;
+    }
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = cells.width;
+      canvas.height = cells.height;
+      const context = canvas.getContext('2d');
+      if (!context) return null;
+      context.drawImage(
+        source,
+        cells.x - bounds.x,
+        cells.y - bounds.y,
+        cells.width,
+        cells.height,
+        0,
+        0,
+        cells.width,
+        cells.height,
+      );
+      return { canvas, fill: this.strokeFill() };
+    } catch {
+      // A refused canvas only costs the host its shortcut: it re-rasterizes.
+      return null;
+    }
   }
 
   onKeyDown(event: KeyboardEvent): boolean {
@@ -790,11 +841,14 @@ export class SegmentationBrushTool extends BaseTool {
   }
 
   /** The stroke tint as bytes, parsed once and reused for the rest of the stroke. */
+  /** The colour the stroke's preview paints in. */
+  private strokeFill(): string {
+    return this.config.getFill?.() ?? this.targetFill ?? DEFAULT_MASK_FILL;
+  }
+
   private strokeRgba(): readonly [number, number, number, number] {
     if (this.previewRgba) return this.previewRgba;
-    const [red, green, blue, alpha] = new Color(
-      this.config.getFill?.() ?? this.targetFill ?? DEFAULT_MASK_FILL,
-    ).getSource();
+    const [red, green, blue, alpha] = new Color(this.strokeFill()).getSource();
     this.previewRgba = [red, green, blue, Math.round((alpha ?? 1) * 255)];
     return this.previewRgba;
   }

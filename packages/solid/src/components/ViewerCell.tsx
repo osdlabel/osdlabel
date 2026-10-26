@@ -125,6 +125,12 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     overlay,
     () => props.imageSource?.id,
     () => props.isActive,
+    {
+      // A brush commit's mask, from its preview: the rebuild its write
+      // triggers then reuses it instead of re-rasterizing (#238).
+      seedMaskObject: (seed) =>
+        maskObjects.seed(seed.annotationId, seed.rawAnnotationData, seed.fill, seed.object),
+    },
   );
 
   // Compute visible annotations for the current cell — used by both the

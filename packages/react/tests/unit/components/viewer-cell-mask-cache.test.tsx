@@ -14,6 +14,7 @@ import {
   decodeCanonicalRaster,
   maskAnnotationFields,
   stampCircle,
+  type MaskObjectSeed,
   type OsdAnnotation,
 } from 'osdlabel';
 import { renderAnnotator, type AnnotatorHarness } from '../render-annotator.js';
@@ -138,8 +139,12 @@ vi.mock('@osdlabel/fabric-annotations', async () => {
   };
 });
 
+/** The cell's hooks into a brush commit, as ViewerCell hands them to the tool hook. */
+let toolCell: { seedMaskObject?: (seed: MaskObjectSeed) => void } | undefined;
 vi.mock('../../../src/hooks/useAnnotationTool.js', () => ({
-  useAnnotationTool: () => undefined,
+  useAnnotationTool: (...args: unknown[]) => {
+    toolCell = args[3] as typeof toolCell;
+  },
 }));
 
 const { default: ViewerCell } = await import('../../../src/components/ViewerCell.js');
@@ -324,5 +329,51 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     expect(failure.annotation.id).toBe(m1);
     expect(failure.error).toBeInstanceOf(MaskCanvasTooLargeError);
     expect(objects.map((o) => o.id)).toEqual(['m2']);
+  });
+
+  /** A refining stroke's commit: the new payload, and the object its preview made. */
+  function brushCommit() {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    stampCircle(buffer, 50.5, 50.5, 9, 1);
+    const fields = maskAnnotationFields(buffer.snapshot());
+    if (fields.rawAnnotationData.format !== MASK_RAW_FORMAT) throw new Error('expected a mask');
+    const object: FakeObject = {
+      id: m1,
+      opacity: 1,
+      set(key, value) {
+        (object as unknown as Record<string, unknown>)[key] = value;
+      },
+    };
+    return { fields, object, rawAnnotationData: fields.rawAnnotationData };
+  }
+
+  it("shows a brush commit's seeded object without rebuilding it (#238)", async () => {
+    const h = await mountWithMasks();
+    expect(toolCell?.seedMaskObject).toBeDefined();
+    const commit = brushCommit();
+    toolCell!.seedMaskObject!({
+      annotationId: m1,
+      rawAnnotationData: commit.rawAnnotationData,
+      fill: undefined,
+      object: commit.object as unknown as MaskObjectSeed['object'],
+    });
+    h.run((a) => a.updateAnnotation(m1, imageId, commit.fields));
+    await vi.waitFor(() => expect(byId('m1')).toBe(commit.object));
+    expect(buildsFor('m1')).toBe(1);
+  });
+
+  it('rebuilds instead when the seed was drawn in another tint', async () => {
+    const h = await mountWithMasks();
+    const commit = brushCommit();
+    toolCell!.seedMaskObject!({
+      annotationId: m1,
+      rawAnnotationData: commit.rawAnnotationData,
+      fill: 'rgba(255, 0, 0, 1)',
+      object: commit.object as unknown as MaskObjectSeed['object'],
+    });
+    h.run((a) => a.updateAnnotation(m1, imageId, commit.fields));
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    await vi.waitFor(() => expect(objects.find((o) => o.id === 'm1')).toBeDefined());
+    expect(byId('m1')).not.toBe(commit.object);
   });
 });

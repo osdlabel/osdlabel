@@ -1,6 +1,6 @@
 import { Color, FabricImage, type FabricObject } from 'fabric';
 import { MASK_RAW_FORMAT, type MaskRawAnnotationData } from '@osdlabel/annotation';
-import { decodeCanonicalRaster } from '@osdlabel/mask';
+import { decodeCanonicalRaster, type MaskCellBox } from '@osdlabel/mask';
 import { MAX_MASK_CANVAS_SIDE, MaskCanvasTooLargeError } from './mask-canvas-limit.js';
 
 /** Tint used when a mask envelope carries no `fill` of its own. */
@@ -81,13 +81,28 @@ export function buildMaskFabricObject(
   });
   context.putImageData(imageData, 0, 0);
 
+  return maskFabricObjectFromCanvas(canvas, cells, raster.downsample, options.id);
+}
+
+/**
+ * The Fabric object for a mask already drawn on `canvas`, one canvas pixel per
+ * cell of `cells` at `downsample` — placed and configured exactly as
+ * {@link buildMaskFabricObject} places a mask it draws itself. For a host that
+ * has the pixels at hand: the brush's preview holds a committed stroke's mask,
+ * so the cell can show it without decoding and re-rasterizing it.
+ */
+export function maskFabricObjectFromCanvas(
+  canvas: HTMLCanvasElement,
+  cells: MaskCellBox,
+  downsample: number,
+  id: string,
+): FabricImage {
   // One canvas pixel per stored cell, scaled up to the image pixels each cell
   // covers. The overlay's viewport transform does the rest, as for any other
   // object; with smoothing off (below) a cell renders as a crisp block. Cells
   // along a clipped image edge are drawn full-size, so a mask touching that
   // edge overhangs the image by under one cell — outside the image, where
   // nothing else is drawn.
-  const downsample = raster.downsample;
   return new FabricImage(canvas, {
     left: cells.x * downsample,
     top: cells.y * downsample,
@@ -95,7 +110,7 @@ export function buildMaskFabricObject(
     scaleY: downsample,
     originX: 'left',
     originY: 'top',
-    id: options.id,
+    id,
     selectable: true,
     evented: true,
     // Painting is the only way to change a mask.
