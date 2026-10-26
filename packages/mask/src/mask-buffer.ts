@@ -118,6 +118,14 @@ export interface MaskBuffer {
    */
   reserve?(region: MaskRegion): void;
   /**
+   * Copies the cells `[x0, x1)` of row `cy` into `into` (one byte per cell, 0
+   * or 1), out-of-range cells as 0 — the same values {@link get} returns, a
+   * row at a time, for a reader that would otherwise call `get` per cell.
+   *
+   * Optional — callers fall back to `get` without it.
+   */
+  copyRow?(cy: number, x0: number, x1: number, into: Uint8Array): void;
+  /**
    * A tightly-cropped, read-only view of the current cells, detached from
    * later writes. Its storage is the implementation's business.
    */

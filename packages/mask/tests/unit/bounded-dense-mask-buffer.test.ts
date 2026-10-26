@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BoundedDenseMaskBuffer, MaskCapacityExceededError } from '../../src/index.js';
+import { BoundedDenseMaskBuffer, MaskCapacityExceededError, stampCircle } from '../../src/index.js';
 
 const buffer = (w = 1000, h = 1000, maxPixels?: number) =>
   new BoundedDenseMaskBuffer({
@@ -145,5 +145,28 @@ describe('growth rounding yields to the cap', () => {
     const before = b.snapshot();
     for (let x = 11; x < 60; x++) b.set(x, 10, 1);
     expect(b.cellCount).toBe(before.data.length > 0 ? 50 : 50);
+  });
+});
+
+describe('copyRow', () => {
+  it('reads a row exactly as get() does, out-of-range cells as 0', () => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200 });
+    stampCircle(buffer, 120, 80, 25, 1);
+    stampCircle(buffer, 125, 82, 7, 0);
+    const into = new Uint8Array(400);
+    for (const [cy, x0, x1] of [
+      [80, 0, 300],
+      [55, 90, 150],
+      [80, -20, 30],
+      [80, 280, 400],
+      [-5, 0, 50],
+      [500, 0, 50],
+      [104, 95, 146],
+    ] as const) {
+      buffer.copyRow(cy, x0, x1, into);
+      for (let i = 0; i < x1 - x0; i++) {
+        expect(into[i], `row ${cy} cell ${x0 + i}`).toBe(buffer.get(x0 + i, cy));
+      }
+    }
   });
 });

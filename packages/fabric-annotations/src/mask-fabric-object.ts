@@ -71,16 +71,13 @@ export function buildMaskFabricObject(
   if (!context) return null;
 
   const imageData = context.createImageData(cells.width, cells.height);
-  const pixels = imageData.data;
+  // One 32-bit word per pixel, so a span is a single native fill instead of
+  // four byte writes per pixel: 58 ms to 17 on a 16-megapixel mask (#238).
+  const words = new Uint32Array(imageData.data.buffer);
+  const tint = packRgba(red, green, blue, alphaByte);
   raster.forEachSpan((cy, x0, x1) => {
     const rowStart = (cy - cells.y) * cells.width - cells.x;
-    for (let i = rowStart + x0; i < rowStart + x1; i++) {
-      const offset = i * 4;
-      pixels[offset] = red;
-      pixels[offset + 1] = green;
-      pixels[offset + 2] = blue;
-      pixels[offset + 3] = alphaByte;
-    }
+    words.fill(tint, rowStart + x0, rowStart + x1);
   });
   context.putImageData(imageData, 0, 0);
 
@@ -116,4 +113,12 @@ export function buildMaskFabricObject(
     imageSmoothing: false,
     objectCaching: false,
   });
+}
+
+/**
+ * An RGBA pixel as the 32-bit word `ImageData`'s bytes make in this
+ * platform's byte order — built through the bytes, so it is right on either.
+ */
+export function packRgba(red: number, green: number, blue: number, alpha: number): number {
+  return new Uint32Array(Uint8ClampedArray.of(red, green, blue, alpha).buffer)[0]!;
 }

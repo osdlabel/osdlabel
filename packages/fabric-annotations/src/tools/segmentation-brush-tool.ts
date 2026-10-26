@@ -14,7 +14,7 @@ import {
   type MaskRaster,
   type MaskRegion,
 } from '@osdlabel/mask';
-import { DEFAULT_MASK_FILL } from '../mask-fabric-object.js';
+import { DEFAULT_MASK_FILL, packRgba } from '../mask-fabric-object.js';
 import {
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
@@ -758,19 +758,19 @@ export class SegmentationBrushTool extends BaseTool {
     if (toCol <= fromCol || toRow <= fromRow) return;
 
     const [red, green, blue, alphaByte] = this.strokeRgba();
-    const pixels = image.data;
+    // A 32-bit word per pixel, written branch-free from a row of cells: a set
+    // cell is the tint, a clear one transparent (#238).
+    const words = new Uint32Array(image.data.buffer);
+    const tint = packRgba(red, green, blue, alphaByte);
+    const width = toCol - fromCol;
+    const cells = new Uint8Array(width);
+    const buffer = this.buffer;
     for (let row = fromRow; row < toRow; row++) {
-      let offset = (row * bounds.width + fromCol) * 4;
-      for (let col = fromCol; col < toCol; col++, offset += 4) {
-        if (this.buffer.get(bounds.x + col, bounds.y + row) === 1) {
-          pixels[offset] = red;
-          pixels[offset + 1] = green;
-          pixels[offset + 2] = blue;
-          pixels[offset + 3] = alphaByte;
-        } else {
-          pixels[offset + 3] = 0;
-        }
-      }
+      const cy = bounds.y + row;
+      if (buffer.copyRow) buffer.copyRow(cy, bounds.x + fromCol, bounds.x + toCol, cells);
+      else for (let i = 0; i < width; i++) cells[i] = buffer.get(bounds.x + fromCol + i, cy);
+      const offset = row * bounds.width + fromCol;
+      for (let i = 0; i < width; i++) words[offset + i] = cells[i]! * tint;
     }
 
     context.putImageData(image, 0, 0, fromCol, fromRow, toCol - fromCol, toRow - fromRow);

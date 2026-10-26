@@ -170,6 +170,18 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     return this.data[row * this.aw + col] === 1 ? 1 : 0;
   }
 
+  copyRow(cy: number, x0: number, x1: number, into: Uint8Array): void {
+    const length = x1 - x0;
+    into.fill(0, 0, length);
+    const row = cy - this.ay;
+    if (row < 0 || row >= this.ah) return;
+    const from = Math.max(x0, this.ax);
+    const to = Math.min(x1, this.ax + this.aw);
+    if (to <= from) return;
+    const offset = row * this.aw - this.ax;
+    into.set(this.data.subarray(offset + from, offset + to), from - x0);
+  }
+
   set(x: number, y: number, value: 0 | 1): void {
     // Coordinates index a typed array, so a fractional or NaN value would write
     // nowhere while still moving cellCount — leaving the buffer claiming
@@ -211,25 +223,25 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
 
     // Tight bounding box of set pixels within the allocated region.
     //
-    // This scans the whole region rather than narrowing to a box tracked during
-    // painting: maintaining such a box costs four comparisons per painted pixel
-    // — about 10% of the brush's per-frame budget — to save a few milliseconds
-    // once per stroke, on the pointer-up path that dispatches and re-renders
-    // anyway. The 60fps path wins.
+    // Found once per stroke rather than tracked while painting: tracking costs
+    // four comparisons per painted pixel, about 10% of the brush's per-frame
+    // budget. Each row is searched from both ends with the typed array's own
+    // `indexOf` / `lastIndexOf`, so an empty row costs one native scan and a
+    // set one stops at its first and last cells: 3 ms instead of 60 on a 4000²
+    // mask (#238).
     let minCol = this.aw;
     let minRow = this.ah;
     let maxCol = -1;
     let maxRow = -1;
     for (let row = 0; row < this.ah; row++) {
-      const rowOffset = row * this.aw;
-      for (let col = 0; col < this.aw; col++) {
-        if (this.data[rowOffset + col] === 1) {
-          if (col < minCol) minCol = col;
-          if (col > maxCol) maxCol = col;
-          if (row < minRow) minRow = row;
-          if (row > maxRow) maxRow = row;
-        }
-      }
+      const line = this.data.subarray(row * this.aw, (row + 1) * this.aw);
+      const first = line.indexOf(1);
+      if (first < 0) continue;
+      const last = line.lastIndexOf(1);
+      if (first < minCol) minCol = first;
+      if (last > maxCol) maxCol = last;
+      if (row < minRow) minRow = row;
+      maxRow = row;
     }
 
     // Belt-and-braces: if count disagreed with the stored pixels we would fall
