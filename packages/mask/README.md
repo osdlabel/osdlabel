@@ -86,6 +86,15 @@ larger than 32 bits (a gigapixel image has more pixels than a 32-bit integer
 can hold). Only the mask's bounding box is walked during encoding; the
 surrounding background is accounted for arithmetically.
 
+COCO has no downsample, so a downsampled mask is exported as the level-0
+mask it stands for, refused with `CocoRunLimitExceededError` (from a counting
+pass, `countCocoRuns`) when that would take more than `MAX_COCO_RUNS /
+downsample` runs; `MAX_COCO_RUNS` is the worst case at full resolution, so no
+full-resolution mask is refused. Decoding takes `{ downsample }` in its
+options and writes the runs straight into cells at it, refusing a payload that
+is not constant within each cell; osdlabel's `deserialize` passes the
+annotation's `geometry.downsample`.
+
 Register your own `MaskCodec` for any other format; `decode` is optional for
 export-only formats. A codec reads its input through `MaskRaster` and returns
 one from `decode`. It receives downsampled masks only if it declares

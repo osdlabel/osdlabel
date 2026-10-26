@@ -6,6 +6,7 @@ import {
   assertDecodableOrigin,
   assertPixelDimensions,
 } from './decode-guard.js';
+import { DEFAULT_MAX_MASK_PIXELS } from './bounded-dense-mask-buffer.js';
 import { emptySnapshot, snapshotPixelCount, type MaskSnapshot } from './mask-buffer.js';
 import type { MaskCodec, MaskDecodeOptions } from './mask-codec.js';
 import {
@@ -39,22 +40,135 @@ export interface CocoRleUncompressedSegmentation {
 }
 
 /**
- * Converts a mask to COCO run lengths: **column-major** over the full image,
- * alternating and starting with background.
+ * Thrown when exporting a mask to COCO would take more runs than
+ * `MAX_COCO_RUNS / downsample`.
  *
- * The mask is read only through {@link MaskRaster.forEachSpan}, and the
- * row-major spans are transposed by a sweep across the columns: each span
- * switches its row on at its first column and off past its last, and between
- * two such events every column has the same runs. So the work is
- * proportional to the spans and to the runs written, never to the box —
- * fully-background columns, and the background above and below the mask, are
- * added arithmetically.
- *
- * COCO has no notion of a downsample — its runs are image pixels — so a
- * downsampled mask is exported as the level-0 mask it means, every cell
- * expanded to the image pixels it covers, without materialising level 0.
+ * COCO has no notion of a downsample, so a downsampled mask is exported as the
+ * level-0 mask it stands for — and its runs multiply with its downsample: a
+ * d=16 mask of alternating cell rows needs sixteen times the runs of its cells.
+ * A 6.7 kB canonical payload can ask for 125 million runs that way, and take
+ * seconds and a 125 MB string to write. At downsample 1 the bound is the true
+ * worst case, so no full-resolution mask is ever refused; above it the bound
+ * is divided by the downsample. The refusal comes from a counting pass that
+ * never walks the box, before anything is allocated.
  */
-export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
+export class CocoRunLimitExceededError extends RangeError {
+  /** Runs the export would take. */
+  readonly runs: number;
+  /** The most this mask's export may take: `MAX_COCO_RUNS / downsample`. */
+  readonly maxRuns: number;
+
+  constructor(runs: number, maxRuns: number, downsample: number) {
+    super(
+      `Exporting this mask to COCO would take ${runs} runs, more than the ${maxRuns} ` +
+        `allowed at downsample ${downsample}: COCO has no downsample, so its cells are ` +
+        `written out as image pixels. Keep it in the canonical format, which stores the cells.`,
+    );
+    this.name = 'CocoRunLimitExceededError';
+    this.runs = runs;
+    this.maxRuns = maxRuns;
+  }
+}
+
+/**
+ * The most COCO runs any mask the format admits at full resolution can take.
+ *
+ * A full-resolution mask has at most one transition per pixel of its box plus
+ * one per column (its entry from the pixel above), so `cells + width + 1`
+ * runs; over every box within the cap that peaks at twice the cap plus one
+ * (a one-row box as wide as the cap, alternating). A smaller bound — the cap
+ * plus one, say — would refuse masks the brush and the schema accept.
+ */
+export const MAX_COCO_RUNS = 2 * DEFAULT_MAX_MASK_PIXELS + 1;
+
+/**
+ * Where the column sweep's runs go: appended in order, alternating and
+ * starting with background, touching runs of one value merged.
+ */
+interface CocoRunAccumulator {
+  append(value: 0 | 1, length: number): void;
+  /** `count` image columns that share one pattern; `column` appends one. */
+  repeat(count: number, column: () => void): void;
+}
+
+/** Counts the runs a sweep emits, without emitting them. */
+class CocoRunCounter implements CocoRunAccumulator {
+  private value: 0 | 1 = 0;
+  /** Runs completed so far; the one still open is not counted. */
+  completed = 0;
+
+  append(value: 0 | 1, length: number): void {
+    if (length <= 0 || value === this.value) return;
+    this.completed++;
+    this.value = value;
+  }
+
+  repeat(count: number, column: () => void): void {
+    if (count <= 0) return;
+    column();
+    if (count === 1) return;
+    // Every column after the first starts in the state the one before it left,
+    // so each adds what the second did: closed form, never a walk of the box.
+    const before = this.completed;
+    column();
+    this.completed += (count - 2) * (this.completed - before);
+  }
+
+  get total(): number {
+    return this.completed + 1;
+  }
+}
+
+/** Emits the runs a sweep produces, in order. */
+class CocoRunEmitter implements CocoRunAccumulator {
+  private value: 0 | 1 = 0;
+  private length = 0;
+
+  constructor(private readonly sink: (run: number) => void) {}
+
+  append(value: 0 | 1, length: number): void {
+    if (length <= 0) return;
+    if (value === this.value) {
+      this.length += length;
+      return;
+    }
+    this.sink(this.length);
+    this.value = value;
+    this.length = length;
+  }
+
+  repeat(count: number, column: () => void): void {
+    for (let i = 0; i < count; i++) column();
+  }
+
+  finish(): void {
+    this.sink(this.length);
+  }
+}
+
+/** A validated mask, ready to be swept into COCO's column-major runs. */
+interface CocoSweep {
+  /** The total runs for an empty mask; absent when the mask has cells. */
+  readonly emptyRuns?: number[];
+  /** The most runs this mask's export may take. */
+  readonly maxRuns: number;
+  readonly downsample: number;
+  run(accumulator: CocoRunAccumulator): void;
+}
+
+/**
+ * Prepares the transposition of a mask's row-major spans into COCO's
+ * column-major runs.
+ *
+ * The mask is read only through {@link MaskRaster.forEachSpan}, and the spans
+ * are transposed by a sweep across the columns: each span switches its row on
+ * at its first column and off past its last, and between two such events every
+ * column has the same runs. So the work is proportional to the spans and to
+ * the runs written, never to the box — fully-background columns, and the
+ * background above and below the mask, are added arithmetically — and
+ * counting the runs is proportional to the spans alone.
+ */
+function prepareCocoSweep(input: MaskRasterInput): CocoSweep {
   const cells = input.cells;
   if (!isMaskRaster(input) && input.data.length !== cells.width * cells.height) {
     throw new RangeError(
@@ -65,8 +179,10 @@ export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
   const { imageWidth, imageHeight } = raster;
   const { x, y, width, height } = cells;
   const total = imageWidth * imageHeight;
-  if (width === 0 || height === 0) return total > 0 ? [total] : [];
   const downsample = raster.downsample;
+  if (width === 0 || height === 0) {
+    return { emptyRuns: total > 0 ? [total] : [], maxRuns: 1, downsample, run: () => {} };
+  }
   assertMaskDownsample(downsample);
 
   // A host-built snapshot with a fractional placement would emit fractional
@@ -79,20 +195,6 @@ export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
   const grid = maskGridSize(imageWidth, imageHeight, downsample);
   assertBoxInsideImage(x, y, width, height, grid.width, grid.height);
   const box = snapshotImageBox(raster);
-
-  const runs: number[] = [];
-  let currentValue: 0 | 1 = 0;
-  let currentLength = 0;
-  const append = (value: 0 | 1, length: number): void => {
-    if (length <= 0) return;
-    if (value === currentValue) {
-      currentLength += length;
-      return;
-    }
-    runs.push(currentLength);
-    currentValue = value;
-    currentLength = length;
-  };
 
   // Row toggles keyed by the cell column they happen at: +1 where a span
   // starts, -1 just past where it ends. Rows are box-relative cell rows.
@@ -108,85 +210,137 @@ export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
   });
   const eventColumns = [...toggles.keys()].sort((a, b) => a - b);
 
-  // The rows currently on, as sorted, disjoint, non-touching [start, end)
-  // intervals of box-relative cell rows.
-  const active: [number, number][] = [];
-  const findInterval = (row: number): number => {
-    // Index of the last interval starting at or before `row`, or -1.
-    let lo = 0;
-    let hi = active.length - 1;
-    let found = -1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >>> 1;
-      if (active[mid]![0] <= row) {
-        found = mid;
-        lo = mid + 1;
-      } else hi = mid - 1;
+  const run = (acc: CocoRunAccumulator): void => {
+    // The rows currently on, as sorted, disjoint, non-touching [start, end)
+    // intervals of box-relative cell rows.
+    const active: [number, number][] = [];
+    const findInterval = (row: number): number => {
+      // Index of the last interval starting at or before `row`, or -1.
+      let lo = 0;
+      let hi = active.length - 1;
+      let found = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >>> 1;
+        if (active[mid]![0] <= row) {
+          found = mid;
+          lo = mid + 1;
+        } else hi = mid - 1;
+      }
+      return found;
+    };
+    const switchOn = (row: number): void => {
+      const i = findInterval(row);
+      const joinsLeft = i >= 0 && active[i]![1] === row;
+      const next = active[i + 1];
+      const joinsRight = next !== undefined && next[0] === row + 1;
+      if (joinsLeft && joinsRight) {
+        active[i]![1] = next[1];
+        active.splice(i + 1, 1);
+      } else if (joinsLeft) active[i]![1] = row + 1;
+      else if (joinsRight) next[0] = row;
+      else active.splice(i + 1, 0, [row, row + 1]);
+    };
+    const switchOff = (row: number): void => {
+      const i = findInterval(row);
+      const interval = active[i]!;
+      const [start, end] = interval;
+      if (start === row && end === row + 1) active.splice(i, 1);
+      else if (start === row) interval[0] = row + 1;
+      else if (end === row + 1) interval[1] = row;
+      else {
+        interval[1] = row;
+        active.splice(i + 1, 0, [row + 1, end]);
+      }
+    };
+
+    // One image column of the current pattern; only the image's last cell row
+    // can cover fewer than `downsample` image rows.
+    const emitColumn = (): void => {
+      let cursor = 0;
+      for (const [start, end] of active) {
+        const top = (y + start) * downsample;
+        const bottom = Math.min((y + end) * downsample, imageHeight);
+        acc.append(0, top - cursor);
+        acc.append(1, bottom - top);
+        cursor = bottom;
+      }
+      acc.append(0, imageHeight - cursor);
+    };
+
+    acc.append(0, box.x * imageHeight);
+    const boxRight = x + width;
+    let col = x;
+    for (let e = 0; e <= eventColumns.length; e++) {
+      const next = e < eventColumns.length ? Math.min(eventColumns[e]!, boxRight) : boxRight;
+      // Columns [col, next) share one pattern.
+      if (next > col) {
+        const left = col * downsample;
+        const right = Math.min(next * downsample, imageWidth);
+        const columns = right - left;
+        if (active.length === 0) acc.append(0, columns * imageHeight);
+        else acc.repeat(columns, emitColumn);
+        col = next;
+      }
+      if (e === eventColumns.length || next >= boxRight) break;
+      // Offs before ons: a row whose spans touch at this column stays on.
+      const events = toggles.get(eventColumns[e]!)!;
+      for (const event of events) if (event < 0) switchOff(~event);
+      for (const event of events) if (event >= 0) switchOn(event);
     }
-    return found;
-  };
-  const switchOn = (row: number): void => {
-    const i = findInterval(row);
-    const joinsLeft = i >= 0 && active[i]![1] === row;
-    const next = active[i + 1];
-    const joinsRight = next !== undefined && next[0] === row + 1;
-    if (joinsLeft && joinsRight) {
-      active[i]![1] = next[1];
-      active.splice(i + 1, 1);
-    } else if (joinsLeft) active[i]![1] = row + 1;
-    else if (joinsRight) next[0] = row;
-    else active.splice(i + 1, 0, [row, row + 1]);
-  };
-  const switchOff = (row: number): void => {
-    const i = findInterval(row);
-    const interval = active[i]!;
-    const [start, end] = interval;
-    if (start === row && end === row + 1) active.splice(i, 1);
-    else if (start === row) interval[0] = row + 1;
-    else if (end === row + 1) interval[1] = row;
-    else {
-      interval[1] = row;
-      active.splice(i + 1, 0, [row + 1, end]);
-    }
+    acc.append(0, (imageWidth - (box.x + box.width)) * imageHeight);
   };
 
-  // One image column of the current pattern; only the image's last cell row
-  // can cover fewer than `downsample` image rows.
-  const emitColumn = (): void => {
-    let cursor = 0;
-    for (const [start, end] of active) {
-      const top = (y + start) * downsample;
-      const bottom = Math.min((y + end) * downsample, imageHeight);
-      append(0, top - cursor);
-      append(1, bottom - top);
-      cursor = bottom;
-    }
-    append(0, imageHeight - cursor);
-  };
+  // Scaled by the downsample: a downsampled mask's level-0 runs are its cell
+  // columns' runs repeated across each cell's `d` image columns, so this bounds
+  // the cell-level structure at what full resolution allows, divided among the
+  // columns it is repeated over.
+  return { maxRuns: Math.floor(MAX_COCO_RUNS / downsample), downsample, run };
+}
 
-  append(0, box.x * imageHeight);
-  const boxRight = x + width;
-  let col = x;
-  for (let e = 0; e <= eventColumns.length; e++) {
-    const next = e < eventColumns.length ? Math.min(eventColumns[e]!, boxRight) : boxRight;
-    // Columns [col, next) share one pattern.
-    if (next > col) {
-      const left = col * downsample;
-      const right = Math.min(next * downsample, imageWidth);
-      const columns = right - left;
-      if (active.length === 0) append(0, columns * imageHeight);
-      else for (let repeat = 0; repeat < columns; repeat++) emitColumn();
-      col = next;
-    }
-    if (e === eventColumns.length || next >= boxRight) break;
-    // Offs before ons: a row whose spans touch at this column stays on.
-    const events = toggles.get(eventColumns[e]!)!;
-    for (const event of events) if (event < 0) switchOff(~event);
-    for (const event of events) if (event >= 0) switchOn(event);
+/**
+ * Exactly how many runs a mask's COCO export takes, without producing them:
+ * the work is proportional to the mask's spans, never to its box or its runs.
+ */
+export function countCocoRuns(input: MaskRasterInput): number {
+  const sweep = prepareCocoSweep(input);
+  if (sweep.emptyRuns) return sweep.emptyRuns.length;
+  const counter = new CocoRunCounter();
+  sweep.run(counter);
+  return counter.total;
+}
+
+/**
+ * The sweep for a mask, refused with {@link CocoRunLimitExceededError} if its
+ * export would take more runs than a full-resolution mask of its size can.
+ */
+function boundedCocoSweep(input: MaskRasterInput): CocoSweep {
+  const sweep = prepareCocoSweep(input);
+  if (sweep.emptyRuns) return sweep;
+  const counter = new CocoRunCounter();
+  sweep.run(counter);
+  if (counter.total > sweep.maxRuns) {
+    throw new CocoRunLimitExceededError(counter.total, sweep.maxRuns, sweep.downsample);
   }
-  append(0, (imageWidth - (box.x + box.width)) * imageHeight);
+  return sweep;
+}
 
-  runs.push(currentLength);
+/**
+ * Converts a mask to COCO run lengths: **column-major** over the full image,
+ * alternating and starting with background.
+ *
+ * COCO has no notion of a downsample — its runs are image pixels — so a
+ * downsampled mask is exported as the level-0 mask it means, every cell
+ * expanded to the image pixels it covers, without materialising level 0. A
+ * mask whose expansion would take more runs than any full-resolution mask of
+ * its size is refused first, with {@link CocoRunLimitExceededError}.
+ */
+export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
+  const sweep = boundedCocoSweep(input);
+  if (sweep.emptyRuns) return sweep.emptyRuns;
+  const runs: number[] = [];
+  const emitter = new CocoRunEmitter((run) => runs.push(run));
+  sweep.run(emitter);
+  emitter.finish();
   return runs;
 }
 
@@ -225,6 +379,14 @@ export function cocoCountsToSnapshot(
     throw new RangeError(`COCO counts sum to ${total}, but the image has ${area} pixels`);
   }
 
+  // At a declared downsample the runs go straight into cells, in work
+  // proportional to the runs and the cells, not to the pixels covered.
+  const downsample = options?.downsample ?? 1;
+  assertMaskDownsample(downsample);
+  if (downsample !== 1) {
+    return cocoCountsToCells(counts, imageHeight, imageWidth, downsample, options?.maxPixels);
+  }
+
   // Bound the work before doing any. The scans below are O(foreground pixels),
   // and `area` comes from the payload's own `size` — so a hostile document
   // declaring a gigapixel image with one full-image run would otherwise spin
@@ -236,49 +398,12 @@ export function cocoCountsToSnapshot(
   for (let i = 1; i < counts.length; i += 2) foreground += counts[i]!;
   assertDecodableCount(foreground, options?.maxPixels);
 
-  let minCol = Infinity;
-  let minRow = Infinity;
-  let maxCol = -Infinity;
-  let maxRow = -Infinity;
+  const bounds = cocoForegroundBounds(counts, imageHeight);
+  if (!bounds) return emptySnapshot(imageWidth, imageHeight);
+  const { minCol, minRow } = bounds;
 
-  // The bounding box comes from run *boundaries*, not from visiting each
-  // foreground pixel: a run occupies a contiguous span of the column-major
-  // index, so its extent follows from its endpoints. That makes this pass
-  // O(runs) instead of O(foreground pixels) — for a full-image mask, two
-  // divisions instead of a billion iterations — so the capacity check below
-  // is reached immediately rather than after the scan it is meant to prevent.
-  {
-    let index = 0;
-    let value: 0 | 1 = 0;
-    for (const run of counts) {
-      if (value === 1 && run > 0) {
-        const firstCol = Math.floor(index / imageHeight);
-        const lastCol = Math.floor((index + run - 1) / imageHeight);
-        if (firstCol < minCol) minCol = firstCol;
-        if (lastCol > maxCol) maxCol = lastCol;
-        if (firstCol === lastCol) {
-          // Wholly inside one column: rows are just the run's own extent.
-          const firstRow = index % imageHeight;
-          const lastRow = (index + run - 1) % imageHeight;
-          if (firstRow < minRow) minRow = firstRow;
-          if (lastRow > maxRow) maxRow = lastRow;
-        } else {
-          // It spans a column boundary, so it reaches the bottom of one column
-          // and the top of the next — which is every row, whether it crosses
-          // one boundary or many.
-          minRow = 0;
-          maxRow = imageHeight - 1;
-        }
-      }
-      index += run;
-      value = value === 1 ? 0 : 1;
-    }
-  }
-
-  if (maxCol < 0 || !Number.isFinite(minCol)) return emptySnapshot(imageWidth, imageHeight);
-
-  const width = maxCol - minCol + 1;
-  const height = maxRow - minRow + 1;
+  const width = bounds.maxCol - minCol + 1;
+  const height = bounds.maxRow - minRow + 1;
   // Only the bounding box is materialised, so that — not the image area — is
   // what has to fit. A tiny mask on a gigapixel canvas is perfectly decodable.
   assertDecodableArea(width, height, options?.maxPixels);
@@ -312,29 +437,251 @@ export function cocoCountsToSnapshot(
 }
 
 /**
- * pycocotools' `rleToString`: each count (delta-coded against two positions
- * back, after the first two) is emitted in 5-bit chunks, bit `0x20` marking
- * continuation and bit `0x10` carrying sign, offset by 48 into printable ASCII.
+ * The foreground's bounding box in image pixels, or `null` for an empty mask.
+ *
+ * Taken from run *boundaries*, not from visiting each foreground pixel: a run
+ * occupies a contiguous span of the column-major index, so its extent follows
+ * from its endpoints. That makes this pass O(runs) instead of O(foreground
+ * pixels) — for a full-image mask, two divisions instead of a billion
+ * iterations — so the capacity check after it is reached immediately rather
+ * than after the scan it is meant to prevent.
+ */
+function cocoForegroundBounds(
+  counts: readonly number[],
+  imageHeight: number,
+): { minCol: number; maxCol: number; minRow: number; maxRow: number } | null {
+  let minCol = Infinity;
+  let minRow = Infinity;
+  let maxCol = -Infinity;
+  let maxRow = -Infinity;
+  let index = 0;
+  let value: 0 | 1 = 0;
+  for (const run of counts) {
+    if (value === 1 && run > 0) {
+      const firstCol = Math.floor(index / imageHeight);
+      const lastCol = Math.floor((index + run - 1) / imageHeight);
+      if (firstCol < minCol) minCol = firstCol;
+      if (lastCol > maxCol) maxCol = lastCol;
+      if (firstCol === lastCol) {
+        // Wholly inside one column: rows are just the run's own extent.
+        const firstRow = index % imageHeight;
+        const lastRow = (index + run - 1) % imageHeight;
+        if (firstRow < minRow) minRow = firstRow;
+        if (lastRow > maxRow) maxRow = lastRow;
+      } else {
+        // It spans a column boundary, so it reaches the bottom of one column
+        // and the top of the next — which is every row, whether it crosses
+        // one boundary or many.
+        minRow = 0;
+        maxRow = imageHeight - 1;
+      }
+    }
+    index += run;
+    value = value === 1 ? 0 : 1;
+  }
+  return maxCol < 0 || !Number.isFinite(minCol) ? null : { minCol, maxCol, minRow, maxRow };
+}
+
+/**
+ * Decodes COCO runs straight into cells at `downsample`, refusing a payload
+ * that is not constant within each cell (clipped at the image's edges) rather
+ * than decoding it at downsample 1 or rounding it.
+ *
+ * The runs are read as a sequence of image columns, each a list of
+ * foreground segments, with consecutive identical columns grouped. A cell
+ * column is then valid when every image column in it has the same segments
+ * and every segment starts and ends on a cell boundary (or the image's
+ * bottom). The work is proportional to the runs and to the cells written,
+ * never to the image pixels the mask covers: a 21,024 x 17,024-pixel region
+ * at downsample 16 is 1,314 x 1,064 cells.
+ */
+function cocoCountsToCells(
+  counts: readonly number[],
+  imageHeight: number,
+  imageWidth: number,
+  downsample: number,
+  maxPixels: number | undefined,
+): MaskSnapshot {
+  const d = downsample;
+  const bounds = cocoForegroundBounds(counts, imageHeight);
+  if (!bounds) return { ...emptySnapshot(imageWidth, imageHeight), downsample: d };
+  const cx0 = Math.floor(bounds.minCol / d);
+  const cy0 = Math.floor(bounds.minRow / d);
+  const width = Math.floor(bounds.maxCol / d) - cx0 + 1;
+  const height = Math.floor(bounds.maxRow / d) - cy0 + 1;
+  // In cells: that is what is allocated.
+  assertDecodableArea(width, height, maxPixels);
+  const data = new Uint8Array(width * height);
+
+  const refuse = (): never => {
+    throw new RangeError(
+      `COCO mask is not constant within each ${d}x${d} block, so it cannot be stored at ` +
+        `downsample ${d}`,
+    );
+  };
+  const sameSegments = (a: readonly number[], b: readonly number[]): boolean =>
+    a.length === b.length && a.every((v, i) => v === b[i]);
+
+  // The cell column being checked, and the segments its first image column had.
+  let refColumn = -1;
+  let refSegments: readonly number[] = [];
+  const write = (cx: number, segments: readonly number[]): void => {
+    for (let s = 0; s < segments.length; s += 2) {
+      const top = segments[s]!;
+      const bottom = segments[s + 1]!;
+      if (top % d !== 0 || (bottom % d !== 0 && bottom !== imageHeight)) refuse();
+      for (let cy = top / d; cy < Math.ceil(bottom / d); cy++) {
+        data[(cy - cy0) * width + (cx - cx0)] = 1;
+      }
+    }
+  };
+  /** `count` image columns from `first`, each with `segments` ([top, bottom) pairs). */
+  const columns = (first: number, count: number, segments: readonly number[]): void => {
+    let col = first;
+    const end = first + count;
+    while (col < end) {
+      const cx = Math.floor(col / d);
+      const cellEnd = Math.min((cx + 1) * d, imageWidth);
+      if (cx !== refColumn) {
+        refColumn = cx;
+        refSegments = segments;
+        write(cx, segments);
+      } else if (!sameSegments(segments, refSegments)) refuse();
+      if (segments.length === 0 && end - col > 2 * d) {
+        // A stretch of empty columns: skip to the cell column it ends in,
+        // setting each whole cell column it covers to empty in one step.
+        const lastCx = Math.floor((end - 1) / d);
+        if (lastCx > cx) {
+          refColumn = lastCx;
+          refSegments = segments;
+          col = lastCx * d;
+          continue;
+        }
+      }
+      col = Math.min(end, cellEnd);
+    }
+  };
+
+  // Walk the runs as image columns of segments.
+  let column = 0;
+  let segments: number[] = [];
+  const flush = (upTo: number): void => {
+    // Ends the current column and emits empty ones until `upTo`.
+    columns(column, 1, segments);
+    segments = [];
+    column++;
+    if (upTo > column) columns(column, upTo - column, []);
+    column = Math.max(column, upTo);
+  };
+  let index = 0;
+  let value: 0 | 1 = 0;
+  for (const run of counts) {
+    if (value === 1 && run > 0) {
+      let start = index;
+      const stop = index + run;
+      while (start < stop) {
+        const col = Math.floor(start / imageHeight);
+        if (col !== column) flush(col);
+        const row = start - col * imageHeight;
+        if (row === 0 && stop - start >= imageHeight) {
+          // Whole columns, emitted as one group.
+          const whole = Math.floor((stop - start) / imageHeight);
+          if (segments.length > 0) flush(col);
+          columns(col, whole, [0, imageHeight]);
+          column = col + whole;
+          start += whole * imageHeight;
+          continue;
+        }
+        const segmentEnd = Math.min(stop, (col + 1) * imageHeight);
+        const top = row;
+        const bottom = segmentEnd - col * imageHeight;
+        if (segments.length > 0 && segments[segments.length - 1] === top) {
+          segments[segments.length - 1] = bottom;
+        } else segments.push(top, bottom);
+        start = segmentEnd;
+      }
+    }
+    index += run;
+    value = value === 1 ? 0 : 1;
+  }
+  if (column < imageWidth) flush(imageWidth);
+
+  return {
+    cells: { x: cx0, y: cy0, width, height },
+    data,
+    imageWidth,
+    imageHeight,
+    downsample: d,
+  };
+}
+
+/**
+ * pycocotools' `rleToString`, one count at a time: each count (delta-coded
+ * against two positions back, after the first two) is emitted in 5-bit chunks,
+ * bit `0x20` marking continuation and bit `0x10` carrying sign, offset by 48
+ * into printable ASCII.
  *
  * Arithmetic is done with division rather than bit operators because a
  * background run on a gigapixel image easily exceeds the 32 bits that
- * JavaScript's bitwise operators coerce to.
+ * JavaScript's bitwise operators coerce to. Characters are buffered and joined
+ * in blocks, so a mask of tens of millions of runs never builds an array of
+ * them.
  */
-export function encodeCocoCountsString(counts: readonly number[]): string {
-  let out = '';
-  for (let i = 0; i < counts.length; i++) {
-    let value = counts[i]!;
-    if (i > 2) value -= counts[i - 2]!;
+class CocoCountsStringWriter {
+  private index = 0;
+  private previous = 0;
+  private beforePrevious = 0;
+  private readonly buffer = new Uint8Array(16_384);
+  private used = 0;
+  private readonly parts: string[] = [];
+
+  push(count: number): void {
+    let value = this.index > 2 ? count - this.beforePrevious : count;
+    this.beforePrevious = this.previous;
+    this.previous = count;
+    this.index++;
     let more = true;
     while (more) {
       let chunk = ((value % 32) + 32) % 32;
       value = Math.floor(value / 32);
       more = (chunk & 0x10) !== 0 ? value !== -1 : value !== 0;
       if (more) chunk |= 0x20;
-      out += String.fromCharCode(chunk + 48);
+      if (this.used === this.buffer.length) this.flush();
+      this.buffer[this.used++] = chunk + 48;
     }
   }
-  return out;
+
+  finish(): string {
+    this.flush();
+    return this.parts.join('');
+  }
+
+  private flush(): void {
+    if (this.used === 0) return;
+    this.parts.push(String.fromCharCode(...this.buffer.subarray(0, this.used)));
+    this.used = 0;
+  }
+}
+
+/** pycocotools' `rleToString` over a list of counts. */
+export function encodeCocoCountsString(counts: readonly number[]): string {
+  const writer = new CocoCountsStringWriter();
+  for (const count of counts) writer.push(count);
+  return writer.finish();
+}
+
+/**
+ * A mask's COCO counts string, written straight from the sweep: no array of
+ * runs exists at any point. Refused like {@link snapshotToCocoCounts}.
+ */
+function cocoCountsStringOf(input: MaskRasterInput): string {
+  const sweep = boundedCocoSweep(input);
+  if (sweep.emptyRuns) return encodeCocoCountsString(sweep.emptyRuns);
+  const writer = new CocoCountsStringWriter();
+  const emitter = new CocoRunEmitter((run) => writer.push(run));
+  sweep.run(emitter);
+  emitter.finish();
+  return writer.finish();
 }
 
 /**
@@ -469,7 +816,7 @@ export const cocoRleCodec: MaskCodec<CocoRleSegmentation> = {
   encode(snapshot) {
     return {
       size: [snapshot.imageHeight, snapshot.imageWidth],
-      counts: encodeCocoCountsString(snapshotToCocoCounts(snapshot)),
+      counts: cocoCountsStringOf(snapshot),
     };
   },
   decode(payload, options) {

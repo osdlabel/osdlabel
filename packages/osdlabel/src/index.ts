@@ -48,6 +48,8 @@ export {
   isMaskRaster,
   cocoRleCodec,
   cocoRleUncompressedCodec,
+  CocoRunLimitExceededError,
+  MAX_COCO_RUNS,
   cocoBbox,
   cocoArea,
   isCocoInteropSafe,

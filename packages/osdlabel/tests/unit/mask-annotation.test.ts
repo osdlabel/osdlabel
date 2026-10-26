@@ -292,6 +292,125 @@ describe('a downsampled mask', () => {
     expect(() => serialize(stateWith(fine), { maskCodec: legacy })).not.toThrow();
   });
 
+  describe('through COCO, which has no downsample of its own', () => {
+    const registry = createMaskCodecRegistry(cocoRleCodec);
+    const throughCoco = (...annotations: OsdAnnotation[]) =>
+      deserialize(
+        JSON.parse(
+          JSON.stringify(serialize(stateWith(...annotations), { maskCodec: cocoRleCodec })),
+        ),
+        { maskCodecs: registry },
+      );
+
+    it('comes back at its own downsample, carried by its geometry', () => {
+      const snapshot = downsampledSnapshot();
+      const mask = createMaskAnnotation(snapshot, { imageId, contextId });
+      const restored = throughCoco(mask);
+      expect(restored.skipped).toEqual([]);
+      const back = restored.byImage[imageId]?.[mask.id];
+      expect(back).toBeDefined();
+      expect(back!.geometry).toEqual(mask.geometry);
+      if (back!.rawAnnotationData.format !== MASK_RAW_FORMAT) throw new Error('expected mask');
+      expect(back!.rawAnnotationData.data).toEqual(mask.rawAnnotationData.data);
+    });
+
+    it('keeps a coarse disc coarse, payload and all', () => {
+      // r = 1500 at downsample 16 on a 100k x 80k slide. Decoded at full
+      // resolution it would come back as a 3000-pixel disc at downsample 1,
+      // with twenty times the payload.
+      const buffer = new BoundedDenseMaskBuffer({
+        imageWidth: 100_000,
+        imageHeight: 80_000,
+        downsample: 16,
+      });
+      stampCircle(buffer, 40_000, 30_000, 1500, 1);
+      const mask = createMaskAnnotation(buffer.snapshot(), { imageId, contextId });
+      if (mask.rawAnnotationData.format !== MASK_RAW_FORMAT) throw new Error('expected mask');
+      const restored = throughCoco(mask);
+      expect(restored.skipped).toEqual([]);
+      const back = restored.byImage[imageId]![mask.id]!;
+      if (back.rawAnnotationData.format !== MASK_RAW_FORMAT) throw new Error('expected mask');
+      expect(back.rawAnnotationData.data.downsample).toBe(16);
+      expect(mask.rawAnnotationData.data.counts).toHaveLength(648);
+      expect(back.rawAnnotationData.data.counts).toBe(mask.rawAnnotationData.data.counts);
+      expect(back.geometry).toEqual(mask.geometry);
+    });
+
+    it('re-imports a region whose image pixels are past the cap, as cells', () => {
+      // 21,024 x 17,024 image pixels at downsample 16: 1,314 x 1,064 cells.
+      const raster = runRaster(
+        {
+          cells: { x: 1000, y: 1000, width: 1314, height: 1064 },
+          imageWidth: 100_000,
+          imageHeight: 80_000,
+          downsample: 16,
+        },
+        [0, 1314 * 1064],
+      );
+      const mask = createMaskAnnotation(raster, { imageId, contextId });
+      expect(21_024 * 17_024).toBeGreaterThan(DEFAULT_MAX_MASK_PIXELS);
+      const restored = throughCoco(mask);
+      expect(restored.skipped).toEqual([]);
+      const back = restored.byImage[imageId]![mask.id]!;
+      expect(back.geometry).toEqual({
+        type: 'mask',
+        origin: { x: 16_000, y: 16_000 },
+        width: 21_024,
+        height: 17_024,
+        pixelCount: 21_024 * 17_024,
+        downsample: 16,
+      });
+    });
+
+    it('skips a mask its geometry declares coarser than its pixels are, naming why', () => {
+      const good = createMaskAnnotation(paintedSnapshot(), { imageId, contextId });
+      const fine = createMaskAnnotation(paintedSnapshot(), {
+        id: createAnnotationId('fine'),
+        imageId,
+        contextId,
+      });
+      const doc = JSON.parse(
+        JSON.stringify(serialize(stateWith(good, fine), { maskCodec: cocoRleCodec })),
+      );
+      doc.find((a: { id: string }) => a.id === fine.id).geometry.downsample = 4;
+      const restored = deserialize(doc, { maskCodecs: registry });
+      expect(restored.byImage[imageId]?.[good.id]).toBeDefined();
+      expect(restored.skipped.map((s) => s.id)).toEqual([fine.id]);
+      expect(restored.skipped[0]!.reason).toMatch(
+        /Codec "coco-rle".*not constant within each 4x4 block/,
+      );
+    });
+
+    it('decodes at full resolution when the declared downsample is unusable', () => {
+      const mask = createMaskAnnotation(paintedSnapshot(), { imageId, contextId });
+      const doc = JSON.parse(
+        JSON.stringify(serialize(stateWith(mask), { maskCodec: cocoRleCodec })),
+      );
+      doc[0].geometry.downsample = 3;
+      const restored = deserialize(doc, { maskCodecs: registry });
+      expect(restored.skipped).toEqual([]);
+      expect(restored.byImage[imageId]![mask.id]!.geometry).toEqual(mask.geometry);
+    });
+
+    it('refuses to export a coarse mask whose image-pixel runs would explode', () => {
+      // Alternating cell rows at downsample 16: sixteen runs per cell row.
+      const raster = runRaster(
+        {
+          cells: { x: 0, y: 0, width: 3125, height: 2500 },
+          imageWidth: 100_000,
+          imageHeight: 80_000,
+          downsample: 16,
+        },
+        [0, ...Array.from({ length: 2500 }, () => 3125)],
+      );
+      const mask = createMaskAnnotation(raster, { imageId, contextId });
+      expect(() => serialize(stateWith(mask))).not.toThrow();
+      expect(() => serialize(stateWith(mask), { maskCodec: cocoRleCodec })).toThrow(
+        /125000001 runs/,
+      );
+    });
+  });
+
   it('skips a payload whose downsample is unusable, without losing the document', () => {
     const good = createMaskAnnotation(paintedSnapshot(), { imageId, contextId });
     const bad = createMaskAnnotation(downsampledSnapshot(), { imageId, contextId });

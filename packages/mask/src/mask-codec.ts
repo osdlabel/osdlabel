@@ -25,6 +25,17 @@ export interface MaskDecodeOptions {
    * **before** allocating or scanning, not after.
    */
   readonly maxPixels?: number | undefined;
+  /**
+   * The downsample to decode at, for a format that cannot carry one itself —
+   * COCO's runs are always image pixels. `deserialize` passes the annotation's
+   * `geometry.downsample`, which is therefore what a COCO dataset builder must
+   * keep alongside each segmentation for a coarse mask to come back coarse.
+   *
+   * A codec that honours it returns a raster at that downsample, and refuses a
+   * payload that cannot be stored at it (one not constant within each cell)
+   * rather than quietly decoding at downsample 1. Absent means 1.
+   */
+  readonly downsample?: number | undefined;
 }
 
 export interface MaskCodec<T = unknown> {

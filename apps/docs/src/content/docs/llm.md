@@ -1772,6 +1772,26 @@ Two COCO codecs ship built in:
 Both are column-major over the **full image** with `size: [imageHeight,
 imageWidth]`, per the COCO spec.
 
+### Downsampled masks and COCO
+
+COCO's runs are always image pixels, so a [downsampled
+mask](/osdlabel/guides/serialization/#masks-at-a-downsample) is exported as
+the full-resolution mask it stands for, each cell written out as the pixels it
+covers. Nothing in the segmentation records the downsample: the exported
+annotation's **`geometry.downsample`** does, and it is what brings the mask
+back coarse on import. If you assemble a COCO dataset from these
+segmentations, keep that attribute alongside each one.
+
+Expanding cells multiplies their runs by the downsample, so a small payload
+with fine structure can ask for an enormous export — 6.7 kB of d=16
+alternating rows needs 125 million runs. Export is therefore bounded: a mask
+whose COCO runs would exceed `MAX_COCO_RUNS / downsample` throws
+`CocoRunLimitExceededError` from a counting pass, before anything is
+allocated. `MAX_COCO_RUNS` (2²⁷ + 1) is the true worst case at full
+resolution, so no full-resolution mask is ever refused. `countCocoRuns(raster)`
+tells you the cost in advance; a refused mask stays exportable in the
+canonical format, which stores its cells.
+
 ### Verified against pycocotools
 
 The compressed codec is checked against the reference implementation:
@@ -1817,6 +1837,14 @@ what needs converting, it proves the payload is actually decodable rather than
 deferring the failure to render time, and it lets geometry be **recomputed from
 the pixels** instead of trusted from the document, so a stale or hand-written
 bounding box cannot surface as a wrong area or a misplaced selection box.
+
+A COCO payload has no downsample of its own, so `deserialize` decodes it at the
+one the annotation's `geometry.downsample` declares, writing the runs straight
+into cells — a 21,024×17,024-pixel region at d=16 is 1,314×1,064 cells, well
+within the cap that its image pixels would break. A payload that is not
+constant within each cell cannot be stored at that downsample, and is skipped
+with a reason saying so rather than decoded at full resolution or rounded.
+Without a declared downsample, a COCO mask decodes at full resolution.
 
 Decoding is bounded. `maxMaskPixels` caps any single mask (64 Mi cells, which
 is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
@@ -1873,6 +1901,8 @@ interface MaskCodec<T = unknown> {
 interface MaskDecodeOptions {
   /** Refuse to decode a mask whose box is larger than this, in cells. */
   readonly maxPixels?: number | undefined;
+  /** For a format with no downsample of its own: decode at this one, or refuse. */
+  readonly downsample?: number | undefined;
 }
 ```
 

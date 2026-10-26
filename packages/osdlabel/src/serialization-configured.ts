@@ -4,7 +4,7 @@ import type { ImageId } from '@osdlabel/viewer-api';
 import type { AnnotationState } from '@osdlabel/viewer-api';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import { OsdAnnotationSchema } from '@osdlabel/validation';
-import { DEFAULT_MAX_MASK_PIXELS, decodeCanonicalRaster } from '@osdlabel/mask';
+import { DEFAULT_MAX_MASK_PIXELS, decodeCanonicalRaster, isMaskDownsample } from '@osdlabel/mask';
 import type { CanonicalMaskData, MaskCodec, MaskCodecRegistry, MaskRaster } from '@osdlabel/mask';
 import { maskAnnotationFields, maskGeometryFromSnapshot } from './create-mask-annotation.js';
 import type { OsdFields } from './types.js';
@@ -359,9 +359,20 @@ function normalizeMasks(
     // rendering isolate each annotation. A blown budget is deliberately *not*
     // caught here: that is a property of the document, and quietly loading
     // half of one would be worse than refusing it.
+    // A foreign format may have no way to carry a downsample (COCO's runs are
+    // image pixels), so the one the annotation's geometry records is handed to
+    // its codec: that is how a coarse mask exported to COCO comes back coarse.
+    // An unusable value is not passed on; the mask then decodes at full
+    // resolution, and its geometry is rebuilt to match.
+    const geometry = (entry as { geometry?: unknown }).geometry;
+    const declared =
+      typeof geometry === 'object' && geometry !== null
+        ? (geometry as { downsample?: unknown }).downsample
+        : undefined;
+    const downsample = isMaskDownsample(declared) ? declared : undefined;
     const decode = (maxPixels: number): MaskRaster =>
       codec?.decode !== undefined
-        ? codec.decode(data, { maxPixels })
+        ? codec.decode(data, { maxPixels, downsample })
         : decodeCanonicalRaster(data as CanonicalMaskData, { maxPixels });
 
     const { cap, limitedByBudget } = capFor();

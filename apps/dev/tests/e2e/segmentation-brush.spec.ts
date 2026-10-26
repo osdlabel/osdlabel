@@ -255,6 +255,14 @@ test.describe('Segmentation brush', () => {
     // compressed run-length string.
     expect(doc[0]?.rawAnnotationData.data.size).toHaveLength(2);
     expect(doc[0]?.rawAnnotationData.data.counts.length).toBeGreaterThan(0);
+
+    // And it reads back as the same mask.
+    const [before] = await readAnnotations(page);
+    await importDocument(page, doc);
+    const [after] = await readAnnotations(page);
+    expect(after?.rawAnnotationData?.format).toBe('osdlabel-mask');
+    expect(after?.geometry.downsample).toBe(before?.geometry.downsample);
+    expect(after?.geometry.pixelCount).toBe(before?.geometry.pixelCount);
   });
 
   test('Delete removes the mask the brush just committed', async ({ page }) => {
@@ -562,6 +570,24 @@ test.describe('Segmentation brush', () => {
       expect(geometry.width! % 4).toBe(0);
       expect(geometry.pixelCount!).toBeGreaterThan(COARSE_BOX.width * COARSE_BOX.height);
       expect(geometry.pixelCount! % 16).toBe(0);
+    });
+
+    test('a COCO export comes back at downsample 4', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      await page.getByTestId('export-coco').click();
+      const exported = JSON.parse(await page.getByTestId('exported-json').inputValue()) as {
+        geometry: { downsample?: number };
+        rawAnnotationData: { format: string };
+      }[];
+      expect(exported[0]!.rawAnnotationData.format).toBe('coco-rle');
+      // COCO's runs are image pixels; the geometry is what carries the factor.
+      expect(exported[0]!.geometry.downsample).toBe(4);
+
+      await importDocument(page, exported);
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      expect(annotations[0]!.geometry).toEqual(COARSE_DOC[0]!.geometry);
+      expect(annotations[0]!.rawAnnotationData).toEqual(COARSE_DOC[0]!.rawAnnotationData);
     });
 
     test('the canonical export round-trips', async ({ page }) => {

@@ -118,7 +118,15 @@ as `cells`, so reading cells as image pixels is a compile error;
 `MaskBuffer.cellCount` and `MaskBuffer.cellBounds` are in cells too. A codec
 receives a downsampled mask only if it sets `encodesDownsampled: true`;
 `serialize` refuses to hand one to a codec that has not, rather than let it
-misplace the mask. The COCO codecs opt in and export the level-0 mask.
+misplace the mask. The COCO codecs opt in and export the level-0 mask, refusing
+with `CocoRunLimitExceededError` one whose expansion would take more than
+`MAX_COCO_RUNS / downsample` runs (`MAX_COCO_RUNS` is the worst case at full
+resolution, so no full-resolution mask is refused; `countCocoRuns` reports the
+cost without exporting); the compressed codec streams its string without an
+array of runs. On import `MaskDecodeOptions.downsample` decodes COCO straight
+into cells, and `deserialize` passes the annotation's `geometry.downsample`, so
+a coarse mask comes back coarse; a payload that is not constant within each
+cell is skipped with that reason.
 
 The mask cap is counted in cells: 64 Mi cells (`DEFAULT_MAX_MASK_PIXELS`,
 `MAX_MASK_PIXELS`), enforced by the validation schema and the decoders, and on
@@ -147,7 +155,8 @@ the brush tool clamps its own `maxPixels`.
   `encodeCanonical`, `decodeCanonical`, `toRuns`, `fromRuns`); the codec
   contract (`MaskCodec`, `MaskDecodeOptions`, `MaskCodecRegistry`,
   `createMaskCodecRegistry`); and COCO (`cocoRleCodec`,
-  `cocoRleUncompressedCodec`, `COCO_RLE_FORMAT`,
+  `cocoRleUncompressedCodec`, `CocoRunLimitExceededError`, `MAX_COCO_RUNS`,
+  `countCocoRuns`, `COCO_RLE_FORMAT`,
   `COCO_RLE_UNCOMPRESSED_FORMAT`, `snapshotToCocoCounts`,
   `cocoCountsToSnapshot`, `encodeCocoCountsString`, `decodeCocoCountsString`,
   `cocoBbox`, `cocoArea`, `isCocoInteropSafe`,
