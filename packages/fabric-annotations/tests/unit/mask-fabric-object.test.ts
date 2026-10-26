@@ -3,6 +3,7 @@ import { FabricImage, Point, util } from 'fabric';
 import { MASK_RAW_FORMAT, type MaskRawAnnotationData } from '@osdlabel/annotation';
 import {
   BoundedDenseMaskBuffer,
+  decodeCanonicalRaster,
   encodeCanonical,
   stampCircle,
   strokeSegment,
@@ -149,5 +150,42 @@ describe('a downsampled mask', () => {
       }
     }
     expect(worst).toBeLessThan(1e-9);
+  });
+
+  it('draws each cell where it lies, the clipped last column and row included', () => {
+    const raw = downsampledEnvelope();
+    const raster = decodeCanonicalRaster(raw.data);
+    const object = buildMaskFabricObject(raw, { id: 'ann-1' }) as FabricImage;
+    const source = object.getElement() as HTMLCanvasElement;
+    const pixels = source.getContext('2d')!.getImageData(0, 0, source.width, source.height).data;
+    const { cells } = raster;
+
+    // The stroke reaches the image's last cell column (1000..1000) and row
+    // (600..600), each clipped to one image pixel by the 1001x601 image.
+    expect(cells.x + cells.width).toBe(Math.ceil(1001 / 8));
+    expect(cells.y + cells.height).toBe(Math.ceil(601 / 8));
+    const lastColumn = cells.x + cells.width - 1;
+    const lastRow = cells.y + cells.height - 1;
+    expect(raster.get(lastColumn, lastRow)).toBe(1);
+
+    // Every cell: painted on the canvas exactly when the raster has it.
+    let painted = 0;
+    for (let cy = cells.y; cy < cells.y + cells.height; cy++) {
+      for (let cx = cells.x; cx < cells.x + cells.width; cx++) {
+        const alpha = pixels[((cy - cells.y) * cells.width + (cx - cells.x)) * 4 + 3]!;
+        expect(alpha > 0).toBe(raster.get(cx, cy) === 1);
+        if (alpha > 0) painted++;
+      }
+    }
+    expect(painted).toBe(raster.cellCount);
+
+    // Cells are drawn full-size, so the clipped edge overhangs the image by
+    // under one cell, never more.
+    const right = object.left + object.width * object.scaleX;
+    const bottom = object.top + object.height * object.scaleY;
+    expect(right).toBeGreaterThanOrEqual(1001);
+    expect(right - 1001).toBeLessThan(8);
+    expect(bottom).toBeGreaterThanOrEqual(601);
+    expect(bottom - 601).toBeLessThan(8);
   });
 });

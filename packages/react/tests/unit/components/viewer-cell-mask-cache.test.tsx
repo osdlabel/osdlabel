@@ -6,9 +6,12 @@ import { createAnnotationId } from '@osdlabel/annotation';
 import { createFabricObjectFromRawData } from '@osdlabel/fabric-annotations';
 import {
   BoundedDenseMaskBuffer,
+  MASK_RAW_FORMAT,
   createMaskAnnotation,
+  decodeCanonicalRaster,
   maskAnnotationFields,
   stampCircle,
+  type OsdAnnotation,
 } from 'osdlabel';
 import { renderAnnotator, type AnnotatorHarness } from '../render-annotator.js';
 import { unmountAll } from '../mount.js';
@@ -53,6 +56,9 @@ const fakeCanvas = {
 
 /** When set, every object build waits on it before resolving. */
 let buildGate: Promise<void> | undefined;
+
+/** When set, masks come from the real renderer, so their placement can be read. */
+let realRenderer = false;
 
 /** The overlay's single authority over interaction flags; every built object must pass through it. */
 const applyModeToObject = vi.fn();
@@ -99,26 +105,35 @@ vi.mock('@osdlabel/osd-helper', async () => ({
 
 // The renderer is not under test; a fake object that remembers the tint it was
 // asked for is enough to see the selected mask recoloured.
-vi.mock('@osdlabel/fabric-annotations', async () => ({
-  ...(await vi.importActual<typeof import('@osdlabel/fabric-annotations')>(
+vi.mock('@osdlabel/fabric-annotations', async () => {
+  const actual = await vi.importActual<typeof import('@osdlabel/fabric-annotations')>(
     '@osdlabel/fabric-annotations',
-  )),
-  createFabricObjectFromRawData: vi.fn(
-    async (annotation: { id: string }, options?: { maskFill?: string | undefined }) => {
-      // Lets a test hold every build open, to change the selection mid-rebuild.
-      if (buildGate) await buildGate;
-      const obj: FakeObject = {
-        id: annotation.id,
-        opacity: 1,
-        maskFill: options?.maskFill,
-        set(key, value) {
-          (obj as unknown as Record<string, unknown>)[key] = value;
-        },
-      };
-      return obj;
-    },
-  ),
-}));
+  );
+  return {
+    ...actual,
+    createFabricObjectFromRawData: vi.fn(
+      async (
+        annotation: Parameters<typeof actual.createFabricObjectFromRawData>[0],
+        options?: { maskFill?: string | undefined },
+      ) => {
+        if (realRenderer && annotation.rawAnnotationData.format === 'osdlabel-mask') {
+          return actual.createFabricObjectFromRawData(annotation, options);
+        }
+        // Lets a test hold every build open, to change the selection mid-rebuild.
+        if (buildGate) await buildGate;
+        const obj: FakeObject = {
+          id: annotation.id,
+          opacity: 1,
+          maskFill: options?.maskFill,
+          set(key, value) {
+            (obj as unknown as Record<string, unknown>)[key] = value;
+          },
+        };
+        return obj as unknown as Awaited<ReturnType<typeof actual.createFabricObjectFromRawData>>;
+      },
+    ),
+  };
+});
 
 vi.mock('../../../src/hooks/useAnnotationTool.js', () => ({
   useAnnotationTool: () => undefined,
@@ -130,6 +145,13 @@ const imageId = createImageId('img-1');
 const contextId = createAnnotationContextId('ctx-1');
 const m1 = createAnnotationId('m1');
 const m2 = createAnnotationId('m2');
+
+/** A 4x mask on a 101-square image, reaching its clipped last cell column and row. */
+function coarseMask(id: typeof m1, radius = 12) {
+  const buffer = new BoundedDenseMaskBuffer({ imageWidth: 101, imageHeight: 101, downsample: 4 });
+  stampCircle(buffer, 92, 92, radius, 1);
+  return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
+}
 
 function mask(id: typeof m1, radius = 4) {
   const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
@@ -146,13 +168,14 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     objects.length = 0;
     openHandlers.length = 0;
     buildGate = undefined;
+    realRenderer = false;
     build.mockClear();
   });
   afterEach(unmountAll);
 
-  async function mountWithMasks(): Promise<AnnotatorHarness> {
+  async function mountWithMasks(first: OsdAnnotation = mask(m1)): Promise<AnnotatorHarness> {
     const h = renderAnnotator(
-      { initialAnnotations: { [imageId]: { [m1]: mask(m1), [m2]: mask(m2) } } },
+      { initialAnnotations: { [imageId]: { [m1]: first, [m2]: mask(m2) } } },
       <ViewerCell
         imageSource={{ id: imageId, tileSource: 'x.png' }}
         isActive
@@ -191,6 +214,57 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     // What a refining stroke writes: a fresh payload object for m1 only.
     h.run((a) => a.updateAnnotation(m1, imageId, maskAnnotationFields(buffer.snapshot())));
     await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    expect(buildsFor('m2')).toBe(1);
+  });
+
+  it('places a downsampled mask by its cells, and reuses it like any other', async () => {
+    realRenderer = true;
+    const coarse = coarseMask(m1);
+    const h = await mountWithMasks(coarse);
+    const placed = byId('m1') as unknown as {
+      left: number;
+      top: number;
+      scaleX: number;
+      scaleY: number;
+      width: number;
+      height: number;
+    };
+    const geometry = coarse.geometry;
+    if (geometry.type !== 'mask') throw new Error('expected a mask');
+    expect(geometry.downsample).toBe(4);
+    // Image-space placement: the box origin, one canvas pixel per 4x4 cell,
+    // the clipped last cell drawn full-size.
+    expect(placed.left).toBe(geometry.origin.x);
+    expect(placed.top).toBe(geometry.origin.y);
+    expect([placed.scaleX, placed.scaleY]).toEqual([4, 4]);
+    expect(placed.width).toBe(Math.ceil(geometry.width / 4));
+    expect(placed.height).toBe(Math.ceil(geometry.height / 4));
+    expect(geometry.origin.x + geometry.width).toBe(101);
+
+    h.run((a) => a.addAnnotation(rect('r1', { imageId, contextId })));
+    await vi.waitFor(() => expect(objects).toHaveLength(3));
+    expect(buildsFor('m1')).toBe(1);
+    expect(byId('m1')).toBe(placed);
+  });
+
+  it('re-decodes a downsampled mask that a stroke refined, at its own downsample', async () => {
+    realRenderer = true;
+    const coarse = coarseMask(m1);
+    const h = await mountWithMasks(coarse);
+    const before = byId('m1');
+    const raw = coarse.rawAnnotationData;
+    if (raw.format !== MASK_RAW_FORMAT) throw new Error('expected a mask payload');
+    // What a refining stroke starts from: the stored mask, at its own grid.
+    const refined = BoundedDenseMaskBuffer.fromSnapshot(decodeCanonicalRaster(raw.data));
+    stampCircle(refined, 60, 60, 8, 1);
+    h.run((a) => a.updateAnnotation(m1, imageId, maskAnnotationFields(refined.snapshot())));
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    // The rebuilt object lands once its build resolves.
+    await vi.waitFor(() =>
+      expect(objects.find((o) => o.id === 'm1' && o !== before)).toBeDefined(),
+    );
+    const after = byId('m1') as unknown as { scaleX: number };
+    expect(after.scaleX).toBe(4);
     expect(buildsFor('m2')).toBe(1);
   });
 });

@@ -707,3 +707,78 @@ describe('deserialize: a hostile payload is refused before it costs anything', (
     expect(skipped[0]!.reason).toMatch(/longer than any encoding of 1 pixels/);
   });
 });
+
+describe('deserialize: a hostile payload at a downsample', () => {
+  /** A solid canonical payload over `cells`x`cells` cells at `downsample`. */
+  function solidAt(downsample: unknown, cells: number, box?: Record<string, unknown>) {
+    return {
+      x: 0,
+      y: 0,
+      width: cells * 4,
+      height: cells * 4,
+      imageWidth: 4096,
+      imageHeight: 4096,
+      counts: toBase64([0, ...encodeLeb(cells * cells)]),
+      downsample,
+      ...box,
+    };
+  }
+
+  it('skips a downsample that is not a power of two from 2 to 2^16', () => {
+    for (const downsample of [3, 6, 0, -4, 1.5, 2 ** 17, 2 ** 30, Number.MAX_SAFE_INTEGER]) {
+      const doc = [maskAnnotation(solidAt(downsample, 2)), vectorAnnotation('img-1', 'rect')];
+      const { byImage, skipped } = deserialize(doc);
+      expect(Object.keys(byImage['img-1' as never]!)).toEqual(['rect']);
+      expect(skipped).toHaveLength(1);
+      expect(skipped[0]!.id).toBe('mask-1');
+      expect(skipped[0]!.reason).toMatch(/power of two/);
+    }
+  });
+
+  it('refuses a huge downsample before it costs anything', () => {
+    // At 2^30 a one-cell box would stand for an exabyte-pixel image box; the
+    // factor is refused before the box is ever multiplied out.
+    const doc = [maskAnnotation(solidAt(2 ** 30, 1, { width: 2 ** 26, height: 2 ** 26 }))];
+    const started = Date.now();
+    const { skipped } = deserialize(doc);
+    expect(Date.now() - started).toBeLessThan(100);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]!.reason).toMatch(/power of two/);
+  });
+
+  it('skips a box that is not aligned to its cells', () => {
+    for (const box of [{ x: 2 }, { y: 6 }, { width: 13 }, { height: 7 }]) {
+      const { skipped } = deserialize([maskAnnotation(solidAt(4, 2, box))]);
+      expect(skipped).toHaveLength(1);
+      expect(skipped[0]!.reason).toMatch(/not aligned to its 4-pixel cells/);
+    }
+    // The same payload aligned loads, so it is the alignment that was refused.
+    const { byImage, skipped } = deserialize([maskAnnotation(solidAt(4, 2, { x: 8, y: 4 }))]);
+    expect(skipped).toEqual([]);
+    expect(byImage['img-1' as never]!['mask-1' as never]!.geometry).toMatchObject({
+      origin: { x: 8, y: 4 },
+      pixelCount: 2 * 2 * 16,
+      downsample: 4,
+    });
+  });
+
+  it('charges the document budget in cells, not in image pixels', () => {
+    // 1024 x 1024 cells at d=16: a 16384-square image box, 268 M image pixels,
+    // four times the per-mask cap if it were counted in pixels.
+    const data = {
+      ...solidAt(16, 1024),
+      width: 16_384,
+      height: 16_384,
+      imageWidth: 16_384,
+      imageHeight: 16_384,
+    };
+    expect(16_384 * 16_384).toBeGreaterThan(MAX_MASK_PIXELS);
+    const doc = [maskAnnotation(data)];
+    const { skipped } = deserialize(doc, { maxTotalMaskPixels: 2_000_000 });
+    expect(skipped).toEqual([]);
+    // And the cells are what the budget bills: below them, the document fails.
+    expect(() => deserialize(doc, { maxTotalMaskPixels: 1024 * 1024 - 1 })).toThrow(
+      SerializationError,
+    );
+  });
+});

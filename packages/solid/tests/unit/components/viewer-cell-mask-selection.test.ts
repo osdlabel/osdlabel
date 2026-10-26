@@ -147,6 +147,12 @@ function mask(id: typeof m1, image = imageId, context = contextId) {
   stampCircle(buffer, 50.5, 50.5, 4, 1);
   return createMaskAnnotation(buffer.snapshot(), { id, imageId: image, contextId: context });
 }
+/** A 4x mask on a 101-square image, reaching its clipped last cell column and row. */
+function coarseMask(id: typeof m1) {
+  const buffer = new BoundedDenseMaskBuffer({ imageWidth: 101, imageHeight: 101, downsample: 4 });
+  stampCircle(buffer, 92, 92, 12, 1);
+  return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
+}
 const image2 = createImageId('img-2');
 const m3 = createAnnotationId('m3');
 
@@ -252,6 +258,23 @@ describe('ViewerCell selected-mask styling', () => {
     expect(objects).toEqual(before);
 
     setUi('selectedAnnotationId', null);
+    expect(byId('m2').opacity).toBe(1);
+  });
+
+  it('dims and restores a downsampled mask like any other', async () => {
+    mockState.annotationState.byImage[imageId]![m2] = coarseMask(m2);
+    await mountWithMasks();
+    const before = [...objects];
+
+    setUi('selectedAnnotationId', m1);
+    expect(byId('m2').opacity).toBe(DEFAULT_UNSELECTED_MASK_OPACITY);
+    setUi('selectedAnnotationId', m2);
+    expect(byId('m2').opacity).toBe(1);
+    expect(byId('m1').opacity).toBe(DEFAULT_UNSELECTED_MASK_OPACITY);
+    expect(objects).toEqual(before);
+
+    setUi('selectedAnnotationId', null);
+    expect(byId('m1').opacity).toBe(1);
     expect(byId('m2').opacity).toBe(1);
   });
 

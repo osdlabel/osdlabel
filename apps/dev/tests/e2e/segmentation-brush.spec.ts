@@ -2,9 +2,16 @@ import type { CDPSession, Page } from '@playwright/test';
 import { test, expect } from './helpers/fixtures.js';
 
 interface StoredAnnotation {
-  geometry: { type: string; pixelCount?: number; origin?: { x: number; y: number } };
+  geometry: {
+    type: string;
+    pixelCount?: number;
+    origin?: { x: number; y: number };
+    width?: number;
+    height?: number;
+    downsample?: number;
+  };
   toolType?: string;
-  rawAnnotationData?: { format?: string };
+  rawAnnotationData?: { format?: string; data?: Record<string, unknown> };
 }
 type ByImage = Record<string, Record<string, StoredAnnotation>>;
 
@@ -12,6 +19,96 @@ async function readAnnotations(page: Page): Promise<StoredAnnotation[]> {
   const text = (await page.getByTestId('annotations-json').textContent()) ?? '{}';
   const byImage = JSON.parse(text) as ByImage;
   return Object.values(byImage).flatMap((forImage) => Object.values(forImage));
+}
+
+/** Alpha of the Fabric layer at a client point: only annotations draw there. */
+function fabricAlphaAt(page: Page, x: number, y: number): Promise<number> {
+  return page.evaluate(
+    ([px, py]) => {
+      const canvas = document.querySelector<HTMLCanvasElement>('canvas.lower-canvas');
+      if (!canvas) throw new Error('no lower canvas');
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('no 2d context');
+      const sx = Math.round((px - rect.left) * scale);
+      const sy = Math.round((py - rect.top) * scale);
+      return ctx.getImageData(sx, sy, 1, 1).data[3] ?? 0;
+    },
+    [x, y] as const,
+  );
+}
+
+/** Where an image-space point is on the page, through the overlay's flip-aware mapping. */
+function imageToClient(page: Page, point: { x: number; y: number }) {
+  return page.evaluate((pt) => {
+    const el = document.querySelector('.openseadragon-canvas') as
+      | (Element & {
+          __osdOverlay?: { imageToScreen(p: { x: number; y: number }): { x: number; y: number } };
+        })
+      | null;
+    if (!el?.__osdOverlay) throw new Error('test hooks not installed');
+    const rect = el.getBoundingClientRect();
+    const screen = el.__osdOverlay.imageToScreen(pt);
+    return { x: rect.left + screen.x, y: rect.top + screen.y };
+  }, point);
+}
+
+/** Unsigned LEB128 run lengths, base64'd: the canonical payload's `counts`. */
+function canonicalCounts(runs: readonly number[]): string {
+  const bytes: number[] = [];
+  for (let n of runs) {
+    while (n >= 0x80) {
+      bytes.push((n % 0x80) | 0x80);
+      n = Math.floor(n / 0x80);
+    }
+    bytes.push(n);
+  }
+  return btoa(String.fromCharCode(...bytes));
+}
+
+/**
+ * A document holding one canonical mask at downsample 4 on `landscape.png`
+ * (1280x800): a solid block of 30x20 cells covering image pixels
+ * [240, 360) x [160, 240), well left of the image's centre so a horizontal
+ * flip moves it.
+ */
+const COARSE_BOX = { x: 240, y: 160, width: 120, height: 80 } as const;
+const COARSE_DOC = [
+  {
+    id: 'coarse-mask',
+    imageId: 'landscape',
+    contextId: 'ctx-3',
+    toolType: 'segmentationBrush',
+    geometry: {
+      type: 'mask',
+      origin: { x: COARSE_BOX.x, y: COARSE_BOX.y },
+      width: COARSE_BOX.width,
+      height: COARSE_BOX.height,
+      pixelCount: COARSE_BOX.width * COARSE_BOX.height,
+      downsample: 4,
+    },
+    rawAnnotationData: {
+      format: 'osdlabel-mask',
+      data: {
+        ...COARSE_BOX,
+        imageWidth: 1280,
+        imageHeight: 800,
+        counts: canonicalCounts([0, 30 * 20]),
+        downsample: 4,
+      },
+    },
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
+/** Loads a document through the demo's Import JSON panel. */
+async function importDocument(page: Page, doc: unknown): Promise<void> {
+  await page.getByRole('button', { name: 'Import JSON', exact: true }).click();
+  await page.getByPlaceholder('Paste exported JSON here...').fill(JSON.stringify(doc));
+  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await page.waitForTimeout(300);
 }
 
 /** Drags a short stroke across the canvas, sampling a few intermediate points. */
@@ -203,22 +300,7 @@ test.describe('Segmentation brush', () => {
     const box = await page.locator('canvas.upper-canvas').boundingBox();
     if (!box) throw new Error('canvas not found');
 
-    /** Alpha of the Fabric layer at a screen point: only annotations draw there. */
-    const alphaAt = (x: number, y: number) =>
-      page.evaluate(
-        ([px, py]) => {
-          const canvas = document.querySelector<HTMLCanvasElement>('canvas.lower-canvas');
-          if (!canvas) throw new Error('no lower canvas');
-          const rect = canvas.getBoundingClientRect();
-          const scale = canvas.width / rect.width;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) throw new Error('no 2d context');
-          const sx = Math.round((px - rect.left) * scale);
-          const sy = Math.round((py - rect.top) * scale);
-          return ctx.getImageData(sx, sy, 1, 1).data[3] ?? 0;
-        },
-        [x, y] as const,
-      );
+    const alphaAt = (x: number, y: number) => fabricAlphaAt(page, x, y);
 
     await page.getByTestId('tool-segmentationBrush').click();
     // Mask A, then let go of it; mask B stays selected after its stroke.
@@ -413,5 +495,91 @@ test.describe('Segmentation brush', () => {
     expect(inside(await clientToImage(page, end))).toBe(true);
     // ...and the palm, well to the right and below it, is not.
     expect(inside(await clientToImage(page, palm))).toBe(false);
+  });
+
+  test.describe('a mask at downsample 4', () => {
+    const inside = { x: 300, y: 200 };
+    // Inside the last cell column (356..359), and just past it.
+    const lastColumn = { x: 357, y: 200 };
+    const pastIt = { x: 366, y: 200 };
+
+    test('imports, and draws where its cells are', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      expect(annotations[0]!.geometry).toMatchObject({ ...COARSE_DOC[0]!.geometry });
+
+      const at = async (p: { x: number; y: number }) => {
+        const client = await imageToClient(page, p);
+        return fabricAlphaAt(page, client.x, client.y);
+      };
+      expect(await at(inside)).toBeGreaterThan(60);
+      expect(await at(lastColumn)).toBeGreaterThan(60);
+      expect(await at(pastIt)).toBe(0);
+      expect(await at({ x: 300, y: 150 })).toBe(0);
+    });
+
+    test('draws where its cells are under a horizontal flip', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      const unflipped = await imageToClient(page, inside);
+      expect(await fabricAlphaAt(page, unflipped.x, unflipped.y)).toBeGreaterThan(60);
+
+      await page.getByTestId('view-flip-h').click();
+      await page.waitForTimeout(300);
+
+      // The mirror moved the mask: what was its screen position is now the
+      // right half of the image, and the flip-aware mapping finds it again.
+      expect(await fabricAlphaAt(page, unflipped.x, unflipped.y)).toBe(0);
+      for (const p of [inside, lastColumn]) {
+        const client = await imageToClient(page, p);
+        expect(await fabricAlphaAt(page, client.x, client.y)).toBeGreaterThan(60);
+      }
+      const past = await imageToClient(page, pastIt);
+      expect(await fabricAlphaAt(page, past.x, past.y)).toBe(0);
+    });
+
+    test('a stroke on it keeps downsample 4', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      // Select it, so the brush refines it rather than starting a new mask.
+      await page.getByTestId('tool-select').click();
+      const click = await imageToClient(page, inside);
+      await page.mouse.click(click.x, click.y);
+      await page.waitForTimeout(200);
+
+      await page.getByTestId('tool-segmentationBrush').click();
+      const from = await imageToClient(page, { x: 340, y: 200 });
+      const to = await imageToClient(page, { x: 450, y: 200 });
+      await stroke(page, from, to);
+
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      const { geometry, rawAnnotationData } = annotations[0]!;
+      expect(geometry.downsample).toBe(4);
+      expect(rawAnnotationData?.data?.['downsample']).toBe(4);
+      // Grew to the right, still on the 4-pixel grid.
+      expect(geometry.origin).toEqual({ x: COARSE_BOX.x, y: COARSE_BOX.y });
+      expect(geometry.width!).toBeGreaterThan(COARSE_BOX.width + 60);
+      expect(geometry.width! % 4).toBe(0);
+      expect(geometry.pixelCount!).toBeGreaterThan(COARSE_BOX.width * COARSE_BOX.height);
+      expect(geometry.pixelCount! % 16).toBe(0);
+    });
+
+    test('the canonical export round-trips', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
+      const exported = JSON.parse(await page.getByTestId('exported-json').inputValue()) as {
+        id: string;
+        geometry: unknown;
+        rawAnnotationData: unknown;
+      }[];
+      expect(exported).toHaveLength(1);
+      expect(exported[0]!.geometry).toEqual(COARSE_DOC[0]!.geometry);
+      expect(exported[0]!.rawAnnotationData).toEqual(COARSE_DOC[0]!.rawAnnotationData);
+
+      // And reading the export back gives the same state.
+      const before = await page.getByTestId('annotations-json').textContent();
+      await importDocument(page, exported);
+      expect(await page.getByTestId('annotations-json').textContent()).toBe(before);
+    });
   });
 });
