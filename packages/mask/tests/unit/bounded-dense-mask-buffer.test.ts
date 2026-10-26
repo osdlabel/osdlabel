@@ -12,20 +12,20 @@ describe('BoundedDenseMaskBuffer', () => {
   it('reads back what it writes and counts set pixels exactly', () => {
     const b = buffer();
     expect(b.get(10, 10)).toBe(0);
-    expect(b.pixelCount).toBe(0);
+    expect(b.cellCount).toBe(0);
 
     b.set(10, 10, 1);
     b.set(11, 10, 1);
     expect(b.get(10, 10)).toBe(1);
-    expect(b.pixelCount).toBe(2);
+    expect(b.cellCount).toBe(2);
 
     // Setting the same pixel again must not double-count.
     b.set(10, 10, 1);
-    expect(b.pixelCount).toBe(2);
+    expect(b.cellCount).toBe(2);
 
     b.set(10, 10, 0);
     expect(b.get(10, 10)).toBe(0);
-    expect(b.pixelCount).toBe(1);
+    expect(b.cellCount).toBe(1);
   });
 
   it('preserves existing pixels when growing in every direction', () => {
@@ -51,7 +51,7 @@ describe('BoundedDenseMaskBuffer', () => {
     ] as const) {
       expect(b.get(x, y)).toBe(1);
     }
-    expect(b.pixelCount).toBe(5);
+    expect(b.cellCount).toBe(5);
   });
 
   it('ignores writes outside the image', () => {
@@ -60,15 +60,15 @@ describe('BoundedDenseMaskBuffer', () => {
     b.set(10, -1, 1);
     b.set(50, 10, 1);
     b.set(10, 50, 1);
-    expect(b.pixelCount).toBe(0);
-    expect(b.snapshot().width).toBe(0);
+    expect(b.cellCount).toBe(0);
+    expect(b.snapshot().cells.width).toBe(0);
   });
 
   it('treats erasing outside the allocated region as a no-op', () => {
     const b = buffer();
     b.set(10, 10, 1);
     b.set(900, 900, 0);
-    expect(b.pixelCount).toBe(1);
+    expect(b.cellCount).toBe(1);
   });
 
   it('snapshots the tight bounding box, not the allocated region', () => {
@@ -77,13 +77,10 @@ describe('BoundedDenseMaskBuffer', () => {
     b.set(100, 200, 1);
     b.set(102, 203, 1);
 
-    expect(b.bounds.width).toBeGreaterThan(3);
+    expect(b.cellBounds.width).toBeGreaterThan(3);
 
     const snap = b.snapshot();
-    expect(snap.x).toBe(100);
-    expect(snap.y).toBe(200);
-    expect(snap.width).toBe(3);
-    expect(snap.height).toBe(4);
+    expect(snap.cells).toEqual({ x: 100, y: 200, width: 3, height: 4 });
     expect(snap.data[0]).toBe(1); // (100,200)
     expect(snap.data[3 * 3 + 2]).toBe(1); // (102,203)
     expect(snap.data.reduce((a, v) => a + v, 0)).toBe(2);
@@ -93,12 +90,10 @@ describe('BoundedDenseMaskBuffer', () => {
   it('snapshots an empty mask as a zero-sized box', () => {
     const snap = buffer(80, 60).snapshot();
     expect(snap).toMatchObject({
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
+      cells: { x: 0, y: 0, width: 0, height: 0 },
       imageWidth: 80,
       imageHeight: 60,
+      downsample: 1,
     });
     expect(snap.data.length).toBe(0);
   });
@@ -108,7 +103,7 @@ describe('BoundedDenseMaskBuffer', () => {
     b.set(0, 0, 1); // one 64x64 chunk sits exactly at the cap
     expect(() => b.set(5000, 5000, 1)).toThrow(MaskCapacityExceededError);
     // The failed write leaves the buffer usable and unchanged.
-    expect(b.pixelCount).toBe(1);
+    expect(b.cellCount).toBe(1);
     expect(b.get(0, 0)).toBe(1);
   });
 
@@ -119,7 +114,7 @@ describe('BoundedDenseMaskBuffer', () => {
     b.set(300, 402, 1);
 
     const restored = BoundedDenseMaskBuffer.fromSnapshot(b.snapshot());
-    expect(restored.pixelCount).toBe(3);
+    expect(restored.cellCount).toBe(3);
     expect(restored.snapshot()).toEqual(b.snapshot());
   });
 });
@@ -133,12 +128,12 @@ describe('growth rounding yields to the cap', () => {
     const painted = buffer(100, 100);
     for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) painted.set(x, y, 1);
     const restored = BoundedDenseMaskBuffer.fromSnapshot(painted.snapshot(), { maxPixels: 49 });
-    expect(restored.pixelCount).toBe(36);
-    expect(b.pixelCount).toBe(0);
+    expect(restored.cellCount).toBe(36);
+    expect(b.cellCount).toBe(0);
 
     // A stroke that still fits the cap exactly is allowed; one past it is not.
     restored.set(6, 0, 1);
-    expect(restored.pixelCount).toBe(37);
+    expect(restored.cellCount).toBe(37);
     expect(() => restored.set(7, 7, 1)).toThrow(MaskCapacityExceededError);
   });
 
@@ -149,6 +144,6 @@ describe('growth rounding yields to the cap', () => {
     // is the point of the rounding.
     const before = b.snapshot();
     for (let x = 11; x < 60; x++) b.set(x, 10, 1);
-    expect(b.pixelCount).toBe(before.data.length > 0 ? 50 : 50);
+    expect(b.cellCount).toBe(before.data.length > 0 ? 50 : 50);
   });
 });

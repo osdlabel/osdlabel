@@ -137,7 +137,7 @@ export function buildSegmentationBrushConfig(
   };
 
   const commit = (stroke: BrushStrokeCommit): void => {
-    const isEmpty = stroke.snapshot.width === 0 || stroke.snapshot.height === 0;
+    const isEmpty = stroke.snapshot.cells.width === 0 || stroke.snapshot.cells.height === 0;
 
     if (stroke.annotationId) {
       // Erasing the last pixel would otherwise leave an annotation that renders

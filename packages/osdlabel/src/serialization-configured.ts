@@ -333,7 +333,7 @@ function normalizeMasks(
   // next mask then pays for both. Billing the runs first would need the
   // payload parsed, which is the cost being bounded.
   const charge = (snapshot: MaskRaster, runs: number): MaskRaster => {
-    spent += snapshot.width * snapshot.height + runs;
+    spent += snapshot.cells.width * snapshot.cells.height + runs;
     return snapshot;
   };
 

@@ -29,13 +29,11 @@ import {
  * which run-length encodes (starting with background) to [4, 2, 1, 2, 3].
  */
 const FIXTURE: MaskSnapshot = {
-  x: 1,
-  y: 1,
-  width: 2,
-  height: 2,
+  cells: { x: 1, y: 1, width: 2, height: 2 },
   data: Uint8Array.from([1, 1, 1, 1]),
   imageWidth: 4,
   imageHeight: 3,
+  downsample: 1,
 };
 const FIXTURE_COUNTS = [4, 2, 1, 2, 3];
 
@@ -49,13 +47,11 @@ describe('COCO run lengths', () => {
 
   it('emits a leading zero-length run when the mask starts at the origin', () => {
     const counts = snapshotToCocoCounts({
-      x: 0,
-      y: 0,
-      width: 1,
-      height: 1,
+      cells: { x: 0, y: 0, width: 1, height: 1 },
       data: Uint8Array.from([1]),
       imageWidth: 2,
       imageHeight: 2,
+      downsample: 1,
     });
     expect(counts[0]).toBe(0); // odd positions are foreground, so counts[0] must be background
     expect(counts).toEqual([0, 1, 3]);
@@ -123,8 +119,8 @@ describe('codecs', () => {
     const snapshot = b.snapshot();
 
     const restored = toDenseSnapshot(cocoRleCodec.decode!(cocoRleCodec.encode(b.raster())));
-    expect(restored.x).toBe(snapshot.x);
-    expect(restored.y).toBe(snapshot.y);
+    expect(restored.cells.x).toBe(snapshot.cells.x);
+    expect(restored.cells.y).toBe(snapshot.cells.y);
     expect(restored).toEqual(snapshot);
   });
 
@@ -140,13 +136,11 @@ describe('pycocotools interop limits', () => {
     // 100000x100000 image decodes with the correct area but at the wrong
     // coordinates, because its leading run is truncated to 32 bits.
     const gigapixel: MaskSnapshot = {
-      x: 49996,
-      y: 49996,
-      width: 1,
-      height: 1,
+      cells: { x: 49996, y: 49996, width: 1, height: 1 },
       data: Uint8Array.from([1]),
       imageWidth: 100_000,
       imageHeight: 100_000,
+      downsample: 1,
     };
     expect(isCocoInteropSafe(gigapixel)).toBe(false);
 

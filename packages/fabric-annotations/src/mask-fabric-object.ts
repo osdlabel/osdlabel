@@ -48,7 +48,8 @@ export function buildMaskFabricObject(
   // decode's default cap — the dense policy — is this renderer's own limit,
   // not the format's. A tiled renderer would draw the same raster per tile.
   const raster = decodeCanonicalRaster(raw.data);
-  if (raster.width === 0 || raster.height === 0) return null;
+  const cells = raster.cells;
+  if (cells.width === 0 || cells.height === 0) return null;
 
   const [red, green, blue, alpha] = new Color(
     options.fill ?? raw.data.fill ?? DEFAULT_MASK_FILL,
@@ -56,15 +57,15 @@ export function buildMaskFabricObject(
   const alphaByte = Math.round((alpha ?? 1) * 255);
 
   const canvas = document.createElement('canvas');
-  canvas.width = raster.width;
-  canvas.height = raster.height;
+  canvas.width = cells.width;
+  canvas.height = cells.height;
   const context = canvas.getContext('2d');
   if (!context) return null;
 
-  const imageData = context.createImageData(raster.width, raster.height);
+  const imageData = context.createImageData(cells.width, cells.height);
   const pixels = imageData.data;
   raster.forEachSpan((cy, x0, x1) => {
-    const rowStart = (cy - raster.y) * raster.width - raster.x;
+    const rowStart = (cy - cells.y) * cells.width - cells.x;
     for (let i = rowStart + x0; i < rowStart + x1; i++) {
       const offset = i * 4;
       pixels[offset] = red;
@@ -83,8 +84,8 @@ export function buildMaskFabricObject(
   // nothing else is drawn.
   const downsample = raster.downsample;
   return new FabricImage(canvas, {
-    left: raster.x * downsample,
-    top: raster.y * downsample,
+    left: cells.x * downsample,
+    top: cells.y * downsample,
     scaleX: downsample,
     scaleY: downsample,
     originX: 'left',

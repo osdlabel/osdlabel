@@ -122,11 +122,11 @@ describe('stroke capacity', () => {
       maxPixels: 64 * 64,
     });
     stampCircle(buffer, 32, 32, 4, 1);
-    const before = buffer.pixelCount;
+    const before = buffer.cellCount;
     expect(before).toBeGreaterThan(0);
 
     expect(() => stampCircle(buffer, 2000, 2000, 300, 1)).toThrow(MaskCapacityExceededError);
-    expect(buffer.pixelCount).toBe(before);
+    expect(buffer.cellCount).toBe(before);
     expect(buffer.get(2000, 2000)).toBe(0);
   });
 
@@ -137,12 +137,12 @@ describe('stroke capacity', () => {
       maxPixels: 64 * 64,
     });
     stampCircle(buffer, 32, 32, 4, 1);
-    const before = buffer.pixelCount;
+    const before = buffer.cellCount;
 
     expect(() => strokeSegment(buffer, 10, 10, 3000, 3000, 5, 1)).toThrow(
       MaskCapacityExceededError,
     );
-    expect(buffer.pixelCount).toBe(before);
+    expect(buffer.cellCount).toBe(before);
   });
 
   it('erasing never grows the buffer', () => {
@@ -160,7 +160,7 @@ describe('reserve', () => {
   it('grows once to cover a whole disc', () => {
     const buffer = new BoundedDenseMaskBuffer({ imageWidth: 4096, imageHeight: 4096 });
     stampCircle(buffer, 2000, 2000, 500, 1);
-    const bounds = buffer.bounds;
+    const bounds = buffer.cellBounds;
     expect(bounds.width).toBeGreaterThanOrEqual(1000);
     expect(bounds.height).toBeGreaterThanOrEqual(1000);
     // Pixels are still exact after the single reallocation.
@@ -172,15 +172,15 @@ describe('reserve', () => {
   it('is a no-op for regions already covered, clipped, or degenerate', () => {
     const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
     buffer.set(10, 10, 1);
-    const before = buffer.bounds;
+    const before = buffer.cellBounds;
     buffer.reserve({ x: 10, y: 10, width: 1, height: 1 });
-    expect(buffer.bounds).toEqual(before);
+    expect(buffer.cellBounds).toEqual(before);
     buffer.reserve({ x: -50, y: -50, width: 10, height: 10 });
-    expect(buffer.bounds).toEqual(before);
+    expect(buffer.cellBounds).toEqual(before);
     buffer.reserve({ x: 0, y: 0, width: 0, height: 0 });
-    expect(buffer.bounds).toEqual(before);
+    expect(buffer.cellBounds).toEqual(before);
     buffer.reserve({ x: NaN, y: 0, width: 10, height: 10 });
-    expect(buffer.bounds).toEqual(before);
+    expect(buffer.cellBounds).toEqual(before);
   });
 });
 
@@ -190,8 +190,8 @@ describe('buffer coordinate hygiene', () => {
     buffer.set(1.5, 2, 1);
     buffer.set(NaN, 2, 1);
     buffer.set(2, Infinity, 1);
-    expect(buffer.pixelCount).toBe(0);
-    expect(buffer.snapshot().width).toBe(0);
+    expect(buffer.cellCount).toBe(0);
+    expect(buffer.snapshot().cells.width).toBe(0);
   });
 
   it('rejects non-finite dimensions and caps at construction', () => {
@@ -218,7 +218,7 @@ describe('stampCircle clipping', () => {
     stampCircle(buffer, 100, 80, 1e6, 1);
     expect(Date.now() - started).toBeLessThan(2000);
     // Everything inside the image is covered.
-    expect(buffer.pixelCount).toBe(200 * 160);
+    expect(buffer.cellCount).toBe(200 * 160);
   });
 });
 
@@ -252,7 +252,7 @@ describe('cocoCountsToSnapshot bounds the work before doing it', () => {
       h,
       w,
     );
-    expect(snapshot).toMatchObject({ width: 2, height: 4 });
+    expect(snapshot.cells).toMatchObject({ width: 2, height: 4 });
   });
 });
 
@@ -299,7 +299,7 @@ describe('an image whose pixels cannot be counted exactly', () => {
       h,
       w,
     );
-    expect(snapshot).toMatchObject({ width: 2, height: 4 });
+    expect(snapshot.cells).toMatchObject({ width: 2, height: 4 });
   });
 });
 
@@ -337,13 +337,11 @@ describe('a mask box outside its own image', () => {
     // integrality, so this payload encoded fine and then failed to decode.
     expect(() =>
       encodeCanonical({
-        x: 0,
-        y: 0,
-        width: -1,
-        height: -1,
+        cells: { x: 0, y: 0, width: -1, height: -1 },
         data: new Uint8Array(1),
         imageWidth: 10,
         imageHeight: 10,
+        downsample: 1,
       }),
     ).toThrow(/non-negative integers/);
   });
@@ -355,13 +353,11 @@ describe('a mask box outside its own image', () => {
     // stroke — the failure the decode-side guard exists to prevent.
     expect(() =>
       BoundedDenseMaskBuffer.fromSnapshot({
-        x: 80,
-        y: 80,
-        width: 50,
-        height: 50,
+        cells: { x: 80, y: 80, width: 50, height: 50 },
         data: new Uint8Array(2500).fill(1),
         imageWidth: 100,
         imageHeight: 100,
+        downsample: 1,
       }),
     ).toThrow(/lies outside its/);
   });
@@ -371,13 +367,11 @@ describe('a mask box outside its own image', () => {
     // through; only an explicit integer test catches it.
     expect(() =>
       encodeCanonical({
-        x: 0,
-        y: 0,
-        width: 0.5,
-        height: 4,
+        cells: { x: 0, y: 0, width: 0.5, height: 4 },
         data: new Uint8Array(2),
         imageWidth: 10,
         imageHeight: 10,
+        downsample: 1,
       }),
     ).toThrow(/non-negative integers/);
   });
@@ -448,16 +442,14 @@ describe('a degenerate box encodes as the empty mask', () => {
     // arithmetic and outside it by the box check; decoding returned the empty
     // mask anyway, so write that.
     const encoded = encodeCanonical({
-      x: 10,
-      y: 3,
-      width: 5,
-      height: 0,
+      cells: { x: 10, y: 3, width: 5, height: 0 },
       data: new Uint8Array(0),
       imageWidth: 10,
       imageHeight: 10,
+      downsample: 1,
     });
     expect(encoded).toMatchObject({ x: 0, y: 0, width: 0, height: 0, counts: '' });
-    expect(decodeCanonical(encoded).width).toBe(0);
+    expect(decodeCanonical(encoded).cells.width).toBe(0);
   });
 });
 
@@ -479,7 +471,7 @@ describe('COCO decoding refuses what is not run lengths', () => {
   it('refuses no runs at all for an image that has pixels', () => {
     // The empty mask is one run of the whole image; `[]` sums to nothing.
     expect(() => cocoCountsToSnapshot([], 10, 10)).toThrow(/sum to 0, but the image has 100/);
-    expect(cocoCountsToSnapshot([], 0, 0).width).toBe(0);
+    expect(cocoCountsToSnapshot([], 0, 0).cells.width).toBe(0);
   });
 
   it('names a missing size instead of failing on the destructuring', () => {
@@ -496,13 +488,11 @@ describe('the COCO encoder demands a grid-aligned box', () => {
     // Fractional runs are not COCO; the canonical encoder already refused
     // this, and the two now agree.
     const snapshot = {
-      x: 0.5,
-      y: 0,
-      width: 1,
-      height: 1,
+      cells: { x: 0.5, y: 0, width: 1, height: 1 },
       data: Uint8Array.from([1]),
       imageWidth: 4,
       imageHeight: 4,
+      downsample: 1,
     };
     expect(() => snapshotToCocoCounts(snapshot)).toThrow(/integer pixel coordinates/);
   });

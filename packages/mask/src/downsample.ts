@@ -4,7 +4,7 @@ import { toDenseSnapshot, type MaskRasterInput } from './mask-raster.js';
 /** The placement fields a snapshot and a raster share. */
 export type MaskBoxFields = Pick<
   MaskSnapshot,
-  'x' | 'y' | 'width' | 'height' | 'imageWidth' | 'imageHeight' | 'downsample'
+  'cells' | 'imageWidth' | 'imageHeight' | 'downsample'
 >;
 
 /**
@@ -70,24 +70,25 @@ export function maskGridSize(
 }
 
 /**
- * A snapshot's bounding box in image (level-0) pixels, clipped to the image.
+ * A mask's box in image (level-0) pixels, clipped to the image.
  *
- * At downsample 1 this is the snapshot's own box. Above it, cell `(cx, cy)`
+ * At downsample 1 this is the cell box itself. Above it, cell `(cx, cy)`
  * covers image pixels `[cx * d, min((cx + 1) * d, imageWidth))` across and the
  * matching span down, so the box's far edges stop at the image's.
  */
 export function snapshotImageBox(snapshot: MaskBoxFields): MaskRegion {
-  const d = maskDownsampleOf(snapshot);
-  if (d === 1 || snapshot.width === 0 || snapshot.height === 0) {
-    return { x: snapshot.x, y: snapshot.y, width: snapshot.width, height: snapshot.height };
+  const d = snapshot.downsample;
+  const cells = snapshot.cells;
+  if (d === 1 || cells.width === 0 || cells.height === 0) {
+    return { x: cells.x, y: cells.y, width: cells.width, height: cells.height };
   }
-  const x = snapshot.x * d;
-  const y = snapshot.y * d;
+  const x = cells.x * d;
+  const y = cells.y * d;
   return {
     x,
     y,
-    width: Math.min((snapshot.x + snapshot.width) * d, snapshot.imageWidth) - x,
-    height: Math.min((snapshot.y + snapshot.height) * d, snapshot.imageHeight) - y,
+    width: Math.min((cells.x + cells.width) * d, snapshot.imageWidth) - x,
+    height: Math.min((cells.y + cells.height) * d, snapshot.imageHeight) - y,
   };
 }
 
@@ -169,19 +170,17 @@ export function upsampleSnapshot(input: MaskRasterInput, maxPixels: number): Mas
   const snapshot = toDenseSnapshot(input, Infinity);
   const data = new Uint8Array(area);
   for (let row = 0; row < box.height; row++) {
-    const sourceRow = Math.floor(row / d) * snapshot.width;
+    const sourceRow = Math.floor(row / d) * snapshot.cells.width;
     const offset = row * box.width;
     for (let col = 0; col < box.width; col++) {
       if (snapshot.data[sourceRow + Math.floor(col / d)] === 1) data[offset + col] = 1;
     }
   }
   return {
-    x: box.x,
-    y: box.y,
-    width: box.width,
-    height: box.height,
+    cells: { x: box.x, y: box.y, width: box.width, height: box.height },
     data,
     imageWidth: snapshot.imageWidth,
     imageHeight: snapshot.imageHeight,
+    downsample: 1,
   };
 }

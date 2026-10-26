@@ -1,9 +1,6 @@
-import type { MaskRaster, MaskSpanVisitor } from '../../src/index.js';
+import type { MaskCellBox, MaskRaster, MaskSpanVisitor } from '../../src/index.js';
 
-type Box = Pick<
-  MaskRaster,
-  'x' | 'y' | 'width' | 'height' | 'imageWidth' | 'imageHeight' | 'downsample'
->;
+type Box = Pick<MaskRaster, 'cells' | 'imageWidth' | 'imageHeight' | 'downsample'>;
 
 /**
  * A toy sparse tiled store behind {@link MaskRaster}, for tests only: square
@@ -12,10 +9,7 @@ type Box = Pick<
  * split at tile edges, which the contract allows and consumers must merge.
  */
 export class TiledMaskRaster implements MaskRaster {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
+  readonly cells: MaskCellBox;
   readonly imageWidth: number;
   readonly imageHeight: number;
   readonly downsample: number;
@@ -26,14 +20,11 @@ export class TiledMaskRaster implements MaskRaster {
     box: Box,
     readonly tile = 8,
   ) {
-    this.x = box.x;
-    this.y = box.y;
-    this.width = box.width;
-    this.height = box.height;
+    this.cells = { ...box.cells };
     this.imageWidth = box.imageWidth;
     this.imageHeight = box.imageHeight;
     this.downsample = box.downsample;
-    this.across = Math.ceil(box.width / tile);
+    this.across = Math.ceil(box.cells.width / tile);
   }
 
   /** Copies any raster in, span by span. */
@@ -46,7 +37,7 @@ export class TiledMaskRaster implements MaskRaster {
   /** Sets a rectangle of cells (absolute), FULL where it covers a whole tile. */
   fillRect(x: number, y: number, w: number, h: number): void {
     const t = this.tile;
-    const [left, top] = [x - this.x, y - this.y];
+    const [left, top] = [x - this.cells.x, y - this.cells.y];
     for (let ty = Math.floor(top / t); ty * t < top + h; ty++) {
       for (let tx = Math.floor(left / t); tx * t < left + w; tx++) {
         const key = ty * this.across + tx;
@@ -72,30 +63,49 @@ export class TiledMaskRaster implements MaskRaster {
   }
 
   get(cx: number, cy: number): 0 | 1 {
-    const [col, row] = [cx - this.x, cy - this.y];
-    if (col < 0 || row < 0 || col >= this.width || row >= this.height) return 0;
+    const { x, y, width, height } = this.cells;
+    const [col, row] = [cx - x, cy - y];
+    if (col < 0 || row < 0 || col >= width || row >= height) return 0;
     const t = this.tile;
     const cells = this.tiles.get(Math.floor(row / t) * this.across + Math.floor(col / t));
     if (cells === undefined || cells === 'full') return cells === 'full' ? 1 : 0;
     return cells[(row % t) * t + (col % t)] === 1 ? 1 : 0;
   }
 
-  forEachSpan(visit: MaskSpanVisitor): void {
+  forEachSpan(visit: MaskSpanVisitor, within?: MaskCellBox): void {
     const t = this.tile;
-    // Tile columns present in each band of `t` rows, left to right.
+    const { x, y, width, height } = this.cells;
+    // The window in box-relative cells; the whole box without one.
+    const top = within ? Math.max(0, within.y - y) : 0;
+    const bottom = within ? Math.min(height, within.y + within.height - y) : height;
+    const left = within ? Math.max(0, within.x - x) : 0;
+    const right = within ? Math.min(width, within.x + within.width - x) : width;
+    if (right <= left || bottom <= top) return;
+    // Tile columns present in each band of `t` rows, left to right, limited to
+    // the tiles the window touches — the point of honouring it.
     const bands = new Map<number, number[]>();
     for (const key of [...this.tiles.keys()].sort((a, b) => a - b)) {
       const band = Math.floor(key / this.across);
+      const tx = key % this.across;
+      if ((band + 1) * t <= top || band * t >= bottom) continue;
+      if ((tx + 1) * t <= left || tx * t >= right) continue;
       if (!bands.has(band)) bands.set(band, []);
-      bands.get(band)!.push(key % this.across);
+      bands.get(band)!.push(tx);
     }
+    const emit = (row: number, c0: number, c1: number): void => {
+      const a = Math.max(c0, left);
+      const b = Math.min(c1, right);
+      if (b > a) visit(y + row, x + a, x + b);
+    };
     for (const band of [...bands.keys()].sort((a, b) => a - b)) {
-      for (let row = band * t; row < Math.min((band + 1) * t, this.height); row++) {
+      const first = Math.max(band * t, top);
+      const last = Math.min((band + 1) * t, bottom);
+      for (let row = first; row < last; row++) {
         for (const tx of bands.get(band)!) {
           const cells = this.tiles.get(band * this.across + tx)!;
-          const end = Math.min(t, this.width - tx * t);
+          const end = Math.min(t, width - tx * t);
           if (cells === 'full') {
-            visit(this.y + row, this.x + tx * t, this.x + tx * t + end);
+            emit(row, tx * t, tx * t + end);
             continue;
           }
           const on = (c: number): boolean => cells[(row % t) * t + c] === 1;
@@ -103,7 +113,7 @@ export class TiledMaskRaster implements MaskRaster {
             if (!on(c)) continue;
             const start = c;
             while (c < end && on(c)) c++;
-            visit(this.y + row, this.x + tx * t + start, this.x + tx * t + c);
+            emit(row, tx * t + start, tx * t + c);
           }
         }
       }

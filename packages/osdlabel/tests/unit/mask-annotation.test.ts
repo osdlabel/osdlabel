@@ -44,9 +44,9 @@ describe('createMaskAnnotation', () => {
 
     expect(annotation.geometry.type).toBe('mask');
     if (annotation.geometry.type !== 'mask') return;
-    expect(annotation.geometry.origin).toEqual({ x: snapshot.x, y: snapshot.y });
-    expect(annotation.geometry.width).toBe(snapshot.width);
-    expect(annotation.geometry.height).toBe(snapshot.height);
+    expect(annotation.geometry.origin).toEqual({ x: snapshot.cells.x, y: snapshot.cells.y });
+    expect(annotation.geometry.width).toBe(snapshot.cells.width);
+    expect(annotation.geometry.height).toBe(snapshot.cells.height);
     // Exact, not an outline approximation.
     expect(annotation.geometry.pixelCount).toBe(snapshot.data.reduce((a, v) => a + v, 0));
 
@@ -222,15 +222,15 @@ describe('a downsampled mask', () => {
     const expanded = upsampleSnapshot(snapshot, Infinity);
     expect(annotation.geometry).toEqual({
       type: 'mask',
-      origin: { x: expanded.x, y: expanded.y },
-      width: expanded.width,
-      height: expanded.height,
+      origin: { x: expanded.cells.x, y: expanded.cells.y },
+      width: expanded.cells.width,
+      height: expanded.cells.height,
       // Exact image pixels, clipped cells included: what `area()` reports.
       pixelCount: expanded.data.reduce((sum, v) => sum + v, 0),
       downsample: 4,
     });
-    expect(expanded.x + expanded.width).toBe(401);
-    expect(expanded.y + expanded.height).toBe(301);
+    expect(expanded.cells.x + expanded.cells.width).toBe(401);
+    expect(expanded.cells.y + expanded.cells.height).toBe(301);
   });
 
   it('round-trips through serialize/deserialize at its own resolution', () => {
@@ -258,7 +258,7 @@ describe('a downsampled mask', () => {
 
   it('refuses a codec that has not opted in, rather than mis-placing the mask', () => {
     const mask = createMaskAnnotation(downsampledSnapshot(), { imageId, contextId });
-    const legacy: MaskCodec = { format: 'legacy', encode: (s) => ({ x: s.x, y: s.y }) };
+    const legacy: MaskCodec = { format: 'legacy', encode: (s) => ({ x: s.cells.x, y: s.cells.y }) };
     expect(() => serialize(stateWith(mask), { maskCodec: legacy })).toThrow(
       /does not declare encodesDownsampled/,
     );

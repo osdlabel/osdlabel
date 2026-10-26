@@ -37,14 +37,11 @@ function cells(
     for (let c = 0; c < width; c++) if (row[c] === '#') data[r * width + c] = 1;
   });
   return {
-    x: options.x,
-    y: options.y,
-    width,
-    height: rows.length,
+    cells: { x: options.x, y: options.y, width, height: rows.length },
     data,
     imageWidth: options.imageWidth,
     imageHeight: options.imageHeight,
-    ...(options.downsample !== 1 ? { downsample: options.downsample } : {}),
+    downsample: options.downsample,
   };
 }
 
@@ -112,7 +109,7 @@ describe('downsampled buffer', () => {
     expect(snapshot.downsample).toBe(8);
     // Cell centres within 2.5 cells: a 5x5 disc minus its corners (21 cells).
     expect(snapshotCellCount(snapshot)).toBe(21);
-    expect(snapshot).toMatchObject({ x: 10, y: 8, width: 5, height: 5 });
+    expect(snapshot.cells).toEqual({ x: 10, y: 8, width: 5, height: 5 });
     expect(snapshotPixelCount(snapshot)).toBe(21 * 64);
     expect(snapshotImageBox(snapshot)).toEqual({ x: 80, y: 64, width: 40, height: 40 });
   });
@@ -125,7 +122,7 @@ describe('downsampled buffer', () => {
     });
     stampCircle(buffer, 100, 50, 2, 1);
     const snapshot = buffer.snapshot();
-    expect(snapshot).toMatchObject({ x: 6, y: 3, width: 1, height: 1 });
+    expect(snapshot.cells).toEqual({ x: 6, y: 3, width: 1, height: 1 });
   });
 
   it('applies the cap to cells, so a coarser grid reaches further', () => {
@@ -216,12 +213,30 @@ describe('canonical codec at a downsample', () => {
     } satisfies CanonicalMaskData;
     expect(() => decodeCanonical(big)).toThrow(MaskCapacityExceededError);
     const snapshot = decodeCanonical({ ...big, downsample: 2 });
-    expect(snapshot.width * snapshot.height).toBe(DEFAULT_MAX_MASK_PIXELS);
+    expect(snapshot.cells.width * snapshot.cells.height).toBe(DEFAULT_MAX_MASK_PIXELS);
   });
 
   it('fails closed for a reader that drops the field', () => {
     const { downsample: _dropped, ...stripped } = encodeCanonical(EDGE);
     expect(() => decodeCanonical(stripped)).toThrow(/Run lengths sum to 12, but the box holds 143/);
+  });
+
+  it('fails closed at every downsample, not only the one above', () => {
+    // A reader that predates the field reads the box as a level-0 grid. The
+    // runs then sum to the coarser grid's cells, never to the box's pixels,
+    // so the payload is refused rather than drawn shrunk towards the origin.
+    for (let d = 2; d <= 256; d *= 2) {
+      const buffer = new BoundedDenseMaskBuffer({
+        imageWidth: 5000,
+        imageHeight: 5000,
+        downsample: d,
+      });
+      stampCircle(buffer, 2500, 2500, Math.max(600, 2 * d), 1);
+      const payload = encodeCanonical(buffer.snapshot());
+      expect(payload.downsample).toBe(d);
+      const { downsample: _dropped, ...stripped } = payload;
+      expect(() => decodeCanonical(stripped), `d=${d}`).toThrow(/Run lengths sum to/);
+    }
   });
 
   it('refuses a box that is not aligned to its cells', () => {

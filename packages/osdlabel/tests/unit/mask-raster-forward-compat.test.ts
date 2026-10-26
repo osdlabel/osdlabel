@@ -15,7 +15,12 @@ import { deserialize, serialize } from '../../src/serialization-configured.js';
 // allocates the box either.
 const SIDE = 13_000;
 const raster = runRaster(
-  { x: 0, y: 0, width: SIDE, height: SIDE, imageWidth: 20_000, imageHeight: 20_000, downsample: 1 },
+  {
+    cells: { x: 0, y: 0, width: SIDE, height: SIDE },
+    imageWidth: 20_000,
+    imageHeight: 20_000,
+    downsample: 1,
+  },
   [0, 10, SIDE - 10 + SIDE * (SIDE - 2) + SIDE - 10, 10],
 );
 const payload = encodeCanonical(raster);

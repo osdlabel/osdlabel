@@ -485,7 +485,7 @@ export class SegmentationBrushTool extends BaseTool {
       // Safari at about 16 megapixels of area) with a plain `RangeError`.
       // That is a capacity failure in every way that matters to the host:
       // report it as one and abandon the stroke with the mask unchanged.
-      const bounds = this.previewBounds ?? this.buffer.bounds;
+      const bounds = this.previewBounds ?? this.buffer.cellBounds;
       this.config.onCapacityExceeded?.(
         error instanceof MaskCapacityExceededError
           ? error
@@ -501,7 +501,7 @@ export class SegmentationBrushTool extends BaseTool {
   private syncPreview(touched: MaskRegion): void {
     if (!this.overlay || !this.buffer) return;
     if (this.hiddenTargetId !== null) this.hideCommittedTarget(this.hiddenTargetId);
-    const bounds = this.buffer.bounds;
+    const bounds = this.buffer.cellBounds;
     if (bounds.width === 0 || bounds.height === 0) return;
 
     // The preview may be *larger* than the buffer's allocated region — the

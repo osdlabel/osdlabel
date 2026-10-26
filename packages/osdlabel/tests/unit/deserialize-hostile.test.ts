@@ -360,13 +360,11 @@ describe('deserialize: attributing a failure to the right cause', () => {
           throw new RangeError(`custom codec refuses ${px}`);
         }
         return {
-          x: 0,
-          y: 0,
-          width: payload.side,
-          height: payload.side,
+          cells: { x: 0, y: 0, width: payload.side, height: payload.side },
           data: new Uint8Array(px).fill(1),
           imageWidth: 4096,
           imageHeight: 4096,
+          downsample: 1,
         };
       },
     };

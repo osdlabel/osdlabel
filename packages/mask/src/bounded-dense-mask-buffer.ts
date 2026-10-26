@@ -2,6 +2,7 @@ import {
   MaskCapacityExceededError,
   emptySnapshot,
   type MaskBuffer,
+  type MaskCellBox,
   type MaskRegion,
   type MaskSnapshot,
 } from './mask-buffer.js';
@@ -107,7 +108,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
       ...(options?.maxPixels !== undefined ? { maxPixels: options.maxPixels } : {}),
       downsample: raster.downsample,
     });
-    if (raster.width > 0 && raster.height > 0) buffer.blit(raster);
+    if (raster.cells.width > 0 && raster.cells.height > 0) buffer.blit(raster);
     return buffer;
   }
 
@@ -124,25 +125,19 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     // do it once, up front. Skipping it was worse than the per-pixel path it
     // replaced: fractional indices write nowhere while `count` still advances,
     // leaving the buffer permanently claiming pixels it does not have.
-    assertDecodableOrigin(raster.x, raster.y);
+    const box = raster.cells;
+    assertDecodableOrigin(box.x, box.y);
     // The dense cap is this buffer's own policy: it is what this
     // implementation allocates, not a property of the mask.
-    assertDecodableArea(raster.width, raster.height, this.maxPixels);
+    assertDecodableArea(box.width, box.height, this.maxPixels);
     // Every in-tree caller arrives via a decoder, which already checked this.
     // A host handing us a snapshot it built itself — a model's output, say —
     // does not, and `reserve` clips the overhang away: the mask would come
     // back quietly truncated on its first refining stroke, which is the
     // failure this guard exists to prevent everywhere else.
-    assertBoxInsideImage(
-      raster.x,
-      raster.y,
-      raster.width,
-      raster.height,
-      this.gridWidth,
-      this.gridHeight,
-    );
+    assertBoxInsideImage(box.x, box.y, box.width, box.height, this.gridWidth, this.gridHeight);
 
-    this.reserve({ x: raster.x, y: raster.y, width: raster.width, height: raster.height });
+    this.reserve(box);
 
     // Only called on a fresh buffer, so every cell starts at 0 and each span
     // adds exactly its length. reserve() clips to the image, so a span poking
@@ -159,12 +154,12 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     });
   }
 
-  get pixelCount(): number {
+  get cellCount(): number {
     return this.count;
   }
 
-  /** The currently allocated region — a superset of the set pixels. */
-  get bounds(): MaskRegion {
+  /** The currently allocated cells — a superset of the set cells. */
+  get cellBounds(): MaskCellBox {
     return { x: this.ax, y: this.ay, width: this.aw, height: this.ah };
   }
 
@@ -177,7 +172,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
 
   set(x: number, y: number, value: 0 | 1): void {
     // Coordinates index a typed array, so a fractional or NaN value would write
-    // nowhere while still moving pixelCount — leaving the buffer claiming
+    // nowhere while still moving cellCount — leaving the buffer claiming
     // pixels it does not have, and snapshot() reporting negative dimensions.
     if (!Number.isInteger(x) || !Number.isInteger(y)) return;
     if (x < 0 || y < 0 || x >= this.gridWidth || y >= this.gridHeight) return;
@@ -207,7 +202,7 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
   }
 
   /**
-   * Produces a tightly-cropped, copied dense snapshot of the current pixels.
+   * Produces a tightly-cropped, copied dense snapshot of the current cells.
    * Specific to this implementation; the {@link MaskBuffer} contract is
    * {@link BoundedDenseMaskBuffer.raster}.
    */
@@ -250,14 +245,11 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     }
 
     return {
-      x: this.ax + minCol,
-      y: this.ay + minRow,
-      width,
-      height,
+      cells: { x: this.ax + minCol, y: this.ay + minRow, width, height },
       data: cropped,
       imageWidth: this.imageWidth,
       imageHeight: this.imageHeight,
-      ...(this.downsample !== 1 ? { downsample: this.downsample } : {}),
+      downsample: this.downsample,
     };
   }
 

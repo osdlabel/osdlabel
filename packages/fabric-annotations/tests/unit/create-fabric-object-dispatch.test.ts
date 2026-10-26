@@ -46,9 +46,9 @@ function maskAnnotation(): Annotation<FabricFields> {
     toolType: 'segmentationBrush',
     geometry: {
       type: 'mask',
-      origin: { x: snapshot.x, y: snapshot.y },
-      width: snapshot.width,
-      height: snapshot.height,
+      origin: { x: snapshot.cells.x, y: snapshot.cells.y },
+      width: snapshot.cells.width,
+      height: snapshot.cells.height,
       pixelCount: snapshot.data.reduce((a, v) => a + v, 0),
     },
     rawAnnotationData: { format: MASK_RAW_FORMAT, data: { ...encodeCanonical(snapshot) } },

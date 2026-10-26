@@ -129,7 +129,7 @@ describe('buildSegmentationBrushConfig target resolution', () => {
 
     const target = config.getTarget();
     expect(target?.annotationId).toBe('mask-1');
-    expect(target?.snapshot.width).toBe(snapshot().width);
+    expect(target?.snapshot.cells.width).toBe(snapshot().cells.width);
   });
 
   it('starts a new mask when nothing is selected', () => {

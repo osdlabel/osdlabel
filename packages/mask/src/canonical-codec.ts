@@ -48,6 +48,7 @@ export interface CanonicalMaskData {
    * only wants to know where a mask is never needs the factor. At a
    * downsample `d` above 1 the box is cell-aligned: `x` and `y` are multiples
    * of `d`, and so are its right and bottom edges unless they are the image's.
+   * The full grid conventions are on `MaskRaster`.
    */
   readonly x: number;
   readonly y: number;
@@ -133,7 +134,7 @@ export function fromRuns(runs: readonly number[], length: number): Uint8Array {
  * one silently truncated by the next stroke that touches it.
  */
 export function encodeCanonical(input: MaskRasterInput): CanonicalMaskData {
-  const area = input.width * input.height;
+  const area = input.cells.width * input.cells.height;
   if (!isMaskRaster(input) && input.data.length !== area) {
     throw new RangeError(
       `Snapshot data has ${input.data.length} pixels but its box describes ${area}`,
@@ -144,23 +145,23 @@ export function encodeCanonical(input: MaskRasterInput): CanonicalMaskData {
   const snapshot = asMaskRaster(input);
   const downsample = snapshot.downsample;
   assertMaskDownsample(downsample);
+  const cells = snapshot.cells;
   // Not covered by the length check above: a fractional box can still multiply
   // out to a whole number (0.5 x 4), and two negative sides multiply out to a
   // positive area. `assertDecodableArea` refuses both on the way back in.
-  assertPixelDimensions(snapshot.width, snapshot.height);
-  assertDecodableOrigin(snapshot.x, snapshot.y);
+  assertPixelDimensions(cells.width, cells.height);
+  assertDecodableOrigin(cells.x, cells.y);
   assertCountableImage(snapshot.imageWidth, snapshot.imageHeight);
   // A 5x0 box is the empty mask, and decodes as one: write it that way, so the
   // payload does not carry a placement that can fail the box check on the way
   // back in (a zero-width box at `x = imageWidth` is inside the image by the
   // arithmetic and outside it by the check).
   if (area === 0) {
-    const empty = emptySnapshot(snapshot.imageWidth, snapshot.imageHeight);
     return {
-      x: empty.x,
-      y: empty.y,
-      width: empty.width,
-      height: empty.height,
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
       imageWidth: snapshot.imageWidth,
       imageHeight: snapshot.imageHeight,
       counts: '',
@@ -169,14 +170,7 @@ export function encodeCanonical(input: MaskRasterInput): CanonicalMaskData {
   // In cells, against the image's cell grid: that is the space the box and
   // its data are in.
   const grid = maskGridSize(snapshot.imageWidth, snapshot.imageHeight, downsample);
-  assertBoxInsideImage(
-    snapshot.x,
-    snapshot.y,
-    snapshot.width,
-    snapshot.height,
-    grid.width,
-    grid.height,
-  );
+  assertBoxInsideImage(cells.x, cells.y, cells.width, cells.height, grid.width, grid.height);
   const box = snapshotImageBox(snapshot);
   return {
     x: box.x,
@@ -267,17 +261,18 @@ export function decodeCanonicalRaster(
   assertBoxInsideImage(data.x, data.y, data.width, data.height, data.imageWidth, data.imageHeight);
   const area = cellsWide * cellsHigh;
   if (area === 0) {
-    const empty = emptySnapshot(data.imageWidth, data.imageHeight);
-    return runRaster({ ...empty, downsample: 1 }, [0]);
+    return runRaster(emptySnapshot(data.imageWidth, data.imageHeight), [0]);
   }
   if (downsample !== 1) assertCellAligned(data, downsample);
   assertCountsFitBox(data.counts, area);
   return runRaster(
     {
-      x: data.x / downsample,
-      y: data.y / downsample,
-      width: cellsWide,
-      height: cellsHigh,
+      cells: {
+        x: data.x / downsample,
+        y: data.y / downsample,
+        width: cellsWide,
+        height: cellsHigh,
+      },
       imageWidth: data.imageWidth,
       imageHeight: data.imageHeight,
       downsample,

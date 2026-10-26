@@ -22,13 +22,13 @@ describe('stampCircle', () => {
     const b = buffer();
     stampCircle(b, 20.7, 30.2, 0.1, 1);
     expect(b.get(20, 30)).toBe(1);
-    expect(b.pixelCount).toBe(1);
+    expect(b.cellCount).toBe(1);
   });
 
   it('erases exactly the stamped disc, leaving surrounding pixels intact', () => {
     const b = buffer();
     for (let y = 0; y < 30; y++) for (let x = 0; x < 30; x++) b.set(x, y, 1);
-    const filled = b.pixelCount;
+    const filled = b.cellCount;
 
     stampCircle(b, 15.5, 15.5, 3, 0);
 
@@ -36,14 +36,14 @@ describe('stampCircle', () => {
     expect(b.get(13, 15)).toBe(0);
     expect(b.get(11, 15)).toBe(1); // just outside the disc
     expect(b.get(0, 0)).toBe(1);
-    expect(b.pixelCount).toBeLessThan(filled);
+    expect(b.cellCount).toBeLessThan(filled);
   });
 
   it('ignores non-finite input', () => {
     const b = buffer();
     stampCircle(b, Number.NaN, 10, 3, 1);
     stampCircle(b, 10, 10, Number.POSITIVE_INFINITY, 1);
-    expect(b.pixelCount).toBe(0);
+    expect(b.cellCount).toBe(0);
   });
 });
 
@@ -69,7 +69,7 @@ describe('strokeSegment', () => {
   it('stamps once when the segment has zero length', () => {
     const b = buffer();
     strokeSegment(b, 50, 50, 50, 50, 0.1, 1);
-    expect(b.pixelCount).toBe(1);
+    expect(b.cellCount).toBe(1);
   });
 
   it('erases along the swept path', () => {

@@ -66,13 +66,11 @@ function toSnapshot(c: GoldenCase): MaskSnapshot {
     for (let col = 0; col < row.length; col++) if (row[col] === '1') data[r * width + col] = 1;
   });
   return {
-    x: c.x,
-    y: c.y,
-    width,
-    height,
+    cells: { x: c.x, y: c.y, width, height },
     data,
     imageWidth: c.imageWidth,
     imageHeight: c.imageHeight,
+    downsample: 1,
   };
 }
 

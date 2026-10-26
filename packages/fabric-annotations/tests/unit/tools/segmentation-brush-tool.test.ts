@@ -742,8 +742,8 @@ describe('SegmentationBrushTool: a stroke that never got its pointer-up', () => 
 
       // No pointer-up: a new stroke starts on top of the open one.
       down(h.tool, 100, 60);
-      const buffer = (h.tool as unknown as { buffer: { pixelCount: number } }).buffer;
-      expect(capture.opaquePixels()).toBe(buffer.pixelCount);
+      const buffer = (h.tool as unknown as { buffer: { cellCount: number } }).buffer;
+      expect(capture.opaquePixels()).toBe(buffer.cellCount);
       expect(capture.opaquePixels()).toBeLessThan(abandoned);
     } finally {
       capture.restore();
@@ -817,13 +817,14 @@ describe('a stroke whose release never arrives', () => {
     const h = harness();
     h.tool.onPointerDown(pointer(1), { x: 100, y: 100 });
     h.tool.onPointerMove(pointer(1), { x: 120, y: 100 });
-    const buffer = (h.tool as unknown as { buffer: { pixelCount: number } }).buffer;
-    const painted = buffer.pixelCount;
+    const buffer = (h.tool as unknown as { buffer: { cellCount: number } }).buffer;
+    const painted = buffer.cellCount;
+    expect(painted).toBeGreaterThan(0);
 
     // A palm or second finger: neither steers nor ends the stroke.
     h.tool.onPointerMove(pointer(2), { x: 300, y: 250 });
     h.tool.onPointerUp(pointer(2), { x: 300, y: 250 });
-    expect(buffer.pixelCount).toBe(painted);
+    expect(buffer.cellCount).toBe(painted);
     expect(h.commits).toHaveLength(0);
 
     h.tool.onPointerUp(pointer(1), { x: 120, y: 100 });
@@ -1018,7 +1019,7 @@ describe('SegmentationBrushTool: resolution of a new mask', () => {
     const snapshot = h.commits[0]!.snapshot;
     // 64 would need 313^2 = 97969 cells for the view; 128 needs 157^2.
     expect(snapshot.downsample).toBe(128);
-    expect(snapshot.width * snapshot.height).toBeLessThanOrEqual(CAP);
+    expect(snapshot.cells.width * snapshot.cells.height).toBeLessThanOrEqual(CAP);
     const box = snapshotImageBox(snapshot);
     expect(box.x).toBeLessThanOrEqual(1000 - 300);
     expect(box.x + box.width).toBeGreaterThanOrEqual(19_000 + 300 - 128);

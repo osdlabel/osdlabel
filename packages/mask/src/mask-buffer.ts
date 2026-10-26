@@ -6,36 +6,43 @@ import {
 } from './mask-raster.js';
 
 /**
- * An immutable, tightly-cropped view of a mask's pixels, as a dense array —
- * the shape a host that computed pixels itself (a model's output, a decoded
- * file) hands in. Readers take a {@link MaskRaster}; `denseRaster` wraps
- * this as one.
+ * A box on a mask's **cell** grid: `x` / `y` / `width` / `height` count cells
+ * at the mask's downsample, never image pixels.
  *
- * `data` is row-major over the `width x height` bounding box whose top-left
- * corner sits at (`x`, `y`) in **mask cells**; each entry is `0` or `1`.
- * At the default `downsample` of 1 a cell is an image pixel, so these are
- * image-space pixels. At a downsample `d` above 1, cell (`cx`, `cy`) covers
- * image pixels `[cx * d, (cx + 1) * d)` across and the matching span down,
- * clipped by the image edge — see `snapshotImageBox` for the box in image
- * pixels.
+ * It is nested (`snapshot.cells`, `raster.cells`) rather than spread onto the
+ * snapshot so that code reading it has to say which space it means. A
+ * downsampled mask's box in image pixels is `snapshotImageBox(snapshot)`;
+ * reading `cells.width` as image pixels is the mistake this shape makes
+ * visible, and a top-level `snapshot.width` no longer compiles.
  *
- * `imageWidth` / `imageHeight` always describe the full image the mask belongs
- * to in image (level-0) pixels, which formats like COCO RLE need in order to
- * place the crop absolutely. The cell grid of the whole image is
- * `ceil(imageWidth / d) x ceil(imageHeight / d)`.
- *
- * An empty mask is represented by `width === 0 && height === 0`.
+ * An empty mask's box is `width === 0 && height === 0`.
  */
-export interface MaskSnapshot {
+export interface MaskCellBox {
   readonly x: number;
   readonly y: number;
   readonly width: number;
   readonly height: number;
+}
+
+/**
+ * An immutable, tightly-cropped view of a mask's cells, as a dense array —
+ * the shape a host that computed pixels itself (a model's output, a decoded
+ * file) hands in. Readers take a {@link MaskRaster}; `denseRaster` wraps
+ * this as one.
+ *
+ * `data` is row-major over {@link MaskSnapshot.cells}, one entry per cell, each
+ * `0` or `1`. The grid conventions are the same as a raster's; see
+ * {@link MaskRaster}.
+ */
+export interface MaskSnapshot {
+  /** The box, in cells. */
+  readonly cells: MaskCellBox;
   readonly data: Uint8Array;
+  /** The full image the mask belongs to, in image (level-0) pixels. */
   readonly imageWidth: number;
   readonly imageHeight: number;
-  /** Image pixels per cell along each axis; a power of two. Absent means 1. */
-  readonly downsample?: number;
+  /** Image pixels per cell along each axis: a power of two. Required, never implied. */
+  readonly downsample: number;
 }
 
 /** A rectangular region — in image pixels or mask cells, as each use says. */
@@ -54,11 +61,12 @@ export interface MaskRegion {
  * outside the image are ignored; writes outside the currently allocated
  * region grow it (see {@link BoundedDenseMaskBuffer}).
  *
- * This interface is the seam that keeps the storage strategy swappable. Its
- * output is a {@link MaskRaster}, not a dense array: the brush tool, the
- * codecs and the renderer read masks only through that interface, so a tiled
- * sparse buffer can replace the bounded dense one without changing any of
- * their signatures.
+ * Its output is a {@link MaskRaster}, not a dense array, so the readers — the
+ * codecs, the renderer, geometry — keep their signatures if a tiled sparse
+ * buffer replaces the bounded dense one. Not everything does: the brush
+ * densifies the mask it refines into a dense buffer, and paints its live
+ * preview as one canvas over the buffer's box, so a sparse store needs both
+ * of those rewritten too.
  */
 export interface MaskBuffer {
   /** Full image width in image (level-0) pixels. */
@@ -75,16 +83,16 @@ export interface MaskBuffer {
   /** Cells down the whole image: `ceil(imageHeight / downsample)`. */
   readonly gridHeight: number;
   /** Number of set (foreground) cells. Maintained exactly. */
-  readonly pixelCount: number;
+  readonly cellCount: number;
   /**
-   * The region this buffer can currently address without growing. Always a
-   * superset of the set pixels, and typically larger than the tight bounding
-   * box `snapshot()` returns.
+   * The cells this buffer can currently address without growing. Always a
+   * superset of the set cells, and typically larger than the tight box
+   * `raster()` returns.
    *
    * Renderers use this to size an offscreen canvas once and repaint only the
-   * pixels a stroke touched, rather than copying the whole mask each frame.
+   * cells a stroke touched, rather than copying the whole mask each frame.
    */
-  readonly bounds: MaskRegion;
+  readonly cellBounds: MaskCellBox;
   /** Reads a cell. Out-of-range coordinates read as `0`. */
   get(x: number, y: number): 0 | 1;
   /** Writes a cell. Coordinates outside the image's grid are ignored. */
@@ -132,7 +140,7 @@ export class MaskCapacityExceededError extends Error {
   }
 }
 
-/** Counts the foreground cells in a snapshot (image pixels at downsample 1). */
+/** Counts the foreground cells in a mask (image pixels at downsample 1). */
 export function snapshotCellCount(input: MaskRasterInput): number {
   if (isMaskRaster(input)) return input.cellCount;
   const snapshot = input;
@@ -153,9 +161,10 @@ export function snapshotCellCount(input: MaskRasterInput): number {
 export function snapshotPixelCount(input: MaskRasterInput): number {
   if (isMaskRaster(input)) return rasterPixelCount(input);
   const snapshot = input;
-  const d = snapshot.downsample ?? 1;
+  const d = snapshot.downsample;
   if (d === 1) return snapshotCellCount(snapshot);
-  const { x, y, width, height, data, imageWidth, imageHeight } = snapshot;
+  const { data, imageWidth, imageHeight } = snapshot;
+  const { x, y, width, height } = snapshot.cells;
   // Image pixels covered by the last cell of a column / row, which is the only
   // one the image edge can clip.
   const lastCol = Math.ceil(imageWidth / d) - 1;
@@ -178,15 +187,13 @@ export function snapshotPixelCount(input: MaskRasterInput): number {
   return total;
 }
 
-/** An empty snapshot for an image of the given size. */
+/** An empty snapshot for an image of the given size, at downsample 1. */
 export function emptySnapshot(imageWidth: number, imageHeight: number): MaskSnapshot {
   return {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
+    cells: { x: 0, y: 0, width: 0, height: 0 },
     data: new Uint8Array(0),
     imageWidth,
     imageHeight,
+    downsample: 1,
   };
 }

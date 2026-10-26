@@ -55,13 +55,15 @@ export interface CocoRleUncompressedSegmentation {
  * expanded to the image pixels it covers, without materialising level 0.
  */
 export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
-  if (!isMaskRaster(input) && input.data.length !== input.width * input.height) {
+  const cells = input.cells;
+  if (!isMaskRaster(input) && input.data.length !== cells.width * cells.height) {
     throw new RangeError(
-      `Snapshot data has ${input.data.length} pixels but its box describes ${input.width * input.height}`,
+      `Snapshot data has ${input.data.length} pixels but its box describes ${cells.width * cells.height}`,
     );
   }
   const raster = asMaskRaster(input);
-  const { x, y, width, height, imageWidth, imageHeight } = raster;
+  const { imageWidth, imageHeight } = raster;
+  const { x, y, width, height } = cells;
   const total = imageWidth * imageHeight;
   if (width === 0 || height === 0) return total > 0 ? [total] : [];
   const downsample = raster.downsample;
@@ -300,7 +302,13 @@ export function cocoCountsToSnapshot(
     }
   }
 
-  return { x: minCol, y: minRow, width, height, data, imageWidth, imageHeight };
+  return {
+    cells: { x: minCol, y: minRow, width, height },
+    data,
+    imageWidth,
+    imageHeight,
+    downsample: 1,
+  };
 }
 
 /**

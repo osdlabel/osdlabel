@@ -43,7 +43,7 @@ describe('canonical codec', () => {
     const b = new BoundedDenseMaskBuffer({ imageWidth: 40, imageHeight: 30 });
     b.set(7, 9, 1);
     const original = b.snapshot();
-    expect(original).toMatchObject({ x: 7, y: 9, width: 1, height: 1 });
+    expect(original.cells).toEqual({ x: 7, y: 9, width: 1, height: 1 });
     expect(decodeCanonical(encodeCanonical(original))).toEqual(original);
   });
 

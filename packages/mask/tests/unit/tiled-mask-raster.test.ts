@@ -58,13 +58,11 @@ function goldenSnapshot(c: GoldenCase): MaskSnapshot {
     for (let col = 0; col < row.length; col++) if (row[col] === '1') data[r * width + col] = 1;
   });
   return {
-    x: c.x,
-    y: c.y,
-    width,
-    height,
+    cells: { x: c.x, y: c.y, width, height },
     data,
     imageWidth: c.imageWidth,
     imageHeight: c.imageHeight,
+    downsample: 1,
   };
 }
 
@@ -153,7 +151,7 @@ describe('TiledMaskRaster is a MaskRaster like any other', () => {
           // And the buffer refines from a tiled raster as from a dense one.
           const buffer = BoundedDenseMaskBuffer.fromSnapshot(tiled);
           expect(buffer.snapshot()).toEqual(snapshot);
-          expect(buffer.pixelCount).toBe(tiled.cellCount);
+          expect(buffer.cellCount).toBe(tiled.cellCount);
         });
       }
     });
@@ -161,7 +159,12 @@ describe('TiledMaskRaster is a MaskRaster like any other', () => {
 });
 
 describe('a raster that breaks the span contract', () => {
-  const box = { x: 2, y: 3, width: 4, height: 2, imageWidth: 10, imageHeight: 10, downsample: 1 };
+  const box = {
+    cells: { x: 2, y: 3, width: 4, height: 2 },
+    imageWidth: 10,
+    imageHeight: 10,
+    downsample: 1,
+  };
   const withSpans = (spans: readonly (readonly [number, number, number])[]): MaskRaster => ({
     ...box,
     cellCount: 0,
@@ -208,7 +211,7 @@ describe('a mask whose box is past the dense cap', () => {
   // abandons today.
   const box = { x: 0, y: 0, width: 13_000, height: 13_000 } as const;
   const image = { imageWidth: 20_000, imageHeight: 20_000, downsample: 1 } as const;
-  const big = new TiledMaskRaster({ ...box, ...image }, 256);
+  const big = new TiledMaskRaster({ cells: box, ...image }, 256);
   big.fillRect(0, 0, 9000, 9000);
   big.fillRect(12_990, 12_990, 10, 10);
 
