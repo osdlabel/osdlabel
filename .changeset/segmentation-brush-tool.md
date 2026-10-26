@@ -95,11 +95,51 @@ than a `null` or a throw discovered at runtime. A JavaScript caller, who gets no
 compile error, now gets a `TypeError` naming those helpers instead of failing
 several frames later inside Fabric.
 
+## Masks at a downsample, read through `MaskRaster`
+
+A mask may be stored at a power-of-two `downsample` from 1 to 2^16, each cell
+standing for a `d`×`d` block of image pixels, so a coarse mask can cover a
+whole-slide region within the cap. The payload's box and the annotation's
+geometry (which gains an optional `downsample`) stay in image pixels at every
+downsample; the runs cover the box's cells. The box is cell-aligned, cells
+along an image edge that is not a multiple of `d` are clipped by it, and
+`pixelCount` counts image pixels exactly. A missing `downsample` means 1 and 1
+is never written, so full-resolution payloads are unchanged, and the format
+string stays `osdlabel-mask`. The brush starts every new mask at full
+resolution, whatever the zoom; a stroke on an existing mask paints at that
+mask's own downsample. The grid conventions are in the Serialization guide.
+
+Every reader goes through `MaskRaster`, a read-only view that makes no promise
+about storage: `cells` (the box, in cells), the image size, `downsample`,
+`cellCount`, `get`, and `forEachSpan(visit, within?)`. `MaskCodec.encode` takes
+one and `decode` returns one, and a decoded canonical payload keeps its runs as
+runs without allocating its box. `MaskSnapshot` and `MaskRaster` nest their box
+as `cells`, so reading cells as image pixels is a compile error;
+`MaskBuffer.cellCount` and `MaskBuffer.cellBounds` are in cells too. A codec
+receives a downsampled mask only if it sets `encodesDownsampled: true`;
+`serialize` refuses to hand one to a codec that has not, rather than let it
+misplace the mask. The COCO codecs opt in and export the level-0 mask.
+
+The mask cap is counted in cells: 64 Mi cells (`DEFAULT_MAX_MASK_PIXELS`,
+`MAX_MASK_PIXELS`), enforced by the validation schema and the decoders, and on
+write — `encodeCanonical`, `createMaskAnnotation` and `maskAnnotationFields`
+throw `MaskCapacityExceededError` past it, so the library never writes a
+payload a reader would refuse. `deserialize` clamps `maxMaskPixels` to it, and
+the brush tool clamps its own `maxPixels`.
+
 ## New API
 
 - **`@osdlabel/mask`** (new package): `MaskBuffer` (with the optional
   `reserve`), `BoundedDenseMaskBuffer` + `BoundedDenseMaskBufferOptions`,
-  `MaskSnapshot`, `MaskRegion`, `emptySnapshot`, `snapshotPixelCount`,
+  `MaskSnapshot`, `MaskRegion`, `MaskCellBox`, `emptySnapshot`,
+  `snapshotPixelCount`, `snapshotCellCount`; the raster view (`MaskRaster`,
+  `MaskRasterInput`, `MaskSpanVisitor`, `MaskLevel0SpanVisitor`,
+  `denseRaster`, `runRaster`, `asMaskRaster`, `isMaskRaster`,
+  `toDenseSnapshot`, `rasterToRuns`, `rasterPixelCount`,
+  `forEachCheckedSpan`, `forEachLevel0Span`, `decodeCanonicalRaster`);
+  downsampling (`MAX_MASK_DOWNSAMPLE`, `assertMaskDownsample`,
+  `isMaskDownsample`, `maskDownsampleOf`, `maskGridSize`, `snapshotImageBox`,
+  `upsampleSnapshot`, `MaskBoxFields`);
   `stampCircle`, `strokeSegment`, `MaskCapacityExceededError`,
   `DEFAULT_MAX_MASK_PIXELS`, `assertDecodableArea`, `assertDecodableCount`,
   `assertDecodableOrigin`; the canonical codec

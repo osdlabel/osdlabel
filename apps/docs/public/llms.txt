@@ -292,7 +292,8 @@ Raster mask storage and codecs, with **zero dependencies** — including on `@os
 
 - The `MaskBuffer` interface and its `BoundedDenseMaskBuffer` implementation: a dense buffer over the painted bounding box, grown on demand and capped by `maxPixels`.
 - Stroke rasterization (`stampCircle`, `strokeSegment`) and the `MaskSnapshot` / `MaskRegion` value types.
-- The canonical encoding (`encodeCanonical`, `decodeCanonical`) that annotator state always holds.
+- `MaskRaster`, the read-only, storage-agnostic view every reader and codec goes through (`forEachSpan` with an optional window, `forEachCheckedSpan`, `forEachLevel0Span`), with dense and run-length implementations. A mask may be stored at a power-of-two downsample, its box and geometry still in image pixels; the [grid conventions](/osdlabel/guides/serialization/#masks-at-a-downsample) are shared by every reader and writer.
+- The canonical encoding (`encodeCanonical`, `decodeCanonical`) that annotator state always holds. A mask's box is capped at 64 Mi cells, by the schema, on decode and on write.
 - The `MaskCodec` extension point and the built-in COCO codecs (`cocoRleCodec`, `cocoRleUncompressedCodec`, `cocoBbox`, `cocoArea`), verified byte-for-byte against `pycocotools`.
 - The types and functions you need for painting, exporting, and writing a codec are re-exported by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`; the lower-level run-length helpers (`toRuns`, `snapshotToCocoCounts`, `encodeCocoCountsString`, …) are available from `@osdlabel/mask` directly. See the [Segmentation Brush guide](/osdlabel/guides/segmentation-brush/).
 
@@ -1252,6 +1253,69 @@ see [Exporting masks in another format](#exporting-masks-in-another-format).
 an optional `fill` recording the mask's tint; the built-in `Annotator` does not
 write one, leaving the colour to the renderer.
 
+### Masks at a downsample
+
+A mask may be stored coarser than the image: with `downsample: d`, each stored
+**cell** stands for a `d`×`d` block of image pixels. The brush paints new masks
+at full resolution and refines an existing mask at its own `d`, so a coarse
+mask comes from an import or from code, not from a stroke. Only the run grid
+changes; everything a reader uses to place the mask stays in image pixels:
+
+```json
+"geometry": {
+  "type": "mask",
+  "origin": { "x": 240, "y": 160 },
+  "width": 120,
+  "height": 80,
+  "pixelCount": 9600,
+  "downsample": 4
+},
+"rawAnnotationData": {
+  "format": "osdlabel-mask",
+  "data": {
+    "x": 240, "y": 160, "width": 120, "height": 80,
+    "imageWidth": 1280, "imageHeight": 800,
+    "counts": "ANgE",
+    "downsample": 4
+  }
+}
+```
+
+The grid conventions, which every reader and writer shares:
+
+- **`downsample`** is a power of two from 1 to 2¹⁶. A missing field means 1,
+  and 1 is never written, so a full-resolution payload is byte for byte what it
+  was before the field existed. The `format` string stays `osdlabel-mask`.
+- **The box and the geometry are in image (level-0) pixels** at every
+  downsample. `counts` runs row-major over the box's `ceil(width / d)` ×
+  `ceil(height / d)` cells.
+- **The box is cell-aligned.** `x` and `y` are multiples of `d`, and so are its
+  right and bottom edges (`x + width`, `y + height`), except where those are
+  the image's own edges. A payload that breaks this is skipped on import.
+- **Cell `(cx, cy)` covers** image pixels `[cx·d, min((cx+1)·d, W))` ×
+  `[cy·d, min((cy+1)·d, H))`, where `W`×`H` is the image: cells are counted
+  from the image origin, so the box's first cell is `(x / d, y / d)`. Cells in
+  the last column or row of an image whose side is not a multiple of `d` are
+  clipped by the image edge.
+- **`pixelCount`** is the exact number of image pixels the mask covers, with
+  clipped edge cells counted at their clipped size, so `area()` needs no
+  knowledge of `d`.
+- **Pixel-centred formats need a shift.** A cell's centre is at
+  `cx·d + (d − 1) / 2` in coordinates where image pixel `i` is centred on `i`,
+  so an export to OME-Zarr 0.6 (which centres pixels) carries a scale of `d`
+  and a translation of `(d − 1) / 2`.
+
+### How large a mask may be
+
+A mask's box may hold at most 64 Mi **cells** (`MAX_MASK_PIXELS`,
+`ceil(width / d) · ceil(height / d)`), so a coarser mask can cover a larger
+region. The bound is the format's, not one reader's: the validation schema
+enforces it, `deserialize` skips a mask past it (whatever `maxMaskPixels`
+says — larger values are clamped), and it is checked on write too —
+`encodeCanonical`, `createMaskAnnotation` and `maskAnnotationFields` throw
+`MaskCapacityExceededError` rather than produce a payload every reader would
+refuse.
+
 ## Exporting annotations
 
 Use `serialize()` to create a flat array of annotations from the current state:
@@ -1613,7 +1677,8 @@ interface MaskGeometry {
   readonly origin: Point; // bbox top-left, image-space px
   readonly width: number; // bbox size, image px
   readonly height: number;
-  readonly pixelCount: number; // set pixels — exact area, O(1)
+  readonly pixelCount: number; // image pixels covered — exact area, O(1)
+  readonly downsample?: number; // image px per stored cell; absent means 1
 }
 ```
 
@@ -1653,11 +1718,19 @@ State always holds osdlabel's own encoding, never a downstream one:
   data: {
     x, y, width, height,        // bounding box placement, image-space px
     imageWidth, imageHeight,    // full image size, which COCO RLE needs
-    counts: '...',              // base64 LEB128 run lengths, row-major
+    counts: '...',              // base64 LEB128 run lengths, row-major, over cells
     fill: 'rgba(...)',          // optional tint; the Annotator does not write one
+    downsample: 4,              // optional; image px per cell, absent means 1
   }
 }
 ```
+
+A mask may be stored at a power-of-two **downsample**, each cell standing for a
+`d`×`d` block of image pixels. The brush starts every new mask at full
+resolution, whatever the zoom, and a stroke on an existing mask paints at that
+mask's own downsample, so a coarse mask stays coarse and a fine one stays fine.
+The box stays in image pixels at every downsample; the grid conventions are in
+the [Serialization guide](/osdlabel/guides/serialization/#masks-at-a-downsample).
 
 Deliberately not COCO. Baking a downstream format into annotator state would
 contradict "open for extension", and COCO's column-major ordering and
@@ -1691,7 +1764,7 @@ Assembling a real COCO document from these segmentations is your job;
 fields to go with each one.
 :::
 
-Re-encoding decodes each mask first, under the default 64-megapixel cap. A
+Re-encoding decodes each mask first, under the default 64 Mi-cell cap. A
 host that lowered the brush's `maxPixels` needs nothing more; one that holds
 masks painted under a different cap passes the same value as `maxMaskPixels`,
 or export throws on the first mask above the default.
@@ -1751,7 +1824,7 @@ deferring the failure to render time, and it lets geometry be **recomputed from
 the pixels** instead of trusted from the document, so a stale or hand-written
 bounding box cannot surface as a wrong area or a misplaced selection box.
 
-Decoding is bounded. `maxMaskPixels` caps any single mask (64 megapixels, which
+Decoding is bounded. `maxMaskPixels` caps any single mask (64 Mi cells, which
 is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
 document as a whole.
 
@@ -1797,32 +1870,69 @@ masks fall back to the default fill.
 ```ts
 interface MaskCodec<T = unknown> {
   readonly format: string;
-  encode(mask: MaskSnapshot): T;
-  decode?(payload: T, options?: MaskDecodeOptions): MaskSnapshot;
+  /** Opt in to downsampled masks; see below. */
+  readonly encodesDownsampled?: boolean | undefined;
+  encode(mask: MaskRaster): T;
+  decode?(payload: T, options?: MaskDecodeOptions): MaskRaster;
 }
 
 interface MaskDecodeOptions {
-  /** Refuse to decode a mask larger than this, in pixels. */
+  /** Refuse to decode a mask whose box is larger than this, in cells. */
   readonly maxPixels?: number | undefined;
 }
 ```
 
-A `MaskSnapshot` is a tightly-cropped, row-major `Uint8Array` over the mask's
-bounding box, plus the full image dimensions:
+A codec sees a mask only through `MaskRaster`, a read-only view that makes no
+promise about how the cells are stored — a dense buffer, the run lengths of a
+decoded payload, or a tiled store:
 
 ```ts
+interface MaskRaster {
+  readonly cells: MaskCellBox; // the box, in cells: { x, y, width, height }
+  readonly imageWidth: number; // the full image, in image pixels
+  readonly imageHeight: number;
+  readonly downsample: number; // image px per cell, a power of two
+  readonly cellCount: number; // set cells
+  get(cx: number, cy: number): 0 | 1;
+  /** Each maximal run of set cells, row by row; `within` limits the walk. */
+  forEachSpan(visit: (cy: number, x0: number, x1: number) => void, within?: MaskCellBox): void;
+}
+```
+
+`forEachSpan` visits spans in row order, left to right, in absolute cell
+coordinates (`x1` exclusive). Pass a `within` window to visit only the spans
+that intersect it, clipped to it; a raster may ignore the hint, so read through
+`forEachCheckedSpan(raster, visit, within)` from `@osdlabel/mask` when you need
+the clipping guaranteed — it also rejects spans that are empty, overlapping,
+out of order or outside the box, rather than encode a wrong mask.
+
+The box is in **cells**, which are image pixels only at downsample 1. That is
+why a codec must opt in with `encodesDownsampled: true`: one written for
+full-resolution masks would read a coarse mask's box as image pixels and place
+it at a fraction of its true position, so `serialize` refuses to hand it one.
+A format with no notion of a downsample can still take every mask by walking
+image pixels instead — `forEachLevel0Span(raster, visit)` from `@osdlabel/mask`
+visits the level-0 spans a raster covers, clipped edge cells included, without
+expanding the box.
+
+A codec that wants a plain array uses `toDenseSnapshot(raster, maxCells)`,
+which gives the familiar row-major `Uint8Array` over the box, and returns one
+through `denseRaster(snapshot)`:
+
+```ts
+
 const pngCodec: MaskCodec<{ readonly png: string }> = {
   format: 'png-base64',
-  encode: (snapshot) => ({ png: encodePng(snapshot) }),
+  encode: (raster) => ({ png: encodePng(toDenseSnapshot(raster)) }),
   decode: (payload, options) => {
     const { width, height } = readPngHeader(payload.png);
     // Check the ceiling BEFORE allocating or scanning — a payload names its own
     // dimensions, so this is the only thing standing between an importer and a
     // document that decides for itself how much work it is worth.
     if (options?.maxPixels !== undefined && width * height > options.maxPixels) {
-      throw new RangeError(`mask of ${width}x${height} exceeds ${options.maxPixels} pixels`);
+      throw new RangeError(`mask of ${width}x${height} exceeds ${options.maxPixels} cells`);
     }
-    return decodePng(payload.png);
+    return denseRaster(decodePng(payload.png));
   },
 };
 ```
@@ -1846,8 +1956,8 @@ the same model CVAT (bbox-cropped masks) and 3D Slicer (per-segment extent plus
 offset) settled on. Cost scales with what you paint, not with the size of the
 image, which is what makes painting on a deep-zoom slide affordable.
 
-There is a cap. `maxPixels` defaults to 64 megapixels (≈64 MB at one byte per
-pixel) and bounds the pathological case: strokes scattered across opposite
+There is a cap. `maxPixels` defaults to 64 Mi cells (≈64 MB at one byte per
+cell — at full resolution a cell is a pixel) and bounds the pathological case: strokes scattered across opposite
 corners of a huge image, whose bounding box is the whole image even though
 almost nothing is painted.
 
@@ -1860,11 +1970,14 @@ almost nothing is painted.
 />
 ```
 
-`maxPixels` **lowers** the cap; it cannot raise it. 64 megapixels is a ceiling
+`maxPixels` **lowers** the cap; it cannot raise it. 64 Mi cells is a ceiling
 the whole library shares — rendering, export, and the validation schema all
 enforce it, and the schema's copy is a module constant rather than a per-call
 option. A larger value is clamped, because honouring it would let you paint a
-mask that could not then be rendered, exported, or loaded back.
+mask that could not then be rendered, exported, or loaded back. The same bound
+is checked on write: `encodeCanonical`, `createMaskAnnotation` and
+`maskAnnotationFields` throw `MaskCapacityExceededError` for a box past it, so
+no path through the library produces a payload a reader would refuse.
 
 The cap is on the one-byte pixel buffer. Rendering a mask, and the live preview
 while painting, use a four-byte RGBA raster over the mask's box (the preview
@@ -1889,7 +2002,7 @@ nothing happened.
 - **Cross-annotation exclusivity.** Masks may overlap. Each annotation owns its
   own pixels, which maps directly onto COCO instance segmentation; painting into
   one never erases from another.
-- **Raising the 64-megapixel ceiling.** It is fixed for now, because the
+- **Raising the 64 Mi-cell ceiling.** It is fixed for now (#155), because the
   validation schema enforces it as a module constant. Making it configurable
   means threading a bound through validation, rendering, and export together.
 - **Sub-pixel or feathered edges.** Pixels are binary. The mask is rendered with

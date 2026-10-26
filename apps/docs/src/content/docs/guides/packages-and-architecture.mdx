@@ -43,7 +43,8 @@ Raster mask storage and codecs, with **zero dependencies** — including on `@os
 
 - The `MaskBuffer` interface and its `BoundedDenseMaskBuffer` implementation: a dense buffer over the painted bounding box, grown on demand and capped by `maxPixels`.
 - Stroke rasterization (`stampCircle`, `strokeSegment`) and the `MaskSnapshot` / `MaskRegion` value types.
-- The canonical encoding (`encodeCanonical`, `decodeCanonical`) that annotator state always holds.
+- `MaskRaster`, the read-only, storage-agnostic view every reader and codec goes through (`forEachSpan` with an optional window, `forEachCheckedSpan`, `forEachLevel0Span`), with dense and run-length implementations. A mask may be stored at a power-of-two downsample, its box and geometry still in image pixels; the [grid conventions](/osdlabel/guides/serialization/#masks-at-a-downsample) are shared by every reader and writer.
+- The canonical encoding (`encodeCanonical`, `decodeCanonical`) that annotator state always holds. A mask's box is capped at 64 Mi cells, by the schema, on decode and on write.
 - The `MaskCodec` extension point and the built-in COCO codecs (`cocoRleCodec`, `cocoRleUncompressedCodec`, `cocoBbox`, `cocoArea`), verified byte-for-byte against `pycocotools`.
 - The types and functions you need for painting, exporting, and writing a codec are re-exported by `osdlabel`, `@osdlabel/solid`, and `@osdlabel/react`; the lower-level run-length helpers (`toRuns`, `snapshotToCocoCounts`, `encodeCocoCountsString`, …) are available from `@osdlabel/mask` directly. See the [Segmentation Brush guide](/osdlabel/guides/segmentation-brush/).
 

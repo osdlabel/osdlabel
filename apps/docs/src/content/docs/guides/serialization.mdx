@@ -84,6 +84,69 @@ see [Exporting masks in another format](#exporting-masks-in-another-format).
 an optional `fill` recording the mask's tint; the built-in `Annotator` does not
 write one, leaving the colour to the renderer.
 
+### Masks at a downsample
+
+A mask may be stored coarser than the image: with `downsample: d`, each stored
+**cell** stands for a `d`×`d` block of image pixels. The brush paints new masks
+at full resolution and refines an existing mask at its own `d`, so a coarse
+mask comes from an import or from code, not from a stroke. Only the run grid
+changes; everything a reader uses to place the mask stays in image pixels:
+
+```json
+"geometry": {
+  "type": "mask",
+  "origin": { "x": 240, "y": 160 },
+  "width": 120,
+  "height": 80,
+  "pixelCount": 9600,
+  "downsample": 4
+},
+"rawAnnotationData": {
+  "format": "osdlabel-mask",
+  "data": {
+    "x": 240, "y": 160, "width": 120, "height": 80,
+    "imageWidth": 1280, "imageHeight": 800,
+    "counts": "ANgE",
+    "downsample": 4
+  }
+}
+```
+
+The grid conventions, which every reader and writer shares:
+
+- **`downsample`** is a power of two from 1 to 2¹⁶. A missing field means 1,
+  and 1 is never written, so a full-resolution payload is byte for byte what it
+  was before the field existed. The `format` string stays `osdlabel-mask`.
+- **The box and the geometry are in image (level-0) pixels** at every
+  downsample. `counts` runs row-major over the box's `ceil(width / d)` ×
+  `ceil(height / d)` cells.
+- **The box is cell-aligned.** `x` and `y` are multiples of `d`, and so are its
+  right and bottom edges (`x + width`, `y + height`), except where those are
+  the image's own edges. A payload that breaks this is skipped on import.
+- **Cell `(cx, cy)` covers** image pixels `[cx·d, min((cx+1)·d, W))` ×
+  `[cy·d, min((cy+1)·d, H))`, where `W`×`H` is the image: cells are counted
+  from the image origin, so the box's first cell is `(x / d, y / d)`. Cells in
+  the last column or row of an image whose side is not a multiple of `d` are
+  clipped by the image edge.
+- **`pixelCount`** is the exact number of image pixels the mask covers, with
+  clipped edge cells counted at their clipped size, so `area()` needs no
+  knowledge of `d`.
+- **Pixel-centred formats need a shift.** A cell's centre is at
+  `cx·d + (d − 1) / 2` in coordinates where image pixel `i` is centred on `i`,
+  so an export to OME-Zarr 0.6 (which centres pixels) carries a scale of `d`
+  and a translation of `(d − 1) / 2`.
+
+### How large a mask may be
+
+A mask's box may hold at most 64 Mi **cells** (`MAX_MASK_PIXELS`,
+`ceil(width / d) · ceil(height / d)`), so a coarser mask can cover a larger
+region. The bound is the format's, not one reader's: the validation schema
+enforces it, `deserialize` skips a mask past it (whatever `maxMaskPixels`
+says — larger values are clamped), and it is checked on write too —
+`encodeCanonical`, `createMaskAnnotation` and `maskAnnotationFields` throw
+`MaskCapacityExceededError` rather than produce a payload every reader would
+refuse.
+
 ## Exporting annotations
 
 Use `serialize()` to create a flat array of annotations from the current state:
