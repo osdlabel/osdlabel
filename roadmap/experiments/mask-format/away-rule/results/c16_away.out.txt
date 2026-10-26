@@ -1,0 +1,31 @@
+slides 110, polygons 2163 (1 with fewer than 3 distinct vertices)
+nearest-neighbour gap between separate tumour polygons (um), 2163 polygons, 92 with none within 1000 um:
+  p5: 4.2
+  p10: 7.6
+  p25: 16.1
+  p50: 33.0
+  p75: 75.7
+  p90: 232.0
+  share with a neighbour within 0 um: 1.7%
+  share with a neighbour within 2.9 um: 3.6%
+  share with a neighbour within 10 um: 13.7%
+  share with a neighbour within 25 um: 39.9%
+  share with a neighbour within 50 um: 62.9%
+  share with a neighbour within 75 um: 74.8%
+  share with a neighbour within 100 um: 80.8%
+  share with a neighbour within 250 um: 90.7%
+
+| rule | masks | slides with a mask past the cap (d>1) | slides with a mask at d>=8 | masks by d |
+|---|---|---|---|---|
+| one mask per slide (#149 today, 'selected') | 110 | 73 | 46 | {1: 37, 2: 8, 4: 19, 8: 34, 16: 12} |
+| 'touching', R = 0 um (0 px) | 2144 | 39 | 5 | {1: 2061, 2: 52, 4: 25, 8: 6} |
+| 'touching', R = 2.9 um (12 px) | 2121 | 39 | 5 | {1: 2037, 2: 53, 4: 25, 8: 6} |
+| 'touching', R = 10 um (41 px) | 1993 | 39 | 6 | {1: 1911, 2: 53, 4: 22, 8: 7} |
+| 'touching', R = 25 um (103 px) | 1589 | 39 | 6 | {1: 1507, 2: 53, 4: 22, 8: 7} |
+| 'touching', R = 50 um (206 px) | 1133 | 40 | 7 | {1: 1051, 2: 53, 4: 21, 8: 8} |
+| 'touching', R = 75 um (309 px) | 865 | 40 | 7 | {1: 783, 2: 53, 4: 21, 8: 8} |
+| 'touching', R = 100 um (412 px) | 704 | 40 | 7 | {1: 622, 2: 52, 4: 22, 8: 8} |
+| 'touching', R = 250 um (1029 px) | 438 | 47 | 7 | {1: 349, 2: 59, 4: 21, 8: 9} |
+| 'touching', R = 500 um (2058 px) | 338 | 49 | 8 | {1: 249, 2: 55, 4: 24, 8: 10} |
+| 'touching', R = 1000 um (4115 px) | 271 | 52 | 8 | {1: 181, 2: 55, 4: 25, 8: 10} |
+| one mask per polygon (ideal 'explicit') | 2163 | 39 | 5 | {1: 2080, 2: 52, 4: 25, 8: 6} |

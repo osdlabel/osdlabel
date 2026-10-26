@@ -1,0 +1,10 @@
+4360 lesions with a neighbour; interior gap < edge gap: 0
+nn_gap_px p1=1.1 p5=4.2 p10=7.2 p25=15.0 p50=30.6 p75=67.7 p90=177.8 um
+rep_gap_px p1=14.2 p5=24.2 p10=30.5 p25=46.3 p50=77.2 p75=155.2 p90=485.5 um
+share of lesions whose first dab, centred at an interior point, already reaches the nearest other lesion (rep gap < r):
+  r=12 img px (2.9 um): 0.2%
+  r=24 img px (5.8 um): 0.3%
+  r=48 img px (11.7 um): 0.7%
+  r=96 img px (23.3 um): 4.5%
+  r=192 img px (46.7 um): 25.5%
+  r=512 img px (124.4 um): 68.9%
