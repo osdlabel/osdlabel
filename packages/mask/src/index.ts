@@ -75,6 +75,7 @@ export {
   cocoRleUncompressedCodec,
   CocoRunLimitExceededError,
   MAX_COCO_RUNS,
+  MAX_COCO_ARRAY_RUNS,
   countCocoRuns,
   snapshotToCocoCounts,
   cocoCountsToSnapshot,

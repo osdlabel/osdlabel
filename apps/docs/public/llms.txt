@@ -1809,14 +1809,22 @@ back coarse on import. If you assemble a COCO dataset from these
 segmentations, keep that attribute alongside each one.
 
 Expanding cells multiplies their runs by the downsample, so a small payload
-with fine structure can ask for an enormous export — 6.7 kB of d=16
-alternating rows needs 125 million runs. Export is therefore bounded: a mask
-whose COCO runs would exceed `MAX_COCO_RUNS / downsample` throws
-`CocoRunLimitExceededError` from a counting pass, before anything is
-allocated. `MAX_COCO_RUNS` (2²⁷ + 1) is the true worst case at full
-resolution, so no full-resolution mask is ever refused. `countCocoRuns(raster)`
-tells you the cost in advance; a refused mask stays exportable in the
-canonical format, which stores its cells.
+with fine structure can ask for an enormous export. Export is therefore
+bounded at `MAX_COCO_RUNS` (2²⁷ + 1) runs at every downsample: the worst case
+of a full-resolution mask within the cell cap, so no full-resolution mask is
+ever refused. A counting pass stops as soon as an export passes the bound, so
+a refusal allocates nothing. Within the bound a coarse mask exports, even a
+slow one: 6.7 kB of d=16 alternating cell rows needs 125 million runs, about
+13 seconds and a 125 MB counts string. `countCocoRuns(raster)` tells you the
+cost in advance, and a refused mask stays exportable in the canonical format,
+which stores its cells.
+
+`serialize` reports a refusal as a `SerializationError` whose `cause` is the
+`CocoRunLimitExceededError` (with `runs`, `maxRuns` and `downsample`), so a
+host can tell it apart by type. Where the runs come back as an array —
+`snapshotToCocoCounts` and the uncompressed codec — the bound is
+`MAX_COCO_ARRAY_RUNS` (2²⁷, an engine's array limit), so the one most extreme
+legal mask is refused there by name and exports through `cocoRleCodec`.
 
 ### Verified against pycocotools
 
@@ -1824,26 +1832,30 @@ The compressed codec is checked against the reference implementation:
 `packages/mask/tests/fixtures/pycocotools-golden.json` holds counts produced by
 `pycocotools.mask.encode`, and the codec reproduces them byte for byte.
 
-:::note[A `pycocotools` limitation, if your images are very large]
-`pycocotools` stores run lengths in a 32-bit unsigned array. A run longer than
-2³²−1 is silently truncated when it reads a mask back — the area survives, but
-the mask _moves_. A small mask at the centre of a 100000×100000 image comes
-back near the top-left corner.
+:::note[`pycocotools` limitations, if your images are very large]
+`pycocotools`' C decoder misreads two kinds of count when it reads a mask back.
+The area survives, but the mask _moves_:
 
-osdlabel encodes and decodes such runs correctly, and **does not refuse, clamp,
-or warn** about them: the output is valid COCO, and imposing a limit here would
-be wrong for consumers whose tooling reads wide counts. If you care, check it
-yourself before exporting:
+- a run longer than 2³²−1, which it truncates to 32 bits — a small mask at the
+  centre of a 100000×100000 image comes back near the top-left corner;
+- a delta (`counts[i] − counts[i−2]`) below −2²⁹, which overflows its
+  sign extension — three pixels on a 24,000×24,000 image, a huge gap then a
+  short one, come back with the right area and the wrong box.
+
+On an image of 2²⁹ pixels or fewer (`COCO_MAX_INTEROP_IMAGE_PIXELS`, about 0.54
+gigapixels) neither can happen. Past that it depends on the mask's runs, so
+check them before exporting:
 
 ```ts
 
 if (!isCocoInteropSafe(snapshot)) {
-  // This image is large enough that pycocotools may misplace the mask.
+  // pycocotools would misplace this mask.
 }
 ```
 
-Since no run can exceed the image's total pixel count, any image of 2³²−1 pixels
-or fewer is always safe.
+osdlabel itself encodes and decodes every case correctly, and **does not
+refuse, clamp, or warn**: the output is valid COCO, and imposing a limit here
+would be wrong for consumers whose tooling reads it correctly.
 :::
 
 ## Importing

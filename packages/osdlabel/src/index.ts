@@ -50,6 +50,7 @@ export {
   cocoRleUncompressedCodec,
   CocoRunLimitExceededError,
   MAX_COCO_RUNS,
+  MAX_COCO_ARRAY_RUNS,
   cocoBbox,
   cocoArea,
   isCocoInteropSafe,

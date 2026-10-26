@@ -87,10 +87,17 @@ can hold). Only the mask's bounding box is walked during encoding; the
 surrounding background is accounted for arithmetically.
 
 COCO has no downsample, so a downsampled mask is exported as the level-0
-mask it stands for, refused with `CocoRunLimitExceededError` (from a counting
-pass, `countCocoRuns`) when that would take more than `MAX_COCO_RUNS /
-downsample` runs; `MAX_COCO_RUNS` is the worst case at full resolution, so no
-full-resolution mask is refused. Decoding takes `{ downsample }` in its
+mask it stands for. Export is bounded at `MAX_COCO_RUNS` runs, the worst case
+of a full-resolution mask within the cell cap, at every downsample: a counting
+pass (`countCocoRuns` gives the exact figure) stops as soon as it passes the
+bound and throws `CocoRunLimitExceededError`, so no full-resolution mask is
+refused and a refusal allocates nothing. Below the bound a coarse mask with
+fine structure still exports, slowly: 6.7 kB of d=16 alternating cell rows
+needs 125 million runs, about 13 s and a 125 MB counts string. Where the runs
+come back as an array (`snapshotToCocoCounts`, the uncompressed codec) the
+bound is `MAX_COCO_ARRAY_RUNS` (2^27, an engine's array limit), so the single
+most extreme mask is refused by name there and exports through the compressed
+codec. Decoding takes `{ downsample }` in its
 options and writes the runs straight into cells at it, refusing a payload that
 is not constant within each cell; osdlabel's `deserialize` passes the
 annotation's `geometry.downsample`.
@@ -110,21 +117,30 @@ erased hole, an edge-touching stroke, and a single pixel at the origin,
 `pycocotools.mask.encode` produces **byte-identical** counts to ours, and its
 `decode` returns pixel-identical masks.
 
-### A pycocotools limitation worth knowing (not enforced here)
+### pycocotools limitations worth knowing (not enforced here)
 
-`pycocotools` stores run lengths in a **32-bit** array. A run longer than
-`COCO_MAX_INTEROP_IMAGE_PIXELS` (4,294,967,295) is silently truncated when it
-reads the mask back — the area stays correct while the mask _moves_. A mask at
-the centre of a 100000x100000 image comes back near the top-left corner.
+`pycocotools`' C decoder misreads two kinds of count when it reads a mask
+back, and the area stays correct while the mask _moves_:
 
-Our encoder and decoder handle those runs correctly, and this package does
-not refuse, clamp, or warn about them — the output is valid COCO, and the
-constraint belongs to one downstream reader. Since deep-zoom images routinely
-exceed 4.29 gigapixels, an opt-in check is provided for callers who want it:
+- it stores run lengths in **32 bits**, so a run past `0xffffffff` is
+  truncated — a mask at the centre of a 100000x100000 image comes back near
+  the top-left corner;
+- it reads each delta (`counts[i] - counts[i - 2]`) into an `int` and
+  sign-extends the last chunk with a shift too wide for it, so a delta below
+  **-2^29** is misread, and every count after it. A huge background gap
+  followed two runs later by a short one is enough: three pixels on a 24,000 x
+  24,000 image come back with the right area and the wrong box.
+
+Within `COCO_MAX_INTEROP_IMAGE_PIXELS` (2^29, about 0.54 gigapixels) neither
+can happen. Beyond it, whether a mask is safe depends on its runs, and
+`isCocoInteropSafe` decides from them, stopping at the first one out of
+range. Our encoder and decoder handle every case correctly, and this package
+does not refuse, clamp, or warn — the output is valid COCO, and the
+constraint belongs to one downstream reader:
 
 ```ts
 if (!isCocoInteropSafe(snapshot)) {
-  // Masks from this image will not survive a pycocotools round-trip.
-  // Use the canonical codec, or export a cropped region.
+  // pycocotools would misplace this mask. Use the canonical codec,
+  // or export a cropped region.
 }
 ```

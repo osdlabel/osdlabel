@@ -11,9 +11,14 @@ import type { OsdFields } from './types.js';
 import * as v from 'valibot';
 
 /** Error type for serialization/deserialization failures */
+/**
+ * What `serialize` and `deserialize` throw. When another error caused it — a
+ * codec refusing a mask, say `CocoRunLimitExceededError` — that error is its
+ * `cause`, so a host can tell the reasons apart by type.
+ */
 export class SerializationError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: { readonly cause?: unknown }) {
+    super(message, options);
     this.name = 'SerializationError';
   }
 }
@@ -170,6 +175,7 @@ export function serialize(
       throw new SerializationError(
         `Could not re-encode mask ${annotation.id}: ` +
           `${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
       );
     }
     return {
@@ -199,6 +205,8 @@ export function deserialize(
   } catch (err) {
     throw new SerializationError(
       `Failed to decode mask payload: ${err instanceof Error ? err.message : String(err)}`,
+
+      { cause: err },
     );
   }
 
@@ -211,6 +219,8 @@ export function deserialize(
   } catch (err) {
     throw new SerializationError(
       `Validation failed: ${err instanceof Error ? err.message : String(err)}`,
+
+      { cause: err },
     );
   }
 

@@ -3,7 +3,9 @@ import { createImageId, type AnnotationState } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import {
   BoundedDenseMaskBuffer,
+  CocoRunLimitExceededError,
   DEFAULT_MAX_MASK_PIXELS,
+  MAX_COCO_RUNS,
   MaskCapacityExceededError,
   cocoRleCodec,
   createMaskCodecRegistry,
@@ -19,7 +21,7 @@ import { Rect } from 'fabric';
 import { createMaskAnnotation, maskAnnotationFields } from '../../src/create-mask-annotation.js';
 import { processObjectModified } from '../../src/tool-factory.js';
 import { createAnnotationFromGeometry } from '../../src/create-annotation.js';
-import { serialize, deserialize } from '../../src/serialization-configured.js';
+import { SerializationError, serialize, deserialize } from '../../src/serialization-configured.js';
 import type { OsdAnnotation, OsdFields } from '../../src/types.js';
 
 const imageId = createImageId('img-1');
@@ -392,22 +394,31 @@ describe('a downsampled mask', () => {
       expect(restored.byImage[imageId]![mask.id]!.geometry).toEqual(mask.geometry);
     });
 
-    it('refuses to export a coarse mask whose image-pixel runs would explode', () => {
-      // Alternating cell rows at downsample 16: sixteen runs per cell row.
+    it('refuses to export a coarse mask past the COCO bound, with the codec error as cause', () => {
+      // 3,200 x 2,700 alternating cell rows at downsample 16: sixteen runs per
+      // cell row, about 138 M in all, past MAX_COCO_RUNS.
       const raster = runRaster(
         {
-          cells: { x: 0, y: 0, width: 3125, height: 2500 },
+          cells: { x: 0, y: 0, width: 3200, height: 2700 },
           imageWidth: 100_000,
           imageHeight: 80_000,
           downsample: 16,
         },
-        [0, ...Array.from({ length: 2500 }, () => 3125)],
+        [0, ...Array.from({ length: 2700 }, () => 3200)],
       );
       const mask = createMaskAnnotation(raster, { imageId, contextId });
       expect(() => serialize(stateWith(mask))).not.toThrow();
-      expect(() => serialize(stateWith(mask), { maskCodec: cocoRleCodec })).toThrow(
-        /125000001 runs/,
-      );
+      let caught: unknown;
+      try {
+        serialize(stateWith(mask), { maskCodec: cocoRleCodec });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(SerializationError);
+      const cause = (caught as SerializationError).cause;
+      expect(cause).toBeInstanceOf(CocoRunLimitExceededError);
+      expect((cause as CocoRunLimitExceededError).maxRuns).toBe(MAX_COCO_RUNS);
+      expect((cause as CocoRunLimitExceededError).downsample).toBe(16);
     });
   });
 

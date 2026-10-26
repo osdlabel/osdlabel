@@ -119,11 +119,20 @@ as `cells`, so reading cells as image pixels is a compile error;
 receives a downsampled mask only if it sets `encodesDownsampled: true`;
 `serialize` refuses to hand one to a codec that has not, rather than let it
 misplace the mask. The COCO codecs opt in and export the level-0 mask, refusing
-with `CocoRunLimitExceededError` one whose expansion would take more than
-`MAX_COCO_RUNS / downsample` runs (`MAX_COCO_RUNS` is the worst case at full
-resolution, so no full-resolution mask is refused; `countCocoRuns` reports the
-cost without exporting); the compressed codec streams its string without an
-array of runs. On import `MaskDecodeOptions.downsample` decodes COCO straight
+with `CocoRunLimitExceededError` an export that would take more than
+`MAX_COCO_RUNS` runs at any downsample — the worst case at full resolution, so
+no full-resolution mask is refused — from a counting pass that stops at the
+bound (`countCocoRuns` reports the exact cost without exporting). Within it a
+coarse mask exports, slowly: 6.7 kB of d=16 alternating cell rows takes about
+13 s. The compressed codec streams its string without an array of runs; the
+paths that return an array are bounded at `MAX_COCO_ARRAY_RUNS` (2^27).
+`serialize` reports the refusal as a `SerializationError` whose `cause` is the
+codec's error (`SerializationError` now takes a `cause`).
+
+`isCocoInteropSafe` now decides from a mask's runs whether `pycocotools` reads
+it back correctly — it truncates runs past 32 bits and misreads deltas below
+-2^29 — and `COCO_MAX_INTEROP_IMAGE_PIXELS` is 2^29, the image size within
+which every mask is safe. It was 2^32 - 1, which pycocotools does not honour. On import `MaskDecodeOptions.downsample` decodes COCO straight
 into cells, and `deserialize` passes the annotation's `geometry.downsample`, so
 a coarse mask comes back coarse; a payload that is not constant within each
 cell is skipped with that reason.
@@ -168,6 +177,7 @@ whose live preview would pass the limit is refused through
   contract (`MaskCodec`, `MaskDecodeOptions`, `MaskCodecRegistry`,
   `createMaskCodecRegistry`); and COCO (`cocoRleCodec`,
   `cocoRleUncompressedCodec`, `CocoRunLimitExceededError`, `MAX_COCO_RUNS`,
+  `MAX_COCO_ARRAY_RUNS`,
   `countCocoRuns`, `COCO_RLE_FORMAT`,
   `COCO_RLE_UNCOMPRESSED_FORMAT`, `snapshotToCocoCounts`,
   `cocoCountsToSnapshot`, `encodeCocoCountsString`, `decodeCocoCountsString`,

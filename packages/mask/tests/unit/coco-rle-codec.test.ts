@@ -3,6 +3,7 @@ import {
   BoundedDenseMaskBuffer,
   CocoRunLimitExceededError,
   DEFAULT_MAX_MASK_PIXELS,
+  MAX_COCO_ARRAY_RUNS,
   MAX_COCO_RUNS,
   MaskCapacityExceededError,
   countCocoRuns,
@@ -161,15 +162,74 @@ describe('pycocotools interop limits', () => {
     expect(restored).toEqual(gigapixel);
   });
 
-  it('accepts ordinary images, including right at the boundary', () => {
-    const atLimit: MaskSnapshot = {
-      ...FIXTURE,
-      imageWidth: 0xffff,
-      imageHeight: 0xffff, // 0xFFFE0001 pixels, just inside the bound
-    };
-    expect(isCocoInteropSafe(atLimit)).toBe(true);
+  it('answers within 2^29 pixels of image without looking at the runs', () => {
+    expect(COCO_MAX_INTEROP_IMAGE_PIXELS).toBe(2 ** 29);
     expect(isCocoInteropSafe(FIXTURE)).toBe(true);
-    expect(COCO_MAX_INTEROP_IMAGE_PIXELS).toBe(4_294_967_295);
+    // 23,170 x 23,170 is just inside: no run can exceed it, no delta fall below -2^29.
+    expect(isCocoInteropSafe({ ...FIXTURE, imageWidth: 23_170, imageHeight: 23_170 })).toBe(true);
+  });
+
+  /**
+   * Three single pixels, `gap` and then `gap + delta` background pixels apart
+   * in COCO's column-major order, so the fifth count minus the third is
+   * exactly `delta`. Built from runs: the box spans most of the image.
+   */
+  function threePixels(height: number, width: number, gap: number, delta: number) {
+    const a = 5;
+    const b = a + 1 + gap;
+    const c = b + 1 + gap + delta;
+    const pixels = [a, b, c].map((i) => ({ x: Math.floor(i / height), y: i % height }));
+    const x0 = Math.min(...pixels.map((p) => p.x));
+    const y0 = Math.min(...pixels.map((p) => p.y));
+    const boxWidth = Math.max(...pixels.map((p) => p.x)) - x0 + 1;
+    const boxHeight = Math.max(...pixels.map((p) => p.y)) - y0 + 1;
+    const offsets = pixels.map((p) => (p.y - y0) * boxWidth + (p.x - x0)).sort((u, v) => u - v);
+    const runs: number[] = [];
+    let at = 0;
+    for (const offset of offsets) {
+      runs.push(offset - at, 1);
+      at = offset + 1;
+    }
+    runs.push(boxWidth * boxHeight - at);
+    const raster = runRaster(
+      {
+        cells: { x: x0, y: y0, width: boxWidth, height: boxHeight },
+        imageWidth: width,
+        imageHeight: height,
+        downsample: 1,
+      },
+      runs,
+    );
+    // The construction itself, checked: these are the COCO runs it stands for.
+    expect(snapshotToCocoCounts(raster)).toEqual([
+      a,
+      1,
+      gap,
+      1,
+      gap + delta,
+      1,
+      width * height - c - 1,
+    ]);
+    return raster;
+  }
+
+  it('is decided by the runs past that: a delta below -2^29 is misread', () => {
+    // Verified against pycocotools 2.0.11 on these exact counts: at -2^29 the
+    // box comes back right, one below it the box comes back wrong.
+    expect(isCocoInteropSafe(threePixels(50_000, 50_000, 1e9, -(2 ** 29)))).toBe(true);
+    expect(isCocoInteropSafe(threePixels(50_000, 50_000, 1e9, -(2 ** 29) - 1))).toBe(false);
+    // A reviewer's case: three pixels on a 24,000-square image, a huge gap
+    // then a short one. pycocotools keeps the area and loses the box.
+    expect(isCocoInteropSafe(threePixels(24_000, 24_000, 560_000_000, -559_999_997))).toBe(false);
+  });
+
+  it('is still unaffected for our own round trip', () => {
+    // Compared as counts: the mask's box is far past the cell cap, which a
+    // decode applies, though the runs themselves are few.
+    const raster = threePixels(24_000, 24_000, 560_000_000, -559_999_997);
+    expect(decodeCocoCountsString(cocoRleCodec.encode(raster).counts)).toEqual(
+      snapshotToCocoCounts(raster),
+    );
   });
 });
 
@@ -233,9 +293,8 @@ describe('COCO export cost', () => {
    * 16, on a 100,000 x 80,000 image. 6.7 kB of canonical payload, and 125 M
    * level-0 runs: every cell row becomes a run in each of 16 image columns.
    */
-  function stripes() {
-    const width = 3125;
-    const height = 2500;
+  /** `width` x `height` cells of alternating rows at downsample 16 on 100k x 80k. */
+  function stripes(width: number, height: number) {
     const runs = [0, ...Array.from({ length: height }, () => width)];
     const payload = encodeCanonical(
       runRaster(
@@ -251,11 +310,23 @@ describe('COCO export cost', () => {
     return { payload, raster: decodeCanonicalRaster(payload) };
   }
 
-  it('refuses a downsampled mask whose export would explode, before it allocates', () => {
-    const { payload, raster } = stripes();
+  it('exports a downsampled mask whose runs are many but within the bound', () => {
+    // The reviewer's 6.7 kB payload: 125,000,001 runs, under MAX_COCO_RUNS.
+    // Slow, as documented beside the bound, but exported, not refused.
+    const { payload, raster } = stripes(3125, 2500);
     expect(payload.counts.length).toBe(6668);
     expect(countCocoRuns(raster)).toBe(125_000_001);
+    expect(countCocoRuns(raster)).toBeLessThanOrEqual(MAX_COCO_RUNS);
+    const { counts } = cocoRleCodec.encode(raster);
+    // Every run but the first and last is 16 pixels, a delta of 0, one
+    // character each; measured, the whole string is this long.
+    expect(counts.length).toBe(125_300_003);
+  }, 120_000);
 
+  it('refuses a downsampled mask past the bound quickly, on every export path', () => {
+    // 3,200 x 2,700 alternating d=16 cell rows: about 138 M runs, over
+    // MAX_COCO_RUNS, from a payload well inside the cell cap.
+    const { raster } = stripes(3200, 2700);
     for (const exportIt of [
       () => cocoRleCodec.encode(raster),
       () => cocoRleUncompressedCodec.encode(raster),
@@ -271,11 +342,75 @@ describe('COCO export cost', () => {
       expect(performance.now() - started).toBeLessThan(100);
       expect(caught).toBeInstanceOf(CocoRunLimitExceededError);
       const error = caught as CocoRunLimitExceededError;
-      expect(error.runs).toBe(125_000_001);
-      expect(error.maxRuns).toBe(Math.floor(MAX_COCO_RUNS / 16));
+      expect(error.runs).toBeGreaterThan(error.maxRuns);
+      expect(error.downsample).toBe(16);
       expect(error.message).toMatch(/canonical format/);
     }
   });
+
+  it('refuses past 2^27 runs where they are returned as an array, by name', () => {
+    expect(MAX_COCO_ARRAY_RUNS).toBe(2 ** 27);
+    // The one extreme legal mask: a one-row box as wide as the cap, every
+    // pixel set, on a taller image — exactly MAX_COCO_RUNS, one past 2^27.
+    const line = runRaster(
+      {
+        cells: { x: 0, y: 1, width: DEFAULT_MAX_MASK_PIXELS, height: 1 },
+        imageWidth: DEFAULT_MAX_MASK_PIXELS,
+        imageHeight: 3,
+        downsample: 1,
+      },
+      [0, DEFAULT_MAX_MASK_PIXELS],
+    );
+    for (const exportIt of [
+      () => snapshotToCocoCounts(line),
+      () => cocoRleUncompressedCodec.encode(line),
+    ]) {
+      let caught: unknown;
+      try {
+        exportIt();
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(CocoRunLimitExceededError);
+      expect((caught as CocoRunLimitExceededError).maxRuns).toBe(2 ** 27);
+      expect((caught as CocoRunLimitExceededError).message).toMatch(/compressed COCO codec/);
+    }
+  });
+
+  it('stops counting at the bound, rather than counting a staircase to the end', () => {
+    // Row 2k is set from column k on, odd rows are clear: column x holds x + 1
+    // separate rows, so a full count walks about width^2 / 2 intervals, and
+    // the export needs about width^2 runs, far past the bound.
+    const width = 20_000;
+    const height = 2 * width;
+    const runs: number[] = [];
+    let background = 0;
+    for (let row = 0; row < height; row++) {
+      if (row % 2 === 0) {
+        runs.push(background + row / 2, width - row / 2);
+        background = 0;
+      } else background += width;
+    }
+    runs.push(background);
+    const raster = runRaster(
+      {
+        cells: { x: 0, y: 0, width, height },
+        imageWidth: width,
+        imageHeight: height,
+        downsample: 1,
+      },
+      runs,
+    );
+    const started = performance.now();
+    expect(() => cocoRleCodec.encode(raster)).toThrow(CocoRunLimitExceededError);
+    const refused = performance.now() - started;
+    // The full count of the same raster, for comparison: the refusal does a
+    // fraction of its work.
+    const full = performance.now();
+    expect(countCocoRuns(raster)).toBeGreaterThan(MAX_COCO_RUNS);
+    const counted = performance.now() - full;
+    expect(refused).toBeLessThan(counted * 0.6);
+  }, 120_000);
 
   it('bounds a full-resolution mask at its true worst case, so none is refused', () => {
     expect(MAX_COCO_RUNS).toBe(2 * DEFAULT_MAX_MASK_PIXELS + 1);
@@ -411,6 +546,52 @@ describe('COCO import at a declared downsample', () => {
     const payload = cocoRleCodec.encode(denseRaster(paintedMasks()[0]!.snapshot));
     for (const downsample of [3, 0, -2, 1.5, 2 ** 17]) {
       expect(() => cocoRleCodec.decode!(payload, { downsample })).toThrow(/power of two/);
+    }
+  });
+});
+
+describe('COCO counts string precision', () => {
+  it('round-trips an 11-chunk negative delta exactly', () => {
+    // The fourth count minus the second is about -2^51: eleven chunks, whose
+    // sign used to be applied after an intermediate sum near 2^55.
+    for (const counts of [
+      [0, 2 ** 51 + 3, 0, 1],
+      [0, 2 ** 50 + 7, 3, 1],
+      [5, 2 ** 52 + 1, 2, 9, 4],
+    ]) {
+      expect(decodeCocoCountsString(encodeCocoCountsString(counts))).toEqual(counts);
+    }
+  });
+
+  it('matches an exact reference decoder on random counts', () => {
+    // BigInt arithmetic as the reference: exact at any size.
+    const reference = (encoded: string): number[] => {
+      const out: bigint[] = [];
+      let p = 0;
+      while (p < encoded.length) {
+        let x = 0n;
+        let k = 0n;
+        let more = true;
+        while (more) {
+          const c = BigInt(encoded.charCodeAt(p++) - 48);
+          x |= (c & 0x1fn) << (5n * k);
+          more = (c & 0x20n) !== 0n;
+          k++;
+          if (!more && (c & 0x10n) !== 0n) x -= 1n << (5n * k);
+        }
+        if (out.length > 2) x += out[out.length - 2]!;
+        out.push(x);
+      }
+      return out.map(Number);
+    };
+    const next = random(3);
+    for (let n = 0; n < 2000; n++) {
+      const counts = Array.from({ length: 1 + Math.floor(next() * 8) }, () =>
+        Math.floor(next() * 2 ** Math.floor(next() * 53)),
+      );
+      const encoded = encodeCocoCountsString(counts);
+      expect(decodeCocoCountsString(encoded)).toEqual(counts);
+      expect(reference(encoded)).toEqual(counts);
     }
   });
 });

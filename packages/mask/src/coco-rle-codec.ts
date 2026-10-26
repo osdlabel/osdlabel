@@ -40,33 +40,45 @@ export interface CocoRleUncompressedSegmentation {
 }
 
 /**
- * Thrown when exporting a mask to COCO would take more runs than
- * `MAX_COCO_RUNS / downsample`.
+ * Thrown when exporting a mask to COCO would take more runs than the export
+ * allows: {@link MAX_COCO_RUNS}, or {@link MAX_COCO_ARRAY_RUNS} where the runs
+ * are returned as an array.
  *
- * COCO has no notion of a downsample, so a downsampled mask is exported as the
- * level-0 mask it stands for — and its runs multiply with its downsample: a
- * d=16 mask of alternating cell rows needs sixteen times the runs of its cells.
- * A 6.7 kB canonical payload can ask for 125 million runs that way, and take
- * seconds and a 125 MB string to write. At downsample 1 the bound is the true
- * worst case, so no full-resolution mask is ever refused; above it the bound
- * is divided by the downsample. The refusal comes from a counting pass that
- * never walks the box, before anything is allocated.
+ * `MAX_COCO_RUNS` is the worst case of a full-resolution mask within the cell
+ * cap, so no full-resolution mask is refused by the compressed codec. What it
+ * refuses is a downsampled mask with structure finer than that: COCO has no
+ * downsample, so cells are written out as image pixels, and a d=16 mask of
+ * alternating cell rows needs sixteen times the runs of its cells. Below the
+ * bound such a mask exports, slowly: a 6.7 kB d=16 payload of 3125 x 2500
+ * alternating cells needs 125,000,001 runs, about 13 s and a 125 MB string.
+ *
+ * The count stops as soon as it passes the bound, so a refusal costs at most
+ * the bound's worth of counting and allocates nothing.
  */
 export class CocoRunLimitExceededError extends RangeError {
-  /** Runs the export would take. */
+  /**
+   * Runs counted when the count stopped: more than `maxRuns`, and not
+   * necessarily the export's total (`countCocoRuns` gives that).
+   */
   readonly runs: number;
-  /** The most this mask's export may take: `MAX_COCO_RUNS / downsample`. */
+  /** The most this export allows. */
   readonly maxRuns: number;
+  /** The mask's downsample. */
+  readonly downsample: number;
 
-  constructor(runs: number, maxRuns: number, downsample: number) {
+  constructor(runs: number, maxRuns: number, downsample: number, hint?: string) {
     super(
-      `Exporting this mask to COCO would take ${runs} runs, more than the ${maxRuns} ` +
-        `allowed at downsample ${downsample}: COCO has no downsample, so its cells are ` +
-        `written out as image pixels. Keep it in the canonical format, which stores the cells.`,
+      `Exporting this mask to COCO would take more than ${maxRuns} runs (${runs} counted ` +
+        `before stopping)` +
+        (downsample !== 1
+          ? `: COCO has no downsample, so its downsample-${downsample} cells are written out as image pixels`
+          : '') +
+        `. ${hint ?? 'Keep it in the canonical format, which stores the cells.'}`,
     );
     this.name = 'CocoRunLimitExceededError';
     this.runs = runs;
     this.maxRuns = maxRuns;
+    this.downsample = downsample;
   }
 }
 
@@ -82,6 +94,16 @@ export class CocoRunLimitExceededError extends RangeError {
 export const MAX_COCO_RUNS = 2 * DEFAULT_MAX_MASK_PIXELS + 1;
 
 /**
+ * The most runs an export returned as an array may take: `snapshotToCocoCounts`
+ * and the uncompressed codec. A JavaScript engine refuses to grow an array past
+ * 2^27 elements (V8's limit), one below {@link MAX_COCO_RUNS}, so the single
+ * most extreme mask the format admits — a one-row box as wide as the cap — is
+ * refused here by name rather than by the engine. It exports through the
+ * compressed codec, which writes its string without an array.
+ */
+export const MAX_COCO_ARRAY_RUNS = Math.min(MAX_COCO_RUNS, 2 ** 27);
+
+/**
  * Where the column sweep's runs go: appended in order, alternating and
  * starting with background, touching runs of one value merged.
  */
@@ -91,16 +113,32 @@ interface CocoRunAccumulator {
   repeat(count: number, column: () => void): void;
 }
 
-/** Counts the runs a sweep emits, without emitting them. */
+/** Thrown out of a sweep by a counter whose limit was passed. */
+class CocoRunLimitReached extends Error {}
+
+/**
+ * Counts the runs a sweep emits, without emitting them, and stops the sweep
+ * by throwing {@link CocoRunLimitReached} the moment the count passes `limit`.
+ *
+ * The stop is what bounds the work. Groups of identical columns are counted
+ * in closed form, but every event column walks the rows that are on, so a
+ * staircase of spans whose columns all differ costs the spans squared —
+ * seconds for a few tens of thousands. Each walk adds at least as many runs as
+ * it visits intervals, so stopping at `limit` caps the work at about `limit`
+ * plus the spans.
+ */
 class CocoRunCounter implements CocoRunAccumulator {
   private value: 0 | 1 = 0;
   /** Runs completed so far; the one still open is not counted. */
   completed = 0;
 
+  constructor(private readonly limit = Infinity) {}
+
   append(value: 0 | 1, length: number): void {
     if (length <= 0 || value === this.value) return;
     this.completed++;
     this.value = value;
+    if (this.completed >= this.limit) throw new CocoRunLimitReached();
   }
 
   repeat(count: number, column: () => void): void {
@@ -112,6 +150,7 @@ class CocoRunCounter implements CocoRunAccumulator {
     const before = this.completed;
     column();
     this.completed += (count - 2) * (this.completed - before);
+    if (this.completed >= this.limit) throw new CocoRunLimitReached();
   }
 
   get total(): number {
@@ -150,8 +189,6 @@ class CocoRunEmitter implements CocoRunAccumulator {
 interface CocoSweep {
   /** The total runs for an empty mask; absent when the mask has cells. */
   readonly emptyRuns?: number[];
-  /** The most runs this mask's export may take. */
-  readonly maxRuns: number;
   readonly downsample: number;
   run(accumulator: CocoRunAccumulator): void;
 }
@@ -181,7 +218,7 @@ function prepareCocoSweep(input: MaskRasterInput): CocoSweep {
   const total = imageWidth * imageHeight;
   const downsample = raster.downsample;
   if (width === 0 || height === 0) {
-    return { emptyRuns: total > 0 ? [total] : [], maxRuns: 1, downsample, run: () => {} };
+    return { emptyRuns: total > 0 ? [total] : [], downsample, run: () => {} };
   }
   assertMaskDownsample(downsample);
 
@@ -290,16 +327,16 @@ function prepareCocoSweep(input: MaskRasterInput): CocoSweep {
     acc.append(0, (imageWidth - (box.x + box.width)) * imageHeight);
   };
 
-  // Scaled by the downsample: a downsampled mask's level-0 runs are its cell
-  // columns' runs repeated across each cell's `d` image columns, so this bounds
-  // the cell-level structure at what full resolution allows, divided among the
-  // columns it is repeated over.
-  return { maxRuns: Math.floor(MAX_COCO_RUNS / downsample), downsample, run };
+  return { downsample, run };
 }
 
 /**
- * Exactly how many runs a mask's COCO export takes, without producing them:
- * the work is proportional to the mask's spans, never to its box or its runs.
+ * Exactly how many runs a mask's COCO export takes, without producing them.
+ *
+ * Groups of identical columns are counted in closed form, so a solid region
+ * costs its spans, not its box. A mask whose spans start in many different
+ * columns costs more — up to the spans squared, which can be a fixed fraction
+ * of the box — and nothing here stops early; the exporters do, at their bound.
  */
 export function countCocoRuns(input: MaskRasterInput): number {
   const sweep = prepareCocoSweep(input);
@@ -310,18 +347,24 @@ export function countCocoRuns(input: MaskRasterInput): number {
 }
 
 /**
- * The sweep for a mask, refused with {@link CocoRunLimitExceededError} if its
- * export would take more runs than a full-resolution mask of its size can.
+ * The sweep for a mask and its exact run total, refused with
+ * {@link CocoRunLimitExceededError} if its export would take more than
+ * {@link MAX_COCO_RUNS} runs. The count stops as soon as it passes, so a
+ * refusal never costs more than the bound's worth of counting.
  */
-function boundedCocoSweep(input: MaskRasterInput): CocoSweep {
+function boundedCocoSweep(input: MaskRasterInput): { sweep: CocoSweep; total: number } {
   const sweep = prepareCocoSweep(input);
-  if (sweep.emptyRuns) return sweep;
-  const counter = new CocoRunCounter();
-  sweep.run(counter);
-  if (counter.total > sweep.maxRuns) {
-    throw new CocoRunLimitExceededError(counter.total, sweep.maxRuns, sweep.downsample);
+  if (sweep.emptyRuns) return { sweep, total: sweep.emptyRuns.length };
+  // The total is the completed runs plus the one still open, so the export
+  // is over the bound once `MAX_COCO_RUNS` runs have completed.
+  const counter = new CocoRunCounter(MAX_COCO_RUNS);
+  try {
+    sweep.run(counter);
+  } catch (error) {
+    if (!(error instanceof CocoRunLimitReached)) throw error;
+    throw new CocoRunLimitExceededError(counter.total, MAX_COCO_RUNS, sweep.downsample);
   }
-  return sweep;
+  return { sweep, total: counter.total };
 }
 
 /**
@@ -330,12 +373,22 @@ function boundedCocoSweep(input: MaskRasterInput): CocoSweep {
  *
  * COCO has no notion of a downsample — its runs are image pixels — so a
  * downsampled mask is exported as the level-0 mask it means, every cell
- * expanded to the image pixels it covers, without materialising level 0. A
- * mask whose expansion would take more runs than any full-resolution mask of
- * its size is refused first, with {@link CocoRunLimitExceededError}.
+ * expanded to the image pixels it covers, without materialising level 0. An
+ * export that would take more than {@link MAX_COCO_ARRAY_RUNS} runs is
+ * refused first, with {@link CocoRunLimitExceededError}: the runs are an
+ * array, and an engine cannot hold more. The compressed codec's string has no
+ * such limit, and is bounded at {@link MAX_COCO_RUNS} instead.
  */
 export function snapshotToCocoCounts(input: MaskRasterInput): number[] {
-  const sweep = boundedCocoSweep(input);
+  const { sweep, total } = boundedCocoSweep(input);
+  if (total > MAX_COCO_ARRAY_RUNS) {
+    throw new CocoRunLimitExceededError(
+      total,
+      MAX_COCO_ARRAY_RUNS,
+      sweep.downsample,
+      'Export it with the compressed COCO codec, whose counts string has no array limit.',
+    );
+  }
   if (sweep.emptyRuns) return sweep.emptyRuns;
   const runs: number[] = [];
   const emitter = new CocoRunEmitter((run) => runs.push(run));
@@ -672,10 +725,10 @@ export function encodeCocoCountsString(counts: readonly number[]): string {
 
 /**
  * A mask's COCO counts string, written straight from the sweep: no array of
- * runs exists at any point. Refused like {@link snapshotToCocoCounts}.
+ * runs exists at any point. Refused past {@link MAX_COCO_RUNS} runs.
  */
 function cocoCountsStringOf(input: MaskRasterInput): string {
-  const sweep = boundedCocoSweep(input);
+  const { sweep } = boundedCocoSweep(input);
   if (sweep.emptyRuns) return encodeCocoCountsString(sweep.emptyRuns);
   const writer = new CocoCountsStringWriter();
   const emitter = new CocoRunEmitter((run) => writer.push(run));
@@ -719,11 +772,14 @@ export function decodeCocoCountsString(encoded: string): number[] {
       if (shift > MAX_COCO_CHUNKS) {
         throw new RangeError('COCO run length exceeds the safe integer range');
       }
-      value += (chunk & 0x1f) * Math.pow(2, 5 * shift);
       more = (chunk & 0x20) !== 0;
+      // The final chunk carries the sign: fold it into that chunk's own term.
+      // Adding the chunk unsigned and subtracting 2^(5k) after made an
+      // intermediate sum near 2^55 for an 11-chunk negative delta, past exact
+      // integers, and its low bits rounded away.
+      const digit = (chunk & 0x1f) - (!more && (chunk & 0x10) !== 0 ? 32 : 0);
+      value += digit * Math.pow(2, 5 * shift);
       shift++;
-      // Sign-extend the final chunk when its sign bit is set.
-      if (!more && (chunk & 0x10) !== 0) value -= Math.pow(2, 5 * shift);
     }
     if (counts.length > 2) value += counts[counts.length - 2]!;
     if (!Number.isSafeInteger(value) || value < 0) {
@@ -738,30 +794,79 @@ export function decodeCocoCountsString(encoded: string): number[] {
 const MAX_COCO_CHUNKS = 10;
 
 /**
- * Largest image area whose COCO run lengths are guaranteed to survive a
- * round-trip through `pycocotools`.
+ * Largest image area every mask of which `pycocotools` reads back correctly.
  *
- * The reference implementation stores run lengths in a 32-bit unsigned array.
- * A run longer than this is silently truncated on read, which keeps the mask's
- * area correct but relocates it — a 100000x100000 image with a mask at its
- * centre comes back near the top-left corner. Since no run can exceed the total
- * pixel count, an image within this bound is always safe.
+ * Two limits in the reference implementation's C decoder make larger images
+ * unsafe for some masks:
  *
- * Our own encoder and decoder handle larger runs correctly; this bound describes
- * what one downstream reader can accept, and nothing in this package enforces
- * it — see {@link isCocoInteropSafe}, which callers opt into.
+ * - It stores run lengths in 32-bit unsigned integers, so a run longer than
+ *   `0xffffffff` is truncated.
+ * - It reads each delta (`counts[i] - counts[i - 2]`) in 5-bit chunks into an
+ *   `int`, and sign-extends the last one with a shift of five bits per chunk.
+ *   A delta below -2^29 takes seven chunks, a shift past the integer's width,
+ *   and is misread — and so is every count after it. A huge background gap
+ *   followed two runs later by a short one is enough: three pixels on a
+ *   24,000 x 24,000 image come back with the right area and the wrong box.
+ *
+ * Within this area no run can exceed 2^29 and no delta can fall below -2^29,
+ * so every mask is safe. Beyond it, whether a mask is safe depends on its
+ * runs: ask {@link isCocoInteropSafe}. Our own encoder and decoder handle every
+ * case correctly; nothing in this package enforces this bound.
  */
-export const COCO_MAX_INTEROP_IMAGE_PIXELS = 0xffffffff;
+export const COCO_MAX_INTEROP_IMAGE_PIXELS = 2 ** 29;
+
+/** The most negative delta `pycocotools` reads back correctly: seven chunks are misread. */
+const COCO_MIN_INTEROP_DELTA = -(2 ** 29);
+/** The longest run `pycocotools` stores without truncating it. */
+const COCO_MAX_INTEROP_RUN = 0xffffffff;
 
 /**
- * Whether this mask's COCO encoding can be read back correctly by
- * `pycocotools` — see {@link COCO_MAX_INTEROP_IMAGE_PIXELS}.
+ * Whether `pycocotools` reads this mask's COCO encoding back correctly: every
+ * run fits its 32-bit store, and every delta it decodes is at least -2^29 (see
+ * {@link COCO_MAX_INTEROP_IMAGE_PIXELS}).
  *
- * Worth checking before exporting masks from very large (deep-zoom) images,
- * because the failure is silent.
+ * Decided from the mask's own runs, by a sweep that stops at the first one
+ * out of range; an image within `COCO_MAX_INTEROP_IMAGE_PIXELS` is answered
+ * without one. Worth checking before exporting masks from very large
+ * (deep-zoom) images, because the failure is silent: the area survives, the
+ * position does not.
  */
-export function isCocoInteropSafe(snapshot: MaskBoxFields): boolean {
-  return snapshot.imageWidth * snapshot.imageHeight <= COCO_MAX_INTEROP_IMAGE_PIXELS;
+export function isCocoInteropSafe(input: MaskRasterInput): boolean {
+  if (input.imageWidth * input.imageHeight <= COCO_MAX_INTEROP_IMAGE_PIXELS) return true;
+  const sweep = prepareCocoSweep(input);
+  const check = (runs: readonly number[]): boolean => {
+    for (let i = 0; i < runs.length; i++) {
+      if (runs[i]! > COCO_MAX_INTEROP_RUN) return false;
+      if (i > 2 && runs[i]! - runs[i - 2]! < COCO_MIN_INTEROP_DELTA) return false;
+    }
+    return true;
+  };
+  if (sweep.emptyRuns) return check(sweep.emptyRuns);
+  // The last two runs are all a delta needs; stop at the first violation.
+  let index = 0;
+  let previous = 0;
+  let beforePrevious = 0;
+  let safe = true;
+  const unsafe = new CocoRunLimitReached();
+  const emitter = new CocoRunEmitter((run) => {
+    if (
+      run > COCO_MAX_INTEROP_RUN ||
+      (index > 2 && run - beforePrevious < COCO_MIN_INTEROP_DELTA)
+    ) {
+      safe = false;
+      throw unsafe;
+    }
+    beforePrevious = previous;
+    previous = run;
+    index++;
+  });
+  try {
+    sweep.run(emitter);
+    emitter.finish();
+  } catch (error) {
+    if (error !== unsafe) throw error;
+  }
+  return safe;
 }
 
 /**
@@ -798,11 +903,10 @@ export function cocoArea(snapshot: MaskRasterInput): number {
  * byte-identical counts to this codec, and its `decode` returns pixel-identical
  * masks.
  *
- * **A limitation in `pycocotools`, not here.** It stores run lengths in a
- * 32-bit unsigned array, so a run longer than
- * {@link COCO_MAX_INTEROP_IMAGE_PIXELS} is silently truncated when it reads a
- * mask back: the area survives but the mask *moves*. A mask at the centre of a
- * 100000x100000 image reappears near the top-left corner.
+ * **Limitations in `pycocotools`, not here.** It truncates runs longer than
+ * 32 bits and misreads deltas below -2^29 when it reads a mask back, so on an
+ * image larger than {@link COCO_MAX_INTEROP_IMAGE_PIXELS} some masks come back
+ * with the right area in the wrong place.
  *
  * This codec encodes and decodes such runs correctly and deliberately does
  * **not** refuse, clamp, or warn about them — the output is valid COCO, and
