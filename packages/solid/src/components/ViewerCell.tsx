@@ -226,11 +226,12 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       if (objects.length > 0) {
         ov.canvas.add(...objects);
       }
-      // The selection may have moved while the objects were being built. A
-      // brush commit adds its mask and then selects it, and this effect runs
-      // between the two writes, so the build above saw the old selection — and
-      // the selection effect found an empty canvas. Re-apply against the
-      // current selection now that the objects exist. The objects carry the
+      // The selection may have moved while the objects were being built: the
+      // build is asynchronous, and a click, a key or a brush commit (which
+      // selects a new mask just before adding it) can change the selection in
+      // the meantime, when the selection effect finds a canvas this rebuild has
+      // just cleared. Re-apply against the current selection now that the
+      // objects exist. The objects carry the
       // tint they were built under; the selection effect takes over from
       // there.
       const selectedMaskNow = selectedMaskOn(

@@ -8,6 +8,7 @@ import {
   DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
   emptySnapshot,
+  runRaster,
   snapshotCellCount,
   snapshotImageBox,
   snapshotPixelCount,
@@ -104,6 +105,7 @@ function harness(
     discardActiveObject: vi.fn(),
     bringObjectToFront: vi.fn(),
     requestRenderAll: vi.fn(),
+    getZoom: () => options.viewport?.zoom ?? 1,
     ...(options.viewport
       ? {
           viewportTransform: [options.viewport.zoom, 0, 0, options.viewport.zoom, 0, 0],
@@ -499,6 +501,33 @@ describe('SegmentationBrushTool: capacity', () => {
     expect(h.commits).toHaveLength(0);
   });
 
+  it('refines a mask just under the canvas limit, though its allocation is past it', () => {
+    // 32,700 cells wide at x = 63: the buffer rounds its allocation out to its
+    // growth chunks, to 0..32768, one past the limit. The preview is sized from
+    // what can be painted instead, so the stroke is not refused for rounding.
+    const target = runRaster(
+      {
+        cells: { x: 63, y: 10, width: 32_700, height: 1 },
+        imageWidth: 40_000,
+        imageHeight: 100,
+        downsample: 1,
+      },
+      [0, 32_700],
+    );
+    const h = harness({
+      imageSize: { width: 40_000, height: 100 },
+      radius: 3,
+      target: { annotationId: createAnnotationId('long'), snapshot: target },
+    });
+    down(h.tool, 100, 10);
+    move(h.tool, 104, 10);
+    up(h.tool, 104, 10);
+
+    expect(h.capacityErrors).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.cells.width).toBe(32_700);
+  });
+
   it('does not refuse a stroke for the room its preview leaves to grow', () => {
     // 20,000 cells wide fits; the preview's usual margin, half the box on
     // each side, would take it to 40,000, so the margin is what gives way.
@@ -525,6 +554,21 @@ describe('SegmentationBrushTool: capacity', () => {
 
     down(h.tool, 2048, 2048);
     expect(existing.visible).not.toBe(false);
+  });
+});
+
+describe('SegmentationBrushTool: New mask mid-stroke', () => {
+  it('is swallowed while a stroke is open, so the stroke is not torn down', () => {
+    const h = harness();
+    down(h.tool, 50, 50);
+    // Deselecting the mask being refined mid-stroke would, at the limit,
+    // switch the brush off and lose the stroke; the key waits for the release.
+    expect(h.tool.onKeyDown({ key: shortcuts.newMask } as KeyboardEvent)).toBe(true);
+    move(h.tool, 80, 50);
+    up(h.tool, 80, 50);
+    expect(h.commits).toHaveLength(1);
+    // Between strokes it goes through to the host.
+    expect(h.tool.onKeyDown({ key: shortcuts.newMask } as KeyboardEvent)).toBe(false);
   });
 });
 
@@ -966,6 +1010,30 @@ describe('the cursor cue: refine or create', () => {
     const h = harness();
     move(h.tool, 100, 100);
     expect(ringOf(h)?.strokeDashArray).toBeNull();
+  });
+
+  it('keeps one screen pixel of line, and a screen-sized dash, at any zoom', () => {
+    // The cue lives in image space; at a whole-slide zoom of 0.1 an
+    // image-pixel line was a tenth of a screen pixel, and its dashes too.
+    let peek: BrushTargetPreview | null = { downsample: 1 };
+    const h = harness({
+      peekTarget: () => peek,
+      viewport: { zoom: 0.1, width: 800, height: 600 },
+    });
+    move(h.tool, 100, 100);
+    const ring = ringOf(h) as unknown as { strokeWidth: number; strokeDashArray: number[] | null };
+    expect(ring.strokeWidth).toBeCloseTo(10);
+    expect(ring.strokeDashArray).toBeNull();
+    peek = null;
+    move(h.tool, 101, 100);
+    expect(ring.strokeWidth).toBeCloseTo(10);
+    expect(ring.strokeDashArray).toEqual([50, 40]);
+
+    // And the cell outline at a downsample.
+    peek = { downsample: 4 };
+    move(h.tool, 102, 100);
+    const cells = cellsOf(h) as unknown as { strokeWidth: number };
+    expect(cells.strokeWidth).toBeCloseTo(10);
   });
 
   it('redraws after New mask or cancel, without waiting for the pointer', async () => {

@@ -400,6 +400,25 @@ describe('mapKeyEventToActions — New mask', () => {
     );
   });
 
+  it('does nothing at the limit, where the button is disabled', () => {
+    // The selected mask is what keeps the brush enabled at its limit; the
+    // key used to deselect it, which switched the brush off.
+    const atLimit: ConstraintStatus = {
+      ...ALL_ENABLED,
+      segmentationBrush: { enabled: true, currentCount: 1, maxCount: 1 },
+    };
+    expect(mapKeyEventToActions('n', false, DEFAULT_KEYBOARD_SHORTCUTS, brush, atLimit)).toEqual(
+      [],
+    );
+    const belowLimit: ConstraintStatus = {
+      ...ALL_ENABLED,
+      segmentationBrush: { enabled: true, currentCount: 1, maxCount: 2 },
+    };
+    expect(mapKeyEventToActions('n', false, DEFAULT_KEYBOARD_SHORTCUTS, brush, belowLimit)).toEqual(
+      [{ type: 'SET_SELECTED_ANNOTATION', payload: null }],
+    );
+  });
+
   it('follows a rebinding', () => {
     const shortcuts = { ...DEFAULT_KEYBOARD_SHORTCUTS, newMask: 'm' };
     expect(mapKeyEventToActions('n', false, shortcuts, brush, ALL_ENABLED)).toEqual([]);

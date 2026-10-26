@@ -315,11 +315,11 @@ describe('ViewerCell selected-mask styling', () => {
     expect(byId('m1').opacity).toBe(DEFAULT_UNSELECTED_MASK_OPACITY);
   });
   it('applies a selection made while the rebuild was still in flight', async () => {
-    // A brush commit adds its mask and then selects it. The rebuild runs
-    // between the two writes and builds against the old selection, while the
-    // selection effect finds a canvas the rebuild has just cleared. Neither
-    // alone dims anything; the rebuild has to re-apply the selection when its
-    // objects land.
+    // The selection can change while the objects are still being built — a
+    // click, or a brush commit selecting the mask it is about to add. The
+    // rebuild built against the old selection, and the selection effect finds
+    // a canvas the rebuild has just cleared. Neither alone dims anything; the
+    // rebuild has to re-apply the selection when its objects land.
     let release!: () => void;
     buildGate = new Promise<void>((resolve) => {
       release = resolve;

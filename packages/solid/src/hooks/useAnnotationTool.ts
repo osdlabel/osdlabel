@@ -148,6 +148,7 @@ export function useAnnotationTool(
           getSelectedFill: () => annotator.brushOptions.maskStyle?.selectedFill,
           // Read when a capacity failure is reported, not a dependency here.
           getNewMaskShortcut: () => annotator.shortcuts.newMask,
+          canStartNewMask: () => canAddAnnotation(constraintStatus(), 'segmentationBrush'),
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),

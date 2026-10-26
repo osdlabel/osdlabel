@@ -10,6 +10,7 @@ import {
   stampCircle,
   strokeSegment,
   type MaskBuffer,
+  type MaskCellBox,
   type MaskRaster,
   type MaskRegion,
 } from '@osdlabel/mask';
@@ -99,6 +100,11 @@ export interface SegmentationBrushToolConfig {
   readonly maxPixels?: number | undefined;
 }
 
+/** The cursor cue's line width, in screen pixels whatever the zoom. */
+const CURSOR_STROKE_SCREEN_PX = 1;
+/** The dash of a cue for a stroke that will create a mask, in screen pixels. */
+const CURSOR_DASH_SCREEN_PX = [5, 4] as const;
+
 /** The cursor cue's look; never an annotation (no `id`), never interactive. */
 const CURSOR_STYLE = {
   fill: 'transparent',
@@ -157,6 +163,13 @@ export class SegmentationBrushTool extends BaseTool {
   private cursorCells: Path | null = null;
   /** Where the cursor was last drawn, to redraw it when what it shows changes. */
   private cursorPoint: Point | null = null;
+  /**
+   * A box, in cells, holding every cell the stroke's mask can have set: the
+   * target's own box, grown by each region painted into. Tighter than the
+   * buffer's allocation, which is rounded out to its growth chunks, so a mask
+   * just under the canvas limit is not refused for its rounding.
+   */
+  private paintedBounds: MaskCellBox | null = null;
 
   /**
    * The committed object for the mask being refined, hidden for the duration of
@@ -248,6 +261,9 @@ export class SegmentationBrushTool extends BaseTool {
             imageHeight: imageSize.height,
             ...this.maxPixelsOption(),
           });
+      const targetCells = target?.snapshot.cells;
+      this.paintedBounds =
+        targetCells && targetCells.width > 0 && targetCells.height > 0 ? { ...targetCells } : null;
     } catch (error) {
       if (error instanceof MaskCapacityExceededError) {
         this.config.onCapacityExceeded?.(error);
@@ -389,6 +405,12 @@ export class SegmentationBrushTool extends BaseTool {
       if (event.key === this.shortcuts.delete || event.key === this.shortcuts.deleteAlt) {
         return true;
       }
+      // New mask mid-stroke would deselect the mask being refined; at the
+      // limit that disabled the brush and tore the stroke down unsaved.
+      // Swallowed until the release, like Delete.
+      if (event.key.toLowerCase() === this.shortcuts.newMask.toLowerCase()) {
+        return true;
+      }
     }
     return super.onKeyDown(event);
   }
@@ -454,6 +476,7 @@ export class SegmentationBrushTool extends BaseTool {
       }
       throw error;
     }
+    this.growPaintedBounds(touchedCells);
     try {
       this.syncPreview(touchedCells);
     } catch (error) {
@@ -477,10 +500,41 @@ export class SegmentationBrushTool extends BaseTool {
     }
   }
 
+  /** Grows {@link paintedBounds} by a touched region, clipped to the buffer's grid. */
+  private growPaintedBounds(touched: MaskRegion): void {
+    if (!this.buffer) return;
+    const left = Math.max(0, touched.x);
+    const top = Math.max(0, touched.y);
+    const right = Math.min(this.buffer.gridWidth, touched.x + touched.width);
+    const bottom = Math.min(this.buffer.gridHeight, touched.y + touched.height);
+    if (right <= left || bottom <= top) return;
+    const current = this.paintedBounds;
+    if (!current) {
+      this.paintedBounds = { x: left, y: top, width: right - left, height: bottom - top };
+      return;
+    }
+    const x = Math.min(current.x, left);
+    const y = Math.min(current.y, top);
+    this.paintedBounds = {
+      x,
+      y,
+      width: Math.max(current.x + current.width, right) - x,
+      height: Math.max(current.y + current.height, bottom) - y,
+    };
+  }
+
   private syncPreview(touched: MaskRegion): void {
     if (!this.overlay || !this.buffer) return;
     if (this.hiddenTargetId !== null) this.hideCommittedTarget(this.hiddenTargetId);
-    const bounds = this.buffer.cellBounds;
+    // The buffer's allocation is rounded out to its growth chunks, up to 126
+    // cells past the mask; past the canvas limit, size the preview from what
+    // can be painted instead, so only a mask that is itself too long is refused.
+    const allocated = this.buffer.cellBounds;
+    const bounds =
+      (allocated.width > MAX_MASK_CANVAS_SIDE || allocated.height > MAX_MASK_CANVAS_SIDE) &&
+      this.paintedBounds
+        ? this.paintedBounds
+        : allocated;
     if (bounds.width === 0 || bounds.height === 0) return;
 
     // The preview may be *larger* than the buffer's allocated region — the
@@ -770,6 +824,7 @@ export class SegmentationBrushTool extends BaseTool {
     this.painting = false;
     this.lastPoint = null;
     this.buffer = null;
+    this.paintedBounds = null;
     this.targetId = null;
     this.contextId = null;
     if (this.overlay && this.preview) this.overlay.canvas.remove(this.preview);
@@ -809,7 +864,14 @@ export class SegmentationBrushTool extends BaseTool {
     const peek = this.config.peekTarget?.();
     const creating = peek === null;
     const downsample = this.buffer?.downsample ?? peek?.downsample ?? 1;
-    const dash = creating ? [5, 4] : null;
+    // In screen pixels, as the drawing tools' previews are: the objects live
+    // in image space, and `strokeUniform` cancels their own scale but not the
+    // viewport's zoom, so at a whole-slide zoom of 0.1 a 1-pixel ring and its
+    // dashes shrank to a tenth and solid could not be told from dashed.
+    const zoom = this.overlay.canvas.getZoom();
+    const perScreenPixel = Number.isFinite(zoom) && zoom > 0 ? 1 / zoom : 1;
+    const strokeWidth = CURSOR_STROKE_SCREEN_PX * perScreenPixel;
+    const dash = creating ? CURSOR_DASH_SCREEN_PX.map((length) => length * perScreenPixel) : null;
     const cells = downsample > 1 ? this.dabOutline(imagePoint, downsample) : null;
 
     if (this.cursorCells) {
@@ -820,6 +882,7 @@ export class SegmentationBrushTool extends BaseTool {
       this.cursor.set({ visible: false, dirty: true });
       this.cursorCells = new Path(cells, {
         ...CURSOR_STYLE,
+        strokeWidth,
         strokeDashArray: dash,
       });
       this.overlay.canvas.add(this.cursorCells);
@@ -830,6 +893,7 @@ export class SegmentationBrushTool extends BaseTool {
       left: imagePoint.x,
       top: imagePoint.y,
       radius: this.radius(),
+      strokeWidth,
       strokeDashArray: dash,
       visible: true,
       dirty: true,

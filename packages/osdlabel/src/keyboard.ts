@@ -8,6 +8,7 @@ import type {
 import type { UIAction, AnnotationAction, ContextAction } from './actions.js';
 import { getGridCellCount } from './cell-assignment.js';
 import { getCycledContextId } from './context-cycling.js';
+import { canAddAnnotation } from './constraints.js';
 
 export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   selectTool: 'v',
@@ -168,12 +169,18 @@ export function mapKeyEventToActions(
   }
 
   // New mask: only the brush has one, and it keeps the brush either way.
+  // At the context's limit it does nothing, as the button is disabled there:
+  // the selected mask is what keeps the brush enabled, and deselecting it
+  // switched the brush off — the opposite of what the key is for.
   else if (
     !shiftKey &&
     state.activeTool === 'segmentationBrush' &&
     keyLower === shortcuts.newMask.toLowerCase()
   ) {
-    if (state.selectedAnnotationId !== null) {
+    if (
+      state.selectedAnnotationId !== null &&
+      canAddAnnotation(constraintStatus, 'segmentationBrush')
+    ) {
       actions.push({ type: 'SET_SELECTED_ANNOTATION', payload: null });
     }
   }

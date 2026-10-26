@@ -317,8 +317,8 @@ describe('ViewerCell selected-mask styling', () => {
   it('applies a selection made while the rebuild was still in flight', async () => {
     // A click can land while the objects are still being built: the selection
     // effect then finds a canvas the rebuild has just cleared, so the rebuild
-    // has to re-apply the selection when its objects land. (Solid hits this on
-    // every brush commit, whose two writes straddle its rebuild.)
+    // has to re-apply the selection when its objects land. (A brush commit,
+    // which selects a new mask just before adding it, is another way.)
     let release!: () => void;
     buildGate = new Promise<void>((resolve) => {
       release = resolve;

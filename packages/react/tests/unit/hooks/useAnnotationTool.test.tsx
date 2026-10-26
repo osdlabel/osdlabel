@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { act } from 'react';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
-import type { AnnotationTool, ToolCallbacks } from '@osdlabel/fabric-annotations';
+import type {
+  AnnotationTool,
+  BrushCapacityError,
+  SegmentationBrushToolConfig,
+  ToolCallbacks,
+} from '@osdlabel/fabric-annotations';
+import { BoundedDenseMaskBuffer, MaskCapacityExceededError, createMaskAnnotation } from 'osdlabel';
 import { createAnnotationId, type Geometry } from '@osdlabel/annotation';
 import { createImageId, type ImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
@@ -107,6 +113,8 @@ function createMockOverlay() {
     requestRenderAll: vi.fn(),
     discardActiveObject: vi.fn(),
     bringObjectToFront: vi.fn(),
+    // The brush's cursor cue sizes itself in screen pixels.
+    getZoom: () => 1,
     getObjects: vi.fn(() => []),
     remove: vi.fn(),
     add: vi.fn(),
@@ -611,5 +619,42 @@ describe('useAnnotationTool', () => {
     h.rerender({}, host({ isActive: false }));
 
     expect(slot.handler).toBeNull();
+  });
+
+  it('the brush config names the bound New mask key in a capacity failure (m19)', () => {
+    // The parity of Solid's `useAnnotationTool.config.test.ts` case, plus a
+    // rebinding: the shortcut map is a dependency, so the rebuilt config
+    // names the new key.
+    const reported: BrushCapacityError[] = [];
+    const brushOptions = {
+      onCapacityExceeded: (error: BrushCapacityError) => reported.push(error),
+    };
+    const h = setup('segmentationBrush', { keyboardShortcuts: { newMask: 'm' }, brushOptions });
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    const mask = createMaskAnnotation(buffer.raster(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    h.run((a) => {
+      a.addAnnotation(mask);
+      a.setSelectedAnnotation(mask.id);
+    });
+    const configOf = () => {
+      const tool = built.at(-1)?.tool;
+      expect(tool).toBeDefined();
+      return (tool as unknown as { config: SegmentationBrushToolConfig }).config;
+    };
+    const refuseRefining = () => {
+      const config = configOf();
+      expect(config.getTarget()?.annotationId).toBe(mask.id);
+      config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+      return reported.at(-1)!.message;
+    };
+    expect(refuseRefining()).toMatch(/Start a separate mask with New mask \(m\)\.$/);
+
+    h.rerender({ keyboardShortcuts: { newMask: 'k' }, brushOptions }, host());
+    expect(refuseRefining()).toMatch(/Start a separate mask with New mask \(k\)\.$/);
   });
 });

@@ -60,6 +60,13 @@ export interface BrushConfigAccessors {
    * mask (n)".
    */
   readonly getNewMaskShortcut?: (() => string) | undefined;
+  /**
+   * Whether a new mask may be started now — the context is below its limit
+   * (`canAddAnnotation(status, 'segmentationBrush')`). The capacity message
+   * points to New mask only when it would help: the stroke was refining, and
+   * a mask may still be added. Omitted, it is assumed it may.
+   */
+  readonly canStartNewMask?: (() => boolean) | undefined;
 }
 
 /** State mutations the brush triggers. */
@@ -112,6 +119,8 @@ export function buildSegmentationBrushConfig(
 
   /** The fill recorded on the mask currently being refined, if any. */
   let targetFill: string | undefined;
+  /** Whether the stroke under way refines a mask, rather than creating one. */
+  let strokeRefines = false;
 
   /** The selected mask a stroke would refine, or `null` when it would create one. */
   const selectedMask = () => {
@@ -132,6 +141,7 @@ export function buildSegmentationBrushConfig(
   const resolveTarget = (): BrushTarget | null => {
     targetFill = undefined;
     const selected = selectedMask();
+    strokeRefines = selected !== null;
     if (!selected) return null;
 
     // Remember the mask's own tint; re-encoding without it would silently
@@ -207,22 +217,38 @@ export function buildSegmentationBrushConfig(
     ...(accessors.getFill !== undefined ? { getFill: accessors.getFill } : {}),
     ...(maxPixels !== undefined ? { maxPixels } : {}),
     ...(dispatchers.onCapacityExceeded !== undefined
-      ? { onCapacityExceeded: withNewMaskAdvice(dispatchers.onCapacityExceeded, accessors) }
+      ? {
+          onCapacityExceeded: withNewMaskAdvice(
+            dispatchers.onCapacityExceeded,
+            accessors,
+            () => strokeRefines,
+          ),
+        }
       : {}),
   };
 }
 
 /**
- * Points a capacity failure at the remedy the brush offers: a separate mask,
- * started with the New mask action. The error is otherwise unchanged.
+ * Points a capacity failure at the remedy the brush offers — a separate mask,
+ * started with the New mask action — when that remedy works: the stroke was
+ * refining a mask (one creating a mask is helped only by a smaller region),
+ * and a new mask may still be added (at the limit New mask is disabled).
+ * Otherwise, and for errors other than the cell cap, the error is unchanged.
  */
 function withNewMaskAdvice(
   report: (error: BrushCapacityError) => void,
   accessors: BrushConfigAccessors,
+  strokeRefines: () => boolean,
 ): (error: BrushCapacityError) => void {
   return (error) => {
     const key = accessors.getNewMaskShortcut?.();
-    if (!(error instanceof MaskCapacityExceededError) || key === undefined || key === '') {
+    if (
+      !(error instanceof MaskCapacityExceededError) ||
+      key === undefined ||
+      key === '' ||
+      !strokeRefines() ||
+      !(accessors.canStartNewMask?.() ?? true)
+    ) {
       report(error);
       return;
     }

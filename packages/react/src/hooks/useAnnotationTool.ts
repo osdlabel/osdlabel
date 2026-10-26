@@ -156,6 +156,7 @@ export function useAnnotationTool(
           getSelectedFill: () => brushOptionsRef.current.maskStyle?.selectedFill,
           // `shortcuts` is already a dependency: the tool is activated with it.
           getNewMaskShortcut: () => shortcuts.newMask,
+          canStartNewMask: () => canAddAnnotation(store.getConstraintStatus(), 'segmentationBrush'),
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),

@@ -501,8 +501,56 @@ describe('New mask', () => {
     }
   });
 
+  it('advises New mask only where it helps', () => {
+    // A stroke creating a mask: New mask does nothing with nothing selected,
+    // so only the default advice (a smaller region) can help.
+    const creating = live('n');
+    creating.config.getTarget();
+    creating.config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(creating.reported[0]!.message).toMatch(/Paint a smaller region/);
+    expect(creating.reported[0]!.message).not.toMatch(/New mask/);
+
+    // Refining at the context's limit, where New mask is disabled.
+    let canStart = false;
+    const reported: BrushCapacityError[] = [];
+    const atLimit = buildSegmentationBrushConfig(
+      {
+        getBrushRadius: () => 10,
+        isErasing: () => false,
+        getImageSize: () => ({ width: 300, height: 200 }),
+        getSelectedAnnotationId: () => createAnnotationId('m'),
+        getAnnotationState: () =>
+          stateWith(
+            createMaskAnnotation(snapshot(), { id: createAnnotationId('m'), imageId, contextId }),
+          ),
+        getImageId: () => imageId,
+        getActiveContextId: () => contextId,
+        getNewMaskShortcut: () => 'n',
+        canStartNewMask: () => canStart,
+      },
+      {
+        addAnnotation: vi.fn(),
+        updateAnnotation: vi.fn(),
+        deleteAnnotation: vi.fn(),
+        setSelectedAnnotation: vi.fn(),
+        adjustBrushRadius: vi.fn(),
+        onCapacityExceeded: (error) => reported.push(error),
+      },
+    );
+    expect(atLimit.getTarget()).not.toBeNull();
+    atLimit.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(reported[0]!.message).not.toMatch(/New mask/);
+    // Below it, the same refining stroke is pointed at New mask.
+    canStart = true;
+    atLimit.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(reported[1]!.message).toMatch(/Start a separate mask with New mask \(n\)\.$/);
+  });
+
   it('points a capacity failure at New mask, by its bound key', () => {
     const h = live('m');
+    // A refining stroke: a mask exists and is selected, and its target resolved.
+    h.stroke(60);
+    expect(h.config.getTarget()).not.toBeNull();
     h.config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50, 2));
     const error = h.reported[0] as MaskCapacityExceededError;
     expect(error).toBeInstanceOf(MaskCapacityExceededError);

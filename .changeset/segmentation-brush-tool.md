@@ -240,13 +240,16 @@ press. A **New mask** button beside Erase in both Toolbars
 (`data-testid="brush-new-mask"`) and the `newMask` shortcut (default `n`, brush
 only) deselect while keeping the brush, so the next stroke starts a separate
 mask. The button is `aria-pressed` while the next stroke will create a mask and
-disabled at the context's `maxCount`. The cursor ring is solid when the next
-stroke refines and dashed when it creates, and on a mask at a downsample above
-1 it is drawn as the cells one dab sets. A capacity failure now says "Start a
-separate mask with New mask (n)", naming the bound key. For hosts:
-`canRefineSelectedMask` (the rule the button and the constraints share),
-`SegmentationBrushToolConfig.peekTarget` with `BrushTargetPreview`,
-`BrushConfigAccessors.getNewMaskShortcut`, and an optional `advice` argument on
+disabled at the context's `maxCount`; the key does nothing there either, and
+waits for the release while a stroke is open. The cursor ring is solid when the
+next stroke refines and dashed when it creates, sized in screen pixels, and on
+a mask at a downsample above 1 it is drawn as the cells one dab sets. A capacity
+failure on a refining stroke says "Start a separate mask with New mask (n)",
+naming the bound key, when a new mask may still be added; otherwise it keeps the
+default advice. For hosts: `canRefineSelectedMask` (the rule the button and the
+constraints share), `SegmentationBrushToolConfig.peekTarget` with
+`BrushTargetPreview`, `BrushConfigAccessors.getNewMaskShortcut` and
+`canStartNewMask`, and an optional `advice` argument on
 `MaskCapacityExceededError`. A context's last allowed mask is now selected
 before it is added, which fixes the Solid binding switching to the select tool
 the moment that mask was painted.

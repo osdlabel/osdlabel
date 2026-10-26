@@ -773,10 +773,43 @@ test.describe('Segmentation brush', () => {
       await expect(newMask(page)).toBeDisabled();
       await expect(newMask(page)).toHaveAttribute('title', /limit of 1 masks is reached/);
 
-      // A stroke with nothing selected is still refused, as before.
+      // At the limit the key does nothing, like the button: the mask stays
+      // selected and the brush stays the active tool.
+      const [first] = await readAnnotations(page);
       await page.keyboard.press('n');
+      await expect(page.getByTestId('brush-eraser')).toBeVisible();
+      await expect(newMask(page)).toHaveAttribute('aria-pressed', 'false');
+      // So the next stroke refines the one mask rather than being refused.
       await stroke(page, { x: box.x + 200, y: box.y + 240 }, { x: box.x + 260, y: box.y + 240 });
-      expect(await readAnnotations(page)).toHaveLength(1);
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      expect(annotations[0]!.geometry.pixelCount!).toBeGreaterThan(first!.geometry.pixelCount!);
+    });
+
+    test('pressed mid-stroke at the limit, keeps the stroke whole', async ({ page }) => {
+      const box = await page.locator('canvas.upper-canvas').boundingBox();
+      if (!box) throw new Error('canvas not found');
+      await page.getByRole('combobox').selectOption({ label: 'Single mask' });
+      await page.getByTestId('tool-segmentationBrush').click();
+      await stroke(page, { x: box.x + 200, y: box.y + 160 }, { x: box.x + 220, y: box.y + 160 });
+      const [first] = await readAnnotations(page);
+
+      // A refining stroke with `n` pressed halfway: it used to deselect the
+      // mask, switch the brush off and tear the stroke down unsaved.
+      await page.mouse.move(box.x + 200, box.y + 200);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 240, box.y + 200, { steps: 5 });
+      await page.keyboard.press('n');
+      await page.mouse.move(box.x + 300, box.y + 200, { steps: 5 });
+      await page.mouse.up();
+      await page.waitForTimeout(200);
+
+      await expect(page.getByTestId('brush-eraser')).toBeVisible();
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      // The whole stroke landed: its 100 screen pixels, not the 40 before `n`.
+      expect(annotations[0]!.geometry.width!).toBeGreaterThanOrEqual(100);
+      expect(annotations[0]!.geometry.pixelCount!).toBeGreaterThan(first!.geometry.pixelCount!);
     });
   });
 });

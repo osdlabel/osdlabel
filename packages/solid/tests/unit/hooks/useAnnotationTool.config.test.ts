@@ -9,7 +9,13 @@ import {
   type VertexMarkerOptions,
 } from '@osdlabel/fabric-annotations';
 import { createAnnotationId } from '@osdlabel/annotation';
-import { BoundedDenseMaskBuffer, createMaskAnnotation } from 'osdlabel';
+import {
+  BoundedDenseMaskBuffer,
+  MaskCapacityExceededError,
+  createMaskAnnotation,
+  type BrushCapacityError,
+} from 'osdlabel';
+import type { SegmentationBrushToolConfig } from '@osdlabel/fabric-annotations';
 import { createImageId, type KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { AnnotatorProvider, useAnnotator } from '../../../src/state/annotator-context.js';
@@ -336,5 +342,61 @@ describe('useAnnotationTool with the provider config (#219)', () => {
     expect(h.annotator.uiState.activeTool).toBe('polyline');
     press('j');
     expect(h.annotator.uiState.activeTool).toBe('rectangle');
+  });
+});
+
+describe('the brush config names the bound New mask key (m19)', () => {
+  afterEach(() => {
+    dispose?.();
+    dispose = undefined;
+  });
+
+  it("in a capacity failure while refining, from the provider's shortcut map", () => {
+    createdTools.length = 0;
+    const reported: BrushCapacityError[] = [];
+    const overlay = makeOverlay();
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    const mask = createMaskAnnotation(buffer.raster(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    createRoot((d) => {
+      dispose = d;
+      createComponent(AnnotatorProvider, {
+        keyboardShortcuts: { newMask: 'm' },
+        brushOptions: { onCapacityExceeded: (error) => reported.push(error) },
+        get children() {
+          untrack(() => {
+            const annotator = useAnnotator();
+            annotator.actions.setContexts([
+              { id: contextId, label: 'Test', tools: [{ type: 'segmentationBrush' }] },
+            ]);
+            annotator.actions.setActiveContext(contextId);
+            annotator.actions.assignImageToCell(0, imageId);
+            annotator.actions.addAnnotation(mask);
+            annotator.actions.setSelectedAnnotation(mask.id);
+            annotator.actions.setActiveTool('segmentationBrush');
+            useAnnotationTool(
+              () => overlay,
+              () => imageId,
+              () => true,
+            );
+          });
+          return null;
+        },
+      });
+    });
+
+    const built = createdTools.at(-1);
+    expect(built).toBeDefined();
+    const config = (built!.options as { segmentationBrush: SegmentationBrushToolConfig })
+      .segmentationBrush;
+    // A refining stroke resolves its target first; then the cap is hit.
+    expect(config.getTarget()?.annotationId).toBe(mask.id);
+    config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(reported).toHaveLength(1);
+    expect(reported[0]!.message).toMatch(/Start a separate mask with New mask \(m\)\.$/);
   });
 });

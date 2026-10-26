@@ -87,6 +87,7 @@ interface MockCanvas {
   requestRenderAll: ReturnType<typeof vi.fn>;
   discardActiveObject: ReturnType<typeof vi.fn>;
   bringObjectToFront: ReturnType<typeof vi.fn>;
+  getZoom: () => number;
   getObjects: ReturnType<typeof vi.fn>;
   remove: ReturnType<typeof vi.fn>;
   add: ReturnType<typeof vi.fn>;
@@ -138,6 +139,8 @@ describe('useAnnotationTool', () => {
       requestRenderAll: vi.fn(),
       discardActiveObject: vi.fn(),
       bringObjectToFront: vi.fn(),
+      // The brush's cursor cue sizes itself in screen pixels.
+      getZoom: () => 1,
       getObjects: vi.fn().mockReturnValue([]),
       remove: vi.fn(),
       add: vi.fn(),
