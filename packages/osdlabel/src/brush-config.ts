@@ -7,12 +7,9 @@ import {
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { AnnotationState, ImageId } from '@osdlabel/viewer-api';
 import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
-import {
-  DEFAULT_MAX_MASK_PIXELS,
-  decodeCanonicalRaster,
-  type MaskCapacityExceededError,
-} from '@osdlabel/mask';
+import { DEFAULT_MAX_MASK_PIXELS, decodeCanonicalRaster } from '@osdlabel/mask';
 import type {
+  BrushCapacityError,
   BrushStrokeCommit,
   BrushTarget,
   SegmentationBrushToolConfig,
@@ -72,7 +69,7 @@ export interface BrushConfigDispatchers {
    * unchanged, so this is the only chance to tell the user why nothing
    * happened.
    */
-  readonly onCapacityExceeded?: ((error: MaskCapacityExceededError) => void) | undefined;
+  readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
 }
 
 /**

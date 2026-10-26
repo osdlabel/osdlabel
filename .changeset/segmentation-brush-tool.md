@@ -139,6 +139,14 @@ the brush tool clamps its own `maxPixels`.
 downsample, and the image-pixel box the limit allows there; it no longer
 suggests raising a cap that cannot be raised.
 
+A mask more than `MAX_MASK_CANVAS_SIDE` (32,767, Firefox's limit) cells wide
+or tall — a long strip can be, well inside the cap — is not drawn blank: the
+renderer throws `MaskCanvasTooLargeError`, reported through
+`onAnnotationRenderError` while the other annotations render, and a stroke
+whose live preview would pass the limit is refused through
+`onCapacityExceeded`, whose argument is now `BrushCapacityError`
+(`MaskCapacityExceededError | MaskCanvasTooLargeError`).
+
 ## New API
 
 - **`@osdlabel/mask`** (new package): `MaskBuffer` (with the optional

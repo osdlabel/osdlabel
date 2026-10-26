@@ -5,10 +5,12 @@ import {
   BoundedDenseMaskBuffer,
   decodeCanonicalRaster,
   encodeCanonical,
+  runRaster,
   stampCircle,
   strokeSegment,
 } from '@osdlabel/mask';
 import { buildMaskFabricObject } from '../../src/mask-fabric-object.js';
+import { MAX_MASK_CANVAS_SIDE, MaskCanvasTooLargeError } from '../../src/mask-canvas-limit.js';
 import { initFabricModule } from '../../src/fabric-module.js';
 
 initFabricModule();
@@ -187,5 +189,49 @@ describe('a downsampled mask', () => {
     expect(right - 1001).toBeLessThan(8);
     expect(bottom).toBeGreaterThanOrEqual(601);
     expect(bottom - 601).toBeLessThan(8);
+  });
+});
+
+describe('a mask too long for a canvas', () => {
+  /** A solid mask of `width` x `height` cells, built from runs. */
+  const solid = (width: number, height: number): MaskRawAnnotationData => ({
+    format: MASK_RAW_FORMAT,
+    data: {
+      ...encodeCanonical(
+        runRaster(
+          {
+            cells: { x: 0, y: 0, width, height },
+            imageWidth: 100_000,
+            imageHeight: 100_000,
+            downsample: 1,
+          },
+          [0, width * height],
+        ),
+      ),
+    },
+  });
+
+  it('is refused by name rather than drawn blank, inside the cell cap', () => {
+    // 63 M and 64 M cells: both under the 64 Mi cap, both past Firefox's
+    // 32,767-pixel canvas side.
+    for (const [width, height] of [
+      [70_000, 900],
+      [40_000, 1_600],
+      [900, 70_000],
+    ] as const) {
+      let caught: unknown;
+      try {
+        buildMaskFabricObject(solid(width, height), { id: 'ann-1' });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(MaskCanvasTooLargeError);
+      expect(caught).toMatchObject({ width, height, maxSide: MAX_MASK_CANVAS_SIDE });
+    }
+  });
+
+  it('still draws a mask exactly as long as the limit', () => {
+    const object = buildMaskFabricObject(solid(MAX_MASK_CANVAS_SIDE, 1), { id: 'ann-1' });
+    expect((object as FabricImage).width).toBe(MAX_MASK_CANVAS_SIDE);
   });
 });

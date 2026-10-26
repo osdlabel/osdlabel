@@ -1,6 +1,7 @@
 import { Color, FabricImage, type FabricObject } from 'fabric';
 import { MASK_RAW_FORMAT, type MaskRawAnnotationData } from '@osdlabel/annotation';
 import { decodeCanonicalRaster } from '@osdlabel/mask';
+import { MAX_MASK_CANVAS_SIDE, MaskCanvasTooLargeError } from './mask-canvas-limit.js';
 
 /** Tint used when a mask envelope carries no `fill` of its own. */
 export const DEFAULT_MASK_FILL = 'rgba(33, 150, 243, 0.45)';
@@ -26,7 +27,10 @@ export interface BuildMaskFabricObjectOptions {
  * the pixels from their image-space coordinates.
  *
  * Returns `null` for an empty mask, which has no pixels to draw. Throws if
- * handed raw data that is not a mask payload.
+ * handed raw data that is not a mask payload, and throws
+ * {@link MaskCanvasTooLargeError} for a mask more than
+ * {@link MAX_MASK_CANVAS_SIDE} cells wide or tall, which no canvas can draw in
+ * every browser — a host's cell reports it as a skipped annotation.
  */
 export function buildMaskFabricObject(
   raw: MaskRawAnnotationData,
@@ -49,6 +53,11 @@ export function buildMaskFabricObject(
   const raster = decodeCanonicalRaster(raw.data);
   const cells = raster.cells;
   if (cells.width === 0 || cells.height === 0) return null;
+  // Refused, not drawn: past the limit an engine allocates the canvas but
+  // draws nothing, so the mask would vanish with no error at all.
+  if (cells.width > MAX_MASK_CANVAS_SIDE || cells.height > MAX_MASK_CANVAS_SIDE) {
+    throw new MaskCanvasTooLargeError(cells.width, cells.height);
+  }
 
   const [red, green, blue, alpha] = new Color(
     options.fill ?? raw.data.fill ?? DEFAULT_MASK_FILL,

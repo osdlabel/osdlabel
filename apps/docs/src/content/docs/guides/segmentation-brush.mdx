@@ -502,6 +502,17 @@ abandoned with the mask unchanged; a mask too large to render is skipped and
 reported like any other annotation that cannot be revived. On devices with
 such limits, set `maxPixels` below them.
 
+A canvas also has a longest side: Firefox draws none past 32,767 pixels
+(Chromium's limit is 65,535), and past it a canvas is allocated but drawn
+blank. A mask is one canvas pixel per cell, so a long strip can reach that well
+inside the cell cap — 70,000×900 is 63 Mi cells. Such a mask is not drawn:
+the renderer throws `MaskCanvasTooLargeError` (`MAX_MASK_CANVAS_SIDE`), the
+cell reports it through `onAnnotationRenderError` and renders the rest, and the
+mask itself stays in state and exports as usual. A stroke whose live preview
+would pass the limit is refused the same way, through `onCapacityExceeded`
+(whose argument is now a `BrushCapacityError`: either error); the preview's
+room to grow gives way first, so only a mask that is itself too long is refused.
+
 A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
 before any pixel is written, so the mask is left exactly as it was rather than
 half-painted. `onCapacityExceeded` is your only chance to tell the user why

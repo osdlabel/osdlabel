@@ -3,7 +3,10 @@ import { act } from 'react';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationId } from '@osdlabel/annotation';
-import { createFabricObjectFromRawData } from '@osdlabel/fabric-annotations';
+import {
+  MaskCanvasTooLargeError,
+  createFabricObjectFromRawData,
+} from '@osdlabel/fabric-annotations';
 import {
   BoundedDenseMaskBuffer,
   MASK_RAW_FORMAT,
@@ -146,6 +149,33 @@ const contextId = createAnnotationContextId('ctx-1');
 const m1 = createAnnotationId('m1');
 const m2 = createAnnotationId('m2');
 
+/**
+ * A 40,000 x 1,600-cell mask: inside the cell cap, too long for any canvas
+ * every browser draws.
+ */
+function tooLongMask(id: typeof m1) {
+  // One solid run, LEB128 and base64 by hand: the runs are all there is.
+  const cells = 40_000 * 1_600;
+  const bytes = [0];
+  for (let n = cells; ; n = Math.floor(n / 0x80)) {
+    if (n < 0x80) {
+      bytes.push(n);
+      break;
+    }
+    bytes.push((n % 0x80) | 0x80);
+  }
+  const raster = decodeCanonicalRaster({
+    x: 0,
+    y: 0,
+    width: 40_000,
+    height: 1_600,
+    imageWidth: 100_000,
+    imageHeight: 100_000,
+    counts: btoa(String.fromCharCode(...bytes)),
+  });
+  return createMaskAnnotation(raster, { id, imageId, contextId });
+}
+
 /** A 4x mask on a 101-square image, reaching its clipped last cell column and row. */
 function coarseMask(id: typeof m1, radius = 12) {
   const buffer = new BoundedDenseMaskBuffer({ imageWidth: 101, imageHeight: 101, downsample: 4 });
@@ -266,5 +296,33 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     const after = byId('m1') as unknown as { scaleX: number };
     expect(after.scaleX).toBe(4);
     expect(buildsFor('m2')).toBe(1);
+  });
+
+  it('reports a mask too long to draw, and still renders the others', async () => {
+    realRenderer = true;
+    const report = vi.fn();
+    const h = renderAnnotator(
+      {
+        initialAnnotations: { [imageId]: { [m1]: tooLongMask(m1), [m2]: mask(m2) } },
+        onAnnotationRenderError: report,
+      },
+      <ViewerCell
+        imageSource={{ id: imageId, tileSource: 'x.png' }}
+        isActive
+        cellIndex={0}
+        onActivate={() => {}}
+      />,
+    );
+    h.run((a) => {
+      a.setContexts([{ id: contextId, label: 'All', tools: [{ type: 'segmentationBrush' }] }]);
+      a.setActiveContext(contextId);
+    });
+    act(() => openHandlers[0]!());
+
+    await vi.waitFor(() => expect(report).toHaveBeenCalled());
+    const failure = report.mock.calls[0]![0] as { annotation: { id: string }; error: unknown };
+    expect(failure.annotation.id).toBe(m1);
+    expect(failure.error).toBeInstanceOf(MaskCanvasTooLargeError);
+    expect(objects.map((o) => o.id)).toEqual(['m2']);
   });
 });

@@ -1,4 +1,4 @@
-import type { MaskCapacityExceededError } from '@osdlabel/mask';
+import type { BrushCapacityError } from '@osdlabel/fabric-annotations';
 
 /**
  * How masks are drawn relative to the selection.
@@ -58,10 +58,12 @@ export interface BrushOptions {
    */
   readonly maxPixels?: number | undefined;
   /**
-   * Called when a stroke would exceed {@link BrushOptions.maxPixels}.
+   * Called when a stroke would exceed {@link BrushOptions.maxPixels}, or would
+   * make the mask too wide or tall to draw (`MaskCanvasTooLargeError`: a side
+   * past `MAX_MASK_CANVAS_SIDE` cells).
    *
    * The stroke is abandoned whole and the mask left unchanged, so nothing on
    * screen changes — this is the only chance to tell the user why.
    */
-  readonly onCapacityExceeded?: ((error: MaskCapacityExceededError) => void) | undefined;
+  readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
 }

@@ -14,6 +14,11 @@ import {
   type MaskRegion,
 } from '@osdlabel/mask';
 import { DEFAULT_MASK_FILL } from '../mask-fabric-object.js';
+import {
+  MAX_MASK_CANVAS_SIDE,
+  MaskCanvasTooLargeError,
+  type BrushCapacityError,
+} from '../mask-canvas-limit.js';
 import type { ToolOverlay } from '../types.js';
 
 /** The painted result of one stroke, handed to the host to persist. */
@@ -72,8 +77,11 @@ export interface SegmentationBrushToolConfig {
    * reported — the host owns the step size and any clamping.
    */
   readonly onAdjustRadius?: ((direction: 1 | -1) => void) | undefined;
-  /** Called when a stroke would grow the mask past its pixel cap. */
-  readonly onCapacityExceeded?: ((error: MaskCapacityExceededError) => void) | undefined;
+  /**
+   * Called when a stroke is abandoned because the mask would grow past its
+   * cell cap, or its live preview past what a canvas can draw.
+   */
+  readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
   readonly maxPixels?: number | undefined;
 }
 
@@ -412,7 +420,7 @@ export class SegmentationBrushTool extends BaseTool {
       // report it as one and abandon the stroke with the mask unchanged.
       const bounds = this.previewBounds ?? this.buffer.cellBounds;
       this.config.onCapacityExceeded?.(
-        error instanceof MaskCapacityExceededError
+        error instanceof MaskCapacityExceededError || error instanceof MaskCanvasTooLargeError
           ? error
           : new MaskCapacityExceededError(
               bounds.width * bounds.height,
@@ -516,8 +524,20 @@ export class SegmentationBrushTool extends BaseTool {
     // In cells, like `bounds`: the buffer's grid is the space it writes in.
     const imageWidth = this.buffer?.gridWidth ?? bounds.x + bounds.width;
     const imageHeight = this.buffer?.gridHeight ?? bounds.y + bounds.height;
-    const marginX = Math.ceil(bounds.width / 2);
-    const marginY = Math.ceil(bounds.height / 2);
+    // Never growing a side past what a canvas can draw: the margin is a
+    // convenience, and a preview refused for its margin alone would abandon a
+    // stroke whose mask draws fine once committed.
+    const marginX = Math.max(
+      0,
+      Math.min(Math.ceil(bounds.width / 2), Math.floor((MAX_MASK_CANVAS_SIDE - bounds.width) / 2)),
+    );
+    const marginY = Math.max(
+      0,
+      Math.min(
+        Math.ceil(bounds.height / 2),
+        Math.floor((MAX_MASK_CANVAS_SIDE - bounds.height) / 2),
+      ),
+    );
 
     // `min`/`max` against `bounds` on both sides, so containment is structural
     // rather than a property the margins happen to preserve. Whatever the
@@ -538,6 +558,12 @@ export class SegmentationBrushTool extends BaseTool {
   /** Returns whether the previous preview's pixels were carried into the new one. */
   private rebuildPreview(bounds: MaskRegion): boolean {
     if (!this.overlay) return false;
+    // The committed mask would be refused by the renderer at this size, and
+    // an engine draws such a canvas blank rather than failing, so the stroke
+    // would paint nothing visible. Refuse it as a capacity failure instead.
+    if (bounds.width > MAX_MASK_CANVAS_SIDE || bounds.height > MAX_MASK_CANVAS_SIDE) {
+      throw new MaskCanvasTooLargeError(bounds.width, bounds.height);
+    }
     if (this.preview) this.overlay.canvas.remove(this.preview);
 
     const canvas = document.createElement('canvas');

@@ -22,6 +22,11 @@ import type {
   SegmentationBrushToolConfig,
 } from '../../../src/tools/segmentation-brush-tool.js';
 import type { ToolOverlay } from '../../../src/types.js';
+import {
+  MAX_MASK_CANVAS_SIDE,
+  MaskCanvasTooLargeError,
+  type BrushCapacityError,
+} from '../../../src/mask-canvas-limit.js';
 import type { ToolCallbacks } from '../../../src/tools/base-tool.js';
 import { createTestKeyboardShortcuts } from '../test-helpers.js';
 
@@ -45,7 +50,7 @@ interface Harness {
   readonly callbacks: ToolCallbacks;
   readonly objects: FabricObject[];
   readonly commits: BrushStrokeCommit[];
-  readonly capacityErrors: MaskCapacityExceededError[];
+  readonly capacityErrors: BrushCapacityError[];
   readonly radiusAdjustments: (1 | -1)[];
   /** Releases the stand-in overlay reports as ending a cancelled press. */
   readonly cancelledReleases: WeakSet<PointerEvent>;
@@ -78,7 +83,7 @@ function harness(
 ): Harness {
   const objects: FabricObject[] = [...(options.existingObjects ?? [])];
   const commits: BrushStrokeCommit[] = [];
-  const capacityErrors: MaskCapacityExceededError[] = [];
+  const capacityErrors: BrushCapacityError[] = [];
   const radiusAdjustments: (1 | -1)[] = [];
 
   const canvas = {
@@ -469,8 +474,39 @@ describe('SegmentationBrushTool: capacity', () => {
     up(h.tool, 9500, 9500);
 
     expect(h.capacityErrors).toHaveLength(1);
-    expect(h.capacityErrors[0]!.maxCells).toBe(DEFAULT_MAX_MASK_PIXELS);
+    const error = h.capacityErrors[0];
+    expect(error).toBeInstanceOf(MaskCapacityExceededError);
+    expect((error as MaskCapacityExceededError).maxCells).toBe(DEFAULT_MAX_MASK_PIXELS);
     expect(h.commits).toHaveLength(0);
+  });
+
+  it('refuses a stroke too wide for any canvas to draw, through onCapacityExceeded', () => {
+    // 40,000 x 11 cells is far inside the cell cap, but no browser draws a
+    // canvas that wide: the stroke would paint nothing visible.
+    const h = harness({ imageSize: { width: 50_000, height: 200 }, radius: 5 });
+    down(h.tool, 100, 100);
+    move(h.tool, 40_000, 100);
+    up(h.tool, 40_000, 100);
+
+    expect(h.capacityErrors).toHaveLength(1);
+    const error = h.capacityErrors[0];
+    expect(error).toBeInstanceOf(MaskCanvasTooLargeError);
+    expect((error as MaskCanvasTooLargeError).width).toBeGreaterThan(MAX_MASK_CANVAS_SIDE);
+    expect(h.commits).toHaveLength(0);
+  });
+
+  it('does not refuse a stroke for the room its preview leaves to grow', () => {
+    // 20,000 cells wide fits; the preview's usual margin, half the box on
+    // each side, would take it to 40,000, so the margin is what gives way.
+    // In the middle of the image, so its edges do not clip the margin first.
+    const h = harness({ imageSize: { width: 100_000, height: 200 }, radius: 5 });
+    down(h.tool, 40_000, 100);
+    move(h.tool, 60_000, 100);
+    up(h.tool, 60_000, 100);
+
+    expect(h.capacityErrors).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.cells.width).toBeLessThanOrEqual(MAX_MASK_CANVAS_SIDE);
   });
 
   it('restores the hidden target when a capacity failure aborts the stroke', () => {
