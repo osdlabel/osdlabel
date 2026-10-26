@@ -1564,11 +1564,11 @@ const contexts: AnnotationContext[] = [
 many strokes you may paint: refining the selected mask never creates an
 annotation, so it does not count against the limit. At the limit the brush
 stays enabled while a mask it can refine is selected — one of the active
-context's masks on the current image — and a stroke on empty canvas is refused
-rather than starting another mask. With nothing refinable selected it is
-disabled like any other tool at its limit, and the annotator switches to the
-select tool; selecting a mask enables it again. New mask is disabled at the
-limit too, its title saying why — there is no new mask to start.
+context's masks on the current image — and every stroke refines that mask,
+wherever it lands, growing its box; New mask is disabled, its title saying why,
+and its key does nothing. With nothing refinable selected the brush is disabled
+like any other tool at its limit, and the annotator switches to the select
+tool; selecting a mask enables it again.
 
 ## Using it
 
@@ -1785,10 +1785,10 @@ Assembling a real COCO document from these segmentations is your job;
 fields to go with each one.
 :::
 
-Re-encoding decodes each mask first, under the default 64 Mi-cell cap. A
-host that lowered the brush's `maxPixels` needs nothing more; one that holds
-masks painted under a different cap passes the same value as `maxMaskPixels`,
-or export throws on the first mask above the default.
+Re-encoding decodes each mask first, under the 64 Mi-cell cap, which no mask in
+state can exceed: the cap is checked when a mask is painted, created and
+imported. `serialize`'s `maxMaskPixels` can lower it, so export fails fast on a
+mask larger than you want to write; a higher value changes nothing.
 
 Two COCO codecs ship built in:
 
@@ -1887,10 +1887,11 @@ Without a declared downsample, a COCO mask decodes at full resolution.
 
 Decoding is bounded. `maxMaskPixels` caps any single mask (64 Mi cells, which
 is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
-document as a whole.
+document as a whole, charging each mask its box's cells (image pixels at
+downsample 1) plus its run count.
 
 :::caution[The defaults are not an adversarial boundary]
-Decode cost per pixel varies about fortyfold with a mask's run structure, so a
+Decode cost per cell varies about fortyfold with a mask's run structure, so a
 budget generous enough for real documents still buys a crafted one seconds of
 blocking. The defaults resolve that conflict toward not breaking real work.
 **If you load documents you did not produce, set `maxTotalMaskPixels`
@@ -2066,7 +2067,7 @@ such limits, set `maxPixels` below them.
 A canvas also has a longest side: Firefox draws none past 32,767 pixels
 (Chromium's limit is 65,535), and past it a canvas is allocated but drawn
 blank. A mask is one canvas pixel per cell, so a long strip can reach that well
-inside the cell cap — 70,000×900 is 63 Mi cells. Such a mask is not drawn:
+inside the cell cap — 70,000×900 is 63 million cells, about 60 Mi. Such a mask is not drawn:
 the renderer throws `MaskCanvasTooLargeError` (`MAX_MASK_CANVAS_SIDE`), the
 cell reports it through `onAnnotationRenderError` and renders the rest, and the
 mask itself stays in state and exports as usual. A stroke whose live preview

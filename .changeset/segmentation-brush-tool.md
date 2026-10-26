@@ -206,7 +206,7 @@ whose live preview would pass the limit is refused through
   renderer; and `FabricOverlay.getImageSize()`.
 - **`@osdlabel/validation`**: `MaskGeometrySchema`,
   `MaskRawAnnotationDataSchema`, and the bounds `MAX_MASK_PIXELS`,
-  `MAX_MASK_COUNTS_LENGTH`, `MAX_IMAGE_DIMENSION`.
+  `MAX_MASK_COUNTS_LENGTH`, `MAX_IMAGE_DIMENSION`, `MAX_MASK_DOWNSAMPLE`.
 - **`@osdlabel/geometry` and `@osdlabel/decoration`** learn masks: `area` is the
   exact `pixelCount`, `perimeter` and `length` are `0`, `centroid` and
   `boundingBox` come from the bounding box, and `createMeasurementProvider`
@@ -220,8 +220,8 @@ whose live preview would pass the limit is refused through
   `DEFAULT_MAX_TOTAL_MASK_PIXELS`, and `SerializeOptions` /
   `DeserializeOptions` / `ExportedAnnotation` for the new `maskCodec`,
   `maskCodecs`, `maxMaskPixels` and `maxTotalMaskPixels` options on
-  `serialize` / `deserialize` (`serialize` takes `maxMaskPixels` too, for a
-  host that raised the brush's cap). `canAddAnnotation(status, type)` says
+  `serialize` / `deserialize` (`serialize`'s `maxMaskPixels` only lowers the
+  cap it re-encodes under). `canAddAnnotation(status, type)` says
   whether a tool may add an annotation, which for the brush is no longer what
   `enabled` says (below). The selected-mask styling helpers `MaskTintState`,
   `swapMaskTints`, `MaskTintSwapHost` and `MaskSwapOutcome` are exported for a
@@ -306,9 +306,9 @@ degrades alone instead of blanking its whole grid cell.
 
 - **A mask count limit no longer locks the brush out of refining** (#154). At
   its limit the brush stays enabled while a mask it can refine is selected —
-  one of the active context's masks on the current image — and a stroke on
-  empty canvas is refused rather than starting another mask. With nothing
-  refinable selected it is disabled like any other tool at its limit. The
+  one of the active context's masks on the current image — and every stroke
+  refines that mask, wherever it lands. With nothing refinable selected it is
+  disabled like any other tool at its limit. The
   selection is therefore an input to `computeConstraintStatus`, which takes
   it as a fourth argument; `ConstraintStatus.enabled` means "the tool can do
   something now", and `canAddAnnotation(status, type)` is the question the

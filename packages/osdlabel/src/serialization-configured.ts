@@ -93,8 +93,9 @@ export interface DeserializeOptions {
    */
   readonly maxMaskPixels?: number | undefined;
   /**
-   * Cap on the pixels *all* masks in the document may decode to together.
-   * Defaults to {@link DEFAULT_MAX_TOTAL_MASK_PIXELS}.
+   * Cap on the work *all* masks in the document may cost to decode together,
+   * charged per mask as its box's cells (image pixels at downsample 1) plus
+   * its run count. Defaults to {@link DEFAULT_MAX_TOTAL_MASK_PIXELS}.
    *
    * Without this, a per-mask cap is no bound at all — a document can hold
    * arbitrarily many masks that are each individually legal.
@@ -103,7 +104,8 @@ export interface DeserializeOptions {
 }
 
 /**
- * Default document-wide decode budget: thirty-two masks at the per-mask cap.
+ * Default document-wide decode budget, in cells (image pixels at downsample 1)
+ * plus runs: thirty-two masks at the per-mask cap.
  *
  * **No finite default makes `serialize` and `deserialize` symmetric.** `serialize`
  * imposes no budget and a document may hold any number of masks, so for any
@@ -114,7 +116,7 @@ export interface DeserializeOptions {
  * genuinely larger comes along.
  *
  * **This is not an adversarial boundary, and cannot be one.** Decode cost per
- * charged pixel varies about fortyfold with a mask's run structure, so any
+ * charged cell varies about fortyfold with a mask's run structure, so any
  * budget generous enough for real documents still buys a crafted one seconds of
  * blocking. The two goals are in direct conflict and this default resolves them
  * toward not breaking real work, because losing a user's annotations is certain
@@ -422,16 +424,23 @@ function normalizeMasks(
       // mask was fine and the *budget* ran out; failing again means the mask
       // itself is too big and only it is lost. The retry costs one bounded
       // decode, on an error path that ends the import either way.
+      // And report the retry's error when there was one: the first was judged
+      // against a cap the budget had shrunk, so it named the leftover budget as
+      // the mask's limit and hid the real fault (runs that do not fill the box,
+      // a box off its grid, a payload not constant within its cells).
+      let fault: unknown = err;
       if (limitedByBudget) {
-        if (decodesAlone(decode, perMask)) {
+        const retry = decodeError(decode, perMask);
+        if (retry === undefined) {
           throw new BudgetExceededError(
-            `Document's masks decode to more than ${budget} pixels in total; ` +
+            `Document's masks decode to more than ${budget} cells and runs in total; ` +
               `raise maxTotalMaskPixels to allow it`,
           );
         }
+        fault = retry;
       }
       const id = (entry as { id?: unknown }).id;
-      const message = err instanceof Error ? err.message : String(err);
+      const message = fault instanceof Error ? fault.message : String(fault);
       skipped.push({
         id: typeof id === 'string' ? id : null,
         // The codec contract names no error type, so a third-party decoder's
@@ -446,12 +455,14 @@ function normalizeMasks(
 }
 
 /** Whether `decode` succeeds at `cap`; the error itself is not needed here. */
-function decodesAlone(decode: (cap: number) => unknown, cap: number): boolean {
+function decodeError(decode: (cap: number) => unknown, cap: number): unknown {
   try {
     decode(cap);
-    return true;
-  } catch {
-    return false;
+    return undefined;
+  } catch (error) {
+    // A codec may throw anything, `undefined` included; keep it distinguishable
+    // from success.
+    return error === undefined ? new Error('the codec threw undefined') : error;
   }
 }
 

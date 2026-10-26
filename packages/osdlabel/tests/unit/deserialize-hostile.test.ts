@@ -313,6 +313,17 @@ describe('deserialize: attributing a failure to the right cause', () => {
     id,
   });
 
+  it("names a mask's own fault, not the budget-shrunk cap it first failed under", () => {
+    // 2000 x 2000 = 4 M cells, past the 1 M budget, and runs that do not fill
+    // the box. The first decode fails at the budget's cap; the retry at the
+    // mask's own cap finds the real fault, and that is what is reported.
+    const broken = { ...solidMask(2000), counts: toBase64([0, ...encodeLeb(2000 * 2000 - 1)]) };
+    const { skipped } = deserialize([maskAnnotation(broken)], { maxTotalMaskPixels: 1_000_000 });
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]!.reason).toMatch(/Run lengths sum to/);
+    expect(skipped[0]!.reason).not.toMatch(/limit of 1000000/);
+  });
+
   it('gives the same answer whatever order the masks are in', () => {
     const registry = createMaskCodecRegistry(cocoRleUncompressedCodec);
     // Five masks inside the per-mask cap, plus one far outside it. Deciding

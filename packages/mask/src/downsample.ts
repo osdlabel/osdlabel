@@ -124,10 +124,10 @@ function cellsFor(
  * The finest downsample at which `region` (image pixels) fits in `maxPixels`
  * cells: the smallest power of two that does.
  *
- * This is what decides a new mask's resolution. The brush passes the part of
- * the image on screen, so a stroke that stays in view always fits; a
- * segmentation model would pass its prediction's box. A region that fits at 1
- * gets 1, which is exactly the behaviour before the field existed.
+ * An internal helper, off both barrels: the brush does not use it — a new mask
+ * starts at full resolution whatever the zoom. It is kept for coarsening a
+ * mask that outgrows the cap, which picks a grid by size. A region that fits
+ * at 1 gets 1.
  *
  * `marginCells` widens the region by that many cells a side at each candidate
  * downsample — room for the slack a rasterizer reserves around a stamp, which
