@@ -9,8 +9,10 @@ import {
   MaskCapacityExceededError,
   denseRaster,
   emptySnapshot,
+  majorityCoarsen,
   stampCircle,
   snapshotImageBox,
+  type CoarsenStrategy,
 } from '@osdlabel/mask';
 import { MASK_RAW_FORMAT, createAnnotationId, type AnnotationId } from '@osdlabel/annotation';
 import { MaskCanvasTooLargeError, type BrushCapacityError } from '@osdlabel/fabric-annotations';
@@ -41,6 +43,8 @@ function harness(options: {
   annotations?: OsdAnnotation[];
   activeContextId?: AnnotationContextId | null;
   selectedFill?: string | undefined;
+  maxDownsample?: number | undefined;
+  coarsen?: CoarsenStrategy | undefined;
 }) {
   const dispatchers = {
     addAnnotation: vi.fn(),
@@ -48,6 +52,7 @@ function harness(options: {
     deleteAnnotation: vi.fn(),
     setSelectedAnnotation: vi.fn(),
     adjustBrushRadius: vi.fn(),
+    onCoarsen: vi.fn(),
   };
   const config = buildSegmentationBrushConfig(
     {
@@ -63,6 +68,8 @@ function harness(options: {
       ...(options.selectedFill !== undefined
         ? { getSelectedFill: () => options.selectedFill }
         : {}),
+      getMaxDownsample: () => options.maxDownsample,
+      getCoarsenStrategy: () => options.coarsen,
     },
     dispatchers,
   );
@@ -594,5 +601,86 @@ describe('New mask', () => {
     const original = new MaskCapacityExceededError(100, 50);
     plain.config.onCapacityExceeded!(original);
     expect(plain.reported[0]).toBe(original);
+  });
+});
+
+describe('coarsening, through the brush config', () => {
+  /** A mask at `downsample`, for a commit's snapshot. */
+  const at = (downsample: number) => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200, downsample });
+    stampCircle(buffer, 100.5, 80.5, 12, 1);
+    return buffer.raster();
+  };
+  const mask = createMaskAnnotation(snapshot(), {
+    id: createAnnotationId('m'),
+    imageId,
+    contextId,
+  });
+
+  it("hands the tool the context's maxDownsample and the host's strategy, defaulting both", () => {
+    const strategy: CoarsenStrategy = (source) => majorityCoarsen(source);
+    const set = harness({ maxDownsample: 8, coarsen: strategy });
+    expect(set.config.getMaxDownsample!()).toBe(8);
+    expect(set.config.getCoarsenStrategy!()).toBe(strategy);
+    const unset = harness({});
+    expect(unset.config.getMaxDownsample!()).toBe(1);
+    expect(unset.config.getCoarsenStrategy!()).toBe(majorityCoarsen);
+  });
+
+  it('reports a refining stroke that coarsened its mask, after writing it', () => {
+    const { config, dispatchers } = harness({ selectedId: 'm', annotations: [mask] });
+    config.onCommit({
+      annotationId: mask.id,
+      imageId,
+      contextId,
+      snapshot: at(4),
+      startDownsample: 1,
+    });
+    expect(dispatchers.updateAnnotation).toHaveBeenCalledOnce();
+    expect(dispatchers.onCoarsen).toHaveBeenCalledWith({
+      annotationId: mask.id,
+      imageId,
+      contextId,
+      from: 1,
+      to: 4,
+    });
+    expect(dispatchers.onCoarsen.mock.invocationCallOrder[0]!).toBeGreaterThan(
+      dispatchers.updateAnnotation.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('reports a new mask that coarsened, under its new id', () => {
+    const { config, dispatchers } = harness({});
+    config.onCommit({
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: at(2),
+      startDownsample: 1,
+    });
+    expect(dispatchers.addAnnotation).toHaveBeenCalledOnce();
+    const created = dispatchers.addAnnotation.mock.calls[0]![0] as OsdAnnotation;
+    expect(dispatchers.onCoarsen).toHaveBeenCalledWith(
+      expect.objectContaining({ annotationId: created.id, from: 1, to: 2 }),
+    );
+  });
+
+  it('stays quiet for a stroke at the same grid, or one that re-gridded finer', () => {
+    const { config, dispatchers } = harness({ selectedId: 'm', annotations: [mask] });
+    for (const [snapshotD, startDownsample] of [
+      [1, 1],
+      [2, 2],
+      [1, 4],
+    ] as const) {
+      config.onCommit({
+        annotationId: mask.id,
+        imageId,
+        contextId,
+        snapshot: at(snapshotD),
+        startDownsample,
+      });
+    }
+    expect(dispatchers.updateAnnotation).toHaveBeenCalledTimes(3);
+    expect(dispatchers.onCoarsen).not.toHaveBeenCalled();
   });
 });

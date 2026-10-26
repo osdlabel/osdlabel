@@ -13,6 +13,8 @@ import {
   DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
   decodeCanonicalRaster,
+  majorityCoarsen,
+  type CoarsenStrategy,
 } from '@osdlabel/mask';
 import { DEFAULT_MASK_FILL, maskFabricObjectFromCanvas } from '@osdlabel/fabric-annotations';
 import type {
@@ -22,6 +24,7 @@ import type {
   SegmentationBrushToolConfig,
 } from '@osdlabel/fabric-annotations';
 import { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
+import type { CoarsenEvent } from './brush-options.js';
 import type { OsdAnnotation, OsdFields } from './types.js';
 
 /**
@@ -70,6 +73,14 @@ export interface BrushConfigAccessors {
    * a mask may still be added. Omitted, it is assumed it may.
    */
   readonly canStartNewMask?: (() => boolean) | undefined;
+  /**
+   * The active context's `ToolConstraint.brush.maxDownsample`, read at each
+   * press: how coarse a stroke may make its mask to fit the cap. Omitted or 1,
+   * a stroke past the cap is refused.
+   */
+  readonly getMaxDownsample?: (() => number | undefined) | undefined;
+  /** The host's coarsen strategy (`BrushOptions.coarsen`), read at each overflow. */
+  readonly getCoarsenStrategy?: (() => CoarsenStrategy | undefined) | undefined;
 }
 
 /** State mutations the brush triggers. */
@@ -98,6 +109,8 @@ export interface BrushConfigDispatchers {
    * the cell keys its cache on it (`MaskObjectCache.seed`).
    */
   readonly seedMaskObject?: ((seed: MaskObjectSeed) => void) | undefined;
+  /** Called after a stroke that coarsened its mask is written; see `BrushOptions.onCoarsen`. */
+  readonly onCoarsen?: ((event: CoarsenEvent) => void) | undefined;
 }
 
 /** A committed mask's object, built from the brush's preview; see `seedMaskObject`. */
@@ -195,6 +208,7 @@ export function buildSegmentationBrushConfig(
       const fields = maskAnnotationFields(stroke.snapshot, accessors.getFill?.() ?? targetFill);
       seed(stroke, stroke.annotationId, fields.rawAnnotationData);
       dispatchers.updateAnnotation(stroke.annotationId, stroke.imageId, fields);
+      reportCoarsening(stroke, stroke.annotationId);
       return;
     }
 
@@ -220,6 +234,20 @@ export function buildSegmentationBrushConfig(
     }
     dispatchers.setSelectedAnnotation(id);
     dispatchers.addAnnotation(annotation);
+    reportCoarsening(stroke, id);
+  };
+
+  /** Tells the host a written stroke coarsened its mask: only upward, never on re-gridding finer. */
+  const reportCoarsening = (stroke: BrushStrokeCommit, annotationId: AnnotationId): void => {
+    const to = stroke.snapshot.downsample;
+    if (to <= stroke.startDownsample) return;
+    dispatchers.onCoarsen?.({
+      annotationId,
+      imageId: stroke.imageId,
+      contextId: stroke.contextId,
+      from: stroke.startDownsample,
+      to,
+    });
   };
 
   /**
@@ -272,6 +300,10 @@ export function buildSegmentationBrushConfig(
     },
     onCommit: commit,
     onAdjustRadius: dispatchers.adjustBrushRadius,
+    // Both read when the tool needs them, so a host changing either never
+    // rebuilds the tool. A missing value means the tool's own default.
+    getMaxDownsample: () => accessors.getMaxDownsample?.() ?? 1,
+    getCoarsenStrategy: () => accessors.getCoarsenStrategy?.() ?? majorityCoarsen,
     ...(accessors.getFill !== undefined ? { getFill: accessors.getFill } : {}),
     ...(maxPixels !== undefined ? { maxPixels } : {}),
     ...(dispatchers.onCapacityExceeded !== undefined

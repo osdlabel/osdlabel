@@ -987,6 +987,7 @@ Each tool in a context can have:
 | `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                                                        |
 | `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                                                |
 | `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                                                    |
+| `brush`        | `BrushContextOptions`      | none          | For `segmentationBrush`: `maxDownsample`, how coarse a stroke may make its mask to fit the cap                    |
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
 
@@ -1004,6 +1005,12 @@ enforce the count at review time. Tracked in
 [#154](https://github.com/osdlabel/osdlabel/issues/154); see also the
 [Segmentation Brush
 guide](/osdlabel/guides/segmentation-brush/#painting-into-an-existing-mask).
+
+`brush.maxDownsample` lets a stroke coarsen its mask instead of being refused
+at the cell cap: a power of two up to 2^16, default 1 (refuse). The strategy
+and the `onCoarsen` callback are the provider's (`brushOptions`), so a context
+stays plain data. See [Coarsening a mask that outgrows the
+cap](/osdlabel/guides/segmentation-brush/#coarsening-a-mask-that-outgrows-the-cap).
 
 ### Styling a tool
 
@@ -2089,6 +2096,74 @@ A stroke that would exceed the cap is **abandoned whole** — the buffer is grow
 before any pixel is written, so the mask is left exactly as it was rather than
 half-painted. `onCapacityExceeded` is your only chance to tell the user why
 nothing happened.
+
+### Coarsening a mask that outgrows the cap
+
+A context can let a stroke **coarsen** its mask instead of being refused. Set
+`brush.maxDownsample` on its `segmentationBrush` constraint:
+
+```ts
+const contexts: AnnotationContext[] = [
+  {
+    id: createAnnotationContextId('tumour'),
+    label: 'Tumour regions',
+    tools: [{ type: 'segmentationBrush', brush: { maxDownsample: 16 } }],
+  },
+];
+```
+
+When a step of a stroke would pass the cap, the brush halves the stroke's mask
+(each coarse cell standing for 2×2 of the old ones), redraws the preview on the
+coarser grid, and paints the step again, as many times as it takes, up to
+`maxDownsample`. Past that the whole stroke is refused, as without it, and the
+message names `maxDownsample`. A coarsened mask covers the same region at a
+coarser grid, so detail finer than its cells is gone. Its edges step at the cell
+size, and a later stroke paints at that grid unless it is made close enough in
+to re-grid finer (above). `maxDownsample` is a power of two up to 2^16; 1, the
+default, and any other value mean "refuse at the cap", as before.
+
+`brushOptions.onCoarsen` is called after a coarsened stroke is written, with
+the annotation, image, context and the downsample before and after
+(`CoarsenEvent`). It is not called when a stroke re-grids a mask finer. Use it
+to tell the user their mask lost resolution:
+
+```tsx
+<Annotator
+  contexts={contexts}
+  brushOptions={{
+    onCoarsen: ({ from, to }) => notify(`Mask coarsened from ${from}x to ${to}x to fit`),
+  }}
+/>
+```
+
+The built-in rule, `majorityCoarsen`, sets a coarse cell when most of its
+children are set and breaks a 2-of-4 tie by the cell's parity. It keeps area
+unbiased and is exact on a block of four equal children. That's why coarsening
+a mask that was just re-gridded finer returns it unchanged, instead of
+eroding it a little on every cycle. A host may supply its own as
+`brushOptions.coarsen` (a `CoarsenStrategy`: a raster in, the raster at twice
+its downsample out). It must meet the contract `verifyCoarsenStrategy` checks:
+
+1. it is deterministic;
+2. it returns a valid coarsening, at twice the downsample, on the same grid,
+   with nothing set outside the source's box;
+3. it undoes re-gridding: a mask replicated one step finer (`refineRaster`)
+   coarsens back to itself.
+
+```ts
+
+const violations = verifyCoarsenStrategy(myStrategy); // [] when it holds
+```
+
+The strategy runs at most once per overflow, between pointer events, so a
+slower one delays one segment rather than every one. Changing
+`brushOptions.coarsen` or `brushOptions.onCoarsen` never rebuilds the tool or
+drops a stroke in progress. osdlabel's precision bounds are measured for
+`majorityCoarsen` only: another strategy's quality is yours to judge.
+
+On an iPad, also lower `maxPixels` to 16 Mi, the canvas area iOS Safari draws.
+Then a coarsening context coarsens before the preview passes it, instead of
+refusing.
 
 ## Not in this version
 

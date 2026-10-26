@@ -166,6 +166,13 @@ export function useAnnotationTool(
           // `shortcuts` is already a dependency: the tool is activated with it.
           getNewMaskShortcut: () => shortcuts.newMask,
           canStartNewMask: () => canAddAnnotation(store.getConstraintStatus(), 'segmentationBrush'),
+          // Read at the press and at an overflow, so neither is a dependency.
+          getMaxDownsample: () => {
+            const cs = store.getSnapshot().contextState;
+            const context = cs.contexts.find((c) => c.id === cs.activeContextId);
+            return context?.tools.find((t) => t.type === 'segmentationBrush')?.brush?.maxDownsample;
+          },
+          getCoarsenStrategy: () => brushOptionsRef.current.coarsen,
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),
@@ -176,6 +183,7 @@ export function useAnnotationTool(
           adjustBrushRadius: (direction) => actions.adjustBrushRadius(direction),
           onCapacityExceeded: (error) => brushOptionsRef.current.onCapacityExceeded?.(error),
           seedMaskObject: (seed) => seedRef.current?.(seed),
+          onCoarsen: (event) => brushOptionsRef.current.onCoarsen?.(event),
         },
       ),
     });

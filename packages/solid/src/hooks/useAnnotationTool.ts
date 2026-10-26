@@ -1,4 +1,4 @@
-import { createEffect, onCleanup, untrack } from 'solid-js';
+import { createEffect, createMemo, onCleanup, untrack } from 'solid-js';
 import type { FabricObject } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import type { AnnotationTool, AddAnnotationParams } from '@osdlabel/fabric-annotations';
@@ -48,6 +48,18 @@ export function useAnnotationTool(
     actions,
     activeToolKeyHandlerRef,
   } = annotator;
+
+  // The one brush option the tool is built with. A memo, compared by value:
+  // reading the provider's getter in the effect tracked the whole
+  // `brushOptions` prop, so a host passing a new object — to change only its
+  // strategy or a callback — rebuilt the tool and dropped a stroke in progress.
+  const brushMaxPixels = createMemo(() => annotator.brushOptions.maxPixels);
+
+  /** The active context's brush constraint, read where it is needed and never tracked. */
+  const activeBrushConstraint = () => {
+    const context = contextState.contexts.find((c) => c.id === contextState.activeContextId);
+    return context?.tools.find((t) => t.type === 'segmentationBrush');
+  };
 
   // Auto-switch to select tool when active drawing tool becomes disabled (limit reached)
   createEffect(() => {
@@ -149,12 +161,16 @@ export function useAnnotationTool(
           getAnnotationState: () => annotationState,
           getImageId: () => imgId,
           getActiveContextId: () => contextState.activeContextId,
-          maxPixels: annotator.brushOptions.maxPixels,
+          maxPixels: brushMaxPixels(),
           // Read per stroke, inside the accessor, so it is not a dependency here.
           getSelectedFill: () => annotator.brushOptions.maskStyle?.selectedFill,
           // Read when a capacity failure is reported, not a dependency here.
           getNewMaskShortcut: () => annotator.shortcuts.newMask,
           canStartNewMask: () => canAddAnnotation(constraintStatus(), 'segmentationBrush'),
+          // Read at the press and at an overflow, not dependencies here:
+          // changing either never rebuilds the tool or drops a stroke.
+          getMaxDownsample: () => activeBrushConstraint()?.brush?.maxDownsample,
+          getCoarsenStrategy: () => annotator.brushOptions.coarsen,
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),
@@ -169,6 +185,7 @@ export function useAnnotationTool(
           // when only the callback changed. React defers it for the same reason.
           onCapacityExceeded: (error) => annotator.brushOptions.onCapacityExceeded?.(error),
           seedMaskObject: (seed) => cell?.seedMaskObject?.(seed),
+          onCoarsen: (event) => annotator.brushOptions.onCoarsen?.(event),
         },
       ),
     });

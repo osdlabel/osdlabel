@@ -58,6 +58,9 @@ export {
   CANONICAL_MASK_FORMAT,
   COCO_RLE_FORMAT,
   COCO_RLE_UNCOMPRESSED_FORMAT,
+  majorityCoarsen,
+  verifyCoarsenStrategy,
+  refineRaster,
 } from '@osdlabel/mask';
 export type {
   MaskBuffer,
@@ -73,6 +76,7 @@ export type {
   CanonicalMaskData,
   CocoRleSegmentation,
   CocoRleUncompressedSegmentation,
+  CoarsenStrategy,
 } from '@osdlabel/mask';
 
 // Viewer API (re-exported from @osdlabel/viewer-api)
@@ -256,7 +260,7 @@ export type { OsdAnnotation, OsdFields } from './types.js';
 export { createAnnotationFromGeometry } from './create-annotation.js';
 export { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
 export { buildSegmentationBrushConfig, nextBrushRadius } from './brush-config.js';
-export type { BrushOptions, MaskStyle } from './brush-options.js';
+export type { BrushOptions, CoarsenEvent, MaskStyle } from './brush-options.js';
 export {
   DEFAULT_UNSELECTED_MASK_OPACITY,
   applyMaskSelectionStyle,

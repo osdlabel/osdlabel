@@ -245,6 +245,12 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     get maxCanvasPixels() {
       return props.brushOptions?.maxCanvasPixels;
     },
+    get coarsen() {
+      return props.brushOptions?.coarsen;
+    },
+    get onCoarsen() {
+      return props.brushOptions?.onCoarsen;
+    },
   };
 
   // Load initial annotations if provided

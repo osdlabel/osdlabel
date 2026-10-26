@@ -1,4 +1,19 @@
+import type { AnnotationId } from '@osdlabel/annotation';
+import type { AnnotationContextId } from '@osdlabel/annotation-context';
+import type { ImageId } from '@osdlabel/viewer-api';
+import type { CoarsenStrategy } from '@osdlabel/mask';
 import type { BrushCapacityError } from '@osdlabel/fabric-annotations';
+
+/** A stroke that coarsened its mask to fit the cap; see {@link BrushOptions.onCoarsen}. */
+export interface CoarsenEvent {
+  readonly annotationId: AnnotationId;
+  readonly imageId: ImageId;
+  readonly contextId: AnnotationContextId;
+  /** The mask's downsample before the stroke. */
+  readonly from: number;
+  /** Its downsample after: always above `from`. */
+  readonly to: number;
+}
 
 /**
  * How masks are drawn relative to the selection.
@@ -75,4 +90,21 @@ export interface BrushOptions {
    * screen changes — this is the only chance to tell the user why.
    */
   readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
+  /**
+   * The rule a stroke coarsens a mask by when it outgrows the cap, in a
+   * context that allows it (`ToolConstraint.brush.maxDownsample`). Defaults to
+   * `majorityCoarsen`. It must meet the contract `verifyCoarsenStrategy`
+   * checks — deterministic, a valid coarsening, and undoing re-gridding finer —
+   * and runs at most once per overflow, between pointer events, so a slower
+   * one delays a single segment. Its quality is the host's to judge: the
+   * precision bounds osdlabel holds itself to are for the built-in. Read at
+   * each overflow; changing it does not rebuild the tool.
+   */
+  readonly coarsen?: CoarsenStrategy | undefined;
+  /**
+   * Called when a committed stroke coarsened its mask, so the host can say
+   * so: the mask is now at `to`, which loses detail finer than its cells.
+   * Not called when a stroke re-grids a mask finer.
+   */
+  readonly onCoarsen?: ((event: CoarsenEvent) => void) | undefined;
 }

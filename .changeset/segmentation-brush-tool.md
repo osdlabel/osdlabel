@@ -269,6 +269,28 @@ constraints share), `SegmentationBrushToolConfig.peekTarget` with
 before it is added, which fixes the Solid binding switching to the select tool
 the moment that mask was painted.
 
+## Coarsening a mask that outgrows the cap (opt-in)
+
+A context can let a stroke coarsen its mask instead of refusing it at the
+cell cap: `ToolConstraint.brush.maxDownsample` (`BrushContextOptions`, in
+`@osdlabel/annotation-context`), a power of two, default 1. When a step would
+pass the cap, the stroke's mask is halved by the provider's coarsen strategy
+(`BrushOptions.coarsen`, default `majorityCoarsen`), its preview redrawn, and
+the step painted again, up to `maxDownsample`. Past that the stroke is refused
+as before, with a message naming `maxDownsample`. `BrushOptions.onCoarsen`
+receives a `CoarsenEvent` (annotation, image, context, `from`, `to`) after a
+coarsened stroke is written. A custom strategy must meet the contract
+`verifyCoarsenStrategy` checks. Changing either option never rebuilds the tool.
+For a host building the tool's config directly:
+`SegmentationBrushToolConfig.getMaxDownsample` / `getCoarsenStrategy`,
+`BrushConfigAccessors.getMaxDownsample` / `getCoarsenStrategy` and
+`BrushConfigDispatchers.onCoarsen`.
+
+In Solid, a host passing a new `brushOptions` object, even with the same
+`maxPixels`, rebuilt the brush tool and dropped a stroke in progress, because
+the hook's effect tracked the whole prop. It now compares `maxPixels` by value,
+as React's provider already did.
+
 ## Committing a stroke on a large mask is cheaper (#238)
 
 A stroke that changes no cell commits nothing (`MaskBuffer.changeCount`). The

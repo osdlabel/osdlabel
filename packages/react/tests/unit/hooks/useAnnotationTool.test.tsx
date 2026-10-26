@@ -7,7 +7,13 @@ import type {
   SegmentationBrushToolConfig,
   ToolCallbacks,
 } from '@osdlabel/fabric-annotations';
-import { BoundedDenseMaskBuffer, MaskCapacityExceededError, createMaskAnnotation } from 'osdlabel';
+import {
+  BoundedDenseMaskBuffer,
+  MaskCapacityExceededError,
+  createMaskAnnotation,
+  majorityCoarsen,
+  type CoarsenStrategy,
+} from 'osdlabel';
 import { createAnnotationId, type Geometry } from '@osdlabel/annotation';
 import { createImageId, type ImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
@@ -656,5 +662,90 @@ describe('useAnnotationTool', () => {
 
     h.rerender({ keyboardShortcuts: { newMask: 'k' }, brushOptions }, host());
     expect(refuseRefining()).toMatch(/Start a separate mask with New mask \(k\)\.$/);
+  });
+
+  describe('coarsening through the provider (step 6)', () => {
+    // The parity of Solid's `useAnnotationTool.config.test.ts` cases. React
+    // passes the strategy and the callback through refs, so a new one reaches
+    // the surviving tool without rebuilding it.
+    const brushConfig = () => {
+      const tool = built.at(-1)?.tool;
+      expect(tool).toBeDefined();
+      return (tool as unknown as { config: SegmentationBrushToolConfig }).config;
+    };
+    const coarsenedCommit = () => {
+      const buffer = new BoundedDenseMaskBuffer({
+        imageWidth: 100,
+        imageHeight: 100,
+        downsample: 2,
+      });
+      buffer.set(10, 10, 1);
+      return {
+        annotationId: null,
+        imageId,
+        contextId,
+        snapshot: buffer.raster(),
+        startDownsample: 1,
+      };
+    };
+
+    it("uses the provider's strategy, and a changed one without rebuilding the tool", () => {
+      const first: CoarsenStrategy = (source) => majorityCoarsen(source);
+      const second: CoarsenStrategy = (source) => majorityCoarsen(source);
+      const h = setup('segmentationBrush', { brushOptions: { coarsen: first } });
+      const config = brushConfig();
+      expect(config.getCoarsenStrategy!()(coarsenedCommit().snapshot)).toBeDefined();
+      const probe = vi.fn(first);
+      h.rerender({ brushOptions: { coarsen: probe } }, host());
+      const builds = built.length;
+      h.rerender({ brushOptions: { coarsen: second } }, host());
+      expect(built.length).toBe(builds);
+      const spy = vi.fn(second);
+      h.rerender({ brushOptions: { coarsen: spy } }, host());
+      expect(built.length).toBe(builds);
+      // The surviving tool's strategy calls the latest one.
+      expect(brushConfig()).toBe(config);
+      config.getCoarsenStrategy!()(coarsenedCommit().snapshot);
+      expect(spy).toHaveBeenCalledOnce();
+      expect(probe).not.toHaveBeenCalled();
+      // The cap is what the tool is built with: changing it does rebuild.
+      h.rerender({ brushOptions: { coarsen: spy, maxPixels: 500 } }, host());
+      expect(built.length).toBe(builds + 1);
+    });
+
+    it('calls onCoarsen through, and a changed one without rebuilding the tool', () => {
+      const first = vi.fn();
+      const second = vi.fn();
+      const h = setup('segmentationBrush', { brushOptions: { onCoarsen: first } });
+      const config = brushConfig();
+      act(() => config.onCommit(coarsenedCommit()));
+      expect(first).toHaveBeenCalledWith(expect.objectContaining({ from: 1, to: 2, imageId }));
+      const builds = built.length;
+      h.rerender({ brushOptions: { onCoarsen: second } }, host());
+      expect(built.length).toBe(builds);
+      act(() => config.onCommit(coarsenedCommit()));
+      expect(second).toHaveBeenCalledOnce();
+      expect(first).toHaveBeenCalledOnce();
+    });
+
+    it("reads maxDownsample from the active context's brush constraint at each press", () => {
+      const h = setup('segmentationBrush');
+      const config = brushConfig();
+      expect(config.getMaxDownsample!()).toBe(1);
+      const builds = built.length;
+      for (const maxDownsample of [8, 4]) {
+        h.run((a) =>
+          a.setContexts([
+            {
+              id: contextId,
+              label: 'All',
+              tools: [{ type: 'segmentationBrush', brush: { maxDownsample } }],
+            },
+          ]),
+        );
+        expect(config.getMaxDownsample!()).toBe(maxDownsample);
+      }
+      expect(built.length).toBe(builds);
+    });
   });
 });

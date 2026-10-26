@@ -69,6 +69,7 @@ Each tool in a context can have:
 | `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                                                        |
 | `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                                                |
 | `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                                                    |
+| `brush`        | `BrushContextOptions`      | none          | For `segmentationBrush`: `maxDownsample`, how coarse a stroke may make its mask to fit the cap                    |
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
 
@@ -86,6 +87,12 @@ enforce the count at review time. Tracked in
 [#154](https://github.com/osdlabel/osdlabel/issues/154); see also the
 [Segmentation Brush
 guide](/osdlabel/guides/segmentation-brush/#painting-into-an-existing-mask).
+
+`brush.maxDownsample` lets a stroke coarsen its mask instead of being refused
+at the cell cap: a power of two up to 2^16, default 1 (refuse). The strategy
+and the `onCoarsen` callback are the provider's (`brushOptions`), so a context
+stays plain data. See [Coarsening a mask that outgrows the
+cap](/osdlabel/guides/segmentation-brush/#coarsening-a-mask-that-outgrows-the-cap).
 
 ### Styling a tool
 
