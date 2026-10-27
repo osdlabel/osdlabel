@@ -93,14 +93,18 @@ export class CocoRunLimitExceededError extends RangeError {
 export const MAX_COCO_RUNS = 2 * DEFAULT_MAX_MASK_PIXELS + 1;
 
 /**
- * The most runs an export returned as an array may take: `snapshotToCocoCounts`
- * and the uncompressed codec. A JavaScript engine refuses to grow an array past
- * 2^27 elements (V8's limit), one below {@link MAX_COCO_RUNS}, so the single
- * most extreme mask the format admits — a one-row box as wide as the cap — is
- * refused here by name rather than by the engine. It exports through the
- * compressed codec, which writes its string without an array.
+ * The most runs held as an array: what `snapshotToCocoCounts` and the
+ * uncompressed codec return, and what `decodeCocoCountsString` reads back.
+ *
+ * A JavaScript engine refuses to grow an array past a limit of its own: 2^27
+ * elements in V8 from Node 24 on, but 112,813,858 by `push` in Node 21–22,
+ * whose V8 is in scope since the packages declare no `engines`. This is the
+ * lower of the two, so the refusal is by name, not an engine `RangeError` after
+ * seconds of work. It is below {@link MAX_COCO_RUNS}, so a mask between the
+ * two exports only through the compressed codec, which writes its string
+ * without an array, and that string is refused by the decoder here.
  */
-export const MAX_COCO_ARRAY_RUNS = Math.min(MAX_COCO_RUNS, 2 ** 27);
+export const MAX_COCO_ARRAY_RUNS = Math.min(MAX_COCO_RUNS, 112_813_858);
 
 /**
  * Where the column sweep's runs go: appended in order, alternating and
@@ -199,10 +203,12 @@ interface CocoSweep {
  * The mask is read only through {@link MaskRaster.forEachSpan}, and the spans
  * are transposed by a sweep across the columns: each span switches its row on
  * at its first column and off past its last, and between two such events every
- * column has the same runs. So the work is proportional to the spans and to
- * the runs written, never to the box — fully-background columns, and the
- * background above and below the mask, are added arithmetically — and
- * counting the runs is proportional to the spans alone.
+ * column has the same runs. Fully-background columns, and the background above
+ * and below the mask, are added arithmetically, so a solid region costs its
+ * spans, not its box. Each column that holds an event walks the rows that are
+ * on, so a mask whose spans start in many different columns costs up to the
+ * spans squared, whether writing or counting: the counters stop at their
+ * bound for that reason (see `countCocoRuns`).
  */
 function prepareCocoSweep(input: MaskRasterInput): CocoSweep {
   const cells = input.cells;
@@ -750,6 +756,12 @@ export function decodeCocoCountsString(encoded: string): number[] {
   const counts: number[] = [];
   let position = 0;
   while (position < encoded.length) {
+    if (counts.length >= MAX_COCO_ARRAY_RUNS) {
+      throw new RangeError(
+        `COCO counts string holds more than ${MAX_COCO_ARRAY_RUNS} runs ` +
+          `(MAX_COCO_ARRAY_RUNS), more than an engine holds in one array`,
+      );
+    }
     let value = 0;
     let shift = 0;
     let more = true;

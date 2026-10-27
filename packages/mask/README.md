@@ -96,10 +96,11 @@ bound and throws `CocoRunLimitExceededError`, so no full-resolution mask is
 refused and a refusal allocates nothing. Below the bound a coarse mask with
 fine structure still exports, slowly: 6.7 kB of d=16 alternating cell rows
 needs 125 million runs, about 13 s and a 125 MB counts string. Where the runs
-come back as an array (`snapshotToCocoCounts`, the uncompressed codec) the
-bound is `MAX_COCO_ARRAY_RUNS` (2^27, an engine's array limit), so the single
-most extreme mask is refused by name there and exports through the compressed
-codec. Decoding takes `{ downsample }` in its
+come back as an array (`snapshotToCocoCounts`, the uncompressed codec) and
+where a compressed string is read back (`decodeCocoCountsString`), the bound
+is `MAX_COCO_ARRAY_RUNS`: 112,813,858, the array limit of Node 21–22's V8
+(Node 24's is 2^27). The most extreme masks are refused by name there; they
+export through the compressed codec. Decoding takes `{ downsample }` in its
 options and writes the runs straight into cells at it, refusing a payload that
 is not constant within each cell; osdlabel's `deserialize` passes the
 annotation's `geometry.downsample`.

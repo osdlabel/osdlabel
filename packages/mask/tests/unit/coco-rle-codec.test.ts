@@ -369,17 +369,19 @@ describe('COCO export cost', () => {
   }
 
   it('exports a downsampled mask whose runs are many but within the bound', () => {
-    // The reviewer's 6.7 kB payload: 125,000,001 runs, under MAX_COCO_RUNS.
-    // Slow, as documented beside the bound, but exported, not refused.
+    // The reviewer's 6.7 kB payload: 125,000,001 runs, under MAX_COCO_RUNS,
+    // so not refused. Counted only: writing its 125 MB string took 13-15 s.
     const { payload, raster } = stripes(3125, 2500);
     expect(payload.counts.length).toBe(6668);
     expect(countCocoRuns(raster)).toBe(125_000_001);
     expect(countCocoRuns(raster)).toBeLessThanOrEqual(MAX_COCO_RUNS);
-    const { counts } = cocoRleCodec.encode(raster);
-    // Every run but the first and last is 16 pixels, a delta of 0, one
-    // character each; measured, the whole string is this long.
-    expect(counts.length).toBe(125_300_003);
-  }, 120_000);
+    // The same structure a fifth as tall is written in full: a 16-pixel run is
+    // a delta of 0, one character, and each of the 100,000 image columns adds
+    // about three for its longer background run; measured, this long.
+    const small = stripes(3125, 500);
+    expect(countCocoRuns(small.raster)).toBe(25_000_001);
+    expect(cocoRleCodec.encode(small.raster).counts.length).toBe(25_300_003);
+  }, 60_000);
 
   it('refuses a downsampled mask past the bound quickly, on every export path', () => {
     // 3,200 x 2,700 alternating d=16 cell rows: about 138 M runs, over
@@ -406,8 +408,9 @@ describe('COCO export cost', () => {
     }
   });
 
-  it('refuses past 2^27 runs where they are returned as an array, by name', () => {
-    expect(MAX_COCO_ARRAY_RUNS).toBe(2 ** 27);
+  it('refuses past the array limit where runs are returned as an array, by name', () => {
+    // The lower of V8's limits: 2^27 from Node 24, 112,813,858 in Node 21-22.
+    expect(MAX_COCO_ARRAY_RUNS).toBe(112_813_858);
     // The one extreme legal mask: a one-row box as wide as the cap, every
     // pixel set, on a taller image — exactly MAX_COCO_RUNS, one past 2^27.
     const line = runRaster(
@@ -430,9 +433,22 @@ describe('COCO export cost', () => {
         caught = error;
       }
       expect(caught).toBeInstanceOf(CocoRunLimitExceededError);
-      expect((caught as CocoRunLimitExceededError).maxRuns).toBe(2 ** 27);
+      expect((caught as CocoRunLimitExceededError).maxRuns).toBe(MAX_COCO_ARRAY_RUNS);
       expect((caught as CocoRunLimitExceededError).message).toMatch(/compressed COCO codec/);
     }
+    // Between the two limits, where Node 22 would have failed with an engine
+    // error after seconds of pushing: 3,000 x 2,500 stripes, 120 M runs.
+    const between = stripes(3000, 2500).raster;
+    expect(countCocoRuns(between)).toBeGreaterThan(MAX_COCO_ARRAY_RUNS);
+    expect(countCocoRuns(between)).toBeLessThan(2 ** 27);
+    expect(() => snapshotToCocoCounts(between)).toThrow(CocoRunLimitExceededError);
+  });
+
+  it('refuses to decode more runs than the array limit, by name', { timeout: 60_000 }, () => {
+    // One character per run: '0' is a delta of zero, so every run is 0 long.
+    const encoded = '0'.repeat(MAX_COCO_ARRAY_RUNS + 1);
+    expect(() => decodeCocoCountsString(encoded)).toThrow(/MAX_COCO_ARRAY_RUNS/);
+    expect(decodeCocoCountsString('0'.repeat(10))).toHaveLength(10);
   });
 
   it('stops counting at the bound, rather than counting a staircase to the end', () => {
@@ -459,16 +475,19 @@ describe('COCO export cost', () => {
       },
       runs,
     );
-    const started = performance.now();
-    expect(() => cocoRleCodec.encode(raster)).toThrow(CocoRunLimitExceededError);
-    const refused = performance.now() - started;
-    // The full count of the same raster, for comparison: the refusal does a
-    // fraction of its work.
-    const full = performance.now();
-    expect(countCocoRuns(raster)).toBeGreaterThan(MAX_COCO_RUNS);
-    const counted = performance.now() - full;
-    expect(refused).toBeLessThan(counted * 0.6);
-  }, 120_000);
+    let caught: unknown;
+    try {
+      cocoRleCodec.encode(raster);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(CocoRunLimitExceededError);
+    // It stopped at the bound: within one column's runs past it, where a full
+    // count would have gone on to about width^2 = 400 M.
+    const refusal = caught as CocoRunLimitExceededError;
+    expect(refusal.runs).toBeGreaterThan(refusal.maxRuns);
+    expect(refusal.runs - refusal.maxRuns).toBeLessThanOrEqual(height);
+  }, 60_000);
 
   it('bounds a full-resolution mask at its true worst case, so none is refused', () => {
     expect(MAX_COCO_RUNS).toBe(2 * DEFAULT_MAX_MASK_PIXELS + 1);

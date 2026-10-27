@@ -130,7 +130,9 @@ no full-resolution mask is refused — from a counting pass that stops at the
 bound (`countCocoRuns` reports the exact cost without exporting). Within it a
 coarse mask exports, slowly: 6.7 kB of d=16 alternating cell rows takes about
 13 s. The compressed codec streams its string without an array of runs; the
-paths that return an array are bounded at `MAX_COCO_ARRAY_RUNS` (2^27).
+paths that return an array, and `decodeCocoCountsString`, are bounded at
+`MAX_COCO_ARRAY_RUNS` (112,813,858, the array limit of Node 21–22's V8; Node
+24's is 2^27).
 `serialize` reports the refusal as a `SerializationError` whose `cause` is the
 codec's error (`SerializationError` now takes a `cause`).
 

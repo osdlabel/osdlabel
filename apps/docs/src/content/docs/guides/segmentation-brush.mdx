@@ -294,9 +294,10 @@ which stores its cells.
 `serialize` reports a refusal as a `SerializationError` whose `cause` is the
 `CocoRunLimitExceededError` (with `runs`, `maxRuns` and `downsample`), so a
 host can tell it apart by type. Where the runs come back as an array —
-`snapshotToCocoCounts` and the uncompressed codec — the bound is
-`MAX_COCO_ARRAY_RUNS` (2²⁷, an engine's array limit), so the one most extreme
-legal mask is refused there by name and exports through `cocoRleCodec`.
+`snapshotToCocoCounts` and the uncompressed codec — and where a compressed
+string is read back, the bound is `MAX_COCO_ARRAY_RUNS`: 112,813,858, the
+array limit of Node 21–22's V8 (Node 24's is 2²⁷). The most extreme legal
+masks are refused there by name, and export through `cocoRleCodec`.
 
 ### Verified against pycocotools
 
