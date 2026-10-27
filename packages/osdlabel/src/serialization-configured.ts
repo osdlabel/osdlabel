@@ -4,8 +4,19 @@ import type { ImageId } from '@osdlabel/viewer-api';
 import type { AnnotationState } from '@osdlabel/viewer-api';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import { OsdAnnotationSchema } from '@osdlabel/validation';
-import { DEFAULT_MAX_MASK_PIXELS, decodeCanonicalRaster, isMaskDownsample } from '@osdlabel/mask';
-import type { CanonicalMaskData, MaskCodec, MaskCodecRegistry, MaskRaster } from '@osdlabel/mask';
+import {
+  DEFAULT_MAX_MASK_PIXELS,
+  asMaskRaster,
+  decodeCanonicalRaster,
+  isMaskDownsample,
+} from '@osdlabel/mask';
+import type {
+  CanonicalMaskData,
+  MaskCodec,
+  MaskCodecRegistry,
+  MaskRaster,
+  MaskRasterInput,
+} from '@osdlabel/mask';
 import { maskAnnotationFields, maskGeometryFromSnapshot } from './create-mask-annotation.js';
 import type { OsdFields } from './types.js';
 import * as v from 'valibot';
@@ -387,27 +398,37 @@ function normalizeMasks(
         ? codec.decode(data, { maxPixels, downsample })
         : decodeCanonicalRaster(data as CanonicalMaskData, { maxPixels });
 
+    const id = (entry as { id?: unknown }).id;
+    const skip = (message: string): typeof DROPPED => {
+      skipped.push({
+        id: typeof id === 'string' ? id : null,
+        // The codec contract names no error type, so a third-party decoder's
+        // failure can be a bare `TypeError` text; say whose it was.
+        reason: codec ? `Codec "${format}" could not decode the mask: ${message}` : message,
+      });
+      return DROPPED;
+    };
+
+    // Handed to a codec, a null or scalar payload surfaces as a bare
+    // `TypeError` from inside it, so the fault is named here — and before the
+    // decode, so a retry under the budget never decodes it either.
+    if (typeof data !== 'object' || data === null) {
+      return skip(`Mask payload must be an object, got ${data === null ? 'null' : typeof data}`);
+    }
+
     const { cap, limitedByBudget } = capFor();
     try {
-      // Handed to a codec, a null or scalar payload surfaces as a bare
-      // `TypeError` from inside it; name the fault here instead.
-      if (typeof data !== 'object' || data === null) {
-        throw new RangeError(
-          `Mask payload must be an object, got ${data === null ? 'null' : typeof data}`,
-        );
-      }
       const snapshot = decode(cap);
       // A canonical payload keeps its own bytes: it has just been proved to
       // decode, and re-encoding would reproduce what is already there at the
       // cost of the most expensive step on this path. Only the geometry needs
       // rebuilding, which is the reason for decoding at all.
       if (!codec) {
-        const counts = (data as { counts?: unknown }).counts;
-        charge(snapshot, typeof counts === 'string' ? counts.length : 0);
+        charge(snapshot, canonicalRunCount(snapshot));
         return { ...entry, geometry: maskGeometryFromSnapshot(snapshot) };
       }
       const fields = maskAnnotationFields(snapshot);
-      charge(snapshot, fields.rawAnnotationData.data.counts.length);
+      charge(snapshot, canonicalRunCount(snapshot));
       return { ...entry, ...fields };
     } catch (err) {
       // Whose fault was that — this annotation's, or the document's?
@@ -430,40 +451,74 @@ function normalizeMasks(
       // a box off its grid, a payload not constant within its cells).
       let fault: unknown = err;
       if (limitedByBudget) {
-        const retry = decodeError(decode, perMask);
-        if (retry === undefined) {
+        const retry = retryError(decode, perMask);
+        if (retry === null) {
           throw new BudgetExceededError(
             `Document's masks decode to more than ${budget} cells and runs in total; ` +
               `raise maxTotalMaskPixels to allow it`,
           );
         }
-        fault = retry;
+        fault = retry.error;
       }
-      const id = (entry as { id?: unknown }).id;
-      const message = fault instanceof Error ? fault.message : String(fault);
-      skipped.push({
-        id: typeof id === 'string' ? id : null,
-        // The codec contract names no error type, so a third-party decoder's
-        // failure can be a bare `TypeError` text; say whose it was.
-        reason: codec ? `Codec "${format}" could not decode the mask: ${message}` : message,
-      });
-      return DROPPED;
+      return skip(describeThrown(fault));
     }
   });
 
   return decoded.filter((entry) => entry !== DROPPED);
 }
 
-/** Whether `decode` succeeds at `cap`; the error itself is not needed here. */
-function decodeError(decode: (cap: number) => unknown, cap: number): unknown {
+/**
+ * Decodes once more at `cap`: `null` when it succeeds, else what it threw,
+ * wrapped so that a codec throwing `undefined` stays distinguishable from
+ * success.
+ */
+function retryError(
+  decode: (cap: number) => unknown,
+  cap: number,
+): { readonly error: unknown } | null {
   try {
     decode(cap);
-    return undefined;
+    return null;
   } catch (error) {
-    // A codec may throw anything, `undefined` included; keep it distinguishable
-    // from success.
-    return error === undefined ? new Error('the codec threw undefined') : error;
+    return { error };
   }
+}
+
+/**
+ * A thrown value as a skip reason, on the first decode and the retry alike. A
+ * codec may throw anything: `undefined`, or a value `String()` cannot convert
+ * (`Object.create(null)`), which must skip the mask rather than refuse the
+ * whole document.
+ */
+function describeThrown(thrown: unknown): string {
+  if (thrown instanceof Error) return thrown.message;
+  if (thrown === undefined) return 'the codec threw undefined';
+  try {
+    return String(thrown);
+  } catch {
+    return 'the codec threw a value with no string form';
+  }
+}
+
+/**
+ * The runs a mask's canonical payload holds: a background and a foreground run
+ * for each foreground run, touching spans merged as the row-major encoding
+ * merges them, plus the trailing background when there is one. What the budget
+ * bills, rather than the length of a base64 string of them, which is 1⅓ to 7
+ * characters a run.
+ */
+function canonicalRunCount(input: MaskRasterInput): number {
+  // A codec may hand back a plain snapshot, as `maskAnnotationFields` accepts.
+  const raster = asMaskRaster(input);
+  const { x, y, width, height } = raster.cells;
+  let runs = 0;
+  let end = -1;
+  raster.forEachSpan((cy, x0, x1) => {
+    const start = (cy - y) * width + (x0 - x);
+    if (start !== end) runs += 2;
+    end = (cy - y) * width + (x1 - x);
+  });
+  return runs + (end >= 0 && end < width * height ? 1 : 0);
 }
 
 /** Distinguishes the document-wide budget from a single mask's own failure. */
