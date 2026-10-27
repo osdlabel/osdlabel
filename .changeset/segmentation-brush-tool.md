@@ -291,7 +291,9 @@ pass the cap, the stroke's mask is halved by the provider's coarsen strategy
 the step painted again, up to `maxDownsample`. Past that the stroke is refused
 as before, with a message naming `maxDownsample`. A strategy that throws or
 breaks the contract refuses the stroke the same way, once, with its error as
-the refusal's `cause`. `BrushOptions.onCoarsen`
+the refusal's `cause`. So is a paint stroke whose coarsening would leave its
+target empty (a sparse mask whose features are all smaller than a coarse
+cell), which would otherwise delete the annotation. `BrushOptions.onCoarsen`
 receives a `CoarsenEvent` (`annotationId`, `imageId`, `contextId`, `from`, `to`) after a
 coarsened stroke is written. A custom strategy must meet the contract
 `verifyCoarsenStrategy` checks. Changing either option never rebuilds the tool.

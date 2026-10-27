@@ -2201,7 +2201,9 @@ slower one delays one segment rather than every one. Changing
 `brushOptions.coarsen` or `brushOptions.onCoarsen` never rebuilds the tool or
 drops a stroke in progress. A strategy that throws, or returns the wrong
 downsample, refuses the stroke once through `onCapacityExceeded`, with its
-error as the refusal's `cause`, and the mask is unchanged. osdlabel's
+error as the refusal's `cause`, and the mask is unchanged. So does a paint
+stroke whose coarsening would leave the mask empty, every feature being smaller
+than a coarse cell: committed, it would delete the annotation. osdlabel's
 precision bounds are measured for `majorityCoarsen` only: another strategy's
 quality is yours to judge.
 

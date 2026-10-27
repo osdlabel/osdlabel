@@ -228,6 +228,13 @@ export class SegmentationBrushTool extends BaseTool {
   private startDownsample = 1;
   /** Why the last coarsening failed, when it threw rather than declined. */
   private coarsenFailure: unknown = undefined;
+  /**
+   * The overflow that last made this stroke coarsen, and whether the target
+   * had cells when the stroke began: together they let the release refuse a
+   * paint stroke that coarsened its target away (#243 Q1).
+   */
+  private lastOverflow: MaskCapacityExceededError | null = null;
+  private targetHadCells = false;
   /** The coarsest downsample this stroke may coarsen to; 1 never coarsens. */
   private strokeMaxDownsample = 1;
 
@@ -355,8 +362,8 @@ export class SegmentationBrushTool extends BaseTool {
         });
       }
       this.changesAtStart = this.buffer.changeCount;
-      this.paintedBounds =
-        targetCells && targetCells.width > 0 && targetCells.height > 0 ? { ...targetCells } : null;
+      this.targetHadCells = targetCells !== null && targetCells.width > 0 && targetCells.height > 0;
+      this.paintedBounds = this.targetHadCells && targetCells ? { ...targetCells } : null;
     } catch (error) {
       if (error instanceof MaskCapacityExceededError) {
         this.config.onCapacityExceeded?.(error);
@@ -460,6 +467,30 @@ export class SegmentationBrushTool extends BaseTool {
     }
 
     const snapshot = this.buffer.raster();
+    // A paint stroke never empties its target: the empty result of one that
+    // coarsened a sparse mask away (every feature smaller than a coarse cell)
+    // and then painted nothing on the coarse grid would be committed under
+    // the target's id, which the host reads as "erased to nothing" and
+    // deletes (#243 Q1). Refused as the overflow that coarsened it.
+    const overflow = this.lastOverflow;
+    if (
+      overflow &&
+      !this.erasing &&
+      this.targetHadCells &&
+      (snapshot.cells.width === 0 || snapshot.cells.height === 0)
+    ) {
+      this.config.onCapacityExceeded?.(
+        new MaskCapacityExceededError(
+          overflow.requestedCells,
+          overflow.maxCells,
+          overflow.downsample,
+          `Coarsening it to fit, to downsample ${snapshot.downsample}, would leave it empty: ` +
+            `its features are smaller than a cell there. ${MaskCapacityExceededError.DEFAULT_ADVICE}`,
+        ),
+      );
+      this.endStroke();
+      return;
+    }
     const preview = this.previewOf(snapshot.cells);
     const commit: BrushStrokeCommit = {
       annotationId: this.targetId,
@@ -749,6 +780,7 @@ export class SegmentationBrushTool extends BaseTool {
           this.endStroke();
           return;
         }
+        this.lastOverflow = error;
       }
     }
     if (!this.buffer) return;
@@ -1207,6 +1239,8 @@ export class SegmentationBrushTool extends BaseTool {
     this.changesAtStart = undefined;
     this.startDownsample = 1;
     this.coarsenFailure = undefined;
+    this.lastOverflow = null;
+    this.targetHadCells = false;
     this.strokeMaxDownsample = 1;
     this.targetId = null;
     this.contextId = null;

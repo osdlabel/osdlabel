@@ -2047,6 +2047,35 @@ describe('SegmentationBrushTool: coarsening on overflow', () => {
     expect(h.commits[0]!.snapshot.cellCount).toBeGreaterThan(0);
   });
 
+  it('refuses a paint stroke whose coarsening leaves the target empty, rather than deleting it (#243 Q1)', () => {
+    // Two isolated pixels: a 2x2 majority clears both. The press is just off
+    // the image's left edge, so at d=1 the dab reaches column 0, and its growth
+    // passes the cap; at d=2 it covers no cell centre and paints nothing. The
+    // result was an empty mask, committed under the target's id, which the
+    // host reads as "erased to nothing" and deletes.
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    buffer.set(60, 60, 1);
+    const target = { annotationId: createAnnotationId('sparse'), snapshot: buffer.raster() };
+    const existing = committedObject('sparse');
+    const h = harness({
+      imageSize: { width: 100, height: 100 },
+      maxPixels: 2_700,
+      radius: 1.5,
+      maxDownsample: 4,
+      target,
+      existingObjects: [existing],
+      viewport: { zoom: 1 / 8, width: 800, height: 800 },
+    });
+    down(h.tool, -1, 50);
+    up(h.tool, -1, 50);
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    expect(h.capacityErrors[0]).toBeInstanceOf(MaskCapacityExceededError);
+    expect(h.capacityErrors[0]!.message).toMatch(/would leave it empty/);
+    expect(existing.visible).toBe(true);
+  });
+
   it('commits a coarsened stroke even where it painted nothing new', () => {
     // A block of 100 x 21 cells under a cap of 2,150, and a stroke inside it
     // along its top row: every cell it paints is set already, but the region
