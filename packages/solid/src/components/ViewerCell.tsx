@@ -1,4 +1,13 @@
-import { onMount, onCleanup, createEffect, on, createSignal, untrack, For } from 'solid-js';
+import {
+  onMount,
+  onCleanup,
+  createEffect,
+  createMemo,
+  on,
+  createSignal,
+  untrack,
+  For,
+} from 'solid-js';
 import { Portal } from 'solid-js/web';
 import type { Component } from 'solid-js';
 import OpenSeadragon from 'openseadragon';
@@ -17,6 +26,7 @@ import type { OsdFields } from 'osdlabel';
 import {
   applyMaskSelectionStyle,
   desiredMaskTint,
+  displayBudget,
   enableLiveDecorationUpdates,
   MaskObjectCache,
   maskFillFor,
@@ -27,6 +37,7 @@ import {
   settleAnnotationObjects,
   swapMaskTints,
 } from 'osdlabel';
+import { shallowEqual } from '../state/shallow-equal.js';
 export interface ViewerCellProps {
   readonly imageSource: ImageSource | undefined;
   readonly isActive: boolean;
@@ -48,6 +59,16 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     reportAnnotationRenderError,
     brushOptions,
   } = useAnnotator();
+  // Value-compared: the provider's getters track the host's whole
+  // `brushOptions` expression, so a new object with only a new callback or an
+  // equal budget re-ran the rebuild and redrew every mask, mid-stroke landing
+  // the re-added objects above the brush preview (#243 P6). The budget is
+  // compared as the renderer reads it, so a `NaN` one is not a change on
+  // every run either.
+  const maskBudget = createMemo(() => displayBudget(brushOptions.maxCanvasPixels));
+  const maskStyleOf = createMemo(() => brushOptions.maskStyle, undefined, {
+    equals: (a, b) => a === b || (a !== undefined && b !== undefined && shallowEqual(a, b)),
+  });
   let containerRef: HTMLDivElement | undefined;
   let viewer: OpenSeadragon.Viewer | undefined;
   const [overlay, setOverlay] = createSignal<FabricOverlay>();
@@ -179,7 +200,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     const matching = visibleAnnotations();
     // Tracked: a new display budget redraws every mask, so the cache built
     // under the old one is dropped.
-    const maxCanvasPixels = brushOptions.maxCanvasPixels;
+    const maxCanvasPixels = maskBudget();
     if (maxCanvasPixels !== builtUnderBudget) {
       maskObjects.clear();
       builtUnderBudget = maxCanvasPixels;
@@ -288,7 +309,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
   createEffect(() => {
     const ov = overlay();
     const selectedId = uiState.selectedAnnotationId;
-    const maskStyle = brushOptions.maskStyle;
+    const maskStyle = maskStyleOf();
     if (!ov) return;
     const masks = new Map(
       untrack(visibleAnnotations)

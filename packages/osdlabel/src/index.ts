@@ -261,6 +261,7 @@ export { createAnnotationFromGeometry } from './create-annotation.js';
 export { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
 export { buildSegmentationBrushConfig, nextBrushRadius } from './brush-config.js';
 export type { BrushOptions, CoarsenEvent, MaskStyle } from './brush-options.js';
+export { displayBudget } from './display-budget.js';
 export {
   DEFAULT_UNSELECTED_MASK_OPACITY,
   applyMaskSelectionStyle,

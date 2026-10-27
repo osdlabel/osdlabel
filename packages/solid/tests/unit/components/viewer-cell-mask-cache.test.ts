@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createRoot, createComponent } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createRoot, createComponent, createSignal } from 'solid-js';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationId } from '@osdlabel/annotation';
@@ -203,11 +202,24 @@ const byId = (id: string) => objects.find((o) => o.id === id)!;
 // A reactive annotation store, so a state write re-runs the rebuild effect as
 // it would in the real provider.
 const { state: annotationState, setState: setAnnotations } = createAnnotationStore();
-// A store, as the provider's getters are, so a budget change is observed.
-// A mutable shape: the store's setter refuses `BrushOptions`' readonly fields.
-const [brushOptions, setBrushOptions] = createStore<{
-  maxCanvasPixels?: BrushOptions['maxCanvasPixels'];
-}>({});
+// Getters over the host's options, as the provider's are: reading one tracks
+// the whole host object, so a new object notifies even with every value
+// equal. A store write of an equal value would never notify, and a test of
+// "no change" would pass for the wrong reason.
+const [hostOptions, setHostOptions] = createSignal<BrushOptions>({});
+const brushOptions: BrushOptions = {
+  get maxCanvasPixels() {
+    return hostOptions().maxCanvasPixels;
+  },
+  get maskStyle() {
+    return hostOptions().maskStyle;
+  },
+  get onCoarsen() {
+    return hostOptions().onCoarsen;
+  },
+};
+const setBudget = (maxCanvasPixels: number | undefined) =>
+  setHostOptions({ ...hostOptions(), maxCanvasPixels });
 const mockState = createMockAnnotator({
   annotationState,
   brushOptions,
@@ -235,7 +247,7 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     openHandlers.length = 0;
     buildGate = undefined;
     realRenderer = false;
-    setBrushOptions('maxCanvasPixels', undefined);
+    setHostOptions({});
     build.mockClear();
     setAnnotations('byImage', { [imageId]: { [m1]: mask(m1), [m2]: mask(m2) } });
   });
@@ -371,7 +383,7 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
 
   it('reports a mask no display mip fits, and still renders the others', async () => {
     realRenderer = true;
-    setBrushOptions('maxCanvasPixels', 1);
+    setBudget(1);
     const report = vi.mocked(mockState.reportAnnotationRenderError);
     report.mockClear();
     // m2 is 1x1 cell at its coarsest grid, so it fits even this budget.
@@ -393,16 +405,43 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     expect((byId('m1') as unknown as { scaleX: number }).scaleX).toBe(1);
 
     // 81x81 cells: a 1,000-cell budget takes it to 21x21 at 4x.
-    setBrushOptions('maxCanvasPixels', 1_000);
+    setBudget(1_000);
     await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
     expect(buildsFor('m2')).toBe(2);
     await vi.waitFor(() => expect((byId('m1') as unknown as { scaleX: number }).scaleX).toBe(4));
 
     // The same value again is no change.
-    setBrushOptions('maxCanvasPixels', 1_000);
+    setBudget(1_000);
     setAnnotations('byImage', imageId, m2, mask(m2, 3));
     await vi.waitFor(() => expect(buildsFor('m2')).toBe(3));
     expect(buildsFor('m1')).toBe(2);
+  });
+
+  it('rebuilds nothing for a new options object with an equal budget (#243 P6)', async () => {
+    realRenderer = true;
+    setAnnotations('byImage', { [imageId]: { [m1]: mask(m1, 40), [m2]: mask(m2) } });
+    mountCell();
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    setBudget(1_000);
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    const removes = fakeCanvas.remove.mock.calls.length;
+    // A new object: the same budget, a new callback and an equal style.
+    setHostOptions({ maxCanvasPixels: 1_000, onCoarsen: () => {}, maskStyle: {} });
+    setHostOptions({ maxCanvasPixels: 1_000, onCoarsen: () => {}, maskStyle: {} });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(buildsFor('m1')).toBe(2);
+    expect(buildsFor('m2')).toBe(2);
+    expect(fakeCanvas.remove.mock.calls.length).toBe(removes);
+  });
+
+  it('keeps the cache under a NaN budget, which never equals itself (#243 minor 12)', async () => {
+    setBudget(Number.NaN);
+    await mountWithMasks();
+    expect(buildsFor('m1')).toBe(1);
+    setAnnotations('byImage', imageId, m2, mask(m2, 3));
+    await vi.waitFor(() => expect(buildsFor('m2')).toBe(2));
+    expect(buildsFor('m1')).toBe(1);
   });
 
   /** A refining stroke's commit: the new payload, and the object its preview made. */

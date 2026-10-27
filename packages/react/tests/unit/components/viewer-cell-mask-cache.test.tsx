@@ -386,6 +386,43 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     expect(buildsFor('m1')).toBe(2);
   });
 
+  it('rebuilds nothing for a new options object with an equal budget (#243 P6)', async () => {
+    // The parity of Solid's case. React depends on the budget's value, so it
+    // already held; this keeps the two bindings tested alike.
+    realRenderer = true;
+    const h = mountCell(
+      { [m1]: mask(m1, 40), [m2]: mask(m2) },
+      { brushOptions: { maxCanvasPixels: 1_000 } },
+    );
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    const builds = { m1: buildsFor('m1'), m2: buildsFor('m2') };
+    const removes = fakeCanvas.remove.mock.calls.length;
+    act(() =>
+      h.rerender({ brushOptions: { maxCanvasPixels: 1_000, onCoarsen: () => {}, maskStyle: {} } }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(buildsFor('m1')).toBe(builds.m1);
+    expect(buildsFor('m2')).toBe(builds.m2);
+    expect(fakeCanvas.remove.mock.calls.length).toBe(removes);
+  });
+
+  it('keeps the cache under a NaN budget, which never equals itself (#243 minor 12)', async () => {
+    const h = mountCell(
+      { [m1]: mask(m1), [m2]: mask(m2) },
+      { brushOptions: { maxCanvasPixels: Number.NaN } },
+    );
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    expect(buildsFor('m1')).toBe(1);
+    h.run((a) =>
+      a.updateAnnotation(m2, imageId, {
+        geometry: mask(m2, 3).geometry,
+        rawAnnotationData: mask(m2, 3).rawAnnotationData,
+      }),
+    );
+    await vi.waitFor(() => expect(buildsFor('m2')).toBe(2));
+    expect(buildsFor('m1')).toBe(1);
+  });
+
   /** A refining stroke's commit: the new payload, and the object its preview made. */
   function brushCommit() {
     const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });

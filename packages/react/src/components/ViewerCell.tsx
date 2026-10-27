@@ -16,6 +16,7 @@ import type { OsdFields } from 'osdlabel';
 import {
   applyMaskSelectionStyle,
   desiredMaskTint,
+  displayBudget,
   enableLiveDecorationUpdates,
   MaskObjectCache,
   maskFillFor,
@@ -63,7 +64,9 @@ export default function ViewerCell({
   maskStyleRef.current = brushOptions.maskStyle;
   // The display budget: a dependency of the rebuild, which redraws every mask
   // when it changes, and read through a ref by the swaps and the brush's seed.
-  const maxCanvasPixels = brushOptions.maxCanvasPixels;
+  // Normalized as the renderer reads it, so a `NaN` budget, which never
+  // equals itself, does not clear the cache on every rebuild.
+  const maxCanvasPixels = displayBudget(brushOptions.maxCanvasPixels);
   const maxCanvasPixelsRef = useRef(maxCanvasPixels);
   maxCanvasPixelsRef.current = maxCanvasPixels;
   /** The budget the cached masks were drawn under; a change clears them. */

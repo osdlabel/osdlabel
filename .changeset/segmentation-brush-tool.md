@@ -165,8 +165,9 @@ A mask past the **display budget**, `MAX_MASK_CANVAS_PIXELS` (16 Mi, what iOS
 Safari draws), or more than `MAX_MASK_CANVAS_SIDE` (32,767, Firefox's limit)
 cells wide or tall, is drawn from a display mip instead of blank or refused:
 halved by `majorityCoarsen` until it fits, placed at `d · 2^k`, and never
-stored. `brushOptions.maxCanvasPixels` moves the budget (`Infinity` draws every
-mask at full resolution), and `createFabricObjectFromRawData` and
+stored. `brushOptions.maxCanvasPixels` moves the budget (`Infinity`, or
+anything not a positive finite number, draws every mask at full resolution;
+a new options object with an equal budget redraws nothing), and `createFabricObjectFromRawData` and
 `buildMaskFabricObject` take it as `maxCanvasPixels`. The renderer throws
 `MaskCanvasTooLargeError` only if not even the coarsest mip fits, reported
 through `onAnnotationRenderError` while the other annotations render. A stroke
@@ -237,7 +238,8 @@ most the mask's own area (#158).
   `maskAnnotationFields` + `MaskAnnotationFields`,
   `buildSegmentationBrushConfig` + `BrushConfigAccessors` /
   `BrushConfigDispatchers`, `nextBrushRadius`, `BrushOptions`,
-  `DEFAULT_MAX_TOTAL_MASK_PIXELS`, and `SerializeOptions` /
+  `displayBudget` (the budget a `maxCanvasPixels` option means, as the
+  renderer reads it), `DEFAULT_MAX_TOTAL_MASK_PIXELS`, and `SerializeOptions` /
   `DeserializeOptions` / `ExportedAnnotation` for the new `maskCodec`,
   `maskCodecs`, `maxMaskPixels` and `maxTotalMaskPixels` options on
   `serialize` / `deserialize` (`serialize`'s `maxMaskPixels` only lowers the
