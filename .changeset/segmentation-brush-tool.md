@@ -244,9 +244,10 @@ press. A **New mask** button beside Erase in both Toolbars
 (`data-testid="brush-new-mask"`) and the `newMask` shortcut (default `n`, brush
 only) deselect while keeping the brush, so the next stroke starts a separate
 mask. The button is `aria-pressed` while the next stroke will create a mask and
-disabled at the context's `maxCount`; the key does nothing there either, and
-waits for the release while a stroke is open. The cursor ring is solid when the
-next stroke refines and dashed when it creates, sized in screen pixels, and on
+disabled at the context's `maxCount`; the key does nothing there either, and is
+ignored while a stroke is open (press it again after releasing). The cursor ring
+is solid when the next stroke refines and dashed when it creates, sized in
+screen pixels at every zoom, and on
 a mask at a downsample above 1 it is drawn as the cells one dab sets. A capacity
 failure on a refining stroke says "Start a separate mask with New mask (n)",
 naming the bound key, when a new mask may still be added; otherwise it keeps the
@@ -332,8 +333,9 @@ degrades alone instead of blanking its whole grid cell.
   forwards on OpenSeadragon's behalf no longer passes through the tracker's
   own element, where it removed a live contact and turned the second finger
   into a phantom press.
-- **Delete waits for the release** while a stroke is open; deleting the mask
-  being refined mid-stroke left the stroke nothing to commit into. The brush
+- **Delete is ignored while a stroke is open** (press it again after
+  releasing); deleting the mask being refined mid-stroke left the stroke
+  nothing to commit into. The brush
   cancels on the `cancel` shortcut, not `polylineCancel` (both are Escape by
   default).
 - **A mask is hit-tested by its pixels**, not its bounding box, so a click

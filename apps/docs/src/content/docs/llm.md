@@ -2158,8 +2158,9 @@ While the segmentation brush is the active tool, `n` (`newMask`) deselects and
 keeps the brush, so the next stroke starts a separate mask instead of refining
 the selected one. It does what the first `Escape` does, but a second press never
 leaves the brush. Outside the brush it does nothing, and so it does at the
-context's `maxCount`, where the New mask button is disabled; while a stroke is
-open it waits for the release. `Shift+N` is still `toggleNegative`.
+context's `maxCount`, where the New mask button is disabled. It is ignored while
+a stroke is open, as `Delete` is: press it again after releasing. `Shift+N` is
+still `toggleNegative`, mid-stroke too.
 
 ### Annotation context cycling
 

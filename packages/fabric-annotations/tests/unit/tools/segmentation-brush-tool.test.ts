@@ -61,6 +61,10 @@ interface Harness {
     remove: ReturnType<typeof vi.fn>;
     bringObjectToFront: ReturnType<typeof vi.fn>;
   };
+  /** Sets the stand-in canvas's zoom, as a Ctrl/Cmd scroll would, with no pointer move. */
+  setZoom(zoom: number): void;
+  /** Runs the canvas's `before:render` listeners, as a render would. */
+  render(): void;
 }
 
 function harness(
@@ -90,7 +94,15 @@ function harness(
   const capacityErrors: BrushCapacityError[] = [];
   const radiusAdjustments: (1 | -1)[] = [];
 
+  let zoom = options.viewport?.zoom ?? 1;
+  const beforeRender = new Set<() => void>();
   const canvas = {
+    on: vi.fn((event: string, handler: () => void) => {
+      if (event === 'before:render') beforeRender.add(handler);
+    }),
+    off: vi.fn((event: string, handler: () => void) => {
+      if (event === 'before:render') beforeRender.delete(handler);
+    }),
     add: vi.fn((...added: FabricObject[]) => objects.push(...added)),
     remove: vi.fn((...removed: FabricObject[]) => {
       for (const obj of removed) {
@@ -105,7 +117,7 @@ function harness(
     discardActiveObject: vi.fn(),
     bringObjectToFront: vi.fn(),
     requestRenderAll: vi.fn(),
-    getZoom: () => options.viewport?.zoom ?? 1,
+    getZoom: () => zoom,
     ...(options.viewport
       ? {
           viewportTransform: [options.viewport.zoom, 0, 0, options.viewport.zoom, 0, 0],
@@ -158,6 +170,12 @@ function harness(
     radiusAdjustments,
     cancelledReleases,
     canvas,
+    setZoom: (next) => {
+      zoom = next;
+    },
+    render: () => {
+      for (const handler of [...beforeRender]) handler();
+    },
   };
 }
 
@@ -329,6 +347,17 @@ describe('SegmentationBrushTool: cancelling', () => {
     expect(h.tool.onKeyDown({ key: 'Backspace' } as KeyboardEvent)).toBe(true);
     up(h.tool, 100, 80);
     expect(h.commits).toHaveLength(1);
+  });
+
+  it('lets Shift with the New mask key through mid-stroke, as another shortcut (#149 minor 9)', () => {
+    // Shift+N is toggleNegative in the keyboard map; only a plain N is New mask.
+    const h = harness({
+      target: { annotationId: createAnnotationId('m1'), snapshot: paintedSnapshot() },
+    });
+    down(h.tool, 100, 80);
+    expect(h.tool.onKeyDown({ key: 'N', shiftKey: true } as KeyboardEvent)).toBe(false);
+    expect(h.tool.onKeyDown({ key: 'n', shiftKey: false } as KeyboardEvent)).toBe(true);
+    up(h.tool, 100, 80);
   });
 
   it('discards the stroke on Escape and commits nothing', () => {
@@ -526,6 +555,52 @@ describe('SegmentationBrushTool: capacity', () => {
     expect(h.capacityErrors).toEqual([]);
     expect(h.commits).toHaveLength(1);
     expect(h.commits[0]!.snapshot.cells.width).toBe(32_700);
+  });
+
+  /** The 32,700-cell strip at `x`, for the near-limit cases below. */
+  function strip(x: number) {
+    return runRaster(
+      {
+        cells: { x, y: 10, width: 32_700, height: 1 },
+        imageWidth: 40_000,
+        imageHeight: 100,
+        downsample: 1,
+      },
+      [0, 32_700],
+    );
+  }
+
+  it('lets an eraser overhang the far end of a near-limit mask (#149 minor 8)', () => {
+    // Erasing sets no cell, so it must not grow the box that sizes the
+    // preview: an r=80 eraser at x=32,750 was reported as 32,769 wide and
+    // refused, losing the erasing done earlier in the stroke. At 32,780 even
+    // the eraser's exact footprint passes the limit, so only not growing
+    // the box at all lets it through.
+    const h = harness({
+      imageSize: { width: 40_000, height: 100 },
+      radius: 80,
+      target: { annotationId: createAnnotationId('long'), snapshot: strip(63) },
+    });
+    down(h.tool, 30_000, 10, true);
+    move(h.tool, 32_780, 10);
+    up(h.tool, 32_780, 10);
+    expect(h.capacityErrors).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.cells.width).toBeLessThan(32_700);
+  });
+
+  it('draws a dab whose result is just inside the limit (#149 minor 8)', () => {
+    // An r=3 dab at x=32,763 on the strip at 0 sets cells up to 32,765, so the
+    // mask is 32,766 wide. The swept slack box called it 32,768 and refused it.
+    const h = harness({
+      imageSize: { width: 40_000, height: 100 },
+      radius: 3,
+      target: { annotationId: createAnnotationId('long'), snapshot: strip(0) },
+    });
+    down(h.tool, 32_763, 10);
+    up(h.tool, 32_763, 10);
+    expect(h.capacityErrors).toEqual([]);
+    expect(h.commits[0]!.snapshot.cells.width).toBe(32_766);
   });
 
   it('does not refuse a stroke for the room its preview leaves to grow', () => {
@@ -1034,6 +1109,29 @@ describe('the cursor cue: refine or create', () => {
     move(h.tool, 102, 100);
     const cells = cellsOf(h) as unknown as { strokeWidth: number };
     expect(cells.strokeWidth).toBeCloseTo(10);
+  });
+
+  it('resizes the cue when the zoom changes with no pointer move (#149 minor 11)', () => {
+    // A Ctrl/Cmd scroll or the reset-view key zooms without a move: the next
+    // render redraws the cue for the new zoom.
+    const h = harness({
+      peekTarget: () => ({ downsample: 1 }),
+      viewport: { zoom: 1, width: 800, height: 600 },
+    });
+    move(h.tool, 100, 100);
+    const ring = ringOf(h) as unknown as { strokeWidth: number };
+    expect(ring.strokeWidth).toBeCloseTo(1);
+    h.setZoom(0.1);
+    h.render();
+    expect(ring.strokeWidth).toBeCloseTo(10);
+    // And a render at an unchanged zoom does nothing.
+    const added = h.canvas.add.mock.calls.length;
+    h.render();
+    expect(h.canvas.add.mock.calls.length).toBe(added);
+    // Deactivated, it no longer listens.
+    h.tool.deactivate();
+    h.setZoom(1);
+    expect(() => h.render()).not.toThrow();
   });
 
   it('redraws after New mask or cancel, without waiting for the pointer', async () => {
