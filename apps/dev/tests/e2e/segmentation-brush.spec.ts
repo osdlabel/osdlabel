@@ -154,13 +154,19 @@ async function importDocument(page: Page, doc: unknown): Promise<void> {
     const input = page.getByPlaceholder('Paste exported JSON here...');
     await input.fill(JSON.stringify(doc));
     await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-    // The panel closes only after `loadAnnotations` ran.
+    // The panel closes only after `loadAnnotations` ran; a refused import
+    // raises a dialog and leaves it open. Wait for either, and report the
+    // dialog's text first, so a refusal fails with its reason rather than as
+    // a five-second timeout on the panel.
+    await expect
+      .poll(async () => dialogs.length > 0 || !(await input.isVisible()), { timeout: 10_000 })
+      .toBe(true);
+    expect(dialogs, 'the import raised a dialog').toEqual([]);
     await expect(input).toBeHidden();
     await page.waitForTimeout(300);
   } finally {
     page.off('dialog', onDialog);
   }
-  expect(dialogs, 'the import raised a dialog').toEqual([]);
 }
 
 /** Empties the annotation state, so a re-import cannot pass by leaving it unchanged. */
@@ -594,12 +600,15 @@ test.describe('Segmentation brush', () => {
         const client = await imageToClient(page, p);
         return fabricAlphaAt(page, client.x, client.y);
       };
-      // Just inside and just outside each edge of the [240, 360) x [160, 240) box.
+      // A quarter-cell inside and half a cell outside each edge of the
+      // [240, 360) x [160, 240) box. Probes half a cell in and a whole cell
+      // out let a half-cell shift, or a one-cell overrun at the right or
+      // bottom edge, pass; these fail both, checked by editing the renderer.
       for (const [name, insidePoint, outsidePoint] of [
-        ['left', { x: 242, y: 200 }, { x: 236, y: 200 }],
-        ['right', { x: 358, y: 200 }, { x: 364, y: 200 }],
-        ['top', { x: 300, y: 162 }, { x: 300, y: 156 }],
-        ['bottom', { x: 300, y: 238 }, { x: 300, y: 244 }],
+        ['left', { x: 241, y: 200 }, { x: 238, y: 200 }],
+        ['right', { x: 359, y: 200 }, { x: 362, y: 200 }],
+        ['top', { x: 300, y: 161 }, { x: 300, y: 158 }],
+        ['bottom', { x: 300, y: 239 }, { x: 300, y: 242 }],
       ] as const) {
         expect(await at(insidePoint), `inside the ${name} edge`).toBeGreaterThan(60);
         expect(await at(outsidePoint), `outside the ${name} edge`).toBe(0);

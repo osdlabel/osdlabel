@@ -94,67 +94,6 @@ export function snapshotImageBox(snapshot: MaskBoxFields): MaskRegion {
 }
 
 /**
- * Cells a region needs at `downsample`: its grid-aligned cover, clipped to
- * the image's grid. Alignment matters — a region that straddles cell
- * boundaries needs one more cell a side than its size alone suggests.
- */
-function cellsFor(
-  region: MaskRegion,
-  imageWidth: number,
-  imageHeight: number,
-  downsample: number,
-  marginCells: number,
-): number {
-  const grid = maskGridSize(imageWidth, imageHeight, downsample);
-  const left = Math.max(0, Math.floor(region.x / downsample) - marginCells);
-  const top = Math.max(0, Math.floor(region.y / downsample) - marginCells);
-  const right = Math.min(
-    grid.width,
-    Math.ceil((region.x + region.width) / downsample) + marginCells,
-  );
-  const bottom = Math.min(
-    grid.height,
-    Math.ceil((region.y + region.height) / downsample) + marginCells,
-  );
-  if (right <= left || bottom <= top) return 0;
-  return (right - left) * (bottom - top);
-}
-
-/**
- * The finest downsample at which `region` (image pixels) fits in `maxPixels`
- * cells: the smallest power of two that does.
- *
- * An internal helper, off both barrels: the brush does not use it — a new mask
- * starts at full resolution whatever the zoom. It is kept for coarsening a
- * mask that outgrows the cap, which picks a grid by size. A region that fits
- * at 1 gets 1.
- *
- * `marginCells` widens the region by that many cells a side at each candidate
- * downsample — room for the slack a rasterizer reserves around a stamp, which
- * is a cell count rather than an image distance.
- *
- * Throws {@link MaskCapacityExceededError} when even
- * {@link MAX_MASK_DOWNSAMPLE} does not fit, which only a cap far below the
- * default can cause.
- */
-export function chooseMaskDownsample(
-  region: MaskRegion,
-  imageWidth: number,
-  imageHeight: number,
-  maxPixels: number,
-  marginCells = 0,
-): number {
-  for (let d = 1; d <= MAX_MASK_DOWNSAMPLE; d *= 2) {
-    if (cellsFor(region, imageWidth, imageHeight, d, marginCells) <= maxPixels) return d;
-  }
-  throw new MaskCapacityExceededError(
-    cellsFor(region, imageWidth, imageHeight, MAX_MASK_DOWNSAMPLE, marginCells),
-    maxPixels,
-    MAX_MASK_DOWNSAMPLE,
-  );
-}
-
-/**
  * Expands a downsampled snapshot to one cell per image pixel — the mask its
  * payload means, at full resolution.
  *

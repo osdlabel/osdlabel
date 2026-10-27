@@ -24,8 +24,6 @@ import {
   type CanonicalMaskData,
   type MaskSnapshot,
 } from '../../src/index.js';
-// Not on the barrel: kept for coarsening on overflow, which picks a grid by size.
-import { chooseMaskDownsample } from '../../src/downsample.js';
 
 /** A hand-built snapshot: `rows` of '#'/'.' over cells, placed at cell (x, y). */
 function cells(
@@ -66,36 +64,6 @@ describe('isMaskDownsample', () => {
     for (const d of [0, -2, 3, 6, 2.5, Number.NaN, MAX_MASK_DOWNSAMPLE * 2, '2', null]) {
       expect(isMaskDownsample(d)).toBe(false);
     }
-  });
-});
-
-describe('chooseMaskDownsample', () => {
-  it('keeps full resolution whenever the region fits, as before the field existed', () => {
-    const region = { x: 0, y: 0, width: 8192, height: 8192 };
-    expect(chooseMaskDownsample(region, 100_000, 100_000, DEFAULT_MAX_MASK_PIXELS)).toBe(1);
-  });
-
-  it('picks the smallest power of two whose cell grid fits the cap', () => {
-    // The SAM prototype's overview box: 33.9x the cap at level 0.
-    const region = { x: 0, y: 0, width: 56_000, height: 40_600 };
-    expect(56_000 * 40_600).toBeGreaterThan(33 * DEFAULT_MAX_MASK_PIXELS);
-    const d = chooseMaskDownsample(region, 56_000, 40_600, DEFAULT_MAX_MASK_PIXELS);
-    expect(d).toBe(8);
-    expect(Math.ceil(56_000 / 4) * Math.ceil(40_600 / 4)).toBeGreaterThan(DEFAULT_MAX_MASK_PIXELS);
-    expect(Math.ceil(56_000 / 8) * Math.ceil(40_600 / 8)).toBeLessThanOrEqual(
-      DEFAULT_MAX_MASK_PIXELS,
-    );
-  });
-
-  it('counts the cells a misaligned region straddles, not just its size', () => {
-    // 4 image pixels, but straddling a 4-pixel cell boundary: two cells wide.
-    expect(chooseMaskDownsample({ x: 2, y: 0, width: 4, height: 4 }, 64, 64, 1)).toBe(8);
-    expect(chooseMaskDownsample({ x: 0, y: 0, width: 4, height: 4 }, 64, 64, 1)).toBe(4);
-  });
-
-  it('clips the region to the image before counting', () => {
-    const region = { x: -50_000, y: -50_000, width: 200_000, height: 200_000 };
-    expect(chooseMaskDownsample(region, 1000, 1000, DEFAULT_MAX_MASK_PIXELS)).toBe(1);
   });
 });
 
