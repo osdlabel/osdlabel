@@ -2084,7 +2084,9 @@ draw at full resolution. Changing it redraws the cell's masks. A mask past the b
 coarser copy at every zoom, so a feature thinner than a mip cell, such as a
 one-pixel line or a one-pixel gap, may not show. The majority rule drops thin
 lines and fills thin gaps alike, so the drawing stays unbiased, and the stored
-mask is unchanged. Drawing just the visible region at full resolution is the
+mask is unchanged. A mask made only of such features, whose mip keeps no cell
+at all, is not drawn blank: it is reported through `onAnnotationRenderError`
+as a `MaskDisplayMipEmptyError`, and the rest of the image renders. Drawing just the visible region at full resolution is the
 proper fix, and belongs with
 [#158](https://github.com/osdlabel/osdlabel/issues/158).
 

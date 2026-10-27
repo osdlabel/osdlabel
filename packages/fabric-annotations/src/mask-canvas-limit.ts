@@ -49,5 +49,47 @@ export class MaskCanvasTooLargeError extends RangeError {
   }
 }
 
+/**
+ * Thrown by the renderer instead of drawing a non-empty mask blank: the
+ * display mip it had to use, to fit the display budget or the canvas side,
+ * has no set cell left, because every set cell was thinner than a mip cell (a
+ * one-pixel line, or a sparse pattern; the majority rule keeps the mip
+ * unbiased, not faithful to such features). The mask is unchanged, and
+ * exports as usual. A host's cell reports it as a skipped annotation (#243).
+ */
+export class MaskDisplayMipEmptyError extends Error {
+  /** The mask's box, in cells at its own downsample. */
+  readonly width: number;
+  readonly height: number;
+  /** The mask's own downsample. */
+  readonly downsample: number;
+  /** The display mip's downsample, at which nothing was left. */
+  readonly mipDownsample: number;
+  /** The display budget it was drawn under. */
+  readonly maxPixels: number;
+
+  constructor(
+    width: number,
+    height: number,
+    downsample: number,
+    mipDownsample: number,
+    maxPixels: number,
+  ) {
+    super(
+      `A mask ${width} x ${height} cells wide is drawn from a display mip at downsample ` +
+        `${mipDownsample}, to fit a display budget of ${maxPixels} canvas pixels and a canvas ` +
+        `side of ${MAX_MASK_CANVAS_SIDE}, and none of its cells survive there: they are ` +
+        `thinner than a mip cell. It is kept, and exports as usual; raise ` +
+        `brushOptions.maxCanvasPixels, or split it into separate masks.`,
+    );
+    this.name = 'MaskDisplayMipEmptyError';
+    this.width = width;
+    this.height = height;
+    this.downsample = downsample;
+    this.mipDownsample = mipDownsample;
+    this.maxPixels = maxPixels;
+  }
+}
+
 /** What the brush reports when a stroke cannot go on: a mask too large to hold, or to draw. */
 export type BrushCapacityError = MaskCapacityExceededError | MaskCanvasTooLargeError;

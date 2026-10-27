@@ -4,6 +4,7 @@ import { MASK_RAW_FORMAT, type MaskRawAnnotationData } from '@osdlabel/annotatio
 import {
   BoundedDenseMaskBuffer,
   decodeCanonicalRaster,
+  denseRaster,
   encodeCanonical,
   runRaster,
   stampCircle,
@@ -14,6 +15,7 @@ import {
   MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
+  MaskDisplayMipEmptyError,
 } from '../../src/mask-canvas-limit.js';
 import { initFabricModule } from '../../src/fabric-module.js';
 
@@ -268,6 +270,54 @@ describe('a mask too long for a canvas', () => {
     expect(caught).toBeInstanceOf(MaskCanvasTooLargeError);
     expect(caught).toMatchObject({ width: 2, height: 2, maxPixels: 1 });
     expect((caught as Error).message).toMatch(/display budget of 1 canvas pixels/);
+  });
+
+  it('refuses by name, rather than drawing blank, when the mip keeps no cell (#243 minor 13)', () => {
+    const caught = (raw: MaskRawAnnotationData, maxCanvasPixels?: number): unknown => {
+      try {
+        buildMaskFabricObject(raw, {
+          id: 'ann-1',
+          ...(maxCanvasPixels !== undefined ? { maxCanvasPixels } : {}),
+        });
+      } catch (error) {
+        return error;
+      }
+      return undefined;
+    };
+    // A one-pixel strip past the canvas side: the first halving keeps every
+    // other cell (each a 2-of-4 tie), the second none (1 of 4).
+    const strip = caught(solid(70_000, 1));
+    expect(strip).toBeInstanceOf(MaskDisplayMipEmptyError);
+    expect(strip).toMatchObject({ width: 70_000, height: 1, downsample: 1, mipDownsample: 4 });
+
+    // A one-cell anti-diagonal, x + y = k with k odd: every 2x2 block it
+    // crosses holds two of its cells, a tie, broken by the block's parity,
+    // (k - 1) / 2. Odd, a single halving clears it; even, it is kept.
+    const diagonal = (k: number): MaskRawAnnotationData => {
+      const box = { x: 4, y: 4, width: 996, height: 996 };
+      const data = new Uint8Array(box.width * box.height);
+      for (let x = box.x; x < box.x + box.width; x++) {
+        const y = k - x;
+        if (y >= box.y && y < box.y + box.height) {
+          data[(y - box.y) * box.width + (x - box.x)] = 1;
+        }
+      }
+      return {
+        format: MASK_RAW_FORMAT,
+        data: {
+          ...encodeCanonical(
+            denseRaster({ cells: box, data, imageWidth: 2_000, imageHeight: 2_000, downsample: 1 }),
+          ),
+        },
+      };
+    };
+    const cleared = caught(diagonal(1_003), 500_000);
+    expect(cleared).toBeInstanceOf(MaskDisplayMipEmptyError);
+    expect(cleared).toMatchObject({ mipDownsample: 2, maxPixels: 500_000 });
+    expect((cleared as Error).message).toMatch(/raise brushOptions\.maxCanvasPixels/);
+    expect(caught(diagonal(1_001), 500_000)).toBeUndefined();
+    // Drawn in full, nothing is dropped.
+    expect(caught(diagonal(1_003))).toBeUndefined();
   });
 
   it('still draws a mask exactly as long as the limit', () => {

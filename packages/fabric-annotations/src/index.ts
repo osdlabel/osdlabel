@@ -18,6 +18,7 @@ export {
   MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
+  MaskDisplayMipEmptyError,
   type BrushCapacityError,
 } from './mask-canvas-limit.js';
 export type { BuildMaskFabricObjectOptions } from './mask-fabric-object.js';

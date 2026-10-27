@@ -11,6 +11,7 @@ import {
   MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
+  MaskDisplayMipEmptyError,
 } from './mask-canvas-limit.js';
 
 /** Tint used when a mask envelope carries no `fill` of its own. */
@@ -47,7 +48,8 @@ export interface BuildMaskFabricObjectOptions {
  *
  * Returns `null` for an empty mask, which has no pixels to draw. Throws if
  * handed raw data that is not a mask payload, and throws
- * {@link MaskCanvasTooLargeError} when even the coarsest mip would not fit — a
+ * {@link MaskDisplayMipEmptyError} when the mip it fits has no set cell left,
+ * and {@link MaskCanvasTooLargeError} when even the coarsest mip would not fit — a
  * host's cell reports it as a skipped annotation.
  */
 export function buildMaskFabricObject(
@@ -109,7 +111,8 @@ export function buildMaskFabricObject(
  * canvas limit it was past (iOS). The stored mask is never touched.
  *
  * Throws {@link MaskCanvasTooLargeError} only if no downsample up to the
- * largest makes it fit.
+ * largest makes it fit, and {@link MaskDisplayMipEmptyError} if the mip that
+ * fits has no set cell left while the mask has some.
  */
 function displayRaster(raster: MaskRaster, maxCanvasPixels: number): MaskRaster {
   const budget =
@@ -124,6 +127,16 @@ function displayRaster(raster: MaskRaster, maxCanvasPixels: number): MaskRaster 
       throw new MaskCanvasTooLargeError(display.cells.width, display.cells.height, budget);
     }
     display = majorityCoarsen(display);
+  }
+  // A mip with nothing left would draw a set mask blank, silently.
+  if (display !== raster && display.cellCount === 0 && raster.cellCount > 0) {
+    throw new MaskDisplayMipEmptyError(
+      raster.cells.width,
+      raster.cells.height,
+      raster.downsample,
+      display.downsample,
+      budget,
+    );
   }
   return display;
 }

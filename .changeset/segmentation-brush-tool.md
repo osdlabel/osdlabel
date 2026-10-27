@@ -169,7 +169,9 @@ stored. `brushOptions.maxCanvasPixels` moves the budget (`Infinity`, or
 anything not a positive finite number, draws every mask at full resolution;
 a new options object with an equal budget redraws nothing), and `createFabricObjectFromRawData` and
 `buildMaskFabricObject` take it as `maxCanvasPixels`. The renderer throws
-`MaskCanvasTooLargeError` only if not even the coarsest mip fits, reported
+`MaskCanvasTooLargeError` only if not even the coarsest mip fits, and
+`MaskDisplayMipEmptyError` rather than drawing a set mask blank when the mip
+that fits keeps none of its cells (a one-pixel strip, say), each reported
 through `onAnnotationRenderError` while the other annotations render. A stroke
 whose live preview would pass the side limit is refused through
 `onCapacityExceeded`, whose argument is now `BrushCapacityError`

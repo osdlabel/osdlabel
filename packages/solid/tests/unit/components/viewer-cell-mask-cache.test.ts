@@ -186,6 +186,16 @@ function mask(id: typeof m1, radius = 4) {
 }
 
 /**
+ * A solid 16 x 16 block at the image's top-left: every halving keeps it, so
+ * at the coarsest grid it is one set cell, which fits even a one-pixel budget.
+ */
+function cornerBlock(id: typeof m1) {
+  const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) buffer.set(x, y, 1);
+  return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
+}
+
+/**
  * A mask whose box straddles the 2^16 cell boundary in both axes: 2x2 cells
  * even at the coarsest grid, so no mip fits a one-cell display budget.
  */
@@ -386,8 +396,8 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     setBudget(1);
     const report = vi.mocked(mockState.reportAnnotationRenderError);
     report.mockClear();
-    // m2 is 1x1 cell at its coarsest grid, so it fits even this budget.
-    setAnnotations('byImage', { [imageId]: { [m1]: straddlingMask(m1), [m2]: mask(m2) } });
+    // m2 is one set cell at its coarsest grid, so it fits even this budget.
+    setAnnotations('byImage', { [imageId]: { [m1]: straddlingMask(m1), [m2]: cornerBlock(m2) } });
     mountCell();
 
     await vi.waitFor(() => expect(report).toHaveBeenCalled());
