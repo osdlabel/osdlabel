@@ -7,7 +7,16 @@ import type {
   SegmentationBrushToolConfig,
   ToolCallbacks,
 } from '@osdlabel/fabric-annotations';
-import { BoundedDenseMaskBuffer, MaskCapacityExceededError, createMaskAnnotation } from 'osdlabel';
+import {
+  BoundedDenseMaskBuffer,
+  DEFAULT_MASK_FILL,
+  MaskCapacityExceededError,
+  createMaskAnnotation,
+  majorityCoarsen,
+  stampCircle,
+  type CoarsenStrategy,
+  type MaskObjectSeed,
+} from 'osdlabel';
 import { createAnnotationId, type Geometry } from '@osdlabel/annotation';
 import { createImageId, type ImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
@@ -160,8 +169,9 @@ function ToolHost(props: {
   readonly overlay: FabricOverlay | undefined;
   readonly imageId: ImageId | undefined;
   readonly isActive: boolean;
+  readonly cell?: { readonly seedMaskObject?: (seed: MaskObjectSeed) => void };
 }) {
-  useAnnotationTool(props.overlay, props.imageId, props.isActive);
+  useAnnotationTool(props.overlay, props.imageId, props.isActive, props.cell);
   return null;
 }
 
@@ -183,8 +193,9 @@ describe('useAnnotationTool', () => {
   function setup(
     tool: 'select' | 'polyline' | 'rectangle' | 'segmentationBrush' = 'polyline',
     props: ProviderProps = {},
+    hostProps: Partial<Parameters<typeof ToolHost>[0]> = {},
   ): AnnotatorHarness {
-    const h = renderAnnotator(props, host());
+    const h = renderAnnotator(props, host(hostProps));
     h.run((a) => {
       a.assignImageToCell(0, imageId);
       a.setContexts([
@@ -688,5 +699,163 @@ describe('useAnnotationTool', () => {
 
     h.rerender({ keyboardShortcuts: { newMask: 'k' }, brushOptions }, host());
     expect(refuseRefining()).toMatch(/Start a separate mask with New mask \(k\)\.$/);
+  });
+
+  describe('coarsening through the provider (step 6)', () => {
+    // The parity of Solid's `useAnnotationTool.config.test.ts` cases. React
+    // passes the strategy and the callback through refs, so a new one reaches
+    // the surviving tool without rebuilding it.
+    const brushConfig = () => {
+      const tool = built.at(-1)?.tool;
+      expect(tool).toBeDefined();
+      return (tool as unknown as { config: SegmentationBrushToolConfig }).config;
+    };
+    const coarsenedCommit = () => {
+      const buffer = new BoundedDenseMaskBuffer({
+        imageWidth: 100,
+        imageHeight: 100,
+        downsample: 2,
+      });
+      buffer.set(10, 10, 1);
+      return {
+        annotationId: null,
+        imageId,
+        contextId,
+        snapshot: buffer.raster(),
+        startDownsample: 1,
+      };
+    };
+
+    it("uses the provider's strategy, and a changed one without rebuilding the tool", () => {
+      const first: CoarsenStrategy = (source) => majorityCoarsen(source);
+      const second: CoarsenStrategy = (source) => majorityCoarsen(source);
+      const h = setup('segmentationBrush', { brushOptions: { coarsen: first } });
+      const config = brushConfig();
+      expect(config.getCoarsenStrategy!()(coarsenedCommit().snapshot)).toBeDefined();
+      const probe = vi.fn(first);
+      h.rerender({ brushOptions: { coarsen: probe } }, host());
+      const builds = built.length;
+      h.rerender({ brushOptions: { coarsen: second } }, host());
+      expect(built.length).toBe(builds);
+      const spy = vi.fn(second);
+      h.rerender({ brushOptions: { coarsen: spy } }, host());
+      expect(built.length).toBe(builds);
+      // The surviving tool's strategy calls the latest one.
+      expect(brushConfig()).toBe(config);
+      config.getCoarsenStrategy!()(coarsenedCommit().snapshot);
+      expect(spy).toHaveBeenCalledOnce();
+      expect(probe).not.toHaveBeenCalled();
+      // The cap is what the tool is built with: changing it does rebuild.
+      h.rerender({ brushOptions: { coarsen: spy, maxPixels: 500 } }, host());
+      expect(built.length).toBe(builds + 1);
+    });
+
+    it('calls onCoarsen through, and a changed one without rebuilding the tool', () => {
+      const first = vi.fn();
+      const second = vi.fn();
+      const h = setup('segmentationBrush', { brushOptions: { onCoarsen: first } });
+      const config = brushConfig();
+      act(() => config.onCommit(coarsenedCommit()));
+      expect(first).toHaveBeenCalledWith(expect.objectContaining({ from: 1, to: 2, imageId }));
+      const builds = built.length;
+      h.rerender({ brushOptions: { onCoarsen: second } }, host());
+      expect(built.length).toBe(builds);
+      act(() => config.onCommit(coarsenedCommit()));
+      expect(second).toHaveBeenCalledOnce();
+      expect(first).toHaveBeenCalledOnce();
+    });
+
+    it("reads maxDownsample from the active context's brush constraint at each press", () => {
+      const h = setup('segmentationBrush');
+      const config = brushConfig();
+      expect(config.getMaxDownsample!()).toBe(1);
+      const builds = built.length;
+      for (const maxDownsample of [8, 4]) {
+        h.run((a) =>
+          a.setContexts([
+            {
+              id: contextId,
+              label: 'All',
+              tools: [{ type: 'segmentationBrush', brush: { maxDownsample } }],
+            },
+          ]),
+        );
+        expect(config.getMaxDownsample!()).toBe(maxDownsample);
+      }
+      expect(built.length).toBe(builds);
+    });
+
+    it('falls back to majorityCoarsen when the provider sets no strategy (#243 minor 17)', () => {
+      // The provider hands the tool one stable wrapper, which falls back
+      // inside; so compare what it returns, not which function it is.
+      const fine = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+      stampCircle(fine, 50.5, 50.5, 7, 1);
+      const source = fine.raster();
+      const majority = majorityCoarsen(source);
+      const sameCells = (a: typeof majority, b: typeof majority) =>
+        a.downsample === b.downsample &&
+        a.cellCount === b.cellCount &&
+        JSON.stringify(a.cells) === JSON.stringify(b.cells);
+      const h = setup('segmentationBrush');
+      const config = brushConfig();
+      expect(sameCells(config.getCoarsenStrategy!()(source), majority)).toBe(true);
+      const marker = majorityCoarsen(majorityCoarsen(source));
+      const strategy = vi.fn<CoarsenStrategy>(() => marker);
+      const builds = built.length;
+      h.rerender({ brushOptions: { coarsen: strategy } }, host());
+      expect(config.getCoarsenStrategy!()(source)).toBe(marker);
+      h.rerender({ brushOptions: {} }, host());
+      expect(sameCells(config.getCoarsenStrategy!()(source), majority)).toBe(true);
+      expect(strategy).toHaveBeenCalledOnce();
+      expect(built.length).toBe(builds);
+    });
+  });
+
+  describe("the cell's seed (#243 minor 15)", () => {
+    const commitWithPreview = () => {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+      stampCircle(buffer, 50.5, 50.5, 4, 1);
+      return {
+        annotationId: null,
+        imageId,
+        contextId,
+        snapshot: buffer.raster(),
+        startDownsample: 1,
+        preview: { fill: DEFAULT_MASK_FILL, crop: () => null },
+      };
+    };
+    const brushConfig = () => {
+      const tool = built.at(-1)?.tool;
+      expect(tool).toBeDefined();
+      return (tool as unknown as { config: SegmentationBrushToolConfig }).config;
+    };
+
+    it("hands a commit's preview to the cell it serves", () => {
+      const seeds: MaskObjectSeed[] = [];
+      setup('segmentationBrush', {}, { cell: { seedMaskObject: (seed) => seeds.push(seed) } });
+      act(() => brushConfig().onCommit(commitWithPreview()));
+      expect(seeds).toHaveLength(1);
+      expect([seeds[0]!.width, seeds[0]!.height]).toEqual([9, 9]);
+    });
+
+    it('reaches the latest cell without rebuilding the tool for a new cell object', () => {
+      // ViewerCell passes a new object on every render; depending on it would
+      // rebuild the tool, and drop a stroke in progress, on every render.
+      const first: MaskObjectSeed[] = [];
+      const h = setup(
+        'segmentationBrush',
+        {},
+        { cell: { seedMaskObject: (seed) => first.push(seed) } },
+      );
+      const config = brushConfig();
+      const builds = built.length;
+      const latest: MaskObjectSeed[] = [];
+      h.rerender({}, host({ cell: { seedMaskObject: (seed) => first.push(seed) } }));
+      h.rerender({}, host({ cell: { seedMaskObject: (seed) => latest.push(seed) } }));
+      expect(built.length).toBe(builds);
+      act(() => config.onCommit(commitWithPreview()));
+      expect(latest).toHaveLength(1);
+      expect(first).toHaveLength(0);
+    });
   });
 });

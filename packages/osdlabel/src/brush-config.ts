@@ -1,8 +1,10 @@
+import type { FabricObject } from 'fabric';
 import {
   MASK_RAW_FORMAT,
   createAnnotationId,
   generateId,
   type AnnotationId,
+  type MaskRawAnnotationData,
 } from '@osdlabel/annotation';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
 import type { AnnotationState, ImageId } from '@osdlabel/viewer-api';
@@ -11,7 +13,10 @@ import {
   DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
   decodeCanonicalRaster,
+  majorityCoarsen,
+  type CoarsenStrategy,
 } from '@osdlabel/mask';
+import { DEFAULT_MASK_FILL, maskFabricObjectFromCanvas } from '@osdlabel/fabric-annotations';
 import type {
   BrushCapacityError,
   BrushStrokeCommit,
@@ -19,6 +24,7 @@ import type {
   SegmentationBrushToolConfig,
 } from '@osdlabel/fabric-annotations';
 import { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
+import type { CoarsenEvent } from './brush-options.js';
 import type { OsdAnnotation, OsdFields } from './types.js';
 
 /**
@@ -67,6 +73,14 @@ export interface BrushConfigAccessors {
    * a mask may still be added. Omitted, it is assumed it may.
    */
   readonly canStartNewMask?: (() => boolean) | undefined;
+  /**
+   * The active context's `ToolConstraint.brush.maxDownsample`, read at each
+   * press: how coarse a stroke may make its mask to fit the cap. Omitted or 1,
+   * a stroke past the cap is refused.
+   */
+  readonly getMaxDownsample?: (() => number | undefined) | undefined;
+  /** The host's coarsen strategy (`BrushOptions.coarsen`), read at each overflow. */
+  readonly getCoarsenStrategy?: (() => CoarsenStrategy | undefined) | undefined;
 }
 
 /** State mutations the brush triggers. */
@@ -87,6 +101,33 @@ export interface BrushConfigDispatchers {
    * happened.
    */
   readonly onCapacityExceeded?: ((error: BrushCapacityError) => void) | undefined;
+  /**
+   * Hands the cell the committed mask's object, built from the stroke's live
+   * preview, before the commit is written — so the rebuild the write triggers
+   * shows it without decoding and re-rasterizing the mask (#238). `fill` is
+   * the tint override the object was drawn in, `undefined` for the mask's own;
+   * the cell keys its cache on it (`MaskObjectCache.seed`).
+   */
+  readonly seedMaskObject?: ((seed: MaskObjectSeed) => void) | undefined;
+  /** Called after a stroke that coarsened its mask is written; see `BrushOptions.onCoarsen`. */
+  readonly onCoarsen?: ((event: CoarsenEvent) => void) | undefined;
+}
+
+/** A committed mask's object, built from the brush's preview; see `seedMaskObject`. */
+export interface MaskObjectSeed {
+  readonly annotationId: AnnotationId;
+  readonly rawAnnotationData: MaskRawAnnotationData;
+  /** The tint override it is drawn in, or `undefined` for the mask's own. */
+  readonly fill: string | undefined;
+  /** The object's size in canvas pixels, one per cell: known before building it. */
+  readonly width: number;
+  readonly height: number;
+  /**
+   * Builds the object from the stroke's preview, cropping it then: `null` if
+   * the engine refuses the canvas. Called only by a cache that will keep it,
+   * so a mask past the cell's display budget is never cropped.
+   */
+  readonly object: () => FabricObject | null;
 }
 
 /**
@@ -172,11 +213,10 @@ export function buildSegmentationBrushConfig(
         dispatchers.setSelectedAnnotation(null);
         return;
       }
-      dispatchers.updateAnnotation(
-        stroke.annotationId,
-        stroke.imageId,
-        maskAnnotationFields(stroke.snapshot, accessors.getFill?.() ?? targetFill),
-      );
+      const fields = maskAnnotationFields(stroke.snapshot, accessors.getFill?.() ?? targetFill);
+      seed(stroke, stroke.annotationId, fields.rawAnnotationData);
+      dispatchers.updateAnnotation(stroke.annotationId, stroke.imageId, fields);
+      reportCoarsening(stroke, stroke.annotationId);
       return;
     }
 
@@ -197,8 +237,60 @@ export function buildSegmentationBrushConfig(
     // brush enabled only because that mask is selected; added first, there was
     // a moment at the limit with nothing selected, and a host whose effects run
     // on every write (Solid's do) switched the brush off in it.
+    if (annotation.rawAnnotationData.format === MASK_RAW_FORMAT) {
+      seed(stroke, id, annotation.rawAnnotationData);
+    }
     dispatchers.setSelectedAnnotation(id);
     dispatchers.addAnnotation(annotation);
+    reportCoarsening(stroke, id);
+  };
+
+  /** Tells the host a written stroke coarsened its mask: only upward, never on re-gridding finer. */
+  const reportCoarsening = (stroke: BrushStrokeCommit, annotationId: AnnotationId): void => {
+    const to = stroke.snapshot.downsample;
+    if (to <= stroke.startDownsample) return;
+    dispatchers.onCoarsen?.({
+      annotationId,
+      imageId: stroke.imageId,
+      contextId: stroke.contextId,
+      from: stroke.startDownsample,
+      to,
+    });
+  };
+
+  /**
+   * Seeds the cell with the stroke's preview, when its tint is the one the
+   * cell will draw the mask in: the selected tint the host overrides with, or
+   * the mask's own when it overrides none. Anything else, the cell rebuilds.
+   */
+  const seed = (
+    stroke: BrushStrokeCommit,
+    annotationId: AnnotationId,
+    rawAnnotationData: MaskRawAnnotationData,
+  ): void => {
+    const preview = stroke.preview;
+    if (!preview || !dispatchers.seedMaskObject) return;
+    const selectedFill = accessors.getSelectedFill?.();
+    const ownFill = rawAnnotationData.data.fill ?? DEFAULT_MASK_FILL;
+    let fill: string | undefined;
+    if (selectedFill !== undefined) {
+      if (preview.fill !== selectedFill) return;
+      fill = selectedFill;
+    } else if (preview.fill !== ownFill) {
+      return;
+    }
+    const { cells, downsample } = stroke.snapshot;
+    dispatchers.seedMaskObject({
+      annotationId,
+      rawAnnotationData,
+      fill,
+      width: cells.width,
+      height: cells.height,
+      object: () => {
+        const canvas = preview.crop();
+        return canvas ? maskFabricObjectFromCanvas(canvas, cells, downsample, annotationId) : null;
+      },
+    });
   };
 
   return {
@@ -207,13 +299,20 @@ export function buildSegmentationBrushConfig(
     getImageSize: accessors.getImageSize,
     getTarget: resolveTarget,
     // The same answer as `getTarget`, without decoding: the cursor asks on
-    // every pointer move.
+    // every pointer move. The payload's box is in image pixels, so the cue
+    // can show the grid a press would re-grid the mask to.
     peekTarget: () => {
       const selected = selectedMask();
-      return selected ? { downsample: selected.data.downsample ?? 1 } : null;
+      if (!selected) return null;
+      const { x, y, width, height } = selected.data;
+      return { downsample: selected.data.downsample ?? 1, box: { x, y, width, height } };
     },
     onCommit: commit,
     onAdjustRadius: dispatchers.adjustBrushRadius,
+    // Both read when the tool needs them, so a host changing either never
+    // rebuilds the tool. A missing value means the tool's own default.
+    getMaxDownsample: () => accessors.getMaxDownsample?.() ?? 1,
+    getCoarsenStrategy: () => accessors.getCoarsenStrategy?.() ?? majorityCoarsen,
     ...(accessors.getFill !== undefined ? { getFill: accessors.getFill } : {}),
     ...(maxPixels !== undefined ? { maxPixels } : {}),
     ...(dispatchers.onCapacityExceeded !== undefined
@@ -252,12 +351,20 @@ function withNewMaskAdvice(
       report(error);
       return;
     }
+    // The pointer takes the generic advice's place, and follows any other:
+    // the tool's own, naming `maxDownsample`, stays (#243 minor 8).
+    const pointer = `Start a separate mask with New mask (${key}).`;
+    const generic = MaskCapacityExceededError.DEFAULT_ADVICE;
+    const advice = error.advice.endsWith(generic)
+      ? error.advice.slice(0, -generic.length) + pointer
+      : `${error.advice} ${pointer}`;
     report(
       new MaskCapacityExceededError(
         error.requestedCells,
         error.maxCells,
         error.downsample,
-        `Start a separate mask with New mask (${key}).`,
+        advice,
+        error.cause !== undefined ? { cause: error.cause } : undefined,
       ),
     );
   };

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { BoundedDenseMaskBuffer, MaskCapacityExceededError } from '../../src/index.js';
+import {
+  BoundedDenseMaskBuffer,
+  MaskCapacityExceededError,
+  decodeCanonicalRaster,
+  runRaster,
+  stampCircle,
+  toDenseSnapshot,
+} from '../../src/index.js';
 
 const buffer = (w = 1000, h = 1000, maxPixels?: number) =>
   new BoundedDenseMaskBuffer({
@@ -145,5 +152,119 @@ describe('growth rounding yields to the cap', () => {
     const before = b.snapshot();
     for (let x = 11; x < 60; x++) b.set(x, 10, 1);
     expect(b.cellCount).toBe(before.data.length > 0 ? 50 : 50);
+  });
+});
+
+describe('copyRow', () => {
+  it('reads a row exactly as get() does, out-of-range cells as 0', () => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200 });
+    stampCircle(buffer, 120, 80, 25, 1);
+    stampCircle(buffer, 125, 82, 7, 0);
+    const into = new Uint8Array(400);
+    for (const [cy, x0, x1] of [
+      [80, 0, 300],
+      [55, 90, 150],
+      [80, -20, 30],
+      [80, 280, 400],
+      [-5, 0, 50],
+      [500, 0, 50],
+      [104, 95, 146],
+    ] as const) {
+      buffer.copyRow(cy, x0, x1, into);
+      for (let i = 0; i < x1 - x0; i++) {
+        expect(into[i], `row ${cy} cell ${x0 + i}`).toBe(buffer.get(x0 + i, cy));
+      }
+    }
+  });
+});
+
+describe('growth at the cap', () => {
+  it("keeps only the set cells when the rounded allocation would not fit, so a thin stroke isn't refused", () => {
+    // The first dab rounds the allocation to a 64 x 64 chunk, the whole cap.
+    // A stroke 200 cells long and 9 tall then fits the cap; the allocation it
+    // grew from does not.
+    const b = buffer(1000, 1000, 64 * 64);
+    stampCircle(b, 100, 100, 4, 1);
+    expect(b.cellBounds.height).toBe(64);
+    for (let x = 100; x <= 300; x++) stampCircle(b, x, 100, 4, 1);
+    expect(b.cellBounds.width * b.cellBounds.height).toBeLessThanOrEqual(64 * 64);
+    // Every painted cell survived the cut.
+    for (let x = 96; x <= 303; x++) expect(b.get(x, 100), `x=${x}`).toBe(1);
+    expect(b.get(304, 100)).toBe(0);
+    expect(b.get(100, 96)).toBe(1);
+    expect(b.get(100, 105)).toBe(0);
+  });
+
+  it('still refuses a region whose set cells alone pass the cap', () => {
+    const b = buffer(1000, 1000, 64 * 64);
+    stampCircle(b, 100, 100, 4, 1);
+    stampCircle(b, 100, 160, 4, 1);
+    expect(() => stampCircle(b, 300, 100, 4, 1)).toThrow(MaskCapacityExceededError);
+    expect(b.get(100, 160)).toBe(1);
+  });
+});
+
+describe('an empty buffer keeps its grid', () => {
+  it('snapshots and rasters at its own downsample, not at 1', () => {
+    const b = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100, downsample: 4 });
+    expect(b.snapshot().downsample).toBe(4);
+    expect(b.raster().downsample).toBe(4);
+    // And after everything painted is erased again.
+    b.set(3, 3, 1);
+    b.set(3, 3, 0);
+    expect(b.raster().downsample).toBe(4);
+  });
+});
+
+describe('an empty mask on a coarse grid, read back', () => {
+  it('decodes and densifies at its own downsample', () => {
+    const empty = decodeCanonicalRaster({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      imageWidth: 100,
+      imageHeight: 100,
+      counts: '',
+      downsample: 4,
+    });
+    expect(empty.downsample).toBe(4);
+    expect(toDenseSnapshot(runRaster(empty, [0])).downsample).toBe(4);
+  });
+});
+
+describe('growth from an allocation with nothing set (#243 P3)', () => {
+  it('replaces a padded all-clear allocation with a far region, rather than writing past it', () => {
+    // A box of clear cells, as a coarsening can leave, then a dab to its left
+    // whose region shares its rows but none of its columns, under a cap the two
+    // together pass: the copy's offset was the gap between them, past the end.
+    const clear = BoundedDenseMaskBuffer.fromSnapshot(
+      {
+        cells: { x: 900, y: 0, width: 64, height: 64 },
+        data: new Uint8Array(64 * 64),
+        imageWidth: 1000,
+        imageHeight: 1000,
+        downsample: 1,
+      },
+      { maxPixels: 64 * 64 },
+    );
+    expect(clear.cellCount).toBe(0);
+    expect(() => stampCircle(clear, 20, 20, 4, 1)).not.toThrow();
+    expect(clear.get(20, 20)).toBe(1);
+    expect(clear.cellCount).toBeGreaterThan(0);
+  });
+
+  it('paints far away after everything painted was erased', () => {
+    // Far enough right that the old copy's offset leaves the new allocation:
+    // at x=900 on a 1,000-wide image it stayed inside, and the test passed
+    // without the guard (#243 round 2, minor 9).
+    const b = buffer(4000, 1000, 64 * 64);
+    stampCircle(b, 3000, 20, 4, 1);
+    stampCircle(b, 3000, 20, 6, 0);
+    expect(b.cellCount).toBe(0);
+    expect(() => stampCircle(b, 20, 20, 4, 1)).not.toThrow();
+    expect(b.get(20, 20)).toBe(1);
+    // Still refused by name when the region itself does not fit.
+    expect(() => stampCircle(b, 500, 500, 60, 1)).toThrow(MaskCapacityExceededError);
   });
 });

@@ -17,7 +17,7 @@ import {
   VIEWER_CONTROL_SPECS,
   canAddAnnotation,
 } from 'osdlabel';
-import type { DragAxisBehavior, ViewerControlAxisSpec } from 'osdlabel';
+import type { DragAxisBehavior, MaskObjectSeed, ViewerControlAxisSpec } from 'osdlabel';
 import type { ToolCallbacks } from '@osdlabel/fabric-annotations';
 import { useAnnotator } from '../state/annotator-context.js';
 
@@ -32,6 +32,13 @@ export function useAnnotationTool(
   overlay: FabricOverlay | undefined,
   imageId: ImageId | undefined,
   isActive: boolean,
+  /**
+   * The cell's hooks into a brush commit: `seedMaskObject` receives the
+   * committed mask's object before the write, so the cell can show it
+   * without re-rasterizing (see `BrushConfigDispatchers.seedMaskObject`).
+   * Read through a ref, so a new callback never rebuilds the tool.
+   */
+  cell?: { readonly seedMaskObject?: (seed: MaskObjectSeed) => void },
 ) {
   const {
     uiState,
@@ -52,6 +59,8 @@ export function useAnnotationTool(
   // construction and so has to rebuild.
   const brushOptionsRef = useRef(brushOptions);
   brushOptionsRef.current = brushOptions;
+  const seedRef = useRef(cell?.seedMaskObject);
+  seedRef.current = cell?.seedMaskObject;
 
   // Auto-switch to select tool when active drawing tool becomes disabled
   useEffect(() => {
@@ -157,6 +166,13 @@ export function useAnnotationTool(
           // `shortcuts` is already a dependency: the tool is activated with it.
           getNewMaskShortcut: () => shortcuts.newMask,
           canStartNewMask: () => canAddAnnotation(store.getConstraintStatus(), 'segmentationBrush'),
+          // Read at the press and at an overflow, so neither is a dependency.
+          getMaxDownsample: () => {
+            const cs = store.getSnapshot().contextState;
+            const context = cs.contexts.find((c) => c.id === cs.activeContextId);
+            return context?.tools.find((t) => t.type === 'segmentationBrush')?.brush?.maxDownsample;
+          },
+          getCoarsenStrategy: () => brushOptionsRef.current.coarsen,
         },
         {
           addAnnotation: (annotation) => actions.addAnnotation(annotation),
@@ -166,6 +182,8 @@ export function useAnnotationTool(
           setSelectedAnnotation: (id) => actions.setSelectedAnnotation(id),
           adjustBrushRadius: (direction) => actions.adjustBrushRadius(direction),
           onCapacityExceeded: (error) => brushOptionsRef.current.onCapacityExceeded?.(error),
+          seedMaskObject: (seed) => seedRef.current?.(seed),
+          onCoarsen: (event) => brushOptionsRef.current.onCoarsen?.(event),
         },
       ),
     });

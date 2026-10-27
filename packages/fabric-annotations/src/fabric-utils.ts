@@ -75,6 +75,8 @@ export interface CreateFabricObjectOptions {
    * ignored for vector annotations.
    */
   readonly maskFill?: string | undefined;
+  /** The display budget for a mask; see `BuildMaskFabricObjectOptions.maxCanvasPixels`. */
+  readonly maxCanvasPixels?: number | undefined;
 }
 
 /**
@@ -90,7 +92,11 @@ export async function createFabricObjectFromRawData(
 ): Promise<FabricObject | null> {
   const raw = annotation.rawAnnotationData;
   if (raw.format === MASK_RAW_FORMAT) {
-    return buildMaskFabricObject(raw, { id: annotation.id, fill: options?.maskFill });
+    return buildMaskFabricObject(raw, {
+      id: annotation.id,
+      fill: options?.maskFill,
+      maxCanvasPixels: options?.maxCanvasPixels,
+    });
   }
 
   const obj = await deserializeFabricObject(raw);

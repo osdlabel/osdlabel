@@ -2,21 +2,26 @@ import { describe, it, expect, vi } from 'vitest';
 import { FabricImage, FabricObject, Rect } from 'fabric';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
-import { createAnnotationId } from '@osdlabel/annotation';
+import { MASK_RAW_FORMAT, createAnnotationId } from '@osdlabel/annotation';
 import {
   BoundedDenseMaskBuffer,
   DEFAULT_MAX_MASK_PIXELS,
   MaskCapacityExceededError,
   emptySnapshot,
+  encodeCanonical,
   runRaster,
-  snapshotCellCount,
   snapshotImageBox,
   snapshotPixelCount,
+  majorityCoarsen,
   stampCircle,
   toDenseSnapshot,
+  denseRaster,
+  type CoarsenStrategy,
   type MaskRaster,
+  type MaskRegion,
 } from '@osdlabel/mask';
 import { SegmentationBrushTool } from '../../../src/tools/segmentation-brush-tool.js';
+import { buildMaskFabricObject } from '../../../src/mask-fabric-object.js';
 import type {
   BrushStrokeCommit,
   BrushTarget,
@@ -25,6 +30,7 @@ import type {
 } from '../../../src/tools/segmentation-brush-tool.js';
 import type { ToolOverlay } from '../../../src/types.js';
 import {
+  MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
   type BrushCapacityError,
@@ -89,6 +95,10 @@ function harness(
      * starts at downsample 1, as before downsampling existed.
      */
     readonly viewport?: { readonly zoom: number; readonly width: number; readonly height: number };
+    /** The context's `maxDownsample`; absent, the tool never coarsens. */
+    readonly maxDownsample?: number;
+    /** The coarsen strategy; absent, the built-in one. */
+    readonly coarsen?: CoarsenStrategy;
   } = {},
 ): Harness {
   const objects: FabricObject[] = [...(options.existingObjects ?? [])];
@@ -142,6 +152,10 @@ function harness(
     onCapacityExceeded: (error) => capacityErrors.push(error),
     ...(options.maxPixels !== undefined ? { maxPixels: options.maxPixels } : {}),
     ...(options.peekTarget !== undefined ? { peekTarget: options.peekTarget } : {}),
+    ...(options.maxDownsample !== undefined
+      ? { getMaxDownsample: () => options.maxDownsample! }
+      : {}),
+    ...(options.coarsen !== undefined ? { getCoarsenStrategy: () => options.coarsen! } : {}),
   };
 
   const callbacks: ToolCallbacks = {
@@ -273,8 +287,9 @@ describe('SegmentationBrushTool: committing a stroke', () => {
       target: { annotationId: createAnnotationId('mask-1'), snapshot },
     });
 
-    down(h.tool, 100, 80);
-    up(h.tool, 100, 80);
+    // Beside the painted disc, so the stroke changes cells.
+    down(h.tool, 110, 80);
+    up(h.tool, 110, 80);
 
     expect(h.commits[0]!.annotationId).toBe('mask-1');
     // The stroke adds to what was there rather than replacing it.
@@ -324,9 +339,41 @@ describe('SegmentationBrushTool: committing a stroke', () => {
       canAdd: false,
       target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
     });
-    down(h.tool, 100, 80);
-    up(h.tool, 100, 80);
+    down(h.tool, 110, 80);
+    up(h.tool, 110, 80);
     expect(h.commits).toHaveLength(1);
+  });
+
+  it('commits nothing for a stroke that changes no cell', () => {
+    // Painting over paint, and erasing where there is none: the mask is
+    // unchanged, so there is nothing to re-encode or mark updated.
+    const existing = committedObject('mask-1');
+    const painted = harness({
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
+      existingObjects: [existing],
+    });
+    down(painted.tool, 100, 80);
+    up(painted.tool, 100, 80);
+    expect(painted.commits).toHaveLength(0);
+    // The committed mask hidden for the stroke is shown again.
+    expect(existing.visible).not.toBe(false);
+
+    const erasing = harness({
+      erasing: true,
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
+    });
+    down(erasing.tool, 250, 200);
+    move(erasing.tool, 280, 200);
+    up(erasing.tool, 280, 200);
+    expect(erasing.commits).toHaveLength(0);
+
+    // A tap beside the disc adds cells, so it does commit.
+    const touched = harness({
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: paintedSnapshot() },
+    });
+    down(touched.tool, 120, 80);
+    up(touched.tool, 120, 80);
+    expect(touched.commits).toHaveLength(1);
   });
 
   it('does nothing until the image size is known', () => {
@@ -337,6 +384,96 @@ describe('SegmentationBrushTool: committing a stroke', () => {
   });
 });
 
+describe('SegmentationBrushTool: the commit carries its preview', () => {
+  it('pixel for pixel what the renderer draws from the committed payload', () => {
+    for (const target of [
+      null,
+      { annotationId: createAnnotationId('m'), snapshot: paintedSnapshot(9) },
+    ]) {
+      const h = harness({ target, radius: 7 });
+      down(h.tool, 60, 50);
+      move(h.tool, 140, 90);
+      up(h.tool, 140, 90);
+      expect(h.commits).toHaveLength(1);
+      const commit = h.commits[0]!;
+      expect(commit.preview).toBeDefined();
+      const { crop, fill } = commit.preview!;
+      const canvas = crop();
+      expect(canvas).not.toBeNull();
+      // Cropped once, then reused.
+      expect(crop()).toBe(canvas);
+      const cells = commit.snapshot.cells;
+      expect([canvas!.width, canvas!.height]).toEqual([cells.width, cells.height]);
+
+      const rendered = buildMaskFabricObject(
+        { format: MASK_RAW_FORMAT, data: { ...encodeCanonical(commit.snapshot), fill } },
+        { id: 'x' },
+      ) as FabricImage;
+      const expected = (rendered.getElement() as HTMLCanvasElement)
+        .getContext('2d')!
+        .getImageData(0, 0, cells.width, cells.height).data;
+      const actual = canvas!.getContext('2d')!.getImageData(0, 0, cells.width, cells.height).data;
+      // Compared on alpha and on the colour of painted pixels: a clear pixel
+      // is transparent in both, whatever colour channels it carries.
+      for (let i = 0; i < expected.length; i += 4) {
+        expect(actual[i + 3], `alpha at ${i / 4}`).toBe(expected[i + 3]);
+        if (expected[i + 3]! > 0) {
+          expect([actual[i], actual[i + 1], actual[i + 2]]).toEqual([
+            expected[i],
+            expected[i + 1],
+            expected[i + 2],
+          ]);
+        }
+      }
+    }
+  });
+
+  /** Refuses a 2D context to every canvas with a side past `side`, as an engine past its limit does. */
+  function refuseCanvasesPast(side: number) {
+    const realCreate = document.createElement.bind(document);
+    return vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+      const el = realCreate(tag) as HTMLCanvasElement;
+      if (tag === 'canvas') {
+        const getContext = el.getContext.bind(el);
+        el.getContext = ((kind: string) =>
+          el.width > side || el.height > side
+            ? null
+            : getContext(kind as '2d')) as unknown as typeof el.getContext;
+      }
+      return el;
+    }) as typeof document.createElement);
+  }
+
+  it('is absent when the engine refused the preview, rather than a blank crop (#243 P4, minor 16)', () => {
+    // The preview canvas past 4,000 px is refused; the small crop would not
+    // be. Cropping the refused canvas gave a fully transparent preview, and the
+    // cell was seeded with an invisible mask. The commit still lands.
+    const spy = refuseCanvasesPast(4_000);
+    try {
+      const h = harness({ imageSize: { width: 20_000, height: 200 }, radius: 5 });
+      down(h.tool, 1_000, 100);
+      move(h.tool, 4_500, 100);
+      up(h.tool, 4_500, 100);
+      expect(h.commits).toHaveLength(1);
+      expect(h.commits[0]!.snapshot.cellCount).toBeGreaterThan(0);
+      expect(h.commits[0]!.preview).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('names the fill its pixels were drawn in, not the one at the release (#243 minor 11)', () => {
+    let fill = 'rgba(255, 0, 0, 0.5)';
+    const h = harness({ radius: 5 });
+    (h.tool as unknown as { config: { getFill: () => string } }).config.getFill = () => fill;
+    down(h.tool, 60, 50);
+    fill = 'rgba(0, 0, 255, 0.5)';
+    move(h.tool, 90, 50);
+    up(h.tool, 90, 50);
+    expect(h.commits[0]!.preview!.fill).toBe('rgba(255, 0, 0, 0.5)');
+  });
+});
+
 describe('SegmentationBrushTool: cancelling', () => {
   it('does not let Delete through while a stroke is open', () => {
     // The host's Delete removes the selected annotation, which is the mask
@@ -344,10 +481,10 @@ describe('SegmentationBrushTool: cancelling', () => {
     const h = harness({
       target: { annotationId: createAnnotationId('m1'), snapshot: paintedSnapshot() },
     });
-    down(h.tool, 100, 80);
+    down(h.tool, 110, 80);
     expect(h.tool.onKeyDown({ key: 'Delete' } as KeyboardEvent)).toBe(true);
     expect(h.tool.onKeyDown({ key: 'Backspace' } as KeyboardEvent)).toBe(true);
-    up(h.tool, 100, 80);
+    up(h.tool, 110, 80);
     expect(h.commits).toHaveLength(1);
   });
 
@@ -765,9 +902,12 @@ describe('SegmentationBrushTool: preview cost', () => {
   it('allocates a bounded multiple of the region it ends up covering', () => {
     // Geometric growth means the total allocated across a stroke is a small
     // multiple of the final size, rather than the sum of every intermediate.
+    // 4096² ends exactly at the 16 Mi display budget, the worst case since
+    // the preview stopped crossing it (#243 P5): the last growths each copy
+    // up to the budget, so 4.7x here, against 2-3.6x at 2048-8192.
     const side = 4096;
     const { allocatedPixels } = measureSweep(side);
-    expect(allocatedPixels).toBeLessThan(4 * side * side);
+    expect(allocatedPixels).toBeLessThan(5 * side * side);
   });
 
   it('does not reallocate while a stroke stays inside the preview it already has', () => {
@@ -915,6 +1055,33 @@ describe('SegmentationBrushTool: when the image and the mask disagree about size
     const preview = h.objects.find((o) => o.type === 'image')!;
     // The stroke reached x=250 with radius 6, so the preview must extend past it.
     expect(preview.left! + preview.width!).toBeGreaterThanOrEqual(256);
+  });
+
+  it('gives the preview no more margin than the mask, or the display budget (#158)', () => {
+    // A mask whose corners are 4,000 x 3,000 apart: half its extent of margin
+    // on every side made an 8,000 x 6,000 preview, 48 M cells of RGBA. The
+    // buffer allocates 4,096 x 3,072 of it, so the margin may add at most the
+    // larger of that and the 16 Mi budget.
+    const corners = new BoundedDenseMaskBuffer({ imageWidth: 10_000, imageHeight: 10_000 });
+    stampCircle(corners, 3_000, 3_000, 3, 1);
+    stampCircle(corners, 6_997, 5_997, 3, 1);
+    const h = harness({
+      target: { annotationId: createAnnotationId('mask-1'), snapshot: corners.raster() },
+      imageSize: { width: 10_000, height: 10_000 },
+      radius: 3,
+    });
+
+    down(h.tool, 5_000, 4_500);
+    const preview = h.objects.find((o) => o.type === 'image')!;
+    const allocated = 4_096 * 3_072;
+    expect(preview.width! * preview.height!).toBeLessThanOrEqual(
+      allocated + Math.max(allocated, MAX_MASK_CANVAS_PIXELS),
+    );
+    // It still covers the whole mask, with what margin the budget leaves.
+    expect(preview.left!).toBeLessThan(2_997);
+    expect(preview.top!).toBeLessThan(2_997);
+    expect(preview.left! + preview.width!).toBeGreaterThan(7_000);
+    expect(preview.top! + preview.height!).toBeGreaterThan(6_000);
   });
 });
 
@@ -1388,7 +1555,14 @@ describe('SegmentationBrushTool: resolution of a new mask', () => {
     });
     stampCircle(buffer, 6000, 4000, 40, 1);
     const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.raster() };
-    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 30, target });
+    // Zoomed out to four image pixels a screen pixel, where it stays at d=4.
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 30,
+      target,
+      viewport: { zoom: 0.25, width: 800, height: 800 },
+    });
     down(h.tool, 6050, 4000);
     const preview = h.objects.find((obj) => obj instanceof FabricImage) as FabricImage;
     expect(preview).toBeDefined();
@@ -1402,24 +1576,640 @@ describe('SegmentationBrushTool: resolution of a new mask', () => {
     expect(h.commits[0]!.snapshot.downsample).toBe(4);
   });
 
-  it('refines an existing mask at its own resolution, whatever the zoom', () => {
+  it('refines a coarse mask at its own resolution when zoomed out, and finer closer in', () => {
+    // At four image pixels a screen pixel the view shows nothing finer than
+    // the mask's d=4. Closer in the stroke re-grids it: replicated cells, so
+    // nothing is lost, then painted at the finer grid.
+    for (const [zoom, expected] of [
+      [0.25, 4],
+      [0.1, 4],
+      [0.5, 2],
+      [1, 1],
+      [4, 1],
+    ] as const) {
+      const buffer = new BoundedDenseMaskBuffer({
+        imageWidth: BIG.width,
+        imageHeight: BIG.height,
+        downsample: 4,
+      });
+      stampCircle(buffer, 5000, 5000, 40, 1);
+      const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.raster() };
+      const h = harness({
+        imageSize: BIG,
+        maxPixels: CAP,
+        target,
+        viewport: { zoom, width: 800, height: 800 },
+      });
+      down(h.tool, 5050, 5000);
+      up(h.tool, 5050, 5000);
+      const committed = h.commits[0]!;
+      expect(committed.snapshot.downsample, `zoom ${zoom}`).toBe(expected);
+      expect(committed.startDownsample).toBe(4);
+      expect(snapshotPixelCount(committed.snapshot)).toBeGreaterThan(
+        snapshotPixelCount(target.snapshot),
+      );
+    }
+  });
+
+  it('picks the same grid on either side of a rounding at an exact power of two', () => {
+    // Four image pixels a screen pixel, as the viewer reports it at two sizes.
+    for (const zoom of [0.24999999999994316, 0.2500000000001]) {
+      const buffer = new BoundedDenseMaskBuffer({
+        imageWidth: BIG.width,
+        imageHeight: BIG.height,
+        downsample: 4,
+      });
+      stampCircle(buffer, 5000, 5000, 40, 1);
+      const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.raster() };
+      const h = harness({
+        imageSize: BIG,
+        maxPixels: CAP,
+        target,
+        viewport: { zoom, width: 800, height: 800 },
+      });
+      down(h.tool, 5050, 5000);
+      up(h.tool, 5050, 5000);
+      expect(h.commits[0]!.snapshot.downsample, `zoom ${zoom}`).toBe(4);
+    }
+  });
+
+  it('keeps a coarse mask at its own resolution when the finer box lacks headroom', () => {
+    // A context that does not coarsen re-grids only into a quarter of the
+    // cap: past that, the next stroke could overflow where at d=4 it fitted.
+    // 200 x 200 image pixels is 40,000 cells at d=1, more than 64 Ki / 4.
     const buffer = new BoundedDenseMaskBuffer({
       imageWidth: BIG.width,
       imageHeight: BIG.height,
       downsample: 4,
     });
-    stampCircle(buffer, 5000, 5000, 40, 1);
+    stampCircle(buffer, 5000, 5000, 100, 1);
     const target = { annotationId: createAnnotationId('mask-4x'), snapshot: buffer.raster() };
     const h = harness({
       imageSize: BIG,
       maxPixels: CAP,
       target,
-      viewport: { zoom: 4, width: 800, height: 800 },
+      viewport: { zoom: 2, width: 800, height: 800 },
     });
-    down(h.tool, 5050, 5000);
-    up(h.tool, 5050, 5000);
-    const committed = h.commits[0]!.snapshot;
-    expect(committed.downsample).toBe(4);
-    expect(snapshotCellCount(committed)).toBeGreaterThan(snapshotCellCount(target.snapshot));
+    // At the disc's edge, so the stroke adds cells: one that adds none is
+    // a no-op, re-gridded or not, and commits nothing.
+    down(h.tool, 5100, 5000);
+    up(h.tool, 5100, 5000);
+    // 2 is the finest with headroom: about 106 x 100 cells.
+    expect(h.commits[0]!.snapshot.downsample).toBe(2);
+
+    // A context that coarsens may fill the cap: 40,000 cells fit 64 Ki.
+    const coarsening = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      target,
+      maxDownsample: 8,
+      viewport: { zoom: 2, width: 800, height: 800 },
+    });
+    down(coarsening.tool, 5100, 5000);
+    up(coarsening.tool, 5100, 5000);
+    expect(coarsening.commits[0]!.snapshot.downsample).toBe(1);
+  });
+
+  it('shows the cue on the grid the press would paint on', () => {
+    const box = { x: 4960, y: 4960, width: 80, height: 80 };
+    const cue = (zoom: number) => {
+      const h = harness({
+        imageSize: BIG,
+        maxPixels: CAP,
+        radius: 12,
+        peekTarget: () => ({ downsample: 4, box }),
+        viewport: { zoom, width: 800, height: 800 },
+      });
+      move(h.tool, 5000, 5000);
+      return h.objects.some((o) => o.type === 'path');
+    };
+    // Zoomed out: the mask's own d=4 cells. Closer in, d=1: the ring.
+    expect(cue(0.25)).toBe(true);
+    expect(cue(1)).toBe(false);
+  });
+});
+
+describe('SegmentationBrushTool: re-gridding never turns a stroke that fits into a refusal (#243)', () => {
+  const BIG = { width: 100_000, height: 2_000 } as const;
+
+  /** A d=`d` mask covering `box`, solid, on `size`. */
+  function coarseMask(d: number, box: MaskRegion, size: { width: number; height: number }) {
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: size.width,
+      imageHeight: size.height,
+      downsample: d,
+    });
+    for (let y = box.y; y < box.y + box.height; y += d) {
+      for (let x = box.x; x < box.x + box.width; x += d) buffer.set(x / d, y / d, 1);
+    }
+    return { annotationId: createAnnotationId('coarse'), snapshot: buffer.raster() };
+  }
+
+  it('coarsens a re-gridded stroke back to the grid it started from (P1)', () => {
+    // A d=2 mask about 100 px across and an r=20 drag 400 px long, under a
+    // 64 Ki cap: it fits at d=2 (61,100 cells), not at d=1 (70,664). At zoom 1
+    // or 4 the press re-grids to d=1, and the stroke was refused there.
+    const size = { width: 4_000, height: 4_000 };
+    const target = coarseMask(2, { x: 1_000, y: 1_000, width: 100, height: 100 }, size);
+    for (const maxDownsample of [undefined, 4]) {
+      for (const zoom of [0.5, 1, 4]) {
+        const h = harness({
+          imageSize: size,
+          maxPixels: 64 * 1024,
+          radius: 20,
+          target,
+          viewport: { zoom, width: 800, height: 800 },
+          ...(maxDownsample !== undefined ? { maxDownsample } : {}),
+        });
+        down(h.tool, 1_050, 1_050);
+        for (let x = 1_060; x <= 1_450; x += 10) move(h.tool, x, 1_050 + (x - 1_050) / 4);
+        up(h.tool, 1_450, 1_150);
+        const label = `zoom ${zoom}, maxDownsample ${maxDownsample}`;
+        expect(
+          h.capacityErrors.map((e) => e.message),
+          label,
+        ).toEqual([]);
+        expect(h.commits, label).toHaveLength(1);
+        // Back at its own grid, never coarser than it started.
+        expect(h.commits[0]!.snapshot.downsample, label).toBe(2);
+        expect(h.commits[0]!.startDownsample).toBe(2);
+      }
+    }
+  });
+
+  it('does not re-grid past the canvas side limit, and coarsens back if it must (P2)', () => {
+    // A d=4 mask 40,160 x 160 px: at d=1 or 2 its cells are 40,160 or 20,080
+    // wide, past or near the 32,767 a canvas draws. Every close-zoom stroke was
+    // refused; it now stays at the grid that draws.
+    const target = coarseMask(4, { x: 1_000, y: 500, width: 40_160, height: 160 }, BIG);
+    for (const maxDownsample of [undefined, 8]) {
+      for (const zoom of [0.25, 0.5, 1, 4]) {
+        const h = harness({
+          imageSize: BIG,
+          radius: 10,
+          target,
+          viewport: { zoom, width: 800, height: 800 },
+          ...(maxDownsample !== undefined ? { maxDownsample } : {}),
+        });
+        // Across the mask's top edge, so the stroke adds cells and commits.
+        down(h.tool, 20_000, 495);
+        move(h.tool, 20_040, 495);
+        up(h.tool, 20_040, 495);
+        const label = `zoom ${zoom}, maxDownsample ${maxDownsample}`;
+        expect(
+          h.capacityErrors.map((e) => e.message),
+          label,
+        ).toEqual([]);
+        expect(h.commits, label).toHaveLength(1);
+        expect(h.commits[0]!.snapshot.cells.width, label).toBeLessThanOrEqual(MAX_MASK_CANVAS_SIDE);
+        // The finest grid that draws: d=1 is 40,160 cells wide, d=2 fits.
+        // Giving up at the first too-wide grid passed every test (#243 round
+        // 2, minor 8).
+        if (zoom >= 1) expect(h.commits[0]!.snapshot.downsample, label).toBe(2);
+      }
+    }
+  });
+});
+
+describe('SegmentationBrushTool: the canvas side limit, at the press and mid-stroke (#243 P2)', () => {
+  const BIG = { width: 100_000, height: 2_000 } as const;
+
+  it('chooses a press grid whose cells a canvas draws, and the cue agrees', () => {
+    // 40,160 px wide at d=4: d=1 would be 40,160 cells, past the limit, so at
+    // zoom 1 the finest drawable grid is d=2, and the cue shows its cells.
+    const box = { x: 1_000, y: 500, width: 40_160, height: 160 };
+    const h = harness({
+      imageSize: BIG,
+      radius: 10,
+      peekTarget: () => ({ downsample: 4, box }),
+      viewport: { zoom: 1, width: 800, height: 800 },
+    });
+    move(h.tool, 20_000, 495);
+    const cue = h.objects.find((o) => !o.id && o.type === 'path') as
+      | (FabricObject & { path: [string, ...number[]][] })
+      | undefined;
+    expect(cue).toBeDefined();
+    // Its cells are d=2's: every corner on the 2-pixel grid, some off the 4.
+    const corners = cue!.path.flatMap(([, ...coords]) => coords);
+    expect(corners.every((n) => n % 2 === 0)).toBe(true);
+    expect(corners.some((n) => n % 4 === 2)).toBe(true);
+  });
+
+  it('carries a failed coarsening back as the cause of the canvas refusal (#243 round 2, minor 1)', () => {
+    // The stroke below commits with a working strategy. With one that throws,
+    // the refusal named only the canvas side and advised a narrower region.
+    const thrown = new Error('host strategy broke');
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: BIG.width,
+      imageHeight: BIG.height,
+      downsample: 4,
+    });
+    for (let x = 250; x < 5_250; x++) buffer.set(x, 125, 1);
+    const target = { annotationId: createAnnotationId('long'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      radius: 3,
+      target,
+      viewport: { zoom: 1, width: 800, height: 800 },
+      coarsen: () => {
+        throw thrown;
+      },
+    });
+    down(h.tool, 20_990, 502);
+    for (let x = 21_000; x <= 36_000; x += 500) move(h.tool, x, 502);
+    up(h.tool, 36_000, 502);
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    const error = h.capacityErrors[0]!;
+    expect(error).toBeInstanceOf(MaskCanvasTooLargeError);
+    expect(error.cause).toBe(thrown);
+    expect(error.message).toMatch(
+      /coarsening it back to a grid that can failed: host strategy broke/,
+    );
+    expect(error.message).not.toMatch(/narrower region/);
+  });
+
+  it('coarsens a re-gridded stroke back when it grows past the limit mid-stroke', () => {
+    // 20,000 px wide at d=4 re-grids to d=1 at zoom 1, which fits. Dragged on
+    // past the end, it reaches 35,000 cells wide: past what a canvas draws at
+    // d=1, so it returns to d=2 instead of being refused.
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: BIG.width,
+      imageHeight: BIG.height,
+      downsample: 4,
+    });
+    for (let x = 250; x < 5_250; x++) buffer.set(x, 125, 1);
+    const target = { annotationId: createAnnotationId('long'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      radius: 3,
+      target,
+      viewport: { zoom: 1, width: 800, height: 800 },
+    });
+    down(h.tool, 20_990, 502);
+    for (let x = 21_000; x <= 36_000; x += 500) move(h.tool, x, 502);
+    up(h.tool, 36_000, 502);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.downsample).toBeGreaterThan(1);
+    expect(h.commits[0]!.snapshot.cells.width).toBeLessThanOrEqual(MAX_MASK_CANVAS_SIDE);
+  });
+});
+
+describe('SegmentationBrushTool: the preview under the display budget (#243 P5)', () => {
+  // Builds previews of up to 16 Mi pixels: about a second alone, past the
+  // default timeout under a parallel run.
+  it('stays within the budget for any mask under it', { timeout: 30_000 }, () => {
+    // A 3,000-square mask, 9 M cells: the margin rule let its preview reach
+    // 9 M + 16 Mi, past the 16 Mi an iPad draws, though a 16 Mi maxPixels
+    // would never have coarsened it.
+    for (const side of [1_000, 2_048, 3_000, 4_000]) {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: 10_000, imageHeight: 10_000 });
+      stampCircle(buffer, 5_000, 5_000, 2, 1);
+      stampCircle(buffer, 5_000 + side - 3, 5_000 + side - 3, 2, 1);
+      const h = harness({
+        imageSize: { width: 10_000, height: 10_000 },
+        radius: 3,
+        target: { annotationId: createAnnotationId('m'), snapshot: buffer.raster() },
+      });
+      down(h.tool, 5_000 + side / 2, 5_000 + side / 2);
+      const preview = h.objects.find((o) => o.type === 'image')!;
+      expect(preview.width! * preview.height!, `side ${side}`).toBeLessThanOrEqual(
+        MAX_MASK_CANVAS_PIXELS,
+      );
+      up(h.tool, 5_000 + side / 2, 5_000 + side / 2);
+    }
+  });
+});
+
+describe('SegmentationBrushTool: coarsening on overflow', () => {
+  const BIG = { width: 20_000, height: 20_000 } as const;
+  // 4,096 cells: a 64 x 64 box at d=1.
+  const CAP = 64 * 64;
+
+  /** A horizontal stroke `length` image pixels long at y=1000. */
+  const sweep = (h: Harness, length: number) => {
+    down(h.tool, 1000, 1000);
+    for (let x = 1010; x <= 1000 + length; x += 10) move(h.tool, x, 1000);
+    up(h.tool, 1000 + length, 1000);
+  };
+
+  it('coarsens a stroke that outgrows the cap, and painting goes on', () => {
+    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 8, maxDownsample: 4 });
+    // 200 x 18 px: 3,600 cells at d=1 before the chunk rounding outgrows 4,096.
+    sweep(h, 200);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    const commit = h.commits[0]!;
+    expect(commit.startDownsample).toBe(1);
+    expect(commit.snapshot.downsample).toBeGreaterThan(1);
+    expect(commit.snapshot.downsample).toBeLessThanOrEqual(4);
+    // The far end was painted after the coarsening, at the coarse grid.
+    const d = commit.snapshot.downsample;
+    expect(commit.snapshot.get(Math.floor(1195 / d), Math.floor(1000 / d))).toBe(1);
+    expect(commit.snapshot.get(Math.floor(1005 / d), Math.floor(1000 / d))).toBe(1);
+  });
+
+  it('refuses the whole stroke at maxDownsample, naming it, with the mask unchanged', () => {
+    const target = (() => {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+      stampCircle(buffer, 1000, 1000, 10, 1);
+      return { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    })();
+    const existing = committedObject('mask-1');
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 8,
+      maxDownsample: 2,
+      target,
+      existingObjects: [existing],
+    });
+    down(h.tool, 1000, 1000);
+    expect(existing.visible).toBe(false);
+    for (let x = 1010; x <= 3000; x += 10) move(h.tool, x, 1000);
+    up(h.tool, 3000, 1000);
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    expect(h.capacityErrors[0]).toBeInstanceOf(MaskCapacityExceededError);
+    expect(h.capacityErrors[0]!.message).toMatch(/maxDownsample 2/);
+    // The committed object, hidden while painting, is back, and the preview gone.
+    expect(existing.visible).toBe(true);
+    expect(h.objects.filter((o) => o.type === 'image')).toHaveLength(0);
+  });
+
+  it('restores the hidden target on a cancel once the stroke has coarsened (#243 minor 18)', () => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    stampCircle(buffer, 1000, 1000, 10, 1);
+    const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    const existing = committedObject('mask-1');
+    let coarsenings = 0;
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 8,
+      maxDownsample: 4,
+      target,
+      existingObjects: [existing],
+      coarsen: (source) => {
+        coarsenings++;
+        return majorityCoarsen(source);
+      },
+    });
+    down(h.tool, 1000, 1000);
+    for (let x = 1010; x <= 1200; x += 10) move(h.tool, x, 1000);
+    expect(coarsenings).toBeGreaterThan(0);
+    expect(existing.visible).toBe(false);
+    h.tool.cancel();
+    expect(existing.visible).toBe(true);
+    up(h.tool, 1200, 1000);
+    expect(h.commits).toHaveLength(0);
+  });
+
+  it('refuses the whole stroke when the strategy fails, carrying the failure (#243 minor 1)', () => {
+    const thrown = new Error('host strategy broke');
+    const strategies: readonly [string, CoarsenStrategy][] = [
+      [
+        'throws',
+        () => {
+          throw thrown;
+        },
+      ],
+      // The wrong downsample: the tool's own RangeError.
+      ['unchanged', (source) => source],
+    ];
+    for (const [name, coarsen] of strategies) {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+      stampCircle(buffer, 1000, 1000, 10, 1);
+      const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+      const existing = committedObject('mask-1');
+      const h = harness({
+        imageSize: BIG,
+        maxPixels: CAP,
+        radius: 8,
+        maxDownsample: 4,
+        target,
+        existingObjects: [existing],
+        coarsen,
+      });
+      expect(() => sweep(h, 600), name).not.toThrow();
+      // Reported once, then the stroke is over: no half-stroke is committed.
+      expect(h.capacityErrors, name).toHaveLength(1);
+      expect(h.commits, name).toHaveLength(0);
+      const error = h.capacityErrors[0] as MaskCapacityExceededError;
+      expect(error).toBeInstanceOf(MaskCapacityExceededError);
+      expect(error.message, name).toMatch(/Coarsening it failed/);
+      if (name === 'throws') expect(error.cause).toBe(thrown);
+      else expect(error.cause).toBeInstanceOf(RangeError);
+      expect(existing.visible, name).toBe(true);
+    }
+  });
+
+  /** The minor-1 stroke: a refining sweep past the cap, under `coarsen`. */
+  const refusedUnder = (coarsen: CoarsenStrategy) => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    stampCircle(buffer, 1000, 1000, 10, 1);
+    const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 8,
+      maxDownsample: 4,
+      target,
+      coarsen,
+    });
+    expect(() => sweep(h, 600)).not.toThrow();
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    return h.capacityErrors[0] as MaskCapacityExceededError;
+  };
+
+  it("reports a strategy's own capacity error as its failure, not the limit (#243 round 2, minor 1)", () => {
+    // It read as a decline, and the refusal blamed maxDownsample.
+    const own = new MaskCapacityExceededError(1, 1);
+    const error = refusedUnder(() => {
+      throw own;
+    });
+    expect(error.cause).toBe(own);
+    expect(error.message).toMatch(/Coarsening it failed/);
+    expect(error.message).not.toMatch(/maxDownsample/);
+  });
+
+  it('refuses a result on another image, or outside the rounded-out box (#243 round 2, minor 2)', () => {
+    const elsewhere = refusedUnder((source) => {
+      const coarse = toDenseSnapshot(majorityCoarsen(source));
+      return denseRaster({ ...coarse, imageWidth: coarse.imageWidth + 2 });
+    });
+    expect(elsewhere.message).toMatch(/a mask of a 20002 x 20000 image/);
+    const shifted = refusedUnder((source) => {
+      const coarse = toDenseSnapshot(majorityCoarsen(source));
+      return denseRaster({ ...coarse, cells: { ...coarse.cells, x: coarse.cells.x + 10 } });
+    });
+    expect(shifted.message).toMatch(/outside the source's box/);
+  });
+
+  it('refuses once whatever the strategy throws, even what resists formatting (#243 round 2, minor 3)', () => {
+    const throwingGetter = new Error('x');
+    Object.defineProperty(throwingGetter, 'message', {
+      get() {
+        throw new Error('no');
+      },
+    });
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    for (const [name, thrown] of [
+      ['a null-prototype object', Object.create(null) as unknown],
+      ['a revoked Proxy', revoked.proxy],
+      ['an Error whose message getter throws', throwingGetter],
+    ] as const) {
+      const error = refusedUnder(() => {
+        throw thrown;
+      });
+      expect(error.message, name).toMatch(/Coarsening it failed: a value with no string form/);
+      expect(error.cause, name).toBe(thrown);
+    }
+  });
+
+  it("reads a refined mask's box without copying the mask (#243 minor 9)", () => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    stampCircle(buffer, 1000, 1000, 20, 1);
+    const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 4, maxDownsample: 4, target });
+    const raster = vi.spyOn(BoundedDenseMaskBuffer.prototype, 'raster');
+    try {
+      // At the disc's edge, so the tap changes the mask.
+      down(h.tool, 1020, 1000);
+      expect(raster).not.toHaveBeenCalled();
+    } finally {
+      raster.mockRestore();
+    }
+    up(h.tool, 1020, 1000);
+    expect(h.capacityErrors).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+  });
+
+  it('never coarsens without maxDownsample, or with one that is not a power of two', () => {
+    for (const maxDownsample of [undefined, 1, 3, Number.NaN, 0]) {
+      const h = harness({
+        imageSize: BIG,
+        maxPixels: CAP,
+        radius: 8,
+        ...(maxDownsample !== undefined ? { maxDownsample } : {}),
+      });
+      sweep(h, 2000);
+      expect(h.commits, `maxDownsample ${maxDownsample}`).toHaveLength(0);
+      expect(h.capacityErrors).toHaveLength(1);
+      expect(h.capacityErrors[0]!.message).not.toMatch(/maxDownsample/);
+    }
+  });
+
+  it('coarsens by the strategy the host supplies', () => {
+    const calls: number[] = [];
+    const strategy: CoarsenStrategy = (source) => {
+      calls.push(source.downsample);
+      return majorityCoarsen(source);
+    };
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 8,
+      maxDownsample: 16,
+      coarsen: strategy,
+    });
+    sweep(h, 600);
+    expect(h.capacityErrors).toHaveLength(0);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[0]).toBe(1);
+    expect(h.commits[0]!.snapshot.downsample).toBe(2 ** calls.length);
+  });
+
+  it('coarsens a first dab that alone overflows, twice, before any cell is set', () => {
+    // A radius-120 dab is 241 x 241 cells at d=1 and 121 x 121 at d=2, both
+    // past a 64 x 64 cap; it fits at d=4. The buffer is empty at the second
+    // halving, and an empty buffer must still report its own grid.
+    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 120, maxDownsample: 4 });
+    down(h.tool, 2000, 2000);
+    up(h.tool, 2000, 2000);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    expect(h.commits[0]!.snapshot.downsample).toBe(4);
+    expect(h.commits[0]!.snapshot.get(500, 500)).toBe(1);
+  });
+
+  it('keeps the mask when a coarsening leaves its buffer empty and a far dab follows (#243 P3)', () => {
+    // Two isolated pixels: a 2x2 majority clears both but keeps a box covering
+    // them. The dab, far to their left, then grew from an allocation with no
+    // set cell; the copy wrote past the end, the RangeError escaped the stroke,
+    // and the release committed an empty mask, which deletes the annotation.
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    // Far enough out that, at d=2 as well, the dab and the cleared box
+    // together pass the cap, which is what takes the cut-back path.
+    buffer.set(10_000, 10, 1);
+    buffer.set(10_060, 10, 1);
+    const target = { annotationId: createAnnotationId('sparse'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 3,
+      maxDownsample: 4,
+      target,
+      viewport: { zoom: 1 / 8, width: 800, height: 800 },
+    });
+    expect(() => down(h.tool, 20, 10)).not.toThrow();
+    up(h.tool, 20, 10);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.cellCount).toBeGreaterThan(0);
+  });
+
+  it('refuses a paint stroke whose coarsening leaves the target empty, rather than deleting it (#243 Q1)', () => {
+    // Two isolated pixels: a 2x2 majority clears both. The press is just off
+    // the image's left edge, so at d=1 the dab reaches column 0, and its growth
+    // passes the cap; at d=2 it covers no cell centre and paints nothing. The
+    // result was an empty mask, committed under the target's id, which the
+    // host reads as "erased to nothing" and deletes.
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    buffer.set(60, 60, 1);
+    const target = { annotationId: createAnnotationId('sparse'), snapshot: buffer.raster() };
+    const existing = committedObject('sparse');
+    const h = harness({
+      imageSize: { width: 100, height: 100 },
+      maxPixels: 2_700,
+      radius: 1.5,
+      maxDownsample: 4,
+      target,
+      existingObjects: [existing],
+      viewport: { zoom: 1 / 8, width: 800, height: 800 },
+    });
+    down(h.tool, -1, 50);
+    up(h.tool, -1, 50);
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    expect(h.capacityErrors[0]).toBeInstanceOf(MaskCapacityExceededError);
+    expect(h.capacityErrors[0]!.message).toMatch(/would leave it empty/);
+    expect(existing.visible).toBe(true);
+  });
+
+  it('commits a coarsened stroke even where it painted nothing new', () => {
+    // A block of 100 x 21 cells under a cap of 2,150, and a stroke inside it
+    // along its top row: every cell it paints is set already, but the region
+    // it reserves reaches a row above the block, which passes the cap. The
+    // mask changed grid, so it is a different mask, and is committed.
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    for (let y = 990; y <= 1010; y++) for (let x = 1000; x < 1100; x++) buffer.set(x, y, 1);
+    const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: 2_150,
+      radius: 4,
+      maxDownsample: 4,
+      target,
+      viewport: { zoom: 1, width: 800, height: 800 },
+    });
+    down(h.tool, 1020, 994);
+    move(h.tool, 1080, 994);
+    up(h.tool, 1080, 994);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.downsample).toBe(2);
   });
 });

@@ -24,12 +24,25 @@ export interface ContextFields {
 /** Count scope for tool constraints */
 export type CountScope = 'per-image' | 'global';
 
+/** How the segmentation brush behaves in a context; plain data, like the rest of it. */
+export interface BrushContextOptions {
+  /**
+   * The coarsest downsample a stroke may push a mask to when it would
+   * outgrow the cap: the mask is halved, by the provider's coarsen strategy,
+   * until the stroke fits or this is reached. A power of two up to 2^16; 1
+   * (the default, and what any other value means) refuses at the cap.
+   */
+  readonly maxDownsample?: number | undefined;
+}
+
 /** Tool constraint within an annotation context */
 export interface ToolConstraint {
   readonly type: ToolType;
   readonly maxCount?: number | undefined;
   readonly countScope?: CountScope | undefined;
   readonly defaultStyle?: Partial<AnnotationStyle> | undefined;
+  /** For `segmentationBrush`: see {@link BrushContextOptions}. Ignored by other tools. */
+  readonly brush?: BrushContextOptions | undefined;
 }
 
 /** An annotation context defining tool constraints for a particular annotation task */

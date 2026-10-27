@@ -9,7 +9,10 @@ import {
   MaskCapacityExceededError,
   denseRaster,
   emptySnapshot,
+  majorityCoarsen,
   stampCircle,
+  snapshotImageBox,
+  type CoarsenStrategy,
 } from '@osdlabel/mask';
 import { MASK_RAW_FORMAT, createAnnotationId, type AnnotationId } from '@osdlabel/annotation';
 import { MaskCanvasTooLargeError, type BrushCapacityError } from '@osdlabel/fabric-annotations';
@@ -40,6 +43,8 @@ function harness(options: {
   annotations?: OsdAnnotation[];
   activeContextId?: AnnotationContextId | null;
   selectedFill?: string | undefined;
+  maxDownsample?: number | undefined;
+  coarsen?: CoarsenStrategy | undefined;
 }) {
   const dispatchers = {
     addAnnotation: vi.fn(),
@@ -47,6 +52,7 @@ function harness(options: {
     deleteAnnotation: vi.fn(),
     setSelectedAnnotation: vi.fn(),
     adjustBrushRadius: vi.fn(),
+    onCoarsen: vi.fn(),
   };
   const config = buildSegmentationBrushConfig(
     {
@@ -62,6 +68,8 @@ function harness(options: {
       ...(options.selectedFill !== undefined
         ? { getSelectedFill: () => options.selectedFill }
         : {}),
+      getMaxDownsample: () => options.maxDownsample,
+      getCoarsenStrategy: () => options.coarsen,
     },
     dispatchers,
   );
@@ -94,6 +102,7 @@ describe('the live preview tint while refining', () => {
     expect(target?.fill).toBe('#00ff00');
 
     config.onCommit({
+      startDownsample: 1,
       annotationId: target!.annotationId,
       imageId,
       contextId,
@@ -165,7 +174,13 @@ describe('buildSegmentationBrushConfig commit', () => {
   it('creates and then selects a new mask, so the next stroke refines it', () => {
     const { config, dispatchers } = harness({ selectedId: null });
 
-    config.onCommit({ annotationId: null, imageId, contextId, snapshot: snapshot() });
+    config.onCommit({
+      startDownsample: 1,
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: snapshot(),
+    });
 
     expect(dispatchers.addAnnotation).toHaveBeenCalledOnce();
     const created = dispatchers.addAnnotation.mock.calls[0]![0] as OsdAnnotation;
@@ -179,7 +194,13 @@ describe('buildSegmentationBrushConfig commit', () => {
     const { config, dispatchers } = harness({ selectedId: 'mask-1' });
     const id = createAnnotationId('mask-1');
 
-    config.onCommit({ annotationId: id, imageId, contextId, snapshot: snapshot() });
+    config.onCommit({
+      startDownsample: 1,
+      annotationId: id,
+      imageId,
+      contextId,
+      snapshot: snapshot(),
+    });
 
     expect(dispatchers.addAnnotation).not.toHaveBeenCalled();
     expect(dispatchers.updateAnnotation).toHaveBeenCalledOnce();
@@ -194,6 +215,7 @@ describe('buildSegmentationBrushConfig commit', () => {
     const { config, dispatchers } = harness({ selectedId: null });
 
     config.onCommit({
+      startDownsample: 1,
       annotationId: null,
       imageId,
       contextId,
@@ -209,6 +231,7 @@ describe('buildSegmentationBrushConfig commit', () => {
     const id = createAnnotationId('mask-1');
 
     config.onCommit({
+      startDownsample: 1,
       annotationId: id,
       imageId,
       contextId,
@@ -232,6 +255,7 @@ describe('buildSegmentationBrushConfig commit', () => {
     // Resolving the target is what records the fill, exactly as a stroke does.
     expect(config.getTarget()).not.toBeNull();
     config.onCommit({
+      startDownsample: 1,
       annotationId: createAnnotationId('mask-1'),
       imageId,
       contextId,
@@ -412,6 +436,7 @@ describe('New mask', () => {
       const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200 });
       stampCircle(buffer, x, 80, 6, 1);
       config.onCommit({
+        startDownsample: 1,
         annotationId: config.getTarget()?.annotationId ?? null,
         imageId,
         contextId,
@@ -437,7 +462,13 @@ describe('New mask', () => {
 
   it('selects a new mask before adding it, so the brush is never at its limit with nothing selected', () => {
     const { config, dispatchers } = harness({ selectedId: null });
-    config.onCommit({ annotationId: null, imageId, contextId, snapshot: snapshot() });
+    config.onCommit({
+      startDownsample: 1,
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: snapshot(),
+    });
     expect(dispatchers.setSelectedAnnotation).toHaveBeenCalledTimes(1);
     expect(dispatchers.addAnnotation).toHaveBeenCalledTimes(1);
     const selectedAt = dispatchers.setSelectedAnnotation.mock.invocationCallOrder[0]!;
@@ -456,7 +487,7 @@ describe('New mask', () => {
     expect(h.selected).toBe(first);
 
     // The default, as before: the next stroke refines the selected mask.
-    expect(h.config.peekTarget!()).toEqual({ downsample: 1 });
+    expect(h.config.peekTarget!()).toMatchObject({ downsample: 1 });
     h.stroke(70);
     expect(h.annotations).toHaveLength(1);
 
@@ -490,14 +521,17 @@ describe('New mask', () => {
     );
     for (const [selectedId, expected] of [
       [null, null],
-      ['m4', { downsample: 4 }],
+      ['m4', { downsample: 4, box: snapshotImageBox(coarse.raster()) }],
       ['other', null],
       ['rect', null],
       ['gone', null],
     ] as const) {
       const { config } = harness({ selectedId, annotations: [mask4, other, rect] });
       expect(config.peekTarget!(), String(selectedId)).toEqual(expected);
-      expect(config.getTarget() === null, String(selectedId)).toBe(expected === null);
+      const target = config.getTarget();
+      expect(target === null, String(selectedId)).toBe(expected === null);
+      // The box is the decoded mask's, in image pixels: the cue re-grids from it.
+      if (target) expect(snapshotImageBox(target.snapshot)).toEqual(expected!.box);
     }
   });
 
@@ -567,5 +601,115 @@ describe('New mask', () => {
     const original = new MaskCapacityExceededError(100, 50);
     plain.config.onCapacityExceeded!(original);
     expect(plain.reported[0]).toBe(original);
+  });
+
+  it("keeps the tool's own advice, and its cause, when it points at New mask (#243 minor 8)", () => {
+    const h = live('n');
+    h.stroke(60);
+    expect(h.config.getTarget()).not.toBeNull();
+    const cause = new Error('strategy broke');
+    h.config.onCapacityExceeded!(
+      new MaskCapacityExceededError(
+        100,
+        50,
+        2,
+        `It is already at the coarsest downsample this context allows (maxDownsample 2). ` +
+          MaskCapacityExceededError.DEFAULT_ADVICE,
+        { cause },
+      ),
+    );
+    const error = h.reported[0] as MaskCapacityExceededError;
+    expect(error.message).toMatch(
+      /\(maxDownsample 2\)\. Start a separate mask with New mask \(n\)\.$/,
+    );
+    expect(error.message).not.toMatch(/Paint a smaller region/);
+    expect(error.cause).toBe(cause);
+
+    // Advice that does not end in the generic sentence is kept whole.
+    h.config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50, 1, 'Ask an admin.'));
+    expect(h.reported[1]!.message).toMatch(
+      /Ask an admin\. Start a separate mask with New mask \(n\)\.$/,
+    );
+  });
+});
+
+describe('coarsening, through the brush config', () => {
+  /** A mask at `downsample`, for a commit's snapshot. */
+  const at = (downsample: number) => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 300, imageHeight: 200, downsample });
+    stampCircle(buffer, 100.5, 80.5, 12, 1);
+    return buffer.raster();
+  };
+  const mask = createMaskAnnotation(snapshot(), {
+    id: createAnnotationId('m'),
+    imageId,
+    contextId,
+  });
+
+  it("hands the tool the context's maxDownsample and the host's strategy, defaulting both", () => {
+    const strategy: CoarsenStrategy = (source) => majorityCoarsen(source);
+    const set = harness({ maxDownsample: 8, coarsen: strategy });
+    expect(set.config.getMaxDownsample!()).toBe(8);
+    expect(set.config.getCoarsenStrategy!()).toBe(strategy);
+    const unset = harness({});
+    expect(unset.config.getMaxDownsample!()).toBe(1);
+    expect(unset.config.getCoarsenStrategy!()).toBe(majorityCoarsen);
+  });
+
+  it('reports a refining stroke that coarsened its mask, after writing it', () => {
+    const { config, dispatchers } = harness({ selectedId: 'm', annotations: [mask] });
+    config.onCommit({
+      annotationId: mask.id,
+      imageId,
+      contextId,
+      snapshot: at(4),
+      startDownsample: 1,
+    });
+    expect(dispatchers.updateAnnotation).toHaveBeenCalledOnce();
+    expect(dispatchers.onCoarsen).toHaveBeenCalledWith({
+      annotationId: mask.id,
+      imageId,
+      contextId,
+      from: 1,
+      to: 4,
+    });
+    expect(dispatchers.onCoarsen.mock.invocationCallOrder[0]!).toBeGreaterThan(
+      dispatchers.updateAnnotation.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('reports a new mask that coarsened, under its new id', () => {
+    const { config, dispatchers } = harness({});
+    config.onCommit({
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: at(2),
+      startDownsample: 1,
+    });
+    expect(dispatchers.addAnnotation).toHaveBeenCalledOnce();
+    const created = dispatchers.addAnnotation.mock.calls[0]![0] as OsdAnnotation;
+    expect(dispatchers.onCoarsen).toHaveBeenCalledWith(
+      expect.objectContaining({ annotationId: created.id, from: 1, to: 2 }),
+    );
+  });
+
+  it('stays quiet for a stroke at the same grid, or one that re-gridded finer', () => {
+    const { config, dispatchers } = harness({ selectedId: 'm', annotations: [mask] });
+    for (const [snapshotD, startDownsample] of [
+      [1, 1],
+      [2, 2],
+      [1, 4],
+    ] as const) {
+      config.onCommit({
+        annotationId: mask.id,
+        imageId,
+        contextId,
+        snapshot: at(snapshotD),
+        startDownsample,
+      });
+    }
+    expect(dispatchers.updateAnnotation).toHaveBeenCalledTimes(3);
+    expect(dispatchers.onCoarsen).not.toHaveBeenCalled();
   });
 });

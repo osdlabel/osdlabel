@@ -87,9 +87,11 @@ write one, leaving the colour to the renderer.
 ### Masks at a downsample
 
 A mask may be stored coarser than the image: with `downsample: d`, each stored
-**cell** stands for a `d`×`d` block of image pixels. The brush paints new masks
-at full resolution and refines an existing mask at its own `d`, so a coarse
-mask comes from an import or from code, not from a stroke. Only the run grid
+**cell** stands for a `d`×`d` block of image pixels. The brush starts new
+masks at `d` = 1. A stroke refines an existing mask at its own `d`, or
+re-grids it finer when the view is close enough. In a context whose
+`brush.maxDownsample` is above 1, a stroke that outgrows the cell cap coarsens
+the mask instead of being refused. Only the run grid
 changes; everything a reader uses to place the mask stays in image pixels:
 
 ```json

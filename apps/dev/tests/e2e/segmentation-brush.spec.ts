@@ -84,6 +84,59 @@ async function zoomOnto(page: Page, point: { x: number; y: number }, zoom: numbe
   await page.waitForTimeout(300);
 }
 
+/**
+ * Zooms the active viewer onto an image point at once, at `screenPerImage`
+ * screen pixels to an image pixel — what decides the grid a stroke on a
+ * downsampled mask paints on.
+ */
+async function zoomToImageScale(
+  page: Page,
+  point: { x: number; y: number },
+  screenPerImage: number | null,
+): Promise<void> {
+  await page.evaluate(
+    ([pt, scale]) => {
+      const el = document.querySelector('.openseadragon-canvas') as
+        | (Element & {
+            __osdViewer?: {
+              viewport: {
+                imageToViewportCoordinates(x: number, y: number): unknown;
+                imageToViewportZoom(imageZoom: number): number;
+                getMinZoom(): number;
+                zoomTo(zoom: number, ref: unknown, immediately: boolean): void;
+                panTo(center: unknown, immediately: boolean): void;
+                applyConstraints(immediately: boolean): void;
+              };
+            };
+          })
+        | null;
+      const viewport = el?.__osdViewer?.viewport;
+      if (!viewport) throw new Error('test hooks not installed');
+      const center = viewport.imageToViewportCoordinates(pt.x, pt.y);
+      // `null` asks for the farthest out the viewer allows. Anything past its
+      // limits springs back on the next interaction, so the view the stroke
+      // is pressed in would depend on timing; settle it now instead.
+      const zoom = scale === null ? viewport.getMinZoom() : viewport.imageToViewportZoom(scale);
+      viewport.zoomTo(zoom, center, true);
+      viewport.panTo(center, true);
+      viewport.applyConstraints(true);
+    },
+    [point, screenPerImage] as const,
+  );
+  await page.waitForTimeout(300);
+}
+
+/** Image pixels per screen pixel in the active cell, as the overlay maps them. */
+function imagePerScreen(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const el = document.querySelector('.openseadragon-canvas') as
+      | (Element & { __osdOverlay?: { canvas: { getZoom(): number } } })
+      | null;
+    if (!el?.__osdOverlay) throw new Error('test hooks not installed');
+    return 1 / el.__osdOverlay.canvas.getZoom();
+  });
+}
+
 /** Unsigned LEB128 run lengths, base64'd: the canonical payload's `counts`. */
 function canonicalCounts(runs: readonly number[]): string {
   const bytes: number[] = [];
@@ -130,6 +183,23 @@ const COARSE_DOC = [
     },
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
+/** The same block at downsample 2: 60 x 40 cells. */
+const COARSE2_DOC = [
+  {
+    ...COARSE_DOC[0]!,
+    id: 'coarse-mask-2',
+    geometry: { ...COARSE_DOC[0]!.geometry, downsample: 2 },
+    rawAnnotationData: {
+      format: 'osdlabel-mask',
+      data: {
+        ...COARSE_DOC[0]!.rawAnnotationData.data,
+        counts: canonicalCounts([0, 60 * 40]),
+        downsample: 2,
+      },
+    },
   },
 ];
 
@@ -634,15 +704,22 @@ test.describe('Segmentation brush', () => {
       expect(await fabricAlphaAt(page, past.x, past.y)).toBe(0);
     });
 
-    test('a stroke on it keeps downsample 4', async ({ page }) => {
-      await importDocument(page, COARSE_DOC);
-      // Select it, so the brush refines it rather than starting a new mask.
+    /** Selects the imported mask, then takes the brush, so a stroke refines it. */
+    async function refineCoarse(page: Page): Promise<void> {
       await page.getByTestId('tool-select').click();
       const click = await imageToClient(page, inside);
       await page.mouse.click(click.x, click.y);
       await page.waitForTimeout(200);
-
       await page.getByTestId('tool-segmentationBrush').click();
+    }
+
+    test('zoomed out as far as the viewer goes, a d=2 mask keeps its grid', async ({ page }) => {
+      await importDocument(page, COARSE2_DOC);
+      await zoomToImageScale(page, inside, null);
+      // This viewer stops at under three image pixels a screen pixel: nothing
+      // finer than d=2 is shown, so a stroke paints at the mask's own grid.
+      expect(await imagePerScreen(page)).toBeGreaterThanOrEqual(2);
+      await refineCoarse(page);
       const from = await imageToClient(page, { x: 340, y: 200 });
       const to = await imageToClient(page, { x: 450, y: 200 });
       await stroke(page, from, to);
@@ -650,14 +727,59 @@ test.describe('Segmentation brush', () => {
       const annotations = await readAnnotations(page);
       expect(annotations).toHaveLength(1);
       const { geometry, rawAnnotationData } = annotations[0]!;
-      expect(geometry.downsample).toBe(4);
-      expect(rawAnnotationData?.data?.['downsample']).toBe(4);
-      // Grew to the right, still on the 4-pixel grid.
+      expect(geometry.downsample).toBe(2);
+      expect(rawAnnotationData?.data?.['downsample']).toBe(2);
+      // Grew to the right, still on the 2-pixel grid.
       expect(geometry.origin).toEqual({ x: COARSE_BOX.x, y: COARSE_BOX.y });
       expect(geometry.width!).toBeGreaterThan(COARSE_BOX.width + 60);
-      expect(geometry.width! % 4).toBe(0);
+      expect(geometry.width! % 2).toBe(0);
       expect(geometry.pixelCount!).toBeGreaterThan(COARSE_BOX.width * COARSE_BOX.height);
-      expect(geometry.pixelCount! % 16).toBe(0);
+      expect(geometry.pixelCount! % 4).toBe(0);
+    });
+
+    test('zoomed out, a d=4 mask re-grids only as finely as the view shows', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      await zoomToImageScale(page, inside, null);
+      // The finest power of two the view shows, read from the overlay rather
+      // than assumed: the viewer's limits depend on its size.
+      const perScreen = await imagePerScreen(page);
+      let expected = 1;
+      while (expected * 2 <= perScreen * (1 + 1e-9) && expected < 4) expected *= 2;
+      expect(expected).toBeGreaterThan(1);
+      await refineCoarse(page);
+      const from = await imageToClient(page, { x: 340, y: 200 });
+      const to = await imageToClient(page, { x: 450, y: 200 });
+      await stroke(page, from, to);
+
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      const { geometry } = annotations[0]!;
+      expect(geometry.downsample).toBe(expected);
+      expect(geometry.origin).toEqual({ x: COARSE_BOX.x, y: COARSE_BOX.y });
+      expect(geometry.width!).toBeGreaterThan(COARSE_BOX.width + 60);
+    });
+
+    test('a stroke made closer in re-grids it finer, losing nothing', async ({ page }) => {
+      await importDocument(page, COARSE_DOC);
+      // An image pixel to a screen pixel: the stroke paints at d=1.
+      await zoomToImageScale(page, inside, 1);
+      await refineCoarse(page);
+      const from = await imageToClient(page, { x: 340, y: 200 });
+      const to = await imageToClient(page, { x: 450, y: 200 });
+      await stroke(page, from, to);
+
+      const annotations = await readAnnotations(page);
+      expect(annotations).toHaveLength(1);
+      const { geometry, rawAnnotationData } = annotations[0]!;
+      // d=1 is never written.
+      expect(geometry.downsample).toBeUndefined();
+      expect(rawAnnotationData?.data?.['downsample']).toBeUndefined();
+      expect(geometry.origin).toEqual({ x: COARSE_BOX.x, y: COARSE_BOX.y });
+      // Every pixel of the old block is still there, and the stroke added more.
+      expect(geometry.width!).toBeGreaterThan(COARSE_BOX.width + 60);
+      expect(geometry.pixelCount!).toBeGreaterThan(COARSE_BOX.width * COARSE_BOX.height);
+      const corner = await imageToClient(page, { x: COARSE_BOX.x + 1, y: COARSE_BOX.y + 1 });
+      expect(await fabricAlphaAt(page, corner.x, corner.y)).toBeGreaterThan(60);
     });
 
     test('a COCO export comes back at downsample 4', async ({ page }) => {
@@ -820,5 +942,124 @@ test.describe('Segmentation brush', () => {
       expect(annotations[0]!.geometry.width!).toBeGreaterThanOrEqual(100);
       expect(annotations[0]!.geometry.pixelCount!).toBeGreaterThan(first!.geometry.pixelCount!);
     });
+  });
+});
+
+test.describe('Segmentation brush: coarsening on overflow', () => {
+  // 256 x 256 cells, so a stroke that fits on screen reaches the cap.
+  const CAP = 65_536;
+
+  /** Opens the app under the low cap, on the landscape image, in `context`. */
+  async function open(page: Page, context: string): Promise<void> {
+    await page.goto(`/?brushMaxPixels=${CAP}`);
+    await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10000 });
+    await page.getByTestId('filmstrip-item-landscape').click();
+    await page.getByRole('combobox').selectOption({ label: context });
+    await page.locator('canvas.upper-canvas').waitFor({ state: 'attached', timeout: 15000 });
+    await page.waitForTimeout(1000);
+    await page.getByTestId('tool-segmentationBrush').click();
+  }
+
+  /**
+   * An L-shaped stroke in image pixels, (200, 200) to (600, 200) to
+   * (600, 500): about 424 x 324 with the brush, 137 K cells at d=1, more than
+   * twice the cap.
+   */
+  async function paintL(page: Page, modifiers: 'Alt'[] = []): Promise<void> {
+    const a = await imageToClient(page, { x: 200, y: 200 });
+    const b = await imageToClient(page, { x: 600, y: 200 });
+    const c = await imageToClient(page, { x: 600, y: 500 });
+    for (const key of modifiers) await page.keyboard.down(key);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 30 });
+    await page.mouse.move(c.x, c.y, { steps: 30 });
+    await page.mouse.up();
+    for (const key of modifiers) await page.keyboard.up(key);
+    await page.waitForTimeout(300);
+  }
+
+  /** Cells a box of image pixels holds at downsample `d`, on that grid. */
+  const cellsAt = (
+    g: { origin?: { x: number; y: number }; width?: number; height?: number },
+    d: number,
+  ) => {
+    const x = g.origin!.x;
+    const y = g.origin!.y;
+    return (
+      (Math.ceil((x + g.width!) / d) - Math.floor(x / d)) *
+      (Math.ceil((y + g.height!) / d) - Math.floor(y / d))
+    );
+  };
+
+  test('a region past the cap commits coarsened, and says so', async ({ page }) => {
+    await open(page, 'Brush (coarsen)');
+    await expect(page.getByTestId('brush-coarsen-notice')).toHaveCount(0);
+    await paintL(page);
+
+    const annotations = await readAnnotations(page);
+    expect(annotations).toHaveLength(1);
+    const { geometry } = annotations[0]!;
+    const d = geometry.downsample ?? 1;
+    // The coarsest grid the stroke needed, from its own box: it fits at d,
+    // and would not have at d / 2.
+    expect(d).toBeGreaterThan(1);
+    expect(cellsAt(geometry, d)).toBeLessThanOrEqual(CAP);
+    expect(cellsAt(geometry, d / 2)).toBeGreaterThan(CAP);
+    // The far end of the stroke, painted after the coarsening, is there.
+    const end = await imageToClient(page, { x: 600, y: 490 });
+    expect(await fabricAlphaAt(page, end.x, end.y)).toBeGreaterThan(60);
+    await expect(page.getByTestId('brush-coarsen-notice')).toHaveText(
+      `The mask was coarsened from 1x to ${d}x to fit its cap.`,
+    );
+  });
+
+  test('the same stroke is refused where the context does not coarsen', async ({ page }) => {
+    await open(page, 'General');
+    const dialogs: string[] = [];
+    page.on('dialog', (dialog) => {
+      dialogs.push(dialog.message());
+      void dialog.dismiss();
+    });
+    await paintL(page);
+    expect(await readAnnotations(page)).toHaveLength(0);
+    expect(dialogs).toHaveLength(1);
+    expect(dialogs[0]).toMatch(/^Stroke too large: Mask would need \d+ cells at downsample 1/);
+    await expect(page.getByTestId('brush-coarsen-notice')).toHaveCount(0);
+  });
+
+  test('erased down, a stroke made closer in re-grids it to full resolution', async ({ page }) => {
+    await open(page, 'Brush (coarsen)');
+    await paintL(page);
+    const coarse = (await readAnnotations(page))[0]!;
+    expect(coarse.geometry.downsample).toBeGreaterThan(1);
+
+    // A wide eraser along all but the start of the stroke leaves a small
+    // mask: its box at d=1 now fits the cap.
+    for (let i = 0; i < 4; i++) await page.keyboard.press(']');
+    const from = await imageToClient(page, { x: 260, y: 200 });
+    const corner = await imageToClient(page, { x: 600, y: 200 });
+    const end = await imageToClient(page, { x: 600, y: 520 });
+    await page.keyboard.down('Alt');
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(corner.x, corner.y, { steps: 30 });
+    await page.mouse.move(end.x, end.y, { steps: 30 });
+    await page.mouse.up();
+    await page.keyboard.up('Alt');
+    await page.waitForTimeout(300);
+    for (let i = 0; i < 4; i++) await page.keyboard.press('[');
+    const erased = (await readAnnotations(page))[0]!;
+    expect(erased.geometry.width!).toBeLessThan(120);
+    expect(erased.geometry.downsample).toBe(coarse.geometry.downsample);
+
+    // At an image pixel a screen pixel, the next stroke paints at d=1.
+    await zoomToImageScale(page, { x: 220, y: 200 }, 1);
+    const a = await imageToClient(page, { x: 210, y: 200 });
+    const b = await imageToClient(page, { x: 240, y: 230 });
+    await stroke(page, a, b);
+    const fine = (await readAnnotations(page))[0]!;
+    expect(fine.geometry.downsample).toBeUndefined();
+    expect(fine.geometry.pixelCount!).toBeGreaterThan(erased.geometry.pixelCount!);
   });
 });

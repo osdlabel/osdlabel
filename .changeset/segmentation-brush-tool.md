@@ -107,8 +107,12 @@ along an image edge that is not a multiple of `d` are clipped by it, and
 `pixelCount` counts image pixels exactly. A missing `downsample` means 1 and 1
 is never written, so full-resolution payloads are unchanged, and the format
 string stays `osdlabel-mask`. The brush starts every new mask at full
-resolution, whatever the zoom; a stroke on an existing mask paints at that
-mask's own downsample. The grid conventions are in the Serialization guide.
+resolution, whatever the zoom. A stroke on an existing mask paints at that
+mask's own downsample, or re-grids it finer, losing nothing, when the view
+shows finer and the finer box fits. `BrushStrokeCommit.startDownsample` says
+which: the mask's downsample before the stroke. `BrushTargetPreview.box` lets
+the cue show the grid the press will use. The grid conventions are in the
+Serialization guide.
 
 Every reader goes through `MaskRaster`, a read-only view that makes no promise
 about storage: `cells` (the box, in cells), the image size, `downsample`,
@@ -158,13 +162,27 @@ the brush tool clamps its own `maxPixels`.
 downsample, and the image-pixel box the limit allows there; it no longer
 suggests raising a cap that cannot be raised.
 
-A mask more than `MAX_MASK_CANVAS_SIDE` (32,767, Firefox's limit) cells wide
-or tall — a long strip can be, well inside the cap — is not drawn blank: the
-renderer throws `MaskCanvasTooLargeError`, reported through
-`onAnnotationRenderError` while the other annotations render, and a stroke
-whose live preview would pass the limit is refused through
+A mask past the **display budget**, `MAX_MASK_CANVAS_PIXELS` (16 Mi, what iOS
+Safari draws), or more than `MAX_MASK_CANVAS_SIDE` (32,767, Firefox's limit)
+cells wide or tall, is drawn from a display mip instead of blank or refused:
+halved by `majorityCoarsen` until it fits, placed at `d · 2^k`, and never
+stored. `brushOptions.maxCanvasPixels` moves the budget (`Infinity`, or
+anything not a positive finite number, lifts the area budget; a mask past the
+canvas side is still drawn from a mip;
+a new options object with an equal budget redraws nothing), and `createFabricObjectFromRawData` and
+`buildMaskFabricObject` take it as `maxCanvasPixels`. The renderer throws
+`MaskCanvasTooLargeError` only if not even the coarsest mip fits, and
+`MaskDisplayMipEmptyError` rather than drawing a set mask blank when the mip
+that fits keeps none of its cells (a one-pixel strip, say), each reported
+through `onAnnotationRenderError` while the other annotations render. A stroke
+whose live preview would pass the side limit is refused through
 `onCapacityExceeded`, whose argument is now `BrushCapacityError`
-(`MaskCapacityExceededError | MaskCanvasTooLargeError`).
+(`MaskCapacityExceededError | MaskCanvasTooLargeError`). While the stroke's
+buffer (the mask rounded out to 64-cell growth chunks, which the preview always
+covers) is within 16 Mi cells, the preview's margin keeps it within 16 Mi too;
+past that, the margin costs at most the buffer's own area, and none is spent on
+sides the image edge clips (#158). The bound is the constant 16 Mi, not the
+host's `maxCanvasPixels`.
 
 ## New API
 
@@ -178,7 +196,10 @@ whose live preview would pass the limit is refused through
   `forEachCheckedSpan`, `forEachLevel0Span`, `decodeCanonicalRaster`);
   downsampling (`MAX_MASK_DOWNSAMPLE`, `assertMaskDownsample`,
   `isMaskDownsample`, `maskDownsampleOf`, `maskGridSize`, `snapshotImageBox`,
-  `upsampleSnapshot`, `MaskBoxFields`);
+  `upsampleSnapshot`, `MaskBoxFields`; `majorityCoarsen` / `CoarsenStrategy`,
+  which halve a raster's resolution, `verifyCoarsenStrategy`, which checks a
+  strategy against the contract the brush relies on, and `refineRaster`, which
+  re-grids a mask finer without loss);
   `stampCircle`, `strokeSegment`, `MaskCapacityExceededError`,
   `DEFAULT_MAX_MASK_PIXELS`, `assertDecodableArea`, `assertDecodableCount`,
   `assertDecodableOrigin`; the canonical codec
@@ -204,7 +225,9 @@ whose live preview would pass the limit is refused through
 - **`@osdlabel/fabric-annotations`**: `SegmentationBrushTool`,
   `SegmentationBrushToolConfig`, `BrushStrokeCommit`, `BrushTarget`,
   `buildMaskFabricObject`, `BuildMaskFabricObjectOptions`,
-  `DEFAULT_MASK_FILL`, `AnnotationRawData`.
+  `DEFAULT_MASK_FILL`, `AnnotationRawData`, and the canvas limits
+  `MAX_MASK_CANVAS_SIDE`, `MAX_MASK_CANVAS_PIXELS`, `MaskCanvasTooLargeError`
+  and `BrushCapacityError`.
 - **`@osdlabel/fabric-osd`**: the `'paint'` `OverlayMode`;
   `FabricOverlay.applyModeToObject(obj, readOnly)`, now the single authority for
   an object's interaction flags and needed by any host with a custom cell
@@ -222,7 +245,8 @@ whose live preview would pass the limit is refused through
   `maskAnnotationFields` + `MaskAnnotationFields`,
   `buildSegmentationBrushConfig` + `BrushConfigAccessors` /
   `BrushConfigDispatchers`, `nextBrushRadius`, `BrushOptions`,
-  `DEFAULT_MAX_TOTAL_MASK_PIXELS`, and `SerializeOptions` /
+  `displayBudget` (the budget a `maxCanvasPixels` option means, as the
+  renderer reads it), `DEFAULT_MAX_TOTAL_MASK_PIXELS`, and `SerializeOptions` /
   `DeserializeOptions` / `ExportedAnnotation` for the new `maskCodec`,
   `maskCodecs`, `maxMaskPixels` and `maxTotalMaskPixels` options on
   `serialize` / `deserialize` (`serialize`'s `maxMaskPixels` only lowers the
@@ -251,14 +275,60 @@ is solid when the next stroke refines and dashed when it creates, sized in
 screen pixels at every zoom, and on
 a mask at a downsample above 1 it is drawn as the cells one dab sets. A capacity
 failure on a refining stroke says "Start a separate mask with New mask (n)",
-naming the bound key, when a new mask may still be added; otherwise it keeps the
-default advice. For hosts: `canRefineSelectedMask` (the rule the button and the
+naming the bound key, when a new mask may still be added, in place of the
+generic advice and after any other (the `maxDownsample` sentence stays);
+otherwise it keeps the advice it had. For hosts: `canRefineSelectedMask` (the rule the button and the
 constraints share), `SegmentationBrushToolConfig.peekTarget` with
 `BrushTargetPreview`, `BrushConfigAccessors.getNewMaskShortcut` and
-`canStartNewMask`, and an optional `advice` argument on
-`MaskCapacityExceededError`. A context's last allowed mask is now selected
+`canStartNewMask`, and on `MaskCapacityExceededError` an optional `advice`
+argument, kept as `advice`, with `DEFAULT_ADVICE`, and an optional `cause`. A context's last allowed mask is now selected
 before it is added, which fixes the Solid binding switching to the select tool
 the moment that mask was painted.
+
+## Coarsening a mask that outgrows the cap (opt-in)
+
+A context can let a stroke coarsen its mask instead of refusing it at the
+cell cap: `ToolConstraint.brush.maxDownsample` (`BrushContextOptions`, in
+`@osdlabel/annotation-context`), a power of two, default 1. When a step would
+pass the cap, the stroke's mask is halved by the provider's coarsen strategy
+(`BrushOptions.coarsen`, default `majorityCoarsen`), its preview redrawn, and
+the step painted again, up to `maxDownsample`. Past that the stroke is refused
+as before, with a message naming `maxDownsample`. A strategy that throws, or
+whose result is at the wrong downsample, on another image, outside the
+source's box rounded out to the coarse grid, or refused by the buffer, refuses
+the stroke the same way, once, with its error as the refusal's `cause` (a
+re-gridded stroke that cannot coarsen back within the canvas side carries it on
+its `MaskCanvasTooLargeError`). The rest of the contract is
+`verifyCoarsenStrategy`'s to check. So is a paint stroke whose coarsening would leave its
+target empty (a sparse mask whose features are all smaller than a coarse
+cell), which would otherwise delete the annotation. `BrushOptions.onCoarsen`
+receives a `CoarsenEvent` (`annotationId`, `imageId`, `contextId`, `from`, `to`) after a
+coarsened stroke is written. A custom strategy must meet the contract
+`verifyCoarsenStrategy` checks. Changing either option never rebuilds the tool.
+For a host building the tool's config directly:
+`SegmentationBrushToolConfig.getMaxDownsample` / `getCoarsenStrategy`,
+`BrushConfigAccessors.getMaxDownsample` / `getCoarsenStrategy` and
+`BrushConfigDispatchers.onCoarsen`.
+
+In Solid, a host passing a new `brushOptions` object, even with the same
+`maxPixels`, rebuilt the brush tool and dropped a stroke in progress, because
+the hook's effect tracked the whole prop. It now compares `maxPixels` by value,
+as React's provider already did.
+
+## Committing a stroke on a large mask is cheaper (#238)
+
+A stroke that changes no cell commits nothing (`MaskBuffer.changeCount`). The
+buffer finds its tight box per row with native `indexOf` / `lastIndexOf`, the
+renderer and the brush preview fill pixels a 32-bit word at a time
+(`MaskBuffer.copyRow`). A commit carries its live preview
+(`BrushStrokeCommit.preview`: the `fill` its pixels are in, and `crop()`, which
+copies them out of the preview's own `ImageData` when called, or gives `null`
+if the engine refused the canvas). The committing cell seeds `MaskObjectCache`
+from it (`seed`, through `BrushConfigDispatchers.seedMaskObject` and
+`maskFabricObjectFromCanvas`), so its rebuild does not decode and re-rasterize
+the mask. A `MaskObjectSeed` gives the object's size and builds it on demand,
+so a seed in a tint the cell will not draw, or past its display budget, is
+never cropped.
 
 ## The selected mask is told apart from the others
 
@@ -341,6 +411,16 @@ degrades alone instead of blanking its whole grid cell.
   default).
 - **A mask is hit-tested by its pixels**, not its bounding box, so a click
   through a sparse mask reaches the shape beneath it.
+- **An empty mask keeps its downsample.** An empty buffer, an empty raster
+  read back dense, and an empty canonical payload all reported downsample 1
+  whatever their grid (`emptySnapshot` now takes one). A coarsening stroke whose
+  first dab overflowed twice, before any cell was set, threw.
+- **A thin stroke near the cap is no longer refused for rounding.** The
+  buffer rounds its allocation out to 64-cell chunks, and gave way to the cap
+  only for the region being added, so a long stroke whose own box fitted was
+  refused for the rows an earlier dab's rounding had added. Past the cap it
+  now keeps just the set cells, and refuses only when they and the new region
+  do not fit.
 - **A preview the engine refuses to allocate is a capacity failure.** The
   RGBA preview is four bytes a pixel over a box larger than the buffer's, and
   an engine past its canvas limit throws a plain error that escaped into
