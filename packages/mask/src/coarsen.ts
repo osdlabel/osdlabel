@@ -1,5 +1,6 @@
 import { maskGridSize, assertMaskDownsample } from './downsample.js';
 import {
+  assertRasterOnGrid,
   denseRaster,
   denseSnapshotOf,
   forEachCheckedSpan,
@@ -38,6 +39,9 @@ export const majorityCoarsen: CoarsenStrategy = (source) => {
   const coarseD = d * 2;
   assertMaskDownsample(coarseD);
   const { x, y, width, height } = source.cells;
+  // The grid checks every reader of a raster applies: an off-grid box was
+  // coarsened as it came, clipped (#243 round 2, minor 5).
+  if (width > 0 && height > 0) assertRasterOnGrid(source);
   const grid = maskGridSize(source.imageWidth, source.imageHeight, d);
   if (width === 0 || height === 0) {
     return denseRaster({

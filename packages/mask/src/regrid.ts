@@ -1,7 +1,12 @@
 import { assertMaskDownsample, maskGridSize } from './downsample.js';
 import { MaskCapacityExceededError } from './mask-buffer.js';
 import { DEFAULT_MAX_MASK_PIXELS } from './bounded-dense-mask-buffer.js';
-import { denseRaster, forEachCheckedSpan, type MaskRaster } from './mask-raster.js';
+import {
+  assertRasterOnGrid,
+  denseRaster,
+  forEachCheckedSpan,
+  type MaskRaster,
+} from './mask-raster.js';
 
 /**
  * Re-grids a raster to a finer `downsample`, replicating each cell over the
@@ -20,6 +25,9 @@ export function refineRaster(
   maxCells: number = DEFAULT_MAX_MASK_PIXELS,
 ): MaskRaster {
   assertMaskDownsample(downsample);
+  // An off-grid box was re-gridded as it came, clipped: b6ecb55's 37 x 23
+  // example at d=4 came back as {36, 8, 1, 4} (#243 round 2, minor 5).
+  if (source.cells.width > 0 && source.cells.height > 0) assertRasterOnGrid(source);
   const d = source.downsample;
   if (downsample > d) {
     throw new RangeError(`refineRaster goes finer: ${downsample} is coarser than ${d}`);

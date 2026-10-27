@@ -47,12 +47,12 @@ export function verifyCoarsenStrategy(strategy: CoarsenStrategy): readonly strin
     try {
       result = strategy(raster);
     } catch (error) {
-      report('valid', `${label}: threw ${error instanceof Error ? error.message : String(error)}`);
+      report('valid', `${label}: threw ${describeThrown(error)}`);
       return null;
     }
     // A host strategy is typed, but not checked: report a non-raster here
     // rather than failing on it below.
-    if (typeof result !== 'object' || result === null || !isMaskRaster(result as MaskRaster)) {
+    if (!isRasterShaped(result)) {
       report('valid', `${label}: returned ${describe(result)}, not a raster`);
       return null;
     }
@@ -146,7 +146,7 @@ function invalidity(source: MaskRaster, result: MaskRaster): string | null {
       }
     });
   } catch (error) {
-    return `breaks the span contract: ${error instanceof Error ? error.message : String(error)}`;
+    return `breaks the span contract: ${describeThrown(error)}`;
   }
   return outside;
 }
@@ -201,6 +201,45 @@ function rebox(mask: MaskRaster, pad: number): MaskRaster {
     imageHeight: mask.imageHeight,
     downsample: mask.downsample,
   });
+}
+
+/**
+ * Whether `value` has what the rules read before they can report on it: a
+ * raster's span walk and `get`, a numeric cell box, a downsample and an image
+ * size. A value with `forEachSpan` but no `cells`, or `cells: null`, made the
+ * checks below throw their own `TypeError`. Read inside a `try`: a getter or
+ * a revoked `Proxy` may throw on the reading.
+ */
+function isRasterShaped(value: unknown): value is MaskRaster {
+  try {
+    if (typeof value !== 'object' || value === null || !isMaskRaster(value as MaskRaster)) {
+      return false;
+    }
+    const raster = value as Partial<MaskRaster>;
+    const cells = raster.cells as Partial<MaskRaster['cells']> | null | undefined;
+    return (
+      typeof raster.get === 'function' &&
+      typeof cells === 'object' &&
+      cells !== null &&
+      [cells.x, cells.y, cells.width, cells.height].every((n) => typeof n === 'number') &&
+      [raster.downsample, raster.imageWidth, raster.imageHeight].every((n) => typeof n === 'number')
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** A thrown value as text, without ever throwing itself (a revoked `Proxy`, say). */
+function describeThrown(thrown: unknown): string {
+  try {
+    if (thrown instanceof Error) {
+      const message: unknown = thrown.message;
+      return typeof message === 'string' ? message : 'an Error with no message';
+    }
+    return String(thrown);
+  } catch {
+    return 'a value with no string form';
+  }
 }
 
 /** A short description of a value a strategy returned. */

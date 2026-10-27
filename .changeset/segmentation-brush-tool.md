@@ -289,9 +289,13 @@ cell cap: `ToolConstraint.brush.maxDownsample` (`BrushContextOptions`, in
 pass the cap, the stroke's mask is halved by the provider's coarsen strategy
 (`BrushOptions.coarsen`, default `majorityCoarsen`), its preview redrawn, and
 the step painted again, up to `maxDownsample`. Past that the stroke is refused
-as before, with a message naming `maxDownsample`. A strategy that throws or
-breaks the contract refuses the stroke the same way, once, with its error as
-the refusal's `cause`. So is a paint stroke whose coarsening would leave its
+as before, with a message naming `maxDownsample`. A strategy that throws, or
+whose result is at the wrong downsample, on another image, outside the
+source's box rounded out to the coarse grid, or refused by the buffer, refuses
+the stroke the same way, once, with its error as the refusal's `cause` (a
+re-gridded stroke that cannot coarsen back within the canvas side carries it on
+its `MaskCanvasTooLargeError`). The rest of the contract is
+`verifyCoarsenStrategy`'s to check. So is a paint stroke whose coarsening would leave its
 target empty (a sparse mask whose features are all smaller than a coarse
 cell), which would otherwise delete the annotation. `BrushOptions.onCoarsen`
 receives a `CoarsenEvent` (`annotationId`, `imageId`, `contextId`, `from`, `to`) after a

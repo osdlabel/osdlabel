@@ -123,4 +123,41 @@ describe('verifyCoarsenStrategy', () => {
     };
     expect(rules(verifyCoarsenStrategy(liar))).toContain('undoes re-gridding');
   });
+
+  it('reports a result with a span walk but no usable box, rather than throwing (#243 round 2, minor 4)', () => {
+    for (const [name, value] of [
+      [
+        'no cells',
+        { forEachSpan: () => {}, get: () => 0, downsample: 2, imageWidth: 1, imageHeight: 1 },
+      ],
+      [
+        'cells: null',
+        {
+          forEachSpan: () => {},
+          get: () => 0,
+          cells: null,
+          downsample: 2,
+          imageWidth: 1,
+          imageHeight: 1,
+        },
+      ],
+    ] as const) {
+      const strategy = (() => value) as unknown as CoarsenStrategy;
+      let violations: readonly string[] = [];
+      expect(() => (violations = verifyCoarsenStrategy(strategy)), name).not.toThrow();
+      expect(rules(violations), name).toEqual(new Set(['valid']));
+      expect(violations[0], name).toMatch(/not a raster/);
+    }
+  });
+
+  it('reports a strategy that throws what resists formatting (#243 round 2, minor 3)', () => {
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    const strategy: CoarsenStrategy = () => {
+      throw revoked.proxy;
+    };
+    let violations: readonly string[] = [];
+    expect(() => (violations = verifyCoarsenStrategy(strategy))).not.toThrow();
+    expect(violations[0]).toMatch(/threw a value with no string form/);
+  });
 });

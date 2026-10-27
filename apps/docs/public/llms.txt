@@ -2199,9 +2199,12 @@ const violations = verifyCoarsenStrategy(myStrategy); // [] when it holds
 The strategy runs at most once per overflow, between pointer events, so a
 slower one delays one segment rather than every one. Changing
 `brushOptions.coarsen` or `brushOptions.onCoarsen` never rebuilds the tool or
-drops a stroke in progress. A strategy that throws, or returns the wrong
-downsample, refuses the stroke once through `onCapacityExceeded`, with its
-error as the refusal's `cause`, and the mask is unchanged. So does a paint
+drops a stroke in progress. A strategy that throws, or whose result is at the
+wrong downsample, on another image, or outside the source's box rounded out to
+the coarse grid, refuses the stroke once through `onCapacityExceeded`, with its
+error as the refusal's `cause`, and the mask is unchanged. Those are the parts
+of the contract the brush checks as it paints; `verifyCoarsenStrategy` checks
+the rest, so run it on a strategy before shipping it. So does a paint
 stroke whose coarsening would leave the mask empty, every feature being smaller
 than a coarse cell: committed, it would delete the annotation. osdlabel's
 precision bounds are measured for `majorityCoarsen` only: another strategy's

@@ -30,16 +30,30 @@ export class MaskCanvasTooLargeError extends RangeError {
   /** The display budget it was drawn under, when that is what it missed. */
   readonly maxPixels: number | undefined;
 
-  constructor(width: number, height: number, maxPixels?: number) {
+  /**
+   * @param options `cause`: what made the limit final, such as a coarsening
+   * strategy that threw where coarsening back would have fitted the canvas;
+   * `causeText` describes it, and replaces the generic advice.
+   */
+  constructor(
+    width: number,
+    height: number,
+    maxPixels?: number,
+    options?: { readonly cause: unknown; readonly causeText: string },
+  ) {
     const tooLong = width > MAX_MASK_CANVAS_SIDE || height > MAX_MASK_CANVAS_SIDE;
     super(
-      tooLong || maxPixels === undefined
-        ? `A mask ${width} x ${height} cells wide cannot be drawn: browsers refuse a canvas side ` +
+      options !== undefined
+        ? `A mask ${width} x ${height} cells wide cannot be drawn, and coarsening it back to a ` +
+            `grid that can failed: ${options.causeText}. It is kept, and exports as usual.`
+        : tooLong || maxPixels === undefined
+          ? `A mask ${width} x ${height} cells wide cannot be drawn: browsers refuse a canvas side ` +
             `longer than ${MAX_MASK_CANVAS_SIDE} pixels. It is kept, and exports as usual; ` +
             `paint a narrower region, or split it into separate masks.`
-        : `A mask ${width} x ${height} cells wide at its coarsest cannot be drawn within a ` +
+          : `A mask ${width} x ${height} cells wide at its coarsest cannot be drawn within a ` +
             `display budget of ${maxPixels} canvas pixels. It is kept, and exports as usual; ` +
             `raise brushOptions.maxCanvasPixels.`,
+      options !== undefined ? { cause: options.cause } : undefined,
     );
     this.name = 'MaskCanvasTooLargeError';
     this.width = width;

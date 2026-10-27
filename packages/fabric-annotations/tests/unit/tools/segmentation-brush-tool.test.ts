@@ -15,6 +15,7 @@ import {
   majorityCoarsen,
   stampCircle,
   toDenseSnapshot,
+  denseRaster,
   type CoarsenStrategy,
   type MaskRaster,
   type MaskRegion,
@@ -1783,6 +1784,40 @@ describe('SegmentationBrushTool: the canvas side limit, at the press and mid-str
     expect(h.objects.some((o) => o.type === 'path')).toBe(true);
   });
 
+  it('carries a failed coarsening back as the cause of the canvas refusal (#243 round 2, minor 1)', () => {
+    // The stroke below commits with a working strategy. With one that throws,
+    // the refusal named only the canvas side and advised a narrower region.
+    const thrown = new Error('host strategy broke');
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: BIG.width,
+      imageHeight: BIG.height,
+      downsample: 4,
+    });
+    for (let x = 250; x < 5_250; x++) buffer.set(x, 125, 1);
+    const target = { annotationId: createAnnotationId('long'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      radius: 3,
+      target,
+      viewport: { zoom: 1, width: 800, height: 800 },
+      coarsen: () => {
+        throw thrown;
+      },
+    });
+    down(h.tool, 20_990, 502);
+    for (let x = 21_000; x <= 36_000; x += 500) move(h.tool, x, 502);
+    up(h.tool, 36_000, 502);
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    const error = h.capacityErrors[0]!;
+    expect(error).toBeInstanceOf(MaskCanvasTooLargeError);
+    expect(error.cause).toBe(thrown);
+    expect(error.message).toMatch(
+      /coarsening it back to a grid that can failed: host strategy broke/,
+    );
+    expect(error.message).not.toMatch(/narrower region/);
+  });
+
   it('coarsens a re-gridded stroke back when it grows past the limit mid-stroke', () => {
     // 20,000 px wide at d=4 re-grids to d=1 at zoom 1, which fits. Dragged on
     // past the end, it reaches 35,000 cells wide: past what a canvas draws at
@@ -1811,7 +1846,9 @@ describe('SegmentationBrushTool: the canvas side limit, at the press and mid-str
 });
 
 describe('SegmentationBrushTool: the preview under the display budget (#243 P5)', () => {
-  it('stays within the budget for any mask under it', () => {
+  // Builds previews of up to 16 Mi pixels: about a second alone, past the
+  // default timeout under a parallel run.
+  it('stays within the budget for any mask under it', { timeout: 30_000 }, () => {
     // A 3,000-square mask, 9 M cells: the margin rule let its preview reach
     // 9 M + 16 Mi, past the 16 Mi an iPad draws, though a 16 Mi maxPixels
     // would never have coarsened it.
@@ -1953,6 +1990,71 @@ describe('SegmentationBrushTool: coarsening on overflow', () => {
       if (name === 'throws') expect(error.cause).toBe(thrown);
       else expect(error.cause).toBeInstanceOf(RangeError);
       expect(existing.visible, name).toBe(true);
+    }
+  });
+
+  /** The minor-1 stroke: a refining sweep past the cap, under `coarsen`. */
+  const refusedUnder = (coarsen: CoarsenStrategy) => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    stampCircle(buffer, 1000, 1000, 10, 1);
+    const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 8,
+      maxDownsample: 4,
+      target,
+      coarsen,
+    });
+    expect(() => sweep(h, 600)).not.toThrow();
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    return h.capacityErrors[0] as MaskCapacityExceededError;
+  };
+
+  it("reports a strategy's own capacity error as its failure, not the limit (#243 round 2, minor 1)", () => {
+    // It read as a decline, and the refusal blamed maxDownsample.
+    const own = new MaskCapacityExceededError(1, 1);
+    const error = refusedUnder(() => {
+      throw own;
+    });
+    expect(error.cause).toBe(own);
+    expect(error.message).toMatch(/Coarsening it failed/);
+    expect(error.message).not.toMatch(/maxDownsample/);
+  });
+
+  it('refuses a result on another image, or outside the rounded-out box (#243 round 2, minor 2)', () => {
+    const elsewhere = refusedUnder((source) => {
+      const coarse = toDenseSnapshot(majorityCoarsen(source));
+      return denseRaster({ ...coarse, imageWidth: coarse.imageWidth + 2 });
+    });
+    expect(elsewhere.message).toMatch(/a mask of a 20002 x 20000 image/);
+    const shifted = refusedUnder((source) => {
+      const coarse = toDenseSnapshot(majorityCoarsen(source));
+      return denseRaster({ ...coarse, cells: { ...coarse.cells, x: coarse.cells.x + 10 } });
+    });
+    expect(shifted.message).toMatch(/outside the source's box/);
+  });
+
+  it('refuses once whatever the strategy throws, even what resists formatting (#243 round 2, minor 3)', () => {
+    const throwingGetter = new Error('x');
+    Object.defineProperty(throwingGetter, 'message', {
+      get() {
+        throw new Error('no');
+      },
+    });
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    for (const [name, thrown] of [
+      ['a null-prototype object', Object.create(null) as unknown],
+      ['a revoked Proxy', revoked.proxy],
+      ['an Error whose message getter throws', throwingGetter],
+    ] as const) {
+      const error = refusedUnder(() => {
+        throw thrown;
+      });
+      expect(error.message, name).toMatch(/Coarsening it failed: a value with no string form/);
+      expect(error.cause, name).toBe(thrown);
     }
   });
 

@@ -3,6 +3,7 @@ import {
   BoundedDenseMaskBuffer,
   denseRaster,
   majorityCoarsen,
+  refineRaster,
   rasterToRuns,
   runRaster,
   toDenseSnapshot,
@@ -187,5 +188,19 @@ describe('majorityCoarsen', () => {
     });
     buffer.set(0, 0, 1);
     expect(() => majorityCoarsen(buffer.raster())).toThrow(/power of two/);
+  });
+
+  it('refuses an off-grid box when coarsening or re-gridding it (#243 round 2, minor 5)', () => {
+    // b6ecb55's example: 37 x 23 at d=4 is a 10 x 6 cell grid, and a box from
+    // column 9, two wide, leaves it. Re-gridded, it came back clipped.
+    const offGrid = denseRaster({
+      cells: { x: 9, y: 2, width: 2, height: 1 },
+      data: new Uint8Array([1, 1]),
+      imageWidth: 37,
+      imageHeight: 23,
+      downsample: 4,
+    });
+    expect(() => refineRaster(offGrid, 1)).toThrow(RangeError);
+    expect(() => majorityCoarsen(offGrid)).toThrow(RangeError);
   });
 });
