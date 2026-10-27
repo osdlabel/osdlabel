@@ -177,7 +177,9 @@ export type MaskLevel0SpanVisitor = (y: number, x0: number, x1: number) => void;
  * negative image columns, what the writers would refuse. Applied to any
  * raster, including a host's own. Off the barrel.
  */
-export function assertRasterOnGrid(raster: MaskRaster): void {
+export function assertRasterOnGrid(
+  raster: Pick<MaskRaster, 'cells' | 'imageWidth' | 'imageHeight' | 'downsample'>,
+): void {
   const { x, y, width, height } = raster.cells;
   // First: a NaN or infinite image makes every comparison below pass.
   assertCountableImage(raster.imageWidth, raster.imageHeight);

@@ -27,6 +27,8 @@ import {
   toDenseSnapshot,
   type MaskSnapshot,
 } from '../../src/index.js';
+// Off the barrel: stubbed to run a large export without building its string.
+import { CocoCountsStringWriter } from '../../src/coco-rle-codec.js';
 
 /**
  * Hand-computed fixture. A 4x3 image with a 2x2 block at (1,1):
@@ -279,7 +281,7 @@ describe('pycocotools interop limits', () => {
     expect(isCocoInteropSafe(solid(4_095))).toBe(true);
   });
 
-  it('is false once the runs pass the bound the exporter refuses at', { timeout: 60_000 }, () => {
+  it('is false once the runs pass the bound the exporter refuses at, as quickly', () => {
     // Alternating rows of d=16 cells, 2,100 x 4,096 of them on a 65,536-square
     // image: about 137.6 M runs, past MAX_COCO_RUNS, while every run, delta
     // and position stays in pycocotools' range (the last foreground pixel is
@@ -296,7 +298,11 @@ describe('pycocotools interop limits', () => {
       },
       runs,
     );
+    // Counted first, as the exporter counts: emitting every run up to the
+    // bound took 2-2.7 s, against 1-7 ms for the exporter's refusal.
+    const started = performance.now();
     expect(isCocoInteropSafe(alternating)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(500);
     // The exporter refuses it too, so "not safe" is the honest answer.
     expect(() => cocoRleCodec.encode(alternating)).toThrow(CocoRunLimitExceededError);
   });
@@ -388,9 +394,10 @@ describe('COCO export cost', () => {
     return { payload, raster: decodeCanonicalRaster(payload) };
   }
 
-  it('exports a downsampled mask whose runs are many but within the bound', () => {
-    // The reviewer's 6.7 kB payload: 125,000,001 runs, under MAX_COCO_RUNS,
-    // so not refused. Counted only: writing its 125 MB string took 13-15 s.
+  it('counts a downsampled mask whose runs are many but within the bound', () => {
+    // The reviewer's 6.7 kB payload: 125,000,001 runs, under MAX_COCO_RUNS.
+    // Counted only here, since writing its 125 MB string took 13-15 s; the
+    // test below shows the compressed codec exports such a mask.
     const { payload, raster } = stripes(3125, 2500);
     expect(payload.counts.length).toBe(6668);
     expect(countCocoRuns(raster)).toBe(125_000_001);
@@ -464,10 +471,34 @@ describe('COCO export cost', () => {
     expect(() => snapshotToCocoCounts(between)).toThrow(CocoRunLimitExceededError);
   });
 
-  it('refuses to decode more runs than the array limit, by name', { timeout: 60_000 }, () => {
+  it('exports between the two limits through the compressed codec (#149 final 5)', () => {
+    // Only the string has no array limit. The writer is stubbed, so the sweep
+    // emits all 120 M runs without a 120 MB string being built.
+    const between = stripes(3000, 2500).raster;
+    const { push, finish } = CocoCountsStringWriter.prototype;
+    let pushed = 0;
+    CocoCountsStringWriter.prototype.push = function () {
+      pushed++;
+    };
+    CocoCountsStringWriter.prototype.finish = () => '';
+    try {
+      expect(() => cocoRleCodec.encode(between)).not.toThrow();
+    } finally {
+      CocoCountsStringWriter.prototype.push = push;
+      CocoCountsStringWriter.prototype.finish = finish;
+    }
+    expect(pushed).toBe(countCocoRuns(between));
+    expect(pushed).toBeGreaterThan(MAX_COCO_ARRAY_RUNS);
+  }, 30_000);
+
+  it('refuses to decode more runs than the array limit, by name, before allocating', () => {
     // One character per run: '0' is a delta of zero, so every run is 0 long.
+    // Counted in one pass over the string: building the array first took
+    // 4-13 s and 1.65 GB to refuse it.
     const encoded = '0'.repeat(MAX_COCO_ARRAY_RUNS + 1);
+    const started = performance.now();
     expect(() => decodeCocoCountsString(encoded)).toThrow(/MAX_COCO_ARRAY_RUNS/);
+    expect(performance.now() - started).toBeLessThan(2_000);
     expect(decodeCocoCountsString('0'.repeat(10))).toHaveLength(10);
   });
 
@@ -690,5 +721,54 @@ describe('COCO counts string precision', () => {
       expect(decodeCocoCountsString(encoded)).toEqual(counts);
       expect(reference(encoded)).toEqual(counts);
     }
+  });
+});
+
+describe('COCO export of a host-built snapshot off the grid (#149 final 6, 7)', () => {
+  /** A one-cell snapshot as a host might build it, with any image size and box. */
+  const host = (
+    imageWidth: number,
+    imageHeight: number,
+    cells = { x: 0, y: 0, width: 1, height: 1 },
+    downsample = 1,
+  ): MaskSnapshot => ({
+    cells,
+    data: new Uint8Array(cells.width * cells.height).fill(1),
+    imageWidth,
+    imageHeight,
+    downsample,
+  });
+
+  it('refuses an image size that is not a countable integer, empty masks included', () => {
+    // A NaN width hung `cocoRleCodec.encode`, and gave NaN runs as an array.
+    for (const [width, height] of [
+      [Number.NaN, 10],
+      [10, Infinity],
+      [10.5, 10],
+    ] as const) {
+      const label = `${width}x${height}`;
+      expect(() => cocoRleCodec.encode(denseRaster(host(width, height))), label).toThrow(
+        RangeError,
+      );
+      expect(() => snapshotToCocoCounts(host(width, height)), label).toThrow(RangeError);
+      expect(() => countCocoRuns(host(width, height)), label).toThrow(RangeError);
+      const empty = host(width, height, { x: 0, y: 0, width: 0, height: 0 });
+      expect(() => snapshotToCocoCounts(empty), label).toThrow(RangeError);
+    }
+  });
+
+  it('refuses an off-grid box in cocoBbox, as cocoArea and the encoders do', () => {
+    // 37 x 23 at d=4 is a 10 x 6 cell grid: a box from column 9, two wide,
+    // leaves it, and came back as [36, 8, 1, 4], clipped.
+    const wide = host(37, 23, { x: 9, y: 2, width: 2, height: 1 }, 4);
+    expect(() => cocoArea(wide)).toThrow(RangeError);
+    expect(() => cocoBbox(wide)).toThrow(RangeError);
+    // A negative origin came back with a negative x.
+    const negative = host(37, 23, { x: -1, y: 0, width: 1, height: 1 });
+    expect(() => cocoBbox(negative)).toThrow(RangeError);
+    // On the grid, the box is in image pixels, clipped at the image's edge.
+    expect(cocoBbox(host(37, 23, { x: 9, y: 2, width: 1, height: 1 }, 4))).toEqual([36, 8, 1, 4]);
+    // An empty mask has no box to check.
+    expect(cocoBbox(host(37, 23, { x: 0, y: 0, width: 0, height: 0 }))).toEqual([0, 0, 0, 0]);
   });
 });
