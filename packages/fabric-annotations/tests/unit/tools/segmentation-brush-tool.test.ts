@@ -1762,6 +1762,10 @@ describe('SegmentationBrushTool: re-gridding never turns a stroke that fits into
         ).toEqual([]);
         expect(h.commits, label).toHaveLength(1);
         expect(h.commits[0]!.snapshot.cells.width, label).toBeLessThanOrEqual(MAX_MASK_CANVAS_SIDE);
+        // The finest grid that draws: d=1 is 40,160 cells wide, d=2 fits.
+        // Giving up at the first too-wide grid passed every test (#243 round
+        // 2, minor 8).
+        if (zoom >= 1) expect(h.commits[0]!.snapshot.downsample, label).toBe(2);
       }
     }
   });
@@ -1781,7 +1785,14 @@ describe('SegmentationBrushTool: the canvas side limit, at the press and mid-str
       viewport: { zoom: 1, width: 800, height: 800 },
     });
     move(h.tool, 20_000, 495);
-    expect(h.objects.some((o) => o.type === 'path')).toBe(true);
+    const cue = h.objects.find((o) => !o.id && o.type === 'path') as
+      | (FabricObject & { path: [string, ...number[]][] })
+      | undefined;
+    expect(cue).toBeDefined();
+    // Its cells are d=2's: every corner on the 2-pixel grid, some off the 4.
+    const corners = cue!.path.flatMap(([, ...coords]) => coords);
+    expect(corners.every((n) => n % 2 === 0)).toBe(true);
+    expect(corners.some((n) => n % 4 === 2)).toBe(true);
   });
 
   it('carries a failed coarsening back as the cause of the canvas refusal (#243 round 2, minor 1)', () => {

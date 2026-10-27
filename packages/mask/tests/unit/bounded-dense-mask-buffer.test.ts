@@ -255,9 +255,12 @@ describe('growth from an allocation with nothing set (#243 P3)', () => {
   });
 
   it('paints far away after everything painted was erased', () => {
-    const b = buffer(1000, 1000, 64 * 64);
-    stampCircle(b, 900, 20, 4, 1);
-    stampCircle(b, 900, 20, 6, 0);
+    // Far enough right that the old copy's offset leaves the new allocation:
+    // at x=900 on a 1,000-wide image it stayed inside, and the test passed
+    // without the guard (#243 round 2, minor 9).
+    const b = buffer(4000, 1000, 64 * 64);
+    stampCircle(b, 3000, 20, 4, 1);
+    stampCircle(b, 3000, 20, 6, 0);
     expect(b.cellCount).toBe(0);
     expect(() => stampCircle(b, 20, 20, 4, 1)).not.toThrow();
     expect(b.get(20, 20)).toBe(1);

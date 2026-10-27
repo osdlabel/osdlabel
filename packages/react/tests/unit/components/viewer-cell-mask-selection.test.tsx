@@ -72,6 +72,8 @@ const fakeCanvas = {
 
 /** When set, every object build waits on it before resolving. */
 let buildGate: Promise<void> | undefined;
+/** Every annotation id the renderer was asked to build, in order. */
+const builtIds: string[] = [];
 
 /** The overlay's single authority over interaction flags; every built object must pass through it. */
 const applyModeToObject = vi.fn();
@@ -128,6 +130,7 @@ vi.mock('@osdlabel/fabric-annotations', async () => ({
       options?: { maskFill?: string | undefined; maxCanvasPixels?: number | undefined },
     ) => {
       // Lets a test hold every build open, to change the selection mid-rebuild.
+      builtIds.push(annotation.id);
       if (buildGate) await buildGate;
       const obj: FakeObject = {
         id: annotation.id,
@@ -176,6 +179,7 @@ describe('ViewerCell selected-mask styling', () => {
     objects.length = 0;
     openHandlers.length = 0;
     buildGate = undefined;
+    builtIds.length = 0;
     applyModeToObject.mockClear();
     caches.length = 0;
   });
@@ -422,6 +426,25 @@ describe('ViewerCell selected-mask styling', () => {
     await vi.waitFor(() => expect(objects).toHaveLength(2));
     expect(objects.find((o) => o.id === 'm1')).toBeUndefined();
     expect(byId('m2').opacity).toBe(1);
+  });
+
+  it('does not rebuild the selected mask for an equal maskStyle in a new object (#243 round 2, minor 10)', async () => {
+    // The provider memoizes `maskStyle` by its fields. Without that, a host
+    // passing a new, equal style re-ran the selection effect, which cancelled
+    // the pending swap and decoded the mask again.
+    const h = await mountWithMasks({ selectedFill: '#ff0000' });
+    let release!: () => void;
+    buildGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.run((a) => a.setSelectedAnnotation(m1));
+    act(() => h.rerender({ brushOptions: { maskStyle: { selectedFill: '#ff0000' } } }, cell));
+    release();
+    buildGate = undefined;
+    await vi.waitFor(() => expect(byId('m1').maskFill).toBe('#ff0000'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Once at mount, once for the swap.
+    expect(builtIds.filter((id) => id === 'm1')).toHaveLength(2);
   });
 
   it('reverts the selected tint when selectedFill is turned off at runtime', async () => {
