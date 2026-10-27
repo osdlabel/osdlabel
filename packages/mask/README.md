@@ -121,8 +121,8 @@ erased hole, an edge-touching stroke, and a single pixel at the origin,
 
 ### pycocotools limitations worth knowing (not enforced here)
 
-`pycocotools`' C decoder misreads two kinds of count when it reads a mask
-back, and the area stays correct while the mask _moves_:
+`pycocotools`' C code misreads three kinds of mask when it reads one back. The
+mask _moves_, and in the last case its area can be wrong too:
 
 - it stores run lengths in **32 bits**, so a run past `0xffffffff` is
   truncated — a mask at the centre of a 100000x100000 image comes back near
@@ -131,12 +131,18 @@ back, and the area stays correct while the mask _moves_:
   sign-extends the last chunk with a shift too wide for it, so a delta below
   **-2^29** is misread, and every count after it. A huge background gap
   followed two runs later by a short one is enough: three pixels on a 24,000 x
-  24,000 image come back with the right area and the wrong box.
+  24,000 image come back with the right area and the wrong box;
+- its `rleToBbox` accumulates the column-major position, and `rleArea` the
+  area, in a 32-bit `uint`, so a foreground pixel at index **2^32** or past it
+  is misplaced, and on a large mask the area is wrong too. Any image of more
+  than 2^32 pixels can reach it (65,536², an ordinary whole-slide size): a
+  one-pixel line across 100,000 x 80,000 comes back as a 53,687 x 7,297 box.
 
-Within `COCO_MAX_INTEROP_IMAGE_PIXELS` (2^29, about 0.54 gigapixels) neither
-can happen. Beyond it, whether a mask is safe depends on its runs, and
+Within `COCO_MAX_INTEROP_IMAGE_PIXELS` (2^29, about 0.54 gigapixels) none of
+these can happen. Beyond it, whether a mask is safe depends on its runs, and
 `isCocoInteropSafe` decides from them, stopping at the first one out of
-range. Our encoder and decoder handle every case correctly, and this package
+range, or at `MAX_COCO_RUNS` runs, past which the exporter refuses the mask
+anyway. Our encoder and decoder handle every case correctly, and this package
 does not refuse, clamp, or warn — the output is valid COCO, and the
 constraint belongs to one downstream reader:
 

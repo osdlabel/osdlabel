@@ -1834,17 +1834,22 @@ The compressed codec is checked against the reference implementation:
 `pycocotools.mask.encode`, and the codec reproduces them byte for byte.
 
 :::note[`pycocotools` limitations, if your images are very large]
-`pycocotools`' C decoder misreads two kinds of count when it reads a mask back.
-The area survives, but the mask _moves_:
+`pycocotools`' C code misreads three kinds of mask when it reads one back. The
+mask _moves_, and in the last case its area can be wrong too:
 
 - a run longer than 2³²−1, which it truncates to 32 bits — a small mask at the
   centre of a 100000×100000 image comes back near the top-left corner;
 - a delta (`counts[i] − counts[i−2]`) below −2²⁹, which overflows its
   sign extension — three pixels on a 24,000×24,000 image, a huge gap then a
-  short one, come back with the right area and the wrong box.
+  short one, come back with the right area and the wrong box;
+- a foreground pixel at column-major index 2³² or past it, because its box
+  and area are summed in a 32-bit `uint`. Any image of more than 2³² pixels
+  can reach it, which is an ordinary whole-slide size (65,536²): a one-pixel
+  line across 100,000×80,000 comes back as a 53,687×7,297 box, and a large
+  solid mask with the wrong area.
 
 On an image of 2²⁹ pixels or fewer (`COCO_MAX_INTEROP_IMAGE_PIXELS`, about 0.54
-gigapixels) neither can happen. Past that it depends on the mask's runs, so
+gigapixels) none of these can happen. Past that it depends on the mask's runs, so
 check them before exporting:
 
 ```ts

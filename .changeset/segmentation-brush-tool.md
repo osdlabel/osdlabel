@@ -135,8 +135,10 @@ paths that return an array are bounded at `MAX_COCO_ARRAY_RUNS` (2^27).
 codec's error (`SerializationError` now takes a `cause`).
 
 `isCocoInteropSafe` now decides from a mask's runs whether `pycocotools` reads
-it back correctly — it truncates runs past 32 bits and misreads deltas below
--2^29 — and `COCO_MAX_INTEROP_IMAGE_PIXELS` is 2^29, the image size within
+it back correctly — it truncates runs past 32 bits, misreads deltas below
+-2^29, and misplaces a foreground pixel at column-major index 2^32 or past it,
+where its box and area are summed in 32 bits (on a large mask the area is
+wrong too) — and `COCO_MAX_INTEROP_IMAGE_PIXELS` is 2^29, the image size within
 which every mask is safe. It was 2^32 - 1, which pycocotools does not honour. On import `MaskDecodeOptions.downsample` decodes COCO straight
 into cells, and `deserialize` passes the annotation's `geometry.downsample`, so
 a coarse mask comes back coarse; a payload that is not constant within each

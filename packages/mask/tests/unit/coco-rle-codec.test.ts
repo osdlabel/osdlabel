@@ -223,6 +223,64 @@ describe('pycocotools interop limits', () => {
     expect(isCocoInteropSafe(threePixels(24_000, 24_000, 560_000_000, -559_999_997))).toBe(false);
   });
 
+  it('is false once a foreground pixel lies at column-major index 2^32 or past it', () => {
+    // pycocotools' rleToBbox accumulates the position, and rleArea the area,
+    // in a 32-bit uint. Verified against pycocotools 2.0.11: this one-pixel
+    // line across a 100,000 x 80,000 image comes back as the box
+    // [0, 32704, 53687, 7297], not [0, 40000, 100000, 1]. Its runs and deltas
+    // are all in range, so only the position says so.
+    const line = runRaster(
+      {
+        cells: { x: 0, y: 40_000, width: 100_000, height: 1 },
+        imageWidth: 100_000,
+        imageHeight: 80_000,
+        downsample: 1,
+      },
+      [0, 100_000],
+    );
+    expect(isCocoInteropSafe(line)).toBe(false);
+
+    // The exact boundary, verified through the compressed string, encoded
+    // here and decoded by pycocotools: a line along the bottom row of a
+    // 65,537 x 65,536 image. 65,536 pixels long, its last pixel is at index
+    // 2^32 - 1 and it reads back right; one pixel longer, the last is at
+    // 2^32 + 65,535 and pycocotools drops that column from the box.
+    const bottomRow = (width: number) =>
+      runRaster(
+        {
+          cells: { x: 0, y: 65_535, width, height: 1 },
+          imageWidth: 65_537,
+          imageHeight: 65_536,
+          downsample: 1,
+        },
+        [0, width],
+      );
+    expect(isCocoInteropSafe(bottomRow(65_536))).toBe(true);
+    expect(isCocoInteropSafe(bottomRow(65_537))).toBe(false);
+  });
+
+  it('is false once the runs pass the bound the exporter refuses at', { timeout: 60_000 }, () => {
+    // Alternating rows of d=16 cells, 2,100 x 4,096 of them on a 65,536-square
+    // image: about 137.6 M runs, past MAX_COCO_RUNS, while every run, delta
+    // and position stays in pycocotools' range (the last foreground pixel is
+    // near index 2.2e9), so only the run bound can say so.
+    const rows = 4_096;
+    const runs = [0];
+    for (let row = 0; row < rows; row++) runs.push(2_100);
+    const alternating = runRaster(
+      {
+        cells: { x: 0, y: 0, width: 2_100, height: rows },
+        imageWidth: 65_536,
+        imageHeight: 65_536,
+        downsample: 16,
+      },
+      runs,
+    );
+    expect(isCocoInteropSafe(alternating)).toBe(false);
+    // The exporter refuses it too, so "not safe" is the honest answer.
+    expect(() => cocoRleCodec.encode(alternating)).toThrow(CocoRunLimitExceededError);
+  });
+
   it('is still unaffected for our own round trip', () => {
     // Compared as counts: the mask's box is far past the cell cap, which a
     // decode applies, though the runs themselves are few.
