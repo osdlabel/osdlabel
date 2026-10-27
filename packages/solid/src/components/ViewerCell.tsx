@@ -149,11 +149,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     {
       // A brush commit's mask, from its preview: the rebuild its write
       // triggers then reuses it instead of re-rasterizing (#238).
-      seedMaskObject: (seed) =>
-        maskObjects.seed(
-          seed,
-          untrack(() => brushOptions.maxCanvasPixels),
-        ),
+      seedMaskObject: (seed) => maskObjects.seed(seed, untrack(maskBudget)),
     },
   );
 
@@ -341,7 +337,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       annotations: masks,
       opacityFor: (id) => maskOpacityFor(id, selectedMaskId, maskStyle),
       isCancelled: () => cancelled,
-      maxCanvasPixels: untrack(() => brushOptions.maxCanvasPixels),
+      maxCanvasPixels: untrack(maskBudget),
     });
   });
 

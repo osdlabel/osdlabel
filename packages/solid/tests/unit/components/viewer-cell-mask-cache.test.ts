@@ -490,6 +490,31 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     expect(buildsFor('m1')).toBe(1);
   });
 
+  it("rebuilds instead when the seed is past the host's display budget (#243 minor 14)", async () => {
+    await mountWithMasks();
+    setBudget(100);
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    const commit = brushCommit(undefined);
+    let built = 0;
+    toolCell!.seedMaskObject!({
+      annotationId: m1,
+      rawAnnotationData: commit.rawAnnotationData,
+      fill: undefined,
+      // 361 cells: past a 100-pixel budget, which a mip would have to draw.
+      width: 19,
+      height: 19,
+      object: (() => {
+        built++;
+        return commit.object;
+      }) as unknown as MaskObjectSeed['object'],
+    });
+    setAnnotations('byImage', imageId, m1, (prev) => ({ ...prev!, ...commit.fields }));
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(3));
+    await vi.waitFor(() => expect(objects.find((o) => o.id === 'm1')).toBeDefined());
+    expect(byId('m1')).not.toBe(commit.object);
+    expect(built).toBe(0);
+  });
+
   it('rebuilds instead when the seed was drawn in another tint', async () => {
     await mountWithMasks();
     const commit = brushCommit('rgba(255, 0, 0, 1)');

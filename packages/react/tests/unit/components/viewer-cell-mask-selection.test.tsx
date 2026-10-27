@@ -35,6 +35,8 @@ interface FakeObject {
   visible?: boolean;
   /** The tint `createFabricObjectFromRawData` was asked for, if any. */
   maskFill?: string | undefined;
+  /** The display budget it was asked to draw under. */
+  maxCanvasPixels?: number | undefined;
   set(key: string, value: unknown): void;
 }
 const objects: FakeObject[] = [];
@@ -121,13 +123,17 @@ vi.mock('@osdlabel/fabric-annotations', async () => ({
     '@osdlabel/fabric-annotations',
   )),
   createFabricObjectFromRawData: vi.fn(
-    async (annotation: { id: string }, options?: { maskFill?: string | undefined }) => {
+    async (
+      annotation: { id: string },
+      options?: { maskFill?: string | undefined; maxCanvasPixels?: number | undefined },
+    ) => {
       // Lets a test hold every build open, to change the selection mid-rebuild.
       if (buildGate) await buildGate;
       const obj: FakeObject = {
         id: annotation.id,
         opacity: 1,
         maskFill: options?.maskFill,
+        maxCanvasPixels: options?.maxCanvasPixels,
         set(key, value) {
           (obj as unknown as Record<string, unknown>)[key] = value;
         },
@@ -314,6 +320,49 @@ describe('ViewerCell selected-mask styling', () => {
     expect(byId('m1').maskFill).toBeUndefined();
     expect(byId('m1').opacity).toBe(DEFAULT_UNSELECTED_MASK_OPACITY);
   });
+
+  /** Mounts with a host display budget of 1,000 and a selected tint. */
+  function mountUnderBudget(): AnnotatorHarness {
+    const h = renderAnnotator(
+      {
+        ...providerProps(),
+        brushOptions: { maskStyle: { selectedFill: '#ff0000' }, maxCanvasPixels: 1_000 },
+      },
+      cell,
+    );
+    h.run((a) => {
+      a.setContexts([{ id: contextId, label: 'All', tools: [{ type: 'segmentationBrush' }] }]);
+      a.setActiveContext(contextId);
+    });
+    act(() => openHandlers[0]!());
+    return h;
+  }
+
+  it("redraws a recoloured mask under the host's display budget (#243 minor 14)", async () => {
+    const h = mountUnderBudget();
+    await vi.waitFor(() => expect(objects).toHaveLength(3));
+    expect(byId('m1').maxCanvasPixels).toBe(1_000);
+    // The selection effect's swap.
+    h.run((a) => a.setSelectedAnnotation(m1));
+    await vi.waitFor(() => expect(byId('m1').maskFill).toBe('#ff0000'));
+    expect(byId('m1').maxCanvasPixels).toBe(1_000);
+  });
+
+  it("redraws under the host's budget when the rebuild issues the swap (#243 minor 14)", async () => {
+    let release!: () => void;
+    buildGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const h = mountUnderBudget();
+    // Selected while the rebuild is in flight: its objects land in the old
+    // tint, and the rebuild swaps the selected one itself.
+    h.run((a) => a.setSelectedAnnotation(m1));
+    release();
+    buildGate = undefined;
+    await vi.waitFor(() => expect(byId('m1')?.maskFill).toBe('#ff0000'));
+    expect(byId('m1').maxCanvasPixels).toBe(1_000);
+  });
+
   it('applies a selection made while the rebuild was still in flight', async () => {
     // A click can land while the objects are still being built: the selection
     // effect then finds a canvas the rebuild has just cleared, so the rebuild

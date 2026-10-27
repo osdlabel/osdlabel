@@ -35,6 +35,8 @@ interface FakeObject {
   visible?: boolean;
   /** The tint `createFabricObjectFromRawData` was asked for, if any. */
   maskFill?: string | undefined;
+  /** The display budget it was asked to draw under. */
+  maxCanvasPixels?: number | undefined;
   set(key: string, value: unknown): void;
 }
 const objects: FakeObject[] = [];
@@ -121,13 +123,17 @@ vi.mock('@osdlabel/fabric-annotations', async () => ({
     '@osdlabel/fabric-annotations',
   )),
   createFabricObjectFromRawData: vi.fn(
-    async (annotation: { id: string }, options?: { maskFill?: string | undefined }) => {
+    async (
+      annotation: { id: string },
+      options?: { maskFill?: string | undefined; maxCanvasPixels?: number | undefined },
+    ) => {
       // Lets a test hold every build open, to change the selection mid-rebuild.
       if (buildGate) await buildGate;
       const obj: FakeObject = {
         id: annotation.id,
         opacity: 1,
         maskFill: options?.maskFill,
+        maxCanvasPixels: options?.maxCanvasPixels,
         set(key, value) {
           (obj as unknown as Record<string, unknown>)[key] = value;
         },
@@ -162,9 +168,13 @@ const { state: uiState, setState: setUi } = createUIStore();
 // A signal behind the getter, as the real provider's props are reactive, so a
 // style change after mount re-runs the cell's selection effect.
 const [maskStyleSignal, setMaskStyle] = createSignal<MaskStyle | undefined>(undefined);
+const [budgetSignal, setBudget] = createSignal<number | undefined>(undefined);
 const brushOptions = {
   get maskStyle() {
     return maskStyleSignal();
+  },
+  get maxCanvasPixels() {
+    return budgetSignal();
   },
 };
 const mockState = createMockAnnotator({
@@ -214,6 +224,7 @@ describe('ViewerCell selected-mask styling', () => {
     applyModeToObject.mockClear();
     setUi('selectedAnnotationId', null);
     setMaskStyle(undefined);
+    setBudget(undefined);
     seedAnnotations();
     mockState.annotationState.byImage[image2] = { [m3]: mask(m3, image2) };
     caches.length = 0;
@@ -371,6 +382,43 @@ describe('ViewerCell selected-mask styling', () => {
     setUi('selectedAnnotationId', null);
     setUi('selectedAnnotationId', m1);
     expect(byId('m2').opacity).toBe(1);
+  });
+
+  it("redraws a recoloured mask under the host's display budget (#243 minor 14)", async () => {
+    setBudget(1_000);
+    setMaskStyle({ selectedFill: '#ff0000' });
+    await mountWithMasks();
+    expect(byId('m1').maxCanvasPixels).toBe(1_000);
+    // The selection effect's swap.
+    setUi('selectedAnnotationId', m1);
+    await vi.waitFor(() => expect(byId('m1').maskFill).toBe('#ff0000'));
+    expect(byId('m1').maxCanvasPixels).toBe(1_000);
+  });
+
+  it("redraws under the host's budget when the rebuild issues the swap (#243 minor 14)", async () => {
+    setBudget(1_000);
+    setMaskStyle({ selectedFill: '#ff0000' });
+    let release!: () => void;
+    buildGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    dispose = createRoot((disposeFn) => {
+      createComponent(ViewerCell, {
+        imageSource: { id: imageId, tileSource: 'x.png' },
+        isActive: true,
+        cellIndex: 0,
+        onActivate: () => {},
+      });
+      return disposeFn;
+    });
+    openHandlers[0]!();
+    // Selected while the rebuild is in flight: its objects land in the old
+    // tint, and the rebuild swaps the selected one itself.
+    setUi('selectedAnnotationId', m1);
+    release();
+    buildGate = undefined;
+    await vi.waitFor(() => expect(byId('m1')?.maskFill).toBe('#ff0000'));
+    expect(byId('m1').maxCanvasPixels).toBe(1_000);
   });
 
   it('reverts the selected tint when selectedFill is turned off at runtime', async () => {
