@@ -121,11 +121,17 @@ function displayRaster(raster: MaskRaster, maxCanvasPixels: number): MaskRaster 
     r.cells.width <= MAX_MASK_CANVAS_SIDE &&
     r.cells.height <= MAX_MASK_CANVAS_SIDE &&
     r.cells.width * r.cells.height <= budget;
+  const sideFits = (r: MaskRaster) =>
+    r.cells.width <= MAX_MASK_CANVAS_SIDE && r.cells.height <= MAX_MASK_CANVAS_SIDE;
   let display = raster;
+  // Whether the last halving was the side's doing: the budget alone would
+  // have stopped a level earlier.
+  let bySide = false;
   while (!fits(display)) {
     if (display.downsample * 2 > MAX_MASK_DOWNSAMPLE) {
       throw new MaskCanvasTooLargeError(display.cells.width, display.cells.height, budget);
     }
+    bySide = !sideFits(display);
     display = majorityCoarsen(display);
   }
   // A mip with nothing left would draw a set mask blank, silently.
@@ -136,6 +142,7 @@ function displayRaster(raster: MaskRaster, maxCanvasPixels: number): MaskRaster 
       raster.downsample,
       display.downsample,
       budget,
+      bySide,
     );
   }
   return display;

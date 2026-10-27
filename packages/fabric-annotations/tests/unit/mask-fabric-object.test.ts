@@ -288,7 +288,18 @@ describe('a mask too long for a canvas', () => {
     // other cell (each a 2-of-4 tie), the second none (1 of 4).
     const strip = caught(solid(70_000, 1));
     expect(strip).toBeInstanceOf(MaskDisplayMipEmptyError);
-    expect(strip).toMatchObject({ width: 70_000, height: 1, downsample: 1, mipDownsample: 4 });
+    expect(strip).toMatchObject({
+      width: 70_000,
+      height: 1,
+      downsample: 1,
+      mipDownsample: 4,
+      bySide: true,
+    });
+    // The side forced that mip, so no budget helps: it throws under Infinity
+    // too, and says to split the mask (#243 round 2, minor 13).
+    expect(caught(solid(70_000, 1), Infinity)).toBeInstanceOf(MaskDisplayMipEmptyError);
+    expect((strip as Error).message).toMatch(/split it into narrower masks/);
+    expect((strip as Error).message).not.toMatch(/maxCanvasPixels/);
 
     // A one-cell anti-diagonal, x + y = k with k odd: every 2x2 block it
     // crosses holds two of its cells, a tie, broken by the block's parity,
@@ -313,7 +324,7 @@ describe('a mask too long for a canvas', () => {
     };
     const cleared = caught(diagonal(1_003), 500_000);
     expect(cleared).toBeInstanceOf(MaskDisplayMipEmptyError);
-    expect(cleared).toMatchObject({ mipDownsample: 2, maxPixels: 500_000 });
+    expect(cleared).toMatchObject({ mipDownsample: 2, maxPixels: 500_000, bySide: false });
     expect((cleared as Error).message).toMatch(/raise brushOptions\.maxCanvasPixels/);
     expect(caught(diagonal(1_001), 500_000)).toBeUndefined();
     // Drawn in full, nothing is dropped.

@@ -82,20 +82,34 @@ export class MaskDisplayMipEmptyError extends Error {
   /** The display budget it was drawn under. */
   readonly maxPixels: number;
 
+  /** Whether the canvas side, which no budget lifts, forced the mip. */
+  readonly bySide: boolean;
+
+  /**
+   * @param bySide The canvas side forced the mip, not the budget: raising
+   * `maxCanvasPixels` cannot help, so the advice is to split the mask.
+   */
   constructor(
     width: number,
     height: number,
     downsample: number,
     mipDownsample: number,
     maxPixels: number,
+    bySide = false,
   ) {
     super(
       `A mask ${width} x ${height} cells wide is drawn from a display mip at downsample ` +
-        `${mipDownsample}, to fit a display budget of ${maxPixels} canvas pixels and a canvas ` +
-        `side of ${MAX_MASK_CANVAS_SIDE}, and none of its cells survive there: they are ` +
-        `thinner than a mip cell. It is kept, and exports as usual; raise ` +
-        `brushOptions.maxCanvasPixels, or split it into separate masks.`,
+        `${mipDownsample}, to fit ` +
+        (bySide
+          ? `the ${MAX_MASK_CANVAS_SIDE}-pixel side a canvas draws`
+          : `a display budget of ${maxPixels} canvas pixels`) +
+        `, and none of its cells survive there: they are thinner than a mip cell. It is ` +
+        `kept, and exports as usual; ` +
+        (bySide
+          ? `split it into narrower masks, since no display budget lifts the canvas side.`
+          : `raise brushOptions.maxCanvasPixels, or split it into separate masks.`),
     );
+    this.bySide = bySide;
     this.name = 'MaskDisplayMipEmptyError';
     this.width = width;
     this.height = height;

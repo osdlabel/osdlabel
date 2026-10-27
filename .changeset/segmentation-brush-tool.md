@@ -167,7 +167,8 @@ Safari draws), or more than `MAX_MASK_CANVAS_SIDE` (32,767, Firefox's limit)
 cells wide or tall, is drawn from a display mip instead of blank or refused:
 halved by `majorityCoarsen` until it fits, placed at `d · 2^k`, and never
 stored. `brushOptions.maxCanvasPixels` moves the budget (`Infinity`, or
-anything not a positive finite number, draws every mask at full resolution;
+anything not a positive finite number, lifts the area budget; a mask past the
+canvas side is still drawn from a mip;
 a new options object with an equal budget redraws nothing), and `createFabricObjectFromRawData` and
 `buildMaskFabricObject` take it as `maxCanvasPixels`. The renderer throws
 `MaskCanvasTooLargeError` only if not even the coarsest mip fits, and

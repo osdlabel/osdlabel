@@ -558,8 +558,9 @@ So a mask is drawn under a **display budget**, `MAX_MASK_CANVAS_PIXELS` (16 Mi,
 majority rule (`majorityCoarsen`) until it fits, and placed at `d · 2^k`, so it
 covers the same image region and is only blockier at high zoom. The stored
 mask, and everything exported, are untouched. `brushOptions.maxCanvasPixels`
-moves the budget: raise it where the engine allows, or set `Infinity` to always
-draw at full resolution. Changing it redraws the cell's masks. A mask past the budget is drawn from that
+moves the budget: raise it where the engine allows, or set `Infinity` to lift
+it. `Infinity` lifts only the area budget: a mask more than 32,767 cells wide or
+tall is still drawn from a mip, since no canvas draws that side. Changing it redraws the cell's masks. A mask past the budget is drawn from that
 coarser copy at every zoom, so a feature thinner than a mip cell, such as a
 one-pixel line or a one-pixel gap, may not show. The majority rule drops thin
 lines and fills thin gaps alike, so the drawing stays unbiased, and the stored
@@ -651,8 +652,9 @@ is 0.99924, 0.99834, 0.99651 and 0.99307 at d = 2, 4, 8 and 16. That's within
 ahead of it at d=2. Its median signed area error stays under
 0.06%, and no lesion is lost. "Any of four" (OR) reaches only 0.99288 at d=8,
 with a +8% area bias. A unit test paints random lesions stroke by stroke
-through the brush, coarsening as it overflows, and holds it to the same bounds
-at every d up to 16. A host may supply its own as
+through the brush, coarsening as it overflows, and holds it to its own bounds:
+pooled Dice within 0.001 of one-shot sampling and a median signed area error
+within ±0.1% at every d up to 16, and no lesion lost at d up to 8. A host may supply its own as
 `brushOptions.coarsen` (a `CoarsenStrategy`: a raster in, the raster at twice
 its downsample out). It must meet the contract `verifyCoarsenStrategy` checks:
 
