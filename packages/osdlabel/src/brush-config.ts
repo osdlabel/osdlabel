@@ -119,7 +119,15 @@ export interface MaskObjectSeed {
   readonly rawAnnotationData: MaskRawAnnotationData;
   /** The tint override it is drawn in, or `undefined` for the mask's own. */
   readonly fill: string | undefined;
-  readonly object: FabricObject;
+  /** The object's size in canvas pixels, one per cell: known before building it. */
+  readonly width: number;
+  readonly height: number;
+  /**
+   * Builds the object from the stroke's preview, cropping it then: `null` if
+   * the engine refuses the canvas. Called only by a cache that will keep it,
+   * so a mask past the cell's display budget is never cropped.
+   */
+  readonly object: () => FabricObject | null;
 }
 
 /**
@@ -271,16 +279,17 @@ export function buildSegmentationBrushConfig(
     } else if (preview.fill !== ownFill) {
       return;
     }
+    const { cells, downsample } = stroke.snapshot;
     dispatchers.seedMaskObject({
       annotationId,
       rawAnnotationData,
       fill,
-      object: maskFabricObjectFromCanvas(
-        preview.canvas,
-        stroke.snapshot.cells,
-        stroke.snapshot.downsample,
-        annotationId,
-      ),
+      width: cells.width,
+      height: cells.height,
+      object: () => {
+        const canvas = preview.crop();
+        return canvas ? maskFabricObjectFromCanvas(canvas, cells, downsample, annotationId) : null;
+      },
     });
   };
 

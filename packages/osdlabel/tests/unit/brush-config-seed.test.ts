@@ -61,6 +61,7 @@ function harness(options: { selectedFill?: string; fill?: string } = {}) {
       },
     },
   );
+  const crops: ReturnType<typeof vi.fn>[] = [];
   /** A stroke, committed with a preview painted in `previewFill`. */
   const stroke = (x: number, previewFill: string) => {
     const buffer = new BoundedDenseMaskBuffer({ imageWidth: 200, imageHeight: 150 });
@@ -74,20 +75,23 @@ function harness(options: { selectedFill?: string; fill?: string } = {}) {
     const canvas = document.createElement('canvas');
     canvas.width = snapshot.cells.width;
     canvas.height = snapshot.cells.height;
+    const crop = vi.fn(() => canvas);
+    crops.push(crop);
     config.onCommit({
       startDownsample: 1,
       annotationId: target?.annotationId ?? null,
       imageId,
       contextId,
       snapshot,
-      preview: { canvas, fill: previewFill },
+      preview: { crop, fill: previewFill },
     });
-    return { snapshot, canvas };
+    return { snapshot, canvas, crop };
   };
   return {
     config,
     stroke,
     seeds,
+    crops,
     order,
     get annotations() {
       return annotations;
@@ -106,8 +110,14 @@ describe('the brush seeds the cell with its preview', () => {
     expect(seed.rawAnnotationData).toBe(created.rawAnnotationData);
     // Its own tint, no override.
     expect(seed.fill).toBeUndefined();
+    // Sized as its box, and cropped only when built.
+    expect([seed.width, seed.height]).toEqual([
+      first.snapshot.cells.width,
+      first.snapshot.cells.height,
+    ]);
+    expect(first.crop).not.toHaveBeenCalled();
     // Placed where the payload says, from the preview's canvas.
-    expect(seed.object).toMatchObject({
+    expect(seed.object()).toMatchObject({
       left: first.snapshot.cells.x,
       top: first.snapshot.cells.y,
       id: created.id,
@@ -131,6 +141,8 @@ describe('the brush seeds the cell with its preview', () => {
     overridden.stroke(50, DEFAULT_MASK_FILL);
     expect(overridden.seeds).toEqual([]);
     expect(overridden.order).toEqual(['add']);
+    // And the preview it could not use was never cropped (#243 minor 10).
+    expect(overridden.crops[0]).not.toHaveBeenCalled();
 
     // No override, and a preview in neither the mask's own tint nor the default.
     const odd = harness({ fill: 'rgba(0, 0, 255, 0.5)' });

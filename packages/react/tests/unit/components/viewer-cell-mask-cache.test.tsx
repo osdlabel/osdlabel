@@ -410,7 +410,10 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
       annotationId: m1,
       rawAnnotationData: commit.rawAnnotationData,
       fill: undefined,
-      object: commit.object as unknown as MaskObjectSeed['object'],
+      // The 19 x 19 cells of the r=9 disc, and the object its preview builds.
+      width: 19,
+      height: 19,
+      object: (() => commit.object) as unknown as MaskObjectSeed['object'],
     });
     h.run((a) => a.updateAnnotation(m1, imageId, commit.fields));
     await vi.waitFor(() => expect(byId('m1')).toBe(commit.object));
@@ -424,7 +427,10 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
       annotationId: m1,
       rawAnnotationData: commit.rawAnnotationData,
       fill: 'rgba(255, 0, 0, 1)',
-      object: commit.object as unknown as MaskObjectSeed['object'],
+      // The 19 x 19 cells of the r=9 disc, and the object its preview builds.
+      width: 19,
+      height: 19,
+      object: (() => commit.object) as unknown as MaskObjectSeed['object'],
     });
     h.run((a) => a.updateAnnotation(m1, imageId, commit.fields));
     await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));

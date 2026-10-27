@@ -1,5 +1,6 @@
 import type { FabricObject } from 'fabric';
 import type { Annotation } from '@osdlabel/annotation';
+import type { MaskObjectSeed } from './brush-config.js';
 import {
   MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
@@ -94,22 +95,24 @@ export class MaskObjectCache {
    * part of a commit on a large mask (#238). Matched by content once, since
    * the store may return a different object for the same payload.
    */
-  seed(
-    id: string,
-    rawAnnotationData: unknown,
-    fill: string | undefined,
-    object: FabricObject,
-    maxCanvasPixels: number = MAX_MASK_CANVAS_PIXELS,
-  ): void {
+  seed(seed: MaskObjectSeed, maxCanvasPixels: number = MAX_MASK_CANVAS_PIXELS): void {
     // The preview is at the mask's own resolution; a mask the cell draws from
-    // a display mip must not be shown at that resolution instead.
-    const { width, height } = object;
+    // a display mip must not be shown at that resolution instead. Decided
+    // from the seed's size, before anything is cropped.
+    const { width, height } = seed;
     const budget =
       Number.isFinite(maxCanvasPixels) && maxCanvasPixels > 0 ? maxCanvasPixels : Infinity;
     if (width > MAX_MASK_CANVAS_SIDE || height > MAX_MASK_CANVAS_SIDE || width * height > budget) {
       return;
     }
-    this.entries.set(id, { raw: rawAnnotationData, fill, object, seeded: true });
+    const object = seed.object();
+    if (!object) return;
+    this.entries.set(seed.annotationId, {
+      raw: seed.rawAnnotationData,
+      fill: seed.fill,
+      object,
+      seeded: true,
+    });
   }
 
   /** Drops every entry whose id is not in `keep`. */

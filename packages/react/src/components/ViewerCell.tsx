@@ -146,14 +146,7 @@ export default function ViewerCell({
   // Annotation tool hook. A brush commit's mask comes with its preview: the
   // rebuild its write triggers then reuses it instead of re-rasterizing (#238).
   useAnnotationTool(overlay, imageSource?.id, isActive, {
-    seedMaskObject: (seed) =>
-      maskObjects.seed(
-        seed.annotationId,
-        seed.rawAnnotationData,
-        seed.fill,
-        seed.object,
-        maxCanvasPixelsRef.current,
-      ),
+    seedMaskObject: (seed) => maskObjects.seed(seed, maxCanvasPixelsRef.current),
   });
 
   // Track only the annotation dictionary for this cell's image. Immer keeps

@@ -45,12 +45,17 @@ export interface BrushStrokeCommit {
    */
   readonly startDownsample: number;
   /**
-   * The mask as the stroke's live preview drew it: one canvas pixel per cell
-   * of `snapshot.cells`, in `fill`. A host can show it without decoding and
-   * re-rasterizing the mask (`maskFabricObjectFromCanvas`), the most expensive
-   * part of a commit on a large mask. Absent when there was no preview.
+   * The mask as the stroke's live preview drew it, in `fill`: `crop()` gives
+   * one canvas pixel per cell of `snapshot.cells`, or `null` if the engine
+   * refuses the canvas. A host can show it without decoding and re-rasterizing
+   * the mask (`maskFabricObjectFromCanvas`), the most expensive part of a
+   * commit on a large mask. Cropped only when asked, so a host that cannot use
+   * it — a tint it would not draw, a mask past its display budget — pays
+   * nothing. Absent when there was no preview to crop.
    */
-  readonly preview?: { readonly canvas: HTMLCanvasElement; readonly fill: string } | undefined;
+  readonly preview?:
+    | { readonly fill: string; readonly crop: () => HTMLCanvasElement | null }
+    | undefined;
 }
 
 /** What the next stroke would paint into, answered without resolving it. */
@@ -193,6 +198,8 @@ export class SegmentationBrushTool extends BaseTool {
   private previewPixels: ImageData | null = null;
   /** Stroke tint, parsed once per stroke rather than per repaint. */
   private previewRgba: readonly [number, number, number, number] | null = null;
+  /** The fill `previewRgba` was parsed from: what the preview's pixels are in. */
+  private previewFill: string | null = null;
   /** The refined mask's own tint, so the preview does not recolour it. */
   private targetFill: string | undefined;
 
@@ -447,7 +454,7 @@ export class SegmentationBrushTool extends BaseTool {
     }
 
     const snapshot = this.buffer.raster();
-    const preview = this.croppedPreview(snapshot.cells);
+    const preview = this.previewOf(snapshot.cells);
     const commit: BrushStrokeCommit = {
       annotationId: this.targetId,
       imageId: this.imageId,
@@ -461,15 +468,20 @@ export class SegmentationBrushTool extends BaseTool {
   }
 
   /**
-   * The live preview cut down to `cells`, the committed mask's box: a single
-   * `drawImage`, about 15 ms on a 4000-square mask against 200–280 for a
-   * decode and re-raster (#238). `null` when there is no preview, it does not
-   * cover the box, or the engine refuses the canvas.
+   * The live preview's pixels cut down to `cells`, the committed mask's box,
+   * cropped when the host asks: one native copy, about 15 ms on a 4000-square
+   * mask against 200–280 for a decode and re-raster (#238). `null` when there
+   * is no preview or it does not cover the box.
+   *
+   * From the preview's own `ImageData`, not its canvas: an engine that refused
+   * the preview canvas leaves it blank, and a crop of that seeded the cell
+   * with an invisible mask (#243 P4). The fill is the one the pixels were
+   * drawn in, recorded when the tint was parsed, not re-read at the release.
    */
-  private croppedPreview(cells: MaskCellBox): { canvas: HTMLCanvasElement; fill: string } | null {
-    const source = this.previewCanvas;
+  private previewOf(cells: MaskCellBox): BrushStrokeCommit['preview'] | null {
+    const pixels = this.previewPixels;
     const bounds = this.previewBounds;
-    if (!source || !bounds || cells.width === 0 || cells.height === 0) return null;
+    if (!pixels || !bounds || cells.width === 0 || cells.height === 0) return null;
     if (
       cells.x < bounds.x ||
       cells.y < bounds.y ||
@@ -478,28 +490,27 @@ export class SegmentationBrushTool extends BaseTool {
     ) {
       return null;
     }
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = cells.width;
-      canvas.height = cells.height;
-      const context = canvas.getContext('2d');
-      if (!context) return null;
-      context.drawImage(
-        source,
-        cells.x - bounds.x,
-        cells.y - bounds.y,
-        cells.width,
-        cells.height,
-        0,
-        0,
-        cells.width,
-        cells.height,
-      );
-      return { canvas, fill: this.strokeFill() };
-    } catch {
-      // A refused canvas only costs the host its shortcut: it re-rasterizes.
-      return null;
-    }
+    const fill = this.previewFill ?? this.strokeFill();
+    let cropped: HTMLCanvasElement | null | undefined;
+    const crop = (): HTMLCanvasElement | null => {
+      if (cropped !== undefined) return cropped;
+      cropped = null;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = cells.width;
+        canvas.height = cells.height;
+        const context = canvas.getContext('2d');
+        if (!context) return null;
+        const dx = cells.x - bounds.x;
+        const dy = cells.y - bounds.y;
+        context.putImageData(pixels, -dx, -dy, dx, dy, cells.width, cells.height);
+        cropped = canvas;
+      } catch {
+        // A refused canvas only costs the host its shortcut: it re-rasterizes.
+      }
+      return cropped;
+    };
+    return { fill, crop };
   }
 
   onKeyDown(event: KeyboardEvent): boolean {
@@ -1123,8 +1134,10 @@ export class SegmentationBrushTool extends BaseTool {
 
   private strokeRgba(): readonly [number, number, number, number] {
     if (this.previewRgba) return this.previewRgba;
-    const [red, green, blue, alpha] = new Color(this.strokeFill()).getSource();
+    const fill = this.strokeFill();
+    const [red, green, blue, alpha] = new Color(fill).getSource();
     this.previewRgba = [red, green, blue, Math.round((alpha ?? 1) * 255)];
+    this.previewFill = fill;
     return this.previewRgba;
   }
 
@@ -1177,6 +1190,7 @@ export class SegmentationBrushTool extends BaseTool {
     this.previewBounds = null;
     this.previewPixels = null;
     this.previewRgba = null;
+    this.previewFill = null;
     this.targetFill = undefined;
     this.overlay?.canvas.requestRenderAll();
   }

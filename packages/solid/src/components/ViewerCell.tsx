@@ -130,10 +130,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
       // triggers then reuses it instead of re-rasterizing (#238).
       seedMaskObject: (seed) =>
         maskObjects.seed(
-          seed.annotationId,
-          seed.rawAnnotationData,
-          seed.fill,
-          seed.object,
+          seed,
           untrack(() => brushOptions.maxCanvasPixels),
         ),
     },

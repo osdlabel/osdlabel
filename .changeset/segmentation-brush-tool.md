@@ -302,11 +302,15 @@ as React's provider already did.
 A stroke that changes no cell commits nothing (`MaskBuffer.changeCount`). The
 buffer finds its tight box per row with native `indexOf` / `lastIndexOf`, the
 renderer and the brush preview fill pixels a 32-bit word at a time
-(`MaskBuffer.copyRow`), and a commit carries its live preview cropped to the
-mask (`BrushStrokeCommit.preview`), from which the committing cell seeds
-`MaskObjectCache` (`seed`, through `BrushConfigDispatchers.seedMaskObject` and
-`maskFabricObjectFromCanvas`) so its rebuild does not decode and re-rasterize
-the mask.
+(`MaskBuffer.copyRow`). A commit carries its live preview
+(`BrushStrokeCommit.preview`: the `fill` its pixels are in, and `crop()`, which
+copies them out of the preview's own `ImageData` when called, or gives `null`
+if the engine refused the canvas). The committing cell seeds `MaskObjectCache`
+from it (`seed`, through `BrushConfigDispatchers.seedMaskObject` and
+`maskFabricObjectFromCanvas`), so its rebuild does not decode and re-rasterize
+the mask. A `MaskObjectSeed` gives the object's size and builds it on demand,
+so a seed in a tint the cell will not draw, or past its display budget, is
+never cropped.
 
 ## The selected mask is told apart from the others
 

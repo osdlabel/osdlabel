@@ -394,9 +394,13 @@ describe('SegmentationBrushTool: the commit carries its preview', () => {
       expect(h.commits).toHaveLength(1);
       const commit = h.commits[0]!;
       expect(commit.preview).toBeDefined();
-      const { canvas, fill } = commit.preview!;
+      const { crop, fill } = commit.preview!;
+      const canvas = crop();
+      expect(canvas).not.toBeNull();
+      // Cropped once, then reused.
+      expect(crop()).toBe(canvas);
       const cells = commit.snapshot.cells;
-      expect([canvas.width, canvas.height]).toEqual([cells.width, cells.height]);
+      expect([canvas!.width, canvas!.height]).toEqual([cells.width, cells.height]);
 
       const rendered = buildMaskFabricObject(
         { format: MASK_RAW_FORMAT, data: { ...encodeCanonical(commit.snapshot), fill } },
@@ -405,7 +409,7 @@ describe('SegmentationBrushTool: the commit carries its preview', () => {
       const expected = (rendered.getElement() as HTMLCanvasElement)
         .getContext('2d')!
         .getImageData(0, 0, cells.width, cells.height).data;
-      const actual = canvas.getContext('2d')!.getImageData(0, 0, cells.width, cells.height).data;
+      const actual = canvas!.getContext('2d')!.getImageData(0, 0, cells.width, cells.height).data;
       // Compared on alpha and on the colour of painted pixels: a clear pixel
       // is transparent in both, whatever colour channels it carries.
       for (let i = 0; i < expected.length; i += 4) {
@@ -421,13 +425,49 @@ describe('SegmentationBrushTool: the commit carries its preview', () => {
     }
   });
 
-  it('is absent when nothing was previewed', () => {
-    // No overlay canvas to preview on: the commit still lands, without one.
-    const h = harness();
-    (h.tool as unknown as { overlay: unknown }).overlay = null;
+  /** Refuses a 2D context to every canvas with a side past `side`, as an engine past its limit does. */
+  function refuseCanvasesPast(side: number) {
+    const realCreate = document.createElement.bind(document);
+    return vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+      const el = realCreate(tag) as HTMLCanvasElement;
+      if (tag === 'canvas') {
+        const getContext = el.getContext.bind(el);
+        el.getContext = ((kind: string) =>
+          el.width > side || el.height > side
+            ? null
+            : getContext(kind as '2d')) as unknown as typeof el.getContext;
+      }
+      return el;
+    }) as typeof document.createElement);
+  }
+
+  it('is absent when the engine refused the preview, rather than a blank crop (#243 P4, minor 16)', () => {
+    // The preview canvas past 4,000 px is refused; the small crop would not
+    // be. Cropping the refused canvas gave a fully transparent preview, and the
+    // cell was seeded with an invisible mask. The commit still lands.
+    const spy = refuseCanvasesPast(4_000);
+    try {
+      const h = harness({ imageSize: { width: 20_000, height: 200 }, radius: 5 });
+      down(h.tool, 1_000, 100);
+      move(h.tool, 4_500, 100);
+      up(h.tool, 4_500, 100);
+      expect(h.commits).toHaveLength(1);
+      expect(h.commits[0]!.snapshot.cellCount).toBeGreaterThan(0);
+      expect(h.commits[0]!.preview).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('names the fill its pixels were drawn in, not the one at the release (#243 minor 11)', () => {
+    let fill = 'rgba(255, 0, 0, 0.5)';
+    const h = harness({ radius: 5 });
+    (h.tool as unknown as { config: { getFill: () => string } }).config.getFill = () => fill;
     down(h.tool, 60, 50);
-    up(h.tool, 60, 50);
-    expect(h.commits[0]?.preview).toBeUndefined();
+    fill = 'rgba(0, 0, 255, 0.5)';
+    move(h.tool, 90, 50);
+    up(h.tool, 90, 50);
+    expect(h.commits[0]!.preview!.fill).toBe('rgba(255, 0, 0, 0.5)');
   });
 });
 

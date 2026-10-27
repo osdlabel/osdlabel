@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { FabricObject } from 'fabric';
 import { createAnnotationId } from '@osdlabel/annotation';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { BoundedDenseMaskBuffer, stampCircle } from '@osdlabel/mask';
 import { MaskObjectCache } from '../../src/mask-object-cache.js';
+import type { MaskObjectSeed } from '../../src/brush-config.js';
 import { createMaskAnnotation, maskAnnotationFields } from '../../src/create-mask-annotation.js';
 
 const imageId = createImageId('img');
@@ -67,18 +68,39 @@ describe('MaskObjectCache', () => {
 });
 
 describe('MaskObjectCache.seed', () => {
-  /** An object of `width` x `height` canvas pixels, as the brush's preview makes. */
-  const sized = (width: number, height: number) => ({ width, height }) as unknown as FabricObject;
+  /** A seed for `annotation` whose object is `width` x `height` canvas pixels, as the brush's preview makes. */
+  const seedOf = (
+    annotation: ReturnType<typeof mask>,
+    width: number,
+    height: number,
+    fill: string | undefined = undefined,
+  ) => {
+    const object = { width, height } as unknown as FabricObject;
+    return {
+      object,
+      build: vi.fn(() => object),
+      seed(): MaskObjectSeed {
+        return {
+          annotationId: annotation.id,
+          rawAnnotationData: annotation.rawAnnotationData as MaskObjectSeed['rawAnnotationData'],
+          fill,
+          width,
+          height,
+          object: this.build,
+        };
+      },
+    };
+  };
 
   it("serves a seed to the store's copy of the payload, matched by content once", () => {
     const cache = new MaskObjectCache();
     const a = mask('m1');
-    const seeded = sized(10, 10);
-    cache.seed(a.id, a.rawAnnotationData, undefined, seeded);
+    const seeded = seedOf(a, 10, 10);
+    cache.seed(seeded.seed());
     // What a store hands back: an equal payload in a different object.
     const copy = { ...a, rawAnnotationData: structuredClone(a.rawAnnotationData) };
-    expect(cache.get(copy, undefined)).toBe(seeded);
-    expect(cache.get(copy, undefined)).toBe(seeded);
+    expect(cache.get(copy, undefined)).toBe(seeded.object);
+    expect(cache.get(copy, undefined)).toBe(seeded.object);
     // After that first match it is keyed by identity, like any other entry.
     const another = { ...a, rawAnnotationData: structuredClone(a.rawAnnotationData) };
     expect(cache.get(another, undefined)).toBeUndefined();
@@ -87,22 +109,34 @@ describe('MaskObjectCache.seed', () => {
   it('does not match a different payload or tint by content', () => {
     const cache = new MaskObjectCache();
     const a = mask('m1');
-    cache.seed(a.id, a.rawAnnotationData, undefined, sized(10, 10));
+    cache.seed(seedOf(a, 10, 10).seed());
     expect(cache.get({ ...a, ...mask('m1', 6) }, undefined)).toBeUndefined();
-    cache.seed(a.id, a.rawAnnotationData, undefined, sized(10, 10));
+    cache.seed(seedOf(a, 10, 10).seed());
     expect(cache.get(a, 'red')).toBeUndefined();
   });
 
-  it('skips an object the cell would draw from a display mip', () => {
+  it('skips, without building it, an object the cell would draw from a display mip', () => {
     const cache = new MaskObjectCache();
     const a = mask('m1');
-    cache.seed(a.id, a.rawAnnotationData, undefined, sized(5_000, 4_000));
-    expect(cache.size).toBe(0);
-    cache.seed(a.id, a.rawAnnotationData, undefined, sized(40_000, 10), Infinity);
-    expect(cache.size).toBe(0);
-    cache.seed(a.id, a.rawAnnotationData, undefined, sized(100, 100), 9_999);
-    expect(cache.size).toBe(0);
-    cache.seed(a.id, a.rawAnnotationData, undefined, sized(5_000, 4_000), Infinity);
+    for (const [width, height, budget] of [
+      [5_000, 4_000, undefined],
+      [40_000, 10, Infinity],
+      [100, 100, 9_999],
+    ] as const) {
+      const seeded = seedOf(a, width, height);
+      cache.seed(seeded.seed(), budget);
+      expect(cache.size, `${width}x${height}`).toBe(0);
+      // Never cropped (#243 minor 10).
+      expect(seeded.build).not.toHaveBeenCalled();
+    }
+    cache.seed(seedOf(a, 5_000, 4_000).seed(), Infinity);
     expect(cache.size).toBe(1);
+  });
+
+  it('keeps nothing when the preview cannot be cropped', () => {
+    const cache = new MaskObjectCache();
+    const a = mask('m1');
+    cache.seed({ ...seedOf(a, 10, 10).seed(), object: () => null });
+    expect(cache.size).toBe(0);
   });
 });
