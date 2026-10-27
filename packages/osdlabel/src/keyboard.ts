@@ -8,6 +8,7 @@ import type {
 import type { UIAction, AnnotationAction, ContextAction } from './actions.js';
 import { getGridCellCount } from './cell-assignment.js';
 import { getCycledContextId } from './context-cycling.js';
+import { canAddAnnotation } from './constraints.js';
 
 export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   selectTool: 'v',
@@ -17,6 +18,7 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   pointTool: 'p',
   polylineTool: 'd',
   freeHandPathTool: 'f',
+  segmentationBrushTool: 'b',
   cancel: 'Escape',
   delete: 'Delete',
   deleteAlt: 'Backspace',
@@ -46,6 +48,9 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutMap = {
   decreaseExposure: 'D',
   increaseContrast: 'C',
   decreaseContrast: 'X',
+  newMask: 'n',
+  increaseBrushRadius: ']',
+  decreaseBrushRadius: '[',
   nextContext: '.',
   previousContext: ',',
 } as const;
@@ -158,6 +163,26 @@ export function mapKeyEventToActions(
   } else if (!shiftKey && keyLower === shortcuts.freeHandPathTool.toLowerCase()) {
     if (constraintStatus.freeHandPath.enabled)
       actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'freeHandPath' });
+  } else if (!shiftKey && keyLower === shortcuts.segmentationBrushTool.toLowerCase()) {
+    if (constraintStatus.segmentationBrush.enabled)
+      actions.push({ type: 'SET_ACTIVE_TOOL', payload: 'segmentationBrush' });
+  }
+
+  // New mask: only the brush has one, and it keeps the brush either way.
+  // At the context's limit it does nothing, as the button is disabled there:
+  // the selected mask is what keeps the brush enabled, and deselecting it
+  // switched the brush off — the opposite of what the key is for.
+  else if (
+    !shiftKey &&
+    state.activeTool === 'segmentationBrush' &&
+    keyLower === shortcuts.newMask.toLowerCase()
+  ) {
+    if (
+      state.selectedAnnotationId !== null &&
+      canAddAnnotation(constraintStatus, 'segmentationBrush')
+    ) {
+      actions.push({ type: 'SET_SELECTED_ANNOTATION', payload: null });
+    }
   }
 
   // Cancel / Escape

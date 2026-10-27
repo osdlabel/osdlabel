@@ -9,6 +9,13 @@ import {
   type VertexMarkerOptions,
 } from '@osdlabel/fabric-annotations';
 import { createAnnotationId } from '@osdlabel/annotation';
+import {
+  BoundedDenseMaskBuffer,
+  MaskCapacityExceededError,
+  createMaskAnnotation,
+  type BrushCapacityError,
+} from 'osdlabel';
+import type { SegmentationBrushToolConfig } from '@osdlabel/fabric-annotations';
 import { createImageId, type KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { AnnotatorProvider, useAnnotator } from '../../../src/state/annotator-context.js';
@@ -168,6 +175,28 @@ describe('useAnnotationTool with the provider config (#219)', () => {
       expect(createdTools).toHaveLength(1);
     });
 
+    it('the brush radius or eraser, while the brush is active', () => {
+      // `activate()` reads the radius to size the cursor ring. Without the
+      // `untrack` around it that read is a dependency of the tool effect, and
+      // every `]` press tore the tool down — discarding a stroke in progress.
+      const h = setup();
+      // The shared context leaves `b` unbound for the keyboard test below.
+      h.annotator.actions.setContexts([
+        {
+          id: contextId,
+          label: 'Test',
+          tools: [{ type: 'polyline' }, { type: 'rectangle' }, { type: 'segmentationBrush' }],
+        },
+      ]);
+      h.annotator.actions.setActiveTool('segmentationBrush');
+      expect(createdTools).toHaveLength(2);
+
+      h.annotator.actions.setBrushRadius(20);
+      h.annotator.actions.adjustBrushRadius(1);
+      h.annotator.actions.setBrushErasing(true);
+      expect(createdTools).toHaveLength(2);
+    });
+
     it('the vertex-edit tuning, when an explicit value gives way to the equal default', () => {
       // A signal set to the same number never notifies, so the case that
       // reaches the memo's comparison is a new input resolving to the same
@@ -264,6 +293,40 @@ describe('useAnnotationTool with the provider config (#219)', () => {
     expect(canAdd).toBe(false);
   });
 
+  it('stays on the brush at its limit while a mask it can refine is selected (#154)', () => {
+    // The limit used to switch the brush off and the tool to select the moment
+    // the first mask committed, so a context limited to n masks could paint
+    // them but never refine them. The brush stays enabled while the selection
+    // is a mask it can refine; it may still not start another.
+    const h = setup();
+    h.annotator.actions.setContexts([
+      { id: contextId, label: 'Test', tools: [{ type: 'segmentationBrush', maxCount: 1 }] },
+    ]);
+    h.annotator.actions.setActiveTool('segmentationBrush');
+    expect(activate).toHaveBeenCalled();
+    const callbacks = activate.mock.calls.at(-1)![2] as ToolCallbacks;
+    expect(callbacks.canAddAnnotation('segmentationBrush')).toBe(true);
+
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(5, 5, 1);
+    const mask = createMaskAnnotation(buffer.snapshot(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    batch(() => {
+      h.annotator.actions.addAnnotation(mask);
+      h.annotator.actions.setSelectedAnnotation(mask.id);
+    });
+    expect(h.annotator.uiState.activeTool).toBe('segmentationBrush');
+    expect(h.annotator.constraintStatus().segmentationBrush.enabled).toBe(true);
+    expect(callbacks.canAddAnnotation('segmentationBrush')).toBe(false);
+
+    // With nothing refinable selected it is a tool at its limit like any other.
+    h.annotator.actions.setSelectedAnnotation(null);
+    expect(h.annotator.uiState.activeTool).toBe('select');
+  });
+
   it('the keyboard follows a changed binding without remounting', () => {
     const h = setup();
     const press = (key: string) =>
@@ -279,5 +342,117 @@ describe('useAnnotationTool with the provider config (#219)', () => {
     expect(h.annotator.uiState.activeTool).toBe('polyline');
     press('j');
     expect(h.annotator.uiState.activeTool).toBe('rectangle');
+  });
+});
+
+describe('the brush config names the bound New mask key (m19)', () => {
+  afterEach(() => {
+    dispose?.();
+    dispose = undefined;
+  });
+
+  it("in a capacity failure while refining, from the provider's shortcut map", () => {
+    createdTools.length = 0;
+    const reported: BrushCapacityError[] = [];
+    const overlay = makeOverlay();
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    const mask = createMaskAnnotation(buffer.raster(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    createRoot((d) => {
+      dispose = d;
+      createComponent(AnnotatorProvider, {
+        keyboardShortcuts: { newMask: 'm' },
+        brushOptions: { onCapacityExceeded: (error) => reported.push(error) },
+        get children() {
+          untrack(() => {
+            const annotator = useAnnotator();
+            annotator.actions.setContexts([
+              { id: contextId, label: 'Test', tools: [{ type: 'segmentationBrush' }] },
+            ]);
+            annotator.actions.setActiveContext(contextId);
+            annotator.actions.assignImageToCell(0, imageId);
+            annotator.actions.addAnnotation(mask);
+            annotator.actions.setSelectedAnnotation(mask.id);
+            annotator.actions.setActiveTool('segmentationBrush');
+            useAnnotationTool(
+              () => overlay,
+              () => imageId,
+              () => true,
+            );
+          });
+          return null;
+        },
+      });
+    });
+
+    const built = createdTools.at(-1);
+    expect(built).toBeDefined();
+    const config = (built!.options as { segmentationBrush: SegmentationBrushToolConfig })
+      .segmentationBrush;
+    // A refining stroke resolves its target first; then the cap is hit.
+    expect(config.getTarget()?.annotationId).toBe(mask.id);
+    config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(reported).toHaveLength(1);
+    expect(reported[0]!.message).toMatch(/Start a separate mask with New mask \(m\)\.$/);
+  });
+
+  it('not when the context is at its limit, where New mask cannot help (#149 minor 10)', () => {
+    createdTools.length = 0;
+    const reported: BrushCapacityError[] = [];
+    const overlay = makeOverlay();
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    const mask = createMaskAnnotation(buffer.raster(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    createRoot((d) => {
+      dispose = d;
+      createComponent(AnnotatorProvider, {
+        keyboardShortcuts: { newMask: 'm' },
+        brushOptions: { onCapacityExceeded: (error) => reported.push(error) },
+        get children() {
+          untrack(() => {
+            const annotator = useAnnotator();
+            annotator.actions.setContexts([
+              {
+                id: contextId,
+                label: 'Test',
+                tools: [{ type: 'segmentationBrush', maxCount: 1 }],
+              },
+            ]);
+            annotator.actions.setActiveContext(contextId);
+            annotator.actions.assignImageToCell(0, imageId);
+            annotator.actions.addAnnotation(mask);
+            annotator.actions.setSelectedAnnotation(mask.id);
+            annotator.actions.setActiveTool('segmentationBrush');
+            useAnnotationTool(
+              () => overlay,
+              () => imageId,
+              () => true,
+            );
+          });
+          return null;
+        },
+      });
+    });
+
+    const built = createdTools.at(-1);
+    expect(built).toBeDefined();
+    const config = (built!.options as { segmentationBrush: SegmentationBrushToolConfig })
+      .segmentationBrush;
+    // A refining stroke resolves its target first; then the cap is hit.
+    expect(config.getTarget()?.annotationId).toBe(mask.id);
+    config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(reported).toHaveLength(1);
+    // The one allowed mask exists, so New mask is disabled: the default
+    // advice stays, without pointing to it.
+    expect(reported[0]!.message).not.toMatch(/New mask/);
+    expect(reported[0]!.message).toMatch(/Paint a smaller region/);
   });
 });

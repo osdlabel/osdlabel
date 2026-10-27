@@ -16,6 +16,7 @@ import type { ConstraintStatus, ContextState } from '@osdlabel/annotation-contex
 import type { DecorationProvider, DomDecoration } from '@osdlabel/decoration';
 import type {
   AnnotationRenderFailure,
+  BrushOptions,
   OsdAnnotation,
   OsdFields,
   VertexEditConfig,
@@ -83,6 +84,7 @@ interface AnnotatorContextValue {
   shortcuts: KeyboardShortcutMap;
   vertexEditConfig: VertexEditConfig;
   vertexMarkerOptions: VertexMarkerOptions;
+  brushOptions: BrushOptions;
   activeImageId: Accessor<ImageId | undefined>;
   testMode: boolean;
   decorationProviders: readonly DecorationProvider<OsdFields>[];
@@ -134,6 +136,11 @@ export interface AnnotatorProviderProps {
    * the user draws.
    */
   readonly vertexMarkers?: VertexMarkerOptions | undefined;
+  /**
+   * Settings for the segmentation brush — the mask pixel cap and what to do
+   * when a stroke exceeds it. See {@link BrushOptions}.
+   */
+  readonly brushOptions?: BrushOptions | undefined;
   /** Optional callback to suppress keyboard shortcuts for specific targets */
   readonly shouldSkipKeyboardShortcutPredicate?: ((target: HTMLElement) => boolean) | undefined;
   /**
@@ -189,7 +196,12 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     annotationState,
   );
   const activeImageId = () => uiState.gridAssignments[uiState.activeCellIndex];
-  const constraintStatus = createConstraintStatus(contextState, annotationState, activeImageId);
+  const constraintStatus = createConstraintStatus(
+    contextState,
+    annotationState,
+    activeImageId,
+    () => uiState.selectedAnnotationId,
+  );
 
   const activeToolKeyHandlerRef: ActiveToolKeyHandlerRef = { handler: null };
   const fullscreenTargetRef: FullscreenTargetRef = { element: null };
@@ -215,6 +227,22 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     undefined,
     { equals: shallowEqual },
   );
+  // Getters rather than a captured snapshot: the object's identity is fixed, so
+  // consumers can hold it, while a host that swaps its `brushOptions` prop is
+  // still observed. Reading a getter inside an effect tracks it, so the tool is
+  // rebuilt when a setting genuinely changes — and never merely because the
+  // host re-rendered.
+  const brushOptions: BrushOptions = {
+    get maxPixels() {
+      return props.brushOptions?.maxPixels;
+    },
+    get onCapacityExceeded() {
+      return props.brushOptions?.onCapacityExceeded;
+    },
+    get maskStyle() {
+      return props.brushOptions?.maskStyle;
+    },
+  };
 
   // Load initial annotations if provided
   if (props.initialAnnotations) {
@@ -275,6 +303,7 @@ export function AnnotatorProvider(props: AnnotatorProviderProps) {
     get vertexMarkerOptions() {
       return vertexMarkerOptions();
     },
+    brushOptions,
     activeImageId,
     testMode: props.testMode ?? false,
     decorationProviders: props.decorationProviders ?? [],
