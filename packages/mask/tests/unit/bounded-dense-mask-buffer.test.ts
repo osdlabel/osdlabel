@@ -232,3 +232,36 @@ describe('an empty mask on a coarse grid, read back', () => {
     expect(toDenseSnapshot(runRaster(empty, [0])).downsample).toBe(4);
   });
 });
+
+describe('growth from an allocation with nothing set (#243 P3)', () => {
+  it('replaces a padded all-clear allocation with a far region, rather than writing past it', () => {
+    // A box of clear cells, as a coarsening can leave, then a dab to its left
+    // whose region shares its rows but none of its columns, under a cap the two
+    // together pass: the copy's offset was the gap between them, past the end.
+    const clear = BoundedDenseMaskBuffer.fromSnapshot(
+      {
+        cells: { x: 900, y: 0, width: 64, height: 64 },
+        data: new Uint8Array(64 * 64),
+        imageWidth: 1000,
+        imageHeight: 1000,
+        downsample: 1,
+      },
+      { maxPixels: 64 * 64 },
+    );
+    expect(clear.cellCount).toBe(0);
+    expect(() => stampCircle(clear, 20, 20, 4, 1)).not.toThrow();
+    expect(clear.get(20, 20)).toBe(1);
+    expect(clear.cellCount).toBeGreaterThan(0);
+  });
+
+  it('paints far away after everything painted was erased', () => {
+    const b = buffer(1000, 1000, 64 * 64);
+    stampCircle(b, 900, 20, 4, 1);
+    stampCircle(b, 900, 20, 6, 0);
+    expect(b.cellCount).toBe(0);
+    expect(() => stampCircle(b, 20, 20, 4, 1)).not.toThrow();
+    expect(b.get(20, 20)).toBe(1);
+    // Still refused by name when the region itself does not fit.
+    expect(() => stampCircle(b, 500, 500, 60, 1)).toThrow(MaskCapacityExceededError);
+  });
+});

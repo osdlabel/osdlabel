@@ -363,13 +363,16 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     }
 
     const next = new Uint8Array(requested);
-    if (hasRegion) {
-      // Only the part of the old allocation the new one covers: all of it,
-      // or — when the allocation was cut back to the set cells — those.
-      const fromCol = Math.max(this.ax, nx);
-      const toCol = Math.min(this.ax + this.aw, nx + nw);
-      const fromRow = Math.max(this.ay, ny);
-      const toRow = Math.min(this.ay + this.ah, ny + nh);
+    // Only the part of the old allocation the new one covers: all of it, or —
+    // when the allocation was cut back to the set cells — those. And only when
+    // there is something to keep and the two overlap: an allocation holding no
+    // set cell is replaced by the new region alone, which may share its rows
+    // but none of its columns, and copying then wrote past the end (#243 P3).
+    const fromCol = Math.max(this.ax, nx);
+    const toCol = Math.min(this.ax + this.aw, nx + nw);
+    const fromRow = Math.max(this.ay, ny);
+    const toRow = Math.min(this.ay + this.ah, ny + nh);
+    if (hasRegion && this.count > 0 && toCol > fromCol && toRow > fromRow) {
       for (let y = fromRow; y < toRow; y++) {
         const src = (y - this.ay) * this.aw + (fromCol - this.ax);
         next.set(this.data.subarray(src, src + (toCol - fromCol)), (y - ny) * nw + (fromCol - nx));

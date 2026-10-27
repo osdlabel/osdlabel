@@ -1710,6 +1710,32 @@ describe('SegmentationBrushTool: coarsening on overflow', () => {
     expect(h.commits[0]!.snapshot.get(500, 500)).toBe(1);
   });
 
+  it('keeps the mask when a coarsening leaves its buffer empty and a far dab follows (#243 P3)', () => {
+    // Two isolated pixels: a 2x2 majority clears both but keeps a box covering
+    // them. The dab, far to their left, then grew from an allocation with no
+    // set cell; the copy wrote past the end, the RangeError escaped the stroke,
+    // and the release committed an empty mask, which deletes the annotation.
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    // Far enough out that, at d=2 as well, the dab and the cleared box
+    // together pass the cap, which is what takes the cut-back path.
+    buffer.set(10_000, 10, 1);
+    buffer.set(10_060, 10, 1);
+    const target = { annotationId: createAnnotationId('sparse'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 3,
+      maxDownsample: 4,
+      target,
+      viewport: { zoom: 1 / 8, width: 800, height: 800 },
+    });
+    expect(() => down(h.tool, 20, 10)).not.toThrow();
+    up(h.tool, 20, 10);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.cellCount).toBeGreaterThan(0);
+  });
+
   it('commits a coarsened stroke even where it painted nothing new', () => {
     // A block of 100 x 21 cells under a cap of 2,150, and a stroke inside it
     // along its top row: every cell it paints is set already, but the region
