@@ -1587,8 +1587,9 @@ Alt-to-erase follows QuPath's brush (CVAT erases with a separate tool). The tool
 sticky, for when you are erasing for a while.
 
 The mid-stroke cancel is the `cancel` shortcut, the same key that clears the
-selection between strokes. While a stroke is open, Delete waits for the
-release, so the mask being refined cannot be deleted out from under it.
+selection between strokes. While a stroke is open, Delete is ignored (press it
+again after releasing), so the mask being refined cannot be deleted out from
+under it.
 
 On a tablet, a hand resting on the glass does not paint. A touch that lands
 while the pencil is down is ignored, and so is one the platform rejects as a
@@ -1896,7 +1897,9 @@ Without a declared downsample, a COCO mask decodes at full resolution.
 Decoding is bounded. `maxMaskPixels` caps any single mask (64 Mi cells, which
 is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
 document as a whole, charging each mask its box's cells (image pixels at
-downsample 1) plus its run count.
+downsample 1) plus its run count. For a canonical payload that is the runs its
+bytes hold, zero-length ones included, so padding a payload does not make it
+cheap.
 
 :::caution[The defaults are not an adversarial boundary]
 Decode cost per cell varies about fortyfold with a mask's run structure, so a

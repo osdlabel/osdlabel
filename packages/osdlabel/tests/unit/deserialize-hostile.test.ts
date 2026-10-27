@@ -907,4 +907,85 @@ describe('deserialize: the budget path keeps each mask its own reason (#149 mino
     ).toEqual(['a', 'b']);
     expect(() => deserialize(doc, { maxTotalMaskPixels: 1_000_002 })).toThrow(SerializationError);
   });
+
+  it('bills the runs a padded payload holds, not just the spans they decode to (#149 final 8)', () => {
+    // A solid 1000² mask with 8 M zero-length runs after its two: it decodes
+    // to the same spans, and was billed the same 1,000,002 as the honest one,
+    // though it took about 500 times as long to decode.
+    const padding = 8_000_000;
+    // The runs' 4 bytes and two zeros, then the other zeros three bytes to
+    // each 'AAAA', built as base64 directly: spreading 8 M bytes overflows.
+    const head = [0, ...encodeLeb(1000 * 1000), 0, 0];
+    expect(head).toHaveLength(6);
+    const padded = {
+      ...solidMask(1000),
+      counts: toBase64(head) + 'AAAA'.repeat((padding - 2) / 3),
+    };
+    const doc = [
+      { ...maskAnnotation(padded), id: 'padded' },
+      { ...maskAnnotation(solidMask(1)), id: 'b' },
+    ];
+    // Enough for the honest pair (see the test above), not for the padding.
+    expect(() => deserialize(doc, { maxTotalMaskPixels: 1_000_003 })).toThrow(SerializationError);
+    expect(deserialize(doc, { maxTotalMaskPixels: 1_000_000 + padding + 3 }).skipped).toEqual([]);
+  });
+
+  it('skips a mask whose fault comes after its decode, even under the budget (#149 final 9)', () => {
+    // The codec decodes, but to a raster whose data does not fill its box: the
+    // fault is in what follows the decode. Under a budget-shrunk cap the retry
+    // repeated only the decode, which succeeded, and the document was refused.
+    const shortData = createMaskCodecRegistry({
+      format: 'short-data',
+      encode: () => ({}),
+      decode: () => ({
+        cells: { x: 0, y: 0, width: 4, height: 4 },
+        data: new Uint8Array(15).fill(1),
+        imageWidth: 16,
+        imageHeight: 16,
+        downsample: 1,
+      }),
+    } as never);
+    for (const maxTotalMaskPixels of [Infinity, 1_000_010]) {
+      const doc = [
+        { ...maskAnnotation(solidMask(1000)), id: 'big' },
+        { ...maskAnnotation({ any: 'thing' }, 'short-data'), id: 'short' },
+        vectorAnnotation('img-1', 'rect'),
+      ];
+      const { byImage, skipped } = deserialize(doc, { maskCodecs: shortData, maxTotalMaskPixels });
+      expect(
+        skipped.map((s) => s.id),
+        `budget ${maxTotalMaskPixels}`,
+      ).toEqual(['short']);
+      expect(skipped[0]!.reason).toMatch(/Snapshot data has 15 pixels/);
+      expect(Object.keys(byImage['img-1' as never]!).sort()).toEqual(['big', 'rect']);
+    }
+  });
+
+  it('skips a mask whose codec throws something even instanceof cannot read (#149 final 10)', () => {
+    const symbolMessage = new Error('x');
+    Object.defineProperty(symbolMessage, 'message', { value: Symbol('m') });
+    const throwingGetter = new Error('x');
+    Object.defineProperty(throwingGetter, 'message', {
+      get() {
+        throw new Error('no');
+      },
+    });
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    for (const [name, thrown, reason] of [
+      ['a Symbol message', symbolMessage, 'the codec threw an Error with no message'],
+      ['a throwing getter', throwingGetter, 'the codec threw a value with no string form'],
+      ['a revoked Proxy', revoked.proxy, 'the codec threw a value with no string form'],
+    ] as const) {
+      for (const maxTotalMaskPixels of [Infinity, 1_000]) {
+        const { skipped } = deserialize([{ ...maskAnnotation({ side: 1 }, 'throws'), id: 'm' }], {
+          maskCodecs: throwing(thrown),
+          maxTotalMaskPixels,
+        });
+        expect(skipped, `${name}, budget ${maxTotalMaskPixels}`).toEqual([
+          { id: 'm', reason: `Codec "throws" could not decode the mask: ${reason}` },
+        ]);
+      }
+    }
+  });
 });

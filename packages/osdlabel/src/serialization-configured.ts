@@ -417,19 +417,9 @@ function normalizeMasks(
     }
 
     const { cap, limitedByBudget } = capFor();
+    let snapshot: MaskRaster;
     try {
-      const snapshot = decode(cap);
-      // A canonical payload keeps its own bytes: it has just been proved to
-      // decode, and re-encoding would reproduce what is already there at the
-      // cost of the most expensive step on this path. Only the geometry needs
-      // rebuilding, which is the reason for decoding at all.
-      if (!codec) {
-        charge(snapshot, canonicalRunCount(snapshot));
-        return { ...entry, geometry: maskGeometryFromSnapshot(snapshot) };
-      }
-      const fields = maskAnnotationFields(snapshot);
-      charge(snapshot, canonicalRunCount(snapshot));
-      return { ...entry, ...fields };
+      snapshot = decode(cap);
     } catch (err) {
       // Whose fault was that — this annotation's, or the document's?
       //
@@ -462,6 +452,33 @@ function normalizeMasks(
       }
       return skip(describeThrown(fault));
     }
+
+    // Past the decode, a fault is this mask's alone: the decode fit its cap,
+    // so the budget is not what failed. Inside the decode's handler, a codec
+    // raster whose data does not fill its box, or a box off the grid, was
+    // retried by decoding alone, which succeeded, and the whole document was
+    // refused as over budget.
+    try {
+      // A canonical payload keeps its own bytes: it has just been proved to
+      // decode, and re-encoding would reproduce what is already there at the
+      // cost of the most expensive step on this path. Only the geometry needs
+      // rebuilding, which is the reason for decoding at all.
+      if (!codec) {
+        charge(
+          snapshot,
+          Math.max(
+            canonicalRunCount(snapshot),
+            payloadRunCount((data as { counts?: unknown }).counts),
+          ),
+        );
+        return { ...entry, geometry: maskGeometryFromSnapshot(snapshot) };
+      }
+      const fields = maskAnnotationFields(snapshot);
+      charge(snapshot, canonicalRunCount(snapshot));
+      return { ...entry, ...fields };
+    } catch (err) {
+      return skip(describeThrown(err));
+    }
   });
 
   return decoded.filter((entry) => entry !== DROPPED);
@@ -486,18 +503,42 @@ function retryError(
 
 /**
  * A thrown value as a skip reason, on the first decode and the retry alike. A
- * codec may throw anything: `undefined`, or a value `String()` cannot convert
- * (`Object.create(null)`), which must skip the mask rather than refuse the
- * whole document.
+ * codec may throw anything: `undefined`, a value `String()` cannot convert
+ * (`Object.create(null)`), an `Error` whose `message` is not a string or whose
+ * getter throws, or a revoked `Proxy`, on which even `instanceof` throws. Each
+ * must skip the mask rather than refuse the whole document.
  */
 function describeThrown(thrown: unknown): string {
-  if (thrown instanceof Error) return thrown.message;
-  if (thrown === undefined) return 'the codec threw undefined';
   try {
+    if (thrown instanceof Error) {
+      const message: unknown = thrown.message;
+      return typeof message === 'string' ? message : 'the codec threw an Error with no message';
+    }
+    if (thrown === undefined) return 'the codec threw undefined';
     return String(thrown);
   } catch {
     return 'the codec threw a value with no string form';
   }
+}
+
+/**
+ * The runs a canonical payload's bytes hold, whatever spans they decode to: a
+ * varint ends at each byte without its high bit. Zero-length and touching
+ * runs add decode work but no spans, so billing the spans alone let a payload
+ * padded with millions of them pass as cheap (#149). Zero for counts that are
+ * not base64, which the decode has already refused.
+ */
+function payloadRunCount(counts: unknown): number {
+  if (typeof counts !== 'string') return 0;
+  let binary: string;
+  try {
+    binary = atob(counts);
+  } catch {
+    return 0;
+  }
+  let runs = 0;
+  for (let i = 0; i < binary.length; i++) if ((binary.charCodeAt(i) & 0x80) === 0) runs++;
+  return runs;
 }
 
 /**
