@@ -17,6 +17,7 @@ import {
 } from './downsample.js';
 import {
   asMaskRaster,
+  assertRasterOnGrid,
   denseRaster,
   forEachCheckedSpan,
   type MaskRasterInput,
@@ -215,6 +216,9 @@ function prepareCocoSweep(input: MaskRasterInput): CocoSweep {
   // Wrapping a dense snapshot checks that its data fills its box exactly.
   const raster = asMaskRaster(input);
   const { imageWidth, imageHeight } = raster;
+  // Before anything reads the image size, the empty mask's single run
+  // included: a NaN or infinite side hung the sweep, and gave NaN runs.
+  assertCountableImage(imageWidth, imageHeight);
   const { x, y, width, height } = cells;
   const total = imageWidth * imageHeight;
   const downsample = raster.downsample;
@@ -683,9 +687,9 @@ function cocoCountsToCells(
  * background run on a gigapixel image easily exceeds the 32 bits that
  * JavaScript's bitwise operators coerce to. Characters are buffered and joined
  * in blocks, so a mask of tens of millions of runs never builds an array of
- * them.
+ * them. Exported for tests only, off the barrel.
  */
-class CocoCountsStringWriter {
+export class CocoCountsStringWriter {
   private index = 0;
   private previous = 0;
   private beforePrevious = 0;
@@ -757,15 +761,22 @@ export function decodeCocoCountsString(encoded: string): number[] {
   if (typeof encoded !== 'string') {
     throw new RangeError(`COCO counts must be a string, got ${typeof encoded}`);
   }
+  // Refuse by name before allocating anything: a value ends at each chunk
+  // without the continuation bit, so one pass over the characters counts the
+  // runs. Building the array first cost seconds and gigabytes to refuse.
+  let runs = 0;
+  for (let i = 0; i < encoded.length; i++) {
+    if (((encoded.charCodeAt(i) - 48) & 0x20) === 0) runs++;
+  }
+  if (runs > MAX_COCO_ARRAY_RUNS) {
+    throw new RangeError(
+      `COCO counts string holds more than ${MAX_COCO_ARRAY_RUNS} runs ` +
+        `(MAX_COCO_ARRAY_RUNS), more than an engine holds in one array`,
+    );
+  }
   const counts: number[] = [];
   let position = 0;
   while (position < encoded.length) {
-    if (counts.length >= MAX_COCO_ARRAY_RUNS) {
-      throw new RangeError(
-        `COCO counts string holds more than ${MAX_COCO_ARRAY_RUNS} runs ` +
-          `(MAX_COCO_ARRAY_RUNS), more than an engine holds in one array`,
-      );
-    }
     let value = 0;
     let shift = 0;
     let more = true;
@@ -850,12 +861,14 @@ const COCO_MAX_INTEROP_POSITION = 2 ** 32;
  *   `rleToBbox` accumulates the position, and `rleArea` the area, in a `uint`.
  *   Past it the box is wrong, and on a large mask the area too: a one-pixel
  *   line across a 100,000 x 80,000 image comes back as a 53,687 x 7,297 box.
+ *   An area of 2^32 needs no check of its own: with no pixel at index 2^32
+ *   or past it, it is the single run [0, 2^32), which the first limit refuses.
  *
- * Verified against pycocotools 2.0.11. Decided from the mask's own runs, by a
- * sweep that stops at the first one out of range, or at
- * {@link MAX_COCO_RUNS} runs: a mask past that is not exported at all, so it
- * is not safe either, and the bound keeps the answer as cheap as the
- * exporter's refusal. An image within `COCO_MAX_INTEROP_IMAGE_PIXELS` is
+ * Verified against pycocotools 2.0.11. Decided from the mask's own runs:
+ * first counted, stopping at {@link MAX_COCO_RUNS} as the exporter does (a
+ * mask past that is not exported at all, so it is not safe either, and the
+ * answer costs what the exporter's refusal costs), then swept, stopping at
+ * the first run out of range. An image within `COCO_MAX_INTEROP_IMAGE_PIXELS` is
  * answered without a sweep, since every limit holds there; that answer is
  * about pycocotools only, not whether the export fits its run bound. Worth
  * checking before exporting masks from very large (deep-zoom) images,
@@ -866,8 +879,17 @@ export function isCocoInteropSafe(input: MaskRasterInput): boolean {
   const sweep = prepareCocoSweep(input);
   // An empty mask's runs have no foreground to place.
   if (sweep.emptyRuns) return sweep.emptyRuns.every((run) => run <= COCO_MAX_INTEROP_RUN);
+  // Past the run bound the mask is not exported at all. Counted first, as the
+  // exporter counts, so that answer costs what the exporter's refusal does
+  // rather than emitting every run up to the bound.
+  try {
+    sweep.run(new CocoRunCounter(MAX_COCO_RUNS));
+  } catch (error) {
+    if (error instanceof CocoRunLimitReached) return false;
+    throw error;
+  }
   // The last two runs are all a delta needs, and the running position is all
-  // the box and area need; stop at the first violation, or at the run bound.
+  // the box needs; stop at the first violation.
   let index = 0;
   let previous = 0;
   let beforePrevious = 0;
@@ -877,11 +899,13 @@ export function isCocoInteropSafe(input: MaskRasterInput): boolean {
   const emitter = new CocoRunEmitter((run) => {
     position += run;
     if (
+      // Also the only check that catches an area of exactly 2^32, which
+      // `rleArea` reads as 0: with no pixel at 2^32 or past it, that is the
+      // single run [0, 2^32), whose end the position check below accepts.
       run > COCO_MAX_INTEROP_RUN ||
       (index > 2 && run - beforePrevious < COCO_MIN_INTEROP_DELTA) ||
       // A foreground run (odd index) whose last pixel is at 2^32 or past it.
-      (index % 2 === 1 && position > COCO_MAX_INTEROP_POSITION) ||
-      index >= MAX_COCO_RUNS
+      (index % 2 === 1 && position > COCO_MAX_INTEROP_POSITION)
     ) {
       safe = false;
       throw unsafe;
@@ -916,6 +940,9 @@ function cocoSize(payload: { readonly size?: unknown }): readonly [number, numbe
  * pixels at every downsample.
  */
 export function cocoBbox(snapshot: MaskBoxFields): [number, number, number, number] {
+  // The checks `cocoArea` and the encoders apply: an off-grid box would come
+  // back clipped, or at a negative column, rather than refused.
+  if (snapshot.cells.width > 0 && snapshot.cells.height > 0) assertRasterOnGrid(snapshot);
   const box = snapshotImageBox(snapshot);
   return [box.x, box.y, box.width, box.height];
 }
@@ -933,10 +960,12 @@ export function cocoArea(snapshot: MaskRasterInput): number {
  * byte-identical counts to this codec, and its `decode` returns pixel-identical
  * masks.
  *
- * **Limitations in `pycocotools`, not here.** It truncates runs longer than
- * 32 bits and misreads deltas below -2^29 when it reads a mask back, so on an
+ * **Limitations in `pycocotools`, not here.** When it reads a mask back, it
+ * truncates runs longer than 32 bits, misreads deltas below -2^29, and
+ * accumulates the box's position and the area in a 32-bit `uint`. So on an
  * image larger than {@link COCO_MAX_INTEROP_IMAGE_PIXELS} some masks come back
- * with the right area in the wrong place.
+ * in the wrong place, and some with the wrong area: a truncated foreground
+ * run, such as one over the image's first 2^32 pixels, loses area too.
  *
  * This codec encodes and decodes such runs correctly and deliberately does
  * **not** refuse, clamp, or warn about them — the output is valid COCO, and

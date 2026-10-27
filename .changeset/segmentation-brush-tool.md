@@ -26,7 +26,7 @@ built-in COCO RLE codec is verified byte-for-byte against `pycocotools`.
 
 ## Breaking at runtime
 
-Two behaviour changes, both on the import path:
+Three behaviour changes: two on the import path, and one for older readers:
 
 - **`deserialize` returns null-prototype maps.** `byImage` and each per-image
   map are now `Object.create(null)`, so a crafted `imageId` cannot reach
@@ -70,7 +70,8 @@ the following places:
   `KeyboardShortcutMap` literal needs the four new keys. Spread
   `DEFAULT_KEYBOARD_SHORTCUTS` instead of listing fields.
 
-  Note the default bindings for the last two are `]` and `[`, **the same keys
+  Note the default bindings for `increaseBrushRadius` and `decreaseBrushRadius`
+  are `]` and `[`, **the same keys
   as `increaseGridRows` / `decreaseGridRows`**. The brush claims them for the
   whole time it is the active tool, so grid-row resizing is unavailable while
   it is selected. Resizing the brush between strokes is the far likelier intent

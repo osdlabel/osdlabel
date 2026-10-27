@@ -1588,8 +1588,9 @@ Alt-to-erase follows QuPath's brush (CVAT erases with a separate tool). The tool
 sticky, for when you are erasing for a while.
 
 The mid-stroke cancel is the `cancel` shortcut, the same key that clears the
-selection between strokes. While a stroke is open, Delete waits for the
-release, so the mask being refined cannot be deleted out from under it.
+selection between strokes. While a stroke is open, Delete is ignored (press it
+again after releasing), so the mask being refined cannot be deleted out from
+under it.
 
 On a tablet, a hand resting on the glass does not paint. A touch that lands
 while the pencil is down is ignored, and so is one the platform rejects as a
@@ -1847,16 +1848,18 @@ The compressed codec is checked against the reference implementation:
 
 :::note[`pycocotools` limitations, if your images are very large]
 `pycocotools`' C code misreads three kinds of mask when it reads one back. The
-mask _moves_, and in the last case its area can be wrong too:
+mask _moves_, and in the first and last cases its area can be wrong too:
 
 - a run longer than 2³²−1, which it truncates to 32 bits — a small mask at the
-  centre of a 100000×100000 image comes back near the top-left corner;
+  centre of a 100000×100000 image comes back near the top-left corner, and a
+  truncated foreground run, such as one over the image's first 2³² pixels,
+  loses area;
 - a delta (`counts[i] − counts[i−2]`) below −2²⁹, which overflows its
   sign extension — three pixels on a 24,000×24,000 image, a huge gap then a
   short one, come back with the right area and the wrong box;
 - a foreground pixel at column-major index 2³² or past it, because its box
   and area are summed in a 32-bit `uint`. Any image of more than 2³² pixels
-  can reach it, which is an ordinary whole-slide size (65,536²): a one-pixel
+  can reach it, an ordinary whole-slide size (anything larger than 65,536²): a one-pixel
   line across 100,000×80,000 comes back as a 53,687×7,297 box, and a large
   solid mask with the wrong area.
 
@@ -1905,7 +1908,9 @@ Without a declared downsample, a COCO mask decodes at full resolution.
 Decoding is bounded. `maxMaskPixels` caps any single mask (64 Mi cells, which
 is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
 document as a whole, charging each mask its box's cells (image pixels at
-downsample 1) plus its run count.
+downsample 1) plus its run count. For a canonical payload that is the runs its
+bytes hold, zero-length ones included, so padding a payload does not make it
+cheap.
 
 :::caution[The defaults are not an adversarial boundary]
 Decode cost per cell varies about fortyfold with a mask's run structure, so a

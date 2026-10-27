@@ -907,4 +907,88 @@ describe('deserialize: the budget path keeps each mask its own reason (#149 mino
     ).toEqual(['a', 'b']);
     expect(() => deserialize(doc, { maxTotalMaskPixels: 1_000_002 })).toThrow(SerializationError);
   });
+
+  it('bills the runs a padded payload holds, not just the spans they decode to (#149 final 8)', () => {
+    // A solid 100² mask with 80,000 zero-length runs after its two decodes to
+    // the same spans as the honest one, and was billed the same 10,002, while
+    // its decode walks every padded run. (Scaled down from the reviewer's
+    // 1000² and 8 M runs, which took over 5 s on CI.)
+    const padding = 80_000;
+    const padded = {
+      ...solidMask(100),
+      counts: btoa(String.fromCharCode(0, ...encodeLeb(100 * 100)) + '\0'.repeat(padding)),
+    };
+    const doc = [
+      { ...maskAnnotation(padded), id: 'padded' },
+      { ...maskAnnotation(solidMask(1)), id: 'b' },
+    ];
+    // The honest pair fits 10,003 (as the test above shows at 1000²); the
+    // padded one needs its runs too.
+    const honest = [{ ...maskAnnotation(solidMask(100)), id: 'a' }, doc[1]!];
+    expect(deserialize(honest, { maxTotalMaskPixels: 10_003 }).skipped).toEqual([]);
+    expect(() => deserialize(doc, { maxTotalMaskPixels: 10_003 })).toThrow(SerializationError);
+    expect(deserialize(doc, { maxTotalMaskPixels: 10_000 + padding + 3 }).skipped).toEqual([]);
+    expect(() => deserialize(doc, { maxTotalMaskPixels: 10_000 + padding + 2 })).toThrow(
+      SerializationError,
+    );
+  });
+
+  it('skips a mask whose fault comes after its decode, even under the budget (#149 final 9)', () => {
+    // The codec decodes, but to a raster whose data does not fill its box: the
+    // fault is in what follows the decode. Under a budget-shrunk cap the retry
+    // repeated only the decode, which succeeded, and the document was refused.
+    const shortData = createMaskCodecRegistry({
+      format: 'short-data',
+      encode: () => ({}),
+      decode: () => ({
+        cells: { x: 0, y: 0, width: 4, height: 4 },
+        data: new Uint8Array(15).fill(1),
+        imageWidth: 16,
+        imageHeight: 16,
+        downsample: 1,
+      }),
+    } as never);
+    for (const maxTotalMaskPixels of [Infinity, 1_000_010]) {
+      const doc = [
+        { ...maskAnnotation(solidMask(1000)), id: 'big' },
+        { ...maskAnnotation({ any: 'thing' }, 'short-data'), id: 'short' },
+        vectorAnnotation('img-1', 'rect'),
+      ];
+      const { byImage, skipped } = deserialize(doc, { maskCodecs: shortData, maxTotalMaskPixels });
+      expect(
+        skipped.map((s) => s.id),
+        `budget ${maxTotalMaskPixels}`,
+      ).toEqual(['short']);
+      expect(skipped[0]!.reason).toMatch(/Snapshot data has 15 pixels/);
+      expect(Object.keys(byImage['img-1' as never]!).sort()).toEqual(['big', 'rect']);
+    }
+  });
+
+  it('skips a mask whose codec throws something even instanceof cannot read (#149 final 10)', () => {
+    const symbolMessage = new Error('x');
+    Object.defineProperty(symbolMessage, 'message', { value: Symbol('m') });
+    const throwingGetter = new Error('x');
+    Object.defineProperty(throwingGetter, 'message', {
+      get() {
+        throw new Error('no');
+      },
+    });
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    for (const [name, thrown, reason] of [
+      ['a Symbol message', symbolMessage, 'the codec threw an Error with no message'],
+      ['a throwing getter', throwingGetter, 'the codec threw a value with no string form'],
+      ['a revoked Proxy', revoked.proxy, 'the codec threw a value with no string form'],
+    ] as const) {
+      for (const maxTotalMaskPixels of [Infinity, 1_000]) {
+        const { skipped } = deserialize([{ ...maskAnnotation({ side: 1 }, 'throws'), id: 'm' }], {
+          maskCodecs: throwing(thrown),
+          maxTotalMaskPixels,
+        });
+        expect(skipped, `${name}, budget ${maxTotalMaskPixels}`).toEqual([
+          { id: 'm', reason: `Codec "throws" could not decode the mask: ${reason}` },
+        ]);
+      }
+    }
+  });
 });

@@ -62,6 +62,8 @@ interface Harness {
   /** Releases the stand-in overlay reports as ending a cancelled press. */
   readonly cancelledReleases: WeakSet<PointerEvent>;
   readonly canvas: {
+    on: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
     add: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
     bringObjectToFront: ReturnType<typeof vi.fn>;
@@ -739,6 +741,23 @@ describe('SegmentationBrushTool: capacity', () => {
     expect(h.commits[0]!.snapshot.cells.width).toBe(32_766);
   });
 
+  it('refuses a dab whose result is just past the limit (#149 final 11)', () => {
+    // The other side of the footprint bound: an r=3 dab at x=32,766 on the
+    // strip at 0 sets cells up to 32,768, so the mask would be 32,769 wide.
+    // A footprint that undercounted would let it through, and commit a mask
+    // no canvas draws.
+    const h = harness({
+      imageSize: { width: 40_000, height: 100 },
+      radius: 3,
+      target: { annotationId: createAnnotationId('long'), snapshot: strip(0) },
+    });
+    down(h.tool, 32_766, 10);
+    up(h.tool, 32_766, 10);
+    expect(h.commits).toHaveLength(0);
+    expect(h.capacityErrors).toHaveLength(1);
+    expect(h.capacityErrors[0]).toBeInstanceOf(MaskCanvasTooLargeError);
+  });
+
   it('does not refuse a stroke for the room its preview leaves to grow', () => {
     // 20,000 cells wide fits; the preview's usual margin, half the box on
     // each side, would take it to 40,000, so the margin is what gives way.
@@ -773,7 +792,8 @@ describe('SegmentationBrushTool: New mask mid-stroke', () => {
     const h = harness();
     down(h.tool, 50, 50);
     // Deselecting the mask being refined mid-stroke would, at the limit,
-    // switch the brush off and lose the stroke; the key waits for the release.
+    // switch the brush off and lose the stroke; the key is ignored until the
+    // release, and must be pressed again after it.
     expect(h.tool.onKeyDown({ key: shortcuts.newMask } as KeyboardEvent)).toBe(true);
     move(h.tool, 80, 50);
     up(h.tool, 80, 50);
@@ -1280,24 +1300,28 @@ describe('the cursor cue: refine or create', () => {
   it('resizes the cue when the zoom changes with no pointer move (#149 minor 11)', () => {
     // A Ctrl/Cmd scroll or the reset-view key zooms without a move: the next
     // render redraws the cue for the new zoom.
-    const h = harness({
-      peekTarget: () => ({ downsample: 1 }),
-      viewport: { zoom: 1, width: 800, height: 600 },
-    });
+    const peekTarget = vi.fn(() => ({ downsample: 1 }));
+    const h = harness({ peekTarget, viewport: { zoom: 1, width: 800, height: 600 } });
     move(h.tool, 100, 100);
     const ring = ringOf(h) as unknown as { strokeWidth: number };
     expect(ring.strokeWidth).toBeCloseTo(1);
     h.setZoom(0.1);
     h.render();
     expect(ring.strokeWidth).toBeCloseTo(10);
-    // And a render at an unchanged zoom does nothing.
-    const added = h.canvas.add.mock.calls.length;
+    // And a render at an unchanged zoom does nothing: the cue is not even
+    // re-asked what the next stroke would do (#149 final 12).
+    const asked = peekTarget.mock.calls.length;
     h.render();
-    expect(h.canvas.add.mock.calls.length).toBe(added);
-    // Deactivated, it no longer listens.
+    expect(peekTarget.mock.calls.length).toBe(asked);
+    // Deactivated, it no longer listens: the very handler it registered is
+    // the one it removes.
+    const registered = h.canvas.on.mock.calls.filter(([event]) => event === 'before:render');
+    expect(registered).toHaveLength(1);
     h.tool.deactivate();
+    expect(h.canvas.off).toHaveBeenCalledWith('before:render', registered[0]![1]);
     h.setZoom(1);
-    expect(() => h.render()).not.toThrow();
+    h.render();
+    expect(peekTarget.mock.calls.length).toBe(asked);
   });
 
   it('redraws after New mask or cancel, without waiting for the pointer', async () => {
