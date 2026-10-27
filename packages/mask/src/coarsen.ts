@@ -22,11 +22,13 @@ export type CoarsenStrategy = (source: MaskRaster) => MaskRaster;
  *
  * Chosen by measurement (the #149 plan): on 2,079 CAMELYON16 lesion polygons
  * its pooled Dice at d = 2…16 stays within 0.0006 of sampling each cell's
- * centre once at the final resolution, with a median area error of at most
- * 0.04% and no lesion lost; "any of four" biased area by +8%. The parity
- * tie-break is what keeps it unbiased, and because a block of four equal
- * children always keeps their value, coarsening a mask that was just
- * re-gridded finer (each cell replicated 2×2) returns the original exactly.
+ * centre once at the final resolution, with a median signed area error (its
+ * bias) within ±0.1% and no lesion lost; "any of four" biased area by +8%.
+ * The brush's progressive-coarsening test holds it to Dice within 0.001 and
+ * that ±0.1%. The parity tie-break is what keeps it unbiased, and because a
+ * block of four equal children always keeps their value, coarsening a mask
+ * that was just re-gridded finer (each cell replicated 2×2) returns the
+ * original exactly.
  *
  * Work is one pass over the source's spans and one over the coarse box; the
  * result is dense, a quarter of the source's box.

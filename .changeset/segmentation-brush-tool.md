@@ -286,7 +286,7 @@ pass the cap, the stroke's mask is halved by the provider's coarsen strategy
 (`BrushOptions.coarsen`, default `majorityCoarsen`), its preview redrawn, and
 the step painted again, up to `maxDownsample`. Past that the stroke is refused
 as before, with a message naming `maxDownsample`. `BrushOptions.onCoarsen`
-receives a `CoarsenEvent` (annotation, image, context, `from`, `to`) after a
+receives a `CoarsenEvent` (`annotationId`, `imageId`, `contextId`, `from`, `to`) after a
 coarsened stroke is written. A custom strategy must meet the contract
 `verifyCoarsenStrategy` checks. Changing either option never rebuilds the tool.
 For a host building the tool's config directly:
