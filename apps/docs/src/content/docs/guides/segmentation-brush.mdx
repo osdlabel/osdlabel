@@ -570,9 +570,13 @@ proper fix, and belongs with
 [#158](https://github.com/osdlabel/osdlabel/issues/158).
 
 The live preview grows ahead of the stroke, so it is not rebuilt at every step.
-While the mask is within the display budget, the preview stays within it too;
-past the budget, its margin costs at most the mask's own area, so growth stays
-geometric. A preview the engine refuses to allocate is reported through
+While the stroke's buffer (the mask rounded out to 64-cell growth chunks, which
+the preview always covers) is within 16 Mi cells, the margin keeps the preview
+within 16 Mi too; past that, the margin costs at most the buffer's own area, so
+growth stays geometric. No margin is spent on a side the image edge clips. The
+bound is the constant 16 Mi, not `brushOptions.maxCanvasPixels`: a 4,090² mask
+is under 16 Mi, but its buffer rounds out to 4,160², and its preview is larger
+than that. A preview the engine refuses to allocate is reported through
 `onCapacityExceeded`, and the stroke is abandoned with the mask unchanged.
 
 A canvas also has a longest side: Firefox draws none past 32,767 pixels

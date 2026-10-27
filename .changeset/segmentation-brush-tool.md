@@ -176,9 +176,12 @@ that fits keeps none of its cells (a one-pixel strip, say), each reported
 through `onAnnotationRenderError` while the other annotations render. A stroke
 whose live preview would pass the side limit is refused through
 `onCapacityExceeded`, whose argument is now `BrushCapacityError`
-(`MaskCapacityExceededError | MaskCanvasTooLargeError`). The preview stays
-within the display budget while the mask is, and past it its margin costs at
-most the mask's own area (#158).
+(`MaskCapacityExceededError | MaskCanvasTooLargeError`). While the stroke's
+buffer (the mask rounded out to 64-cell growth chunks, which the preview always
+covers) is within 16 Mi cells, the preview's margin keeps it within 16 Mi too;
+past that, the margin costs at most the buffer's own area, and none is spent on
+sides the image edge clips (#158). The bound is the constant 16 Mi, not the
+host's `maxCanvasPixels`.
 
 ## New API
 

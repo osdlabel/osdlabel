@@ -22,14 +22,13 @@ import {
 } from '@osdlabel/mask';
 import { DEFAULT_MASK_FILL, packRgba } from '../mask-fabric-object.js';
 import {
-  MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
   type BrushCapacityError,
 } from '../mask-canvas-limit.js';
 import type { ToolOverlay } from '../types.js';
 import { describeThrown } from '../describe-thrown.js';
-import { marginScale } from './margin-scale.js';
+import { growPreviewBounds } from './margin-scale.js';
 
 /** The painted result of one stroke, handed to the host to persist. */
 export interface BrushStrokeCommit {
@@ -1051,52 +1050,7 @@ export class SegmentationBrushTool extends BaseTool {
     // In cells, like `bounds`: the buffer's grid is the space it writes in.
     const imageWidth = this.buffer?.gridWidth ?? bounds.x + bounds.width;
     const imageHeight = this.buffer?.gridHeight ?? bounds.y + bounds.height;
-    // Never growing a side past what a canvas can draw: the margin is a
-    // convenience, and a preview refused for its margin alone would abandon a
-    // stroke whose mask draws fine once committed.
-    const sideX = Math.max(
-      0,
-      Math.min(Math.ceil(bounds.width / 2), Math.floor((MAX_MASK_CANVAS_SIDE - bounds.width) / 2)),
-    );
-    const sideY = Math.max(
-      0,
-      Math.min(
-        Math.ceil(bounds.height / 2),
-        Math.floor((MAX_MASK_CANVAS_SIDE - bounds.height) / 2),
-      ),
-    );
-    // Nor letting the margin take the preview past the display budget while
-    // the mask is under it, or cost more than the mask itself once past it
-    // (#158, #243 P5): half the extent on every side made a preview up to 4x
-    // the buffer — 466 MB of RGBA for a 53 MB mask — and a mask of 4 Mi cells
-    // a preview past the 16 Mi an iPad draws. Past the budget the margin still
-    // scales with the extent, so growth stays geometric; under it, growth costs
-    // a bounded number of copies of at most the budget each.
-    const area = bounds.width * bounds.height;
-    const scale = marginScale(
-      bounds.width,
-      bounds.height,
-      sideX,
-      sideY,
-      area <= MAX_MASK_CANVAS_PIXELS ? MAX_MASK_CANVAS_PIXELS : 2 * area,
-    );
-    const marginX = Math.floor(sideX * scale);
-    const marginY = Math.floor(sideY * scale);
-
-    // `min`/`max` against `bounds` on both sides, so containment is structural
-    // rather than a property the margins happen to preserve. Whatever the
-    // image size says, the preview always covers what the buffer holds.
-    const left = Math.min(bounds.x, Math.max(0, bounds.x - marginX));
-    const top = Math.min(bounds.y, Math.max(0, bounds.y - marginY));
-    const right = Math.max(
-      bounds.x + bounds.width,
-      Math.min(imageWidth, bounds.x + bounds.width + marginX),
-    );
-    const bottom = Math.max(
-      bounds.y + bounds.height,
-      Math.min(imageHeight, bounds.y + bounds.height + marginY),
-    );
-    return { x: left, y: top, width: right - left, height: bottom - top };
+    return growPreviewBounds(bounds, imageWidth, imageHeight);
   }
 
   /** Returns whether the previous preview's pixels were carried into the new one. */
