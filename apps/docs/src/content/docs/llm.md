@@ -2186,8 +2186,11 @@ const violations = verifyCoarsenStrategy(myStrategy); // [] when it holds
 The strategy runs at most once per overflow, between pointer events, so a
 slower one delays one segment rather than every one. Changing
 `brushOptions.coarsen` or `brushOptions.onCoarsen` never rebuilds the tool or
-drops a stroke in progress. osdlabel's precision bounds are measured for
-`majorityCoarsen` only: another strategy's quality is yours to judge.
+drops a stroke in progress. A strategy that throws, or returns the wrong
+downsample, refuses the stroke once through `onCapacityExceeded`, with its
+error as the refusal's `cause`, and the mask is unchanged. osdlabel's
+precision bounds are measured for `majorityCoarsen` only: another strategy's
+quality is yours to judge.
 
 On an iPad, also lower `maxPixels` to 16 Mi, the canvas area iOS Safari draws.
 Then a coarsening context coarsens before the preview passes it, instead of

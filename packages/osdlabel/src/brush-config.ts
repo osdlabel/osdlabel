@@ -351,12 +351,20 @@ function withNewMaskAdvice(
       report(error);
       return;
     }
+    // The pointer takes the generic advice's place, and follows any other:
+    // the tool's own, naming `maxDownsample`, stays (#243 minor 8).
+    const pointer = `Start a separate mask with New mask (${key}).`;
+    const generic = MaskCapacityExceededError.DEFAULT_ADVICE;
+    const advice = error.advice.endsWith(generic)
+      ? error.advice.slice(0, -generic.length) + pointer
+      : `${error.advice} ${pointer}`;
     report(
       new MaskCapacityExceededError(
         error.requestedCells,
         error.maxCells,
         error.downsample,
-        `Start a separate mask with New mask (${key}).`,
+        advice,
+        error.cause !== undefined ? { cause: error.cause } : undefined,
       ),
     );
   };

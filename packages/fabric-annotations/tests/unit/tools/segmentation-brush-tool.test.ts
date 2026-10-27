@@ -1843,14 +1843,111 @@ describe('SegmentationBrushTool: coarsening on overflow', () => {
       stampCircle(buffer, 1000, 1000, 10, 1);
       return { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
     })();
-    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 8, maxDownsample: 2, target });
-    sweep(h, 2000);
+    const existing = committedObject('mask-1');
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 8,
+      maxDownsample: 2,
+      target,
+      existingObjects: [existing],
+    });
+    down(h.tool, 1000, 1000);
+    expect(existing.visible).toBe(false);
+    for (let x = 1010; x <= 3000; x += 10) move(h.tool, x, 1000);
+    up(h.tool, 3000, 1000);
     expect(h.commits).toHaveLength(0);
     expect(h.capacityErrors).toHaveLength(1);
     expect(h.capacityErrors[0]).toBeInstanceOf(MaskCapacityExceededError);
     expect(h.capacityErrors[0]!.message).toMatch(/maxDownsample 2/);
-    // The committed object, hidden while painting, is back.
+    // The committed object, hidden while painting, is back, and the preview gone.
+    expect(existing.visible).toBe(true);
     expect(h.objects.filter((o) => o.type === 'image')).toHaveLength(0);
+  });
+
+  it('restores the hidden target on a cancel once the stroke has coarsened (#243 minor 18)', () => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    stampCircle(buffer, 1000, 1000, 10, 1);
+    const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    const existing = committedObject('mask-1');
+    let coarsenings = 0;
+    const h = harness({
+      imageSize: BIG,
+      maxPixels: CAP,
+      radius: 8,
+      maxDownsample: 4,
+      target,
+      existingObjects: [existing],
+      coarsen: (source) => {
+        coarsenings++;
+        return majorityCoarsen(source);
+      },
+    });
+    down(h.tool, 1000, 1000);
+    for (let x = 1010; x <= 1200; x += 10) move(h.tool, x, 1000);
+    expect(coarsenings).toBeGreaterThan(0);
+    expect(existing.visible).toBe(false);
+    h.tool.cancel();
+    expect(existing.visible).toBe(true);
+    up(h.tool, 1200, 1000);
+    expect(h.commits).toHaveLength(0);
+  });
+
+  it('refuses the whole stroke when the strategy fails, carrying the failure (#243 minor 1)', () => {
+    const thrown = new Error('host strategy broke');
+    const strategies: readonly [string, CoarsenStrategy][] = [
+      [
+        'throws',
+        () => {
+          throw thrown;
+        },
+      ],
+      // The wrong downsample: the tool's own RangeError.
+      ['unchanged', (source) => source],
+    ];
+    for (const [name, coarsen] of strategies) {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+      stampCircle(buffer, 1000, 1000, 10, 1);
+      const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+      const existing = committedObject('mask-1');
+      const h = harness({
+        imageSize: BIG,
+        maxPixels: CAP,
+        radius: 8,
+        maxDownsample: 4,
+        target,
+        existingObjects: [existing],
+        coarsen,
+      });
+      expect(() => sweep(h, 600), name).not.toThrow();
+      // Reported once, then the stroke is over: no half-stroke is committed.
+      expect(h.capacityErrors, name).toHaveLength(1);
+      expect(h.commits, name).toHaveLength(0);
+      const error = h.capacityErrors[0] as MaskCapacityExceededError;
+      expect(error).toBeInstanceOf(MaskCapacityExceededError);
+      expect(error.message, name).toMatch(/Coarsening it failed/);
+      if (name === 'throws') expect(error.cause).toBe(thrown);
+      else expect(error.cause).toBeInstanceOf(RangeError);
+      expect(existing.visible, name).toBe(true);
+    }
+  });
+
+  it("reads a refined mask's box without copying the mask (#243 minor 9)", () => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: BIG.width, imageHeight: BIG.height });
+    stampCircle(buffer, 1000, 1000, 20, 1);
+    const target = { annotationId: createAnnotationId('mask-1'), snapshot: buffer.raster() };
+    const h = harness({ imageSize: BIG, maxPixels: CAP, radius: 4, maxDownsample: 4, target });
+    const raster = vi.spyOn(BoundedDenseMaskBuffer.prototype, 'raster');
+    try {
+      // At the disc's edge, so the tap changes the mask.
+      down(h.tool, 1020, 1000);
+      expect(raster).not.toHaveBeenCalled();
+    } finally {
+      raster.mockRestore();
+    }
+    up(h.tool, 1020, 1000);
+    expect(h.capacityErrors).toEqual([]);
+    expect(h.commits).toHaveLength(1);
   });
 
   it('never coarsens without maxDownsample, or with one that is not a power of two', () => {

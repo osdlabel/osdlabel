@@ -156,26 +156,36 @@ export class MaskCapacityExceededError extends Error {
   readonly maxCells: number;
   /** Image pixels per cell along each axis. */
   readonly downsample: number;
+  /** What to do about it: the message's last sentences. */
+  readonly advice: string;
+
+  /** The advice given when the caller names none. */
+  static readonly DEFAULT_ADVICE = 'Paint a smaller region, or start a separate mask.';
 
   /**
    * @param advice What to do about it, ending the message. A host that knows
    * its own controls says so: the brush names its New mask shortcut.
+   * @param options `cause`: what made the limit final, such as a coarsening
+   * strategy that threw.
    */
   constructor(
     requestedCells: number,
     maxCells: number,
     downsample = 1,
-    advice = 'Paint a smaller region, or start a separate mask.',
+    advice = MaskCapacityExceededError.DEFAULT_ADVICE,
+    options?: { readonly cause?: unknown },
   ) {
     super(
       `Mask would need ${requestedCells} cells at downsample ${downsample}, more than its ` +
         `limit of ${maxCells} — an image-pixel bounding box of ${maxCells * downsample * downsample} ` +
         `at that downsample. ${advice}`,
+      options,
     );
     this.name = 'MaskCapacityExceededError';
     this.requestedCells = requestedCells;
     this.maxCells = maxCells;
     this.downsample = downsample;
+    this.advice = advice;
   }
 }
 

@@ -226,6 +226,8 @@ export class SegmentationBrushTool extends BaseTool {
   private changesAtStart: number | undefined;
   /** The mask's downsample before the stroke, for the commit. */
   private startDownsample = 1;
+  /** Why the last coarsening failed, when it threw rather than declined. */
+  private coarsenFailure: unknown = undefined;
   /** The coarsest downsample this stroke may coarsen to; 1 never coarsens. */
   private strokeMaxDownsample = 1;
 
@@ -328,6 +330,10 @@ export class SegmentationBrushTool extends BaseTool {
       // finer box fits; re-gridding finer replicates cells, so it loses nothing.
       this.strokeMaxDownsample = this.maxDownsample();
       this.startDownsample = target?.snapshot.downsample ?? 1;
+      // The refined mask's box, read from the raster the buffer loads rather
+      // than from the buffer, whose `raster()` copies the whole mask (#243
+      // minor 9).
+      let targetCells: MaskCellBox | null = null;
       if (target) {
         const downsample = this.strokeDownsample(
           target.snapshot.downsample,
@@ -340,6 +346,7 @@ export class SegmentationBrushTool extends BaseTool {
             ? refineRaster(target.snapshot, downsample, this.capacity())
             : target.snapshot;
         this.buffer = BoundedDenseMaskBuffer.fromSnapshot(source, this.maxPixelsOption());
+        targetCells = source.cells;
       } else {
         this.buffer = new BoundedDenseMaskBuffer({
           imageWidth: imageSize.width,
@@ -348,9 +355,8 @@ export class SegmentationBrushTool extends BaseTool {
         });
       }
       this.changesAtStart = this.buffer.changeCount;
-      const targetCells = this.buffer.raster().cells;
       this.paintedBounds =
-        target && targetCells.width > 0 && targetCells.height > 0 ? { ...targetCells } : null;
+        targetCells && targetCells.width > 0 && targetCells.height > 0 ? { ...targetCells } : null;
     } catch (error) {
       if (error instanceof MaskCapacityExceededError) {
         this.config.onCapacityExceeded?.(error);
@@ -668,8 +674,25 @@ export class SegmentationBrushTool extends BaseTool {
    * coarsen that far, and returns whether it did. The preview is dropped, to
    * be redrawn whole on the coarser grid, and the stroke is marked changed:
    * a coarsened mask is a different mask even where no cell was painted.
+   *
+   * Never throws. A strategy that throws or breaks the contract, or a result
+   * the buffer refuses, leaves the buffer as it was and is kept in
+   * `coarsenFailure`, for the refusal to carry as its `cause`: escaping, it
+   * reached Fabric on every move and left the stroke half-committed (#243
+   * minor 1).
    */
   private coarsenBuffer(): boolean {
+    this.coarsenFailure = undefined;
+    try {
+      return this.tryCoarsenBuffer();
+    } catch (error) {
+      // The coarse grid still over the cap is a decline, like the limit.
+      if (!(error instanceof MaskCapacityExceededError)) this.coarsenFailure = error;
+      return false;
+    }
+  }
+
+  private tryCoarsenBuffer(): boolean {
     const buffer = this.buffer;
     if (!buffer) return false;
     const d = buffer.downsample;
@@ -721,14 +744,7 @@ export class SegmentationBrushTool extends BaseTool {
         break;
       } catch (error) {
         if (!(error instanceof MaskCapacityExceededError)) throw error;
-        let coarsened: boolean;
-        try {
-          coarsened = this.coarsenBuffer();
-        } catch (coarsenError) {
-          if (!(coarsenError instanceof MaskCapacityExceededError)) throw coarsenError;
-          coarsened = false;
-        }
-        if (!coarsened) {
+        if (!this.coarsenBuffer()) {
           this.config.onCapacityExceeded?.(this.refusal(error));
           this.endStroke();
           return;
@@ -800,15 +816,24 @@ export class SegmentationBrushTool extends BaseTool {
   /**
    * The error a stroke refused at its cap reports: the buffer's own, or — in a
    * context that coarsens — one saying the coarsest allowed grid was reached.
+   * A coarsening that failed rather than declined is its `cause`.
    */
   private refusal(error: MaskCapacityExceededError): MaskCapacityExceededError {
-    if (this.strokeMaxDownsample <= 1) return error;
+    const cause = this.coarsenFailure;
+    this.coarsenFailure = undefined;
+    if (this.strokeMaxDownsample <= 1 && cause === undefined) return error;
+    const advice =
+      cause !== undefined
+        ? `Coarsening it failed: ${cause instanceof Error ? cause.message : String(cause)}. ` +
+          MaskCapacityExceededError.DEFAULT_ADVICE
+        : `It is already at the coarsest downsample this context allows (maxDownsample ` +
+          `${this.strokeMaxDownsample}). ${MaskCapacityExceededError.DEFAULT_ADVICE}`;
     return new MaskCapacityExceededError(
       error.requestedCells,
       error.maxCells,
       error.downsample,
-      `It is already at the coarsest downsample this context allows (maxDownsample ` +
-        `${this.strokeMaxDownsample}). Paint a smaller region, or start a separate mask.`,
+      advice,
+      cause !== undefined ? { cause } : undefined,
     );
   }
 
@@ -1181,6 +1206,7 @@ export class SegmentationBrushTool extends BaseTool {
     this.paintedBounds = null;
     this.changesAtStart = undefined;
     this.startDownsample = 1;
+    this.coarsenFailure = undefined;
     this.strokeMaxDownsample = 1;
     this.targetId = null;
     this.contextId = null;

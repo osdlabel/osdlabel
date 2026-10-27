@@ -602,6 +602,35 @@ describe('New mask', () => {
     plain.config.onCapacityExceeded!(original);
     expect(plain.reported[0]).toBe(original);
   });
+
+  it("keeps the tool's own advice, and its cause, when it points at New mask (#243 minor 8)", () => {
+    const h = live('n');
+    h.stroke(60);
+    expect(h.config.getTarget()).not.toBeNull();
+    const cause = new Error('strategy broke');
+    h.config.onCapacityExceeded!(
+      new MaskCapacityExceededError(
+        100,
+        50,
+        2,
+        `It is already at the coarsest downsample this context allows (maxDownsample 2). ` +
+          MaskCapacityExceededError.DEFAULT_ADVICE,
+        { cause },
+      ),
+    );
+    const error = h.reported[0] as MaskCapacityExceededError;
+    expect(error.message).toMatch(
+      /\(maxDownsample 2\)\. Start a separate mask with New mask \(n\)\.$/,
+    );
+    expect(error.message).not.toMatch(/Paint a smaller region/);
+    expect(error.cause).toBe(cause);
+
+    // Advice that does not end in the generic sentence is kept whole.
+    h.config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50, 1, 'Ask an admin.'));
+    expect(h.reported[1]!.message).toMatch(
+      /Ask an admin\. Start a separate mask with New mask \(n\)\.$/,
+    );
+  });
 });
 
 describe('coarsening, through the brush config', () => {

@@ -268,12 +268,13 @@ is solid when the next stroke refines and dashed when it creates, sized in
 screen pixels at every zoom, and on
 a mask at a downsample above 1 it is drawn as the cells one dab sets. A capacity
 failure on a refining stroke says "Start a separate mask with New mask (n)",
-naming the bound key, when a new mask may still be added; otherwise it keeps the
-default advice. For hosts: `canRefineSelectedMask` (the rule the button and the
+naming the bound key, when a new mask may still be added, in place of the
+generic advice and after any other (the `maxDownsample` sentence stays);
+otherwise it keeps the advice it had. For hosts: `canRefineSelectedMask` (the rule the button and the
 constraints share), `SegmentationBrushToolConfig.peekTarget` with
 `BrushTargetPreview`, `BrushConfigAccessors.getNewMaskShortcut` and
-`canStartNewMask`, and an optional `advice` argument on
-`MaskCapacityExceededError`. A context's last allowed mask is now selected
+`canStartNewMask`, and on `MaskCapacityExceededError` an optional `advice`
+argument, kept as `advice`, with `DEFAULT_ADVICE`, and an optional `cause`. A context's last allowed mask is now selected
 before it is added, which fixes the Solid binding switching to the select tool
 the moment that mask was painted.
 
@@ -285,7 +286,9 @@ cell cap: `ToolConstraint.brush.maxDownsample` (`BrushContextOptions`, in
 pass the cap, the stroke's mask is halved by the provider's coarsen strategy
 (`BrushOptions.coarsen`, default `majorityCoarsen`), its preview redrawn, and
 the step painted again, up to `maxDownsample`. Past that the stroke is refused
-as before, with a message naming `maxDownsample`. `BrushOptions.onCoarsen`
+as before, with a message naming `maxDownsample`. A strategy that throws or
+breaks the contract refuses the stroke the same way, once, with its error as
+the refusal's `cause`. `BrushOptions.onCoarsen`
 receives a `CoarsenEvent` (`annotationId`, `imageId`, `contextId`, `from`, `to`) after a
 coarsened stroke is written. A custom strategy must meet the contract
 `verifyCoarsenStrategy` checks. Changing either option never rebuilds the tool.
