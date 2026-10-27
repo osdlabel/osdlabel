@@ -1,5 +1,5 @@
 import {
-  isMaskRaster,
+  checkedRaster,
   rasterPixelCount,
   type MaskRaster,
   type MaskRasterInput,
@@ -164,11 +164,9 @@ export class MaskCapacityExceededError extends Error {
 
 /** Counts the foreground cells in a mask (image pixels at downsample 1). */
 export function snapshotCellCount(input: MaskRasterInput): number {
-  if (isMaskRaster(input)) return input.cellCount;
-  const snapshot = input;
-  let count = 0;
-  for (let i = 0; i < snapshot.data.length; i++) if (snapshot.data[i] === 1) count++;
-  return count;
+  // Through the raster, so a plain snapshot's data length and grid are
+  // checked as any other reader's are.
+  return checkedRaster(input).cellCount;
 }
 
 /**
@@ -181,32 +179,9 @@ export function snapshotCellCount(input: MaskRasterInput): number {
  * equals the foreground of `upsampleSnapshot(snapshot)` without building it.
  */
 export function snapshotPixelCount(input: MaskRasterInput): number {
-  if (isMaskRaster(input)) return rasterPixelCount(input);
-  const snapshot = input;
-  const d = snapshot.downsample;
-  if (d === 1) return snapshotCellCount(snapshot);
-  const { data, imageWidth, imageHeight } = snapshot;
-  const { x, y, width, height } = snapshot.cells;
-  // Image pixels covered by the last cell of a column / row, which is the only
-  // one the image edge can clip.
-  const lastCol = Math.ceil(imageWidth / d) - 1;
-  const lastRow = Math.ceil(imageHeight / d) - 1;
-  const lastColWidth = imageWidth - lastCol * d;
-  const lastRowHeight = imageHeight - lastRow * d;
-  const edgeCol = lastCol - x; // index within the box, or out of range
-  let total = 0;
-  for (let row = 0; row < height; row++) {
-    const offset = row * width;
-    let cells = 0;
-    for (let col = 0; col < width; col++) if (data[offset + col] === 1) cells++;
-    if (cells === 0) continue;
-    let across = cells * d;
-    if (edgeCol >= 0 && edgeCol < width && data[offset + edgeCol] === 1) {
-      across -= d - lastColWidth;
-    }
-    total += across * (y + row === lastRow ? lastRowHeight : d);
-  }
-  return total;
+  // Through the raster, so a plain snapshot's data length and grid are
+  // checked: an off-grid box counted pixels outside its image.
+  return rasterPixelCount(checkedRaster(input));
 }
 
 /** An empty snapshot for an image of the given size, at downsample 1. */

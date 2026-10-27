@@ -179,7 +179,11 @@ export function encodeCanonicalUncapped(input: MaskRasterInput): CanonicalMaskDa
   // In cells, against the image's cell grid: that is the space the box and
   // its data are in.
   const grid = maskGridSize(snapshot.imageWidth, snapshot.imageHeight, downsample);
-  assertBoxInsideImage(cells.x, cells.y, cells.width, cells.height, grid.width, grid.height);
+  assertBoxInsideImage(cells.x, cells.y, cells.width, cells.height, grid.width, grid.height, {
+    downsample,
+    imageWidth: snapshot.imageWidth,
+    imageHeight: snapshot.imageHeight,
+  });
   const box = snapshotImageBox(snapshot);
   return {
     x: box.x,

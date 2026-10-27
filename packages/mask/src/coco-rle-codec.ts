@@ -231,7 +231,11 @@ function prepareCocoSweep(input: MaskRasterInput): CocoSweep {
   // expressed: the background either side would have to be negative. Silently
   // clamping would shift every column, so refuse instead.
   const grid = maskGridSize(imageWidth, imageHeight, downsample);
-  assertBoxInsideImage(x, y, width, height, grid.width, grid.height);
+  assertBoxInsideImage(x, y, width, height, grid.width, grid.height, {
+    downsample,
+    imageWidth,
+    imageHeight,
+  });
   const box = snapshotImageBox(raster);
 
   // Row toggles keyed by the cell column they happen at: +1 where a span

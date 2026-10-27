@@ -191,7 +191,7 @@ whose live preview would pass the limit is refused through
   `COCO_RLE_UNCOMPRESSED_FORMAT`, `snapshotToCocoCounts`,
   `cocoCountsToSnapshot`, `encodeCocoCountsString`, `decodeCocoCountsString`,
   `cocoBbox`, `cocoArea`, `isCocoInteropSafe`,
-  `COCO_MAX_INTEROP_IMAGE_PIXELS`); the decode guards `assertBoxInsideImage` and `assertCountableImage`,
+  `COCO_MAX_INTEROP_IMAGE_PIXELS`); the decode guards `assertBoxInsideImage` (whose optional last argument names the image and downsample, when the box is in cells) and `assertCountableImage`,
   for a third-party codec that honours `maxPixels`, and `MAX_IMAGE_SIDE`, the
   longest image side a mask may record (2^26, the same bound the validation
   schema applies); and the COCO payload types
