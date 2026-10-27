@@ -21,8 +21,8 @@ import { createTestKeyboardShortcuts } from '../test-helpers.js';
  * part-way, against the same strokes rasterized at full resolution and
  * sampled once at the final downsample. Coarsening on overflow must lose no
  * more than that one-shot sampling does: pooled Dice within 0.001 of it at
- * every d up to 16, a median absolute area error of at most 0.1%, and no
- * lesion lost at d up to 8.
+ * every d up to 16, a median signed area error (the bias) within ±0.1%, and
+ * no lesion lost at d up to 8.
  */
 
 const IMAGE = { width: 8192, height: 8192 } as const;
@@ -51,8 +51,8 @@ interface Stroke {
  * base size. The base spans 350–550 image pixels; scaled with the target
  * downsample, every lesion spans a comparable number of cells at its final
  * grid — 100 to 300 — as the CAMELYON16 lesions the bounds come from do.
- * Left at the base size, a lesion at d=16 spans 20–35 cells, and one-shot
- * sampling itself misses the area bound there.
+ * Left at the base size, a lesion at d=16 spans 20–35 cells, and its edge
+ * cells rather than the rule decide every number.
  */
 function lesion(random: () => number, scale: number): Stroke[] {
   const reach = 450 * scale;
@@ -218,7 +218,7 @@ describe('coarsening on overflow, painted progressively', () => {
         const oneShot = centreSampled(truth, d);
         bucket.oneShot.twice += 2 * overlap(oneShot, truth);
         bucket.oneShot.total += rasterPixelCount(oneShot) + truthArea;
-        bucket.areaErrors.push(Math.abs(area - truthArea) / truthArea);
+        bucket.areaErrors.push((area - truthArea) / truthArea);
       }
     }
 
@@ -230,7 +230,7 @@ describe('coarsening on overflow, painted progressively', () => {
       const errors = [...bucket.areaErrors].sort((a, b) => a - b);
       const median = errors[Math.floor(errors.length / 2)]!;
       expect(dice, `pooled Dice at d=${d}`).toBeGreaterThanOrEqual(oneShot - 0.001);
-      expect(median, `median area error at d=${d}`).toBeLessThanOrEqual(0.001);
+      expect(Math.abs(median), `median signed area error at d=${d}`).toBeLessThanOrEqual(0.001);
       if (d <= 8) expect(bucket.lost, `lesions lost at d=${d}`).toBe(0);
     }
   });

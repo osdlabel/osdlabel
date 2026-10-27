@@ -2077,7 +2077,13 @@ majority rule (`majorityCoarsen`) until it fits, and placed at `d · 2^k`, so it
 covers the same image region and is only blockier at high zoom. The stored
 mask, and everything exported, are untouched. `brushOptions.maxCanvasPixels`
 moves the budget: raise it where the engine allows, or set `Infinity` to always
-draw at full resolution. Changing it redraws the cell's masks.
+draw at full resolution. Changing it redraws the cell's masks. A mask past the budget is drawn from that
+coarser copy at every zoom, so a feature thinner than a mip cell, such as a
+one-pixel line or a one-pixel gap, may not show. The majority rule drops thin
+lines and fills thin gaps alike, so the drawing stays unbiased, and the stored
+mask is unchanged. Drawing just the visible region at full resolution is the
+proper fix, and belongs with
+[#158](https://github.com/osdlabel/osdlabel/issues/158).
 
 The live preview grows ahead of the stroke, so it is not rebuilt at every step,
 but its margin never costs more than the larger of the mask itself and the
