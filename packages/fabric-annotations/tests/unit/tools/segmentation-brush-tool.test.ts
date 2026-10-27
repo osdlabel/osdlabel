@@ -17,6 +17,7 @@ import {
   toDenseSnapshot,
   type CoarsenStrategy,
   type MaskRaster,
+  type MaskRegion,
 } from '@osdlabel/mask';
 import { SegmentationBrushTool } from '../../../src/tools/segmentation-brush-tool.js';
 import { buildMaskFabricObject } from '../../../src/mask-fabric-object.js';
@@ -840,9 +841,12 @@ describe('SegmentationBrushTool: preview cost', () => {
   it('allocates a bounded multiple of the region it ends up covering', () => {
     // Geometric growth means the total allocated across a stroke is a small
     // multiple of the final size, rather than the sum of every intermediate.
+    // 4096² ends exactly at the 16 Mi display budget, the worst case since
+    // the preview stopped crossing it (#243 P5): the last growths each copy
+    // up to the budget, so 4.7x here, against 2-3.6x at 2048-8192.
     const side = 4096;
     const { allocatedPixels } = measureSweep(side);
-    expect(allocatedPixels).toBeLessThan(4 * side * side);
+    expect(allocatedPixels).toBeLessThan(5 * side * side);
   });
 
   it('does not reallocate while a stroke stays inside the preview it already has', () => {
@@ -1617,6 +1621,152 @@ describe('SegmentationBrushTool: resolution of a new mask', () => {
     // Zoomed out: the mask's own d=4 cells. Closer in, d=1: the ring.
     expect(cue(0.25)).toBe(true);
     expect(cue(1)).toBe(false);
+  });
+});
+
+describe('SegmentationBrushTool: re-gridding never turns a stroke that fits into a refusal (#243)', () => {
+  const BIG = { width: 100_000, height: 2_000 } as const;
+
+  /** A d=`d` mask covering `box`, solid, on `size`. */
+  function coarseMask(d: number, box: MaskRegion, size: { width: number; height: number }) {
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: size.width,
+      imageHeight: size.height,
+      downsample: d,
+    });
+    for (let y = box.y; y < box.y + box.height; y += d) {
+      for (let x = box.x; x < box.x + box.width; x += d) buffer.set(x / d, y / d, 1);
+    }
+    return { annotationId: createAnnotationId('coarse'), snapshot: buffer.raster() };
+  }
+
+  it('coarsens a re-gridded stroke back to the grid it started from (P1)', () => {
+    // A d=2 mask about 100 px across and an r=20 drag 400 px long, under a
+    // 64 Ki cap: it fits at d=2 (61,100 cells), not at d=1 (70,664). At zoom 1
+    // or 4 the press re-grids to d=1, and the stroke was refused there.
+    const size = { width: 4_000, height: 4_000 };
+    const target = coarseMask(2, { x: 1_000, y: 1_000, width: 100, height: 100 }, size);
+    for (const maxDownsample of [undefined, 4]) {
+      for (const zoom of [0.5, 1, 4]) {
+        const h = harness({
+          imageSize: size,
+          maxPixels: 64 * 1024,
+          radius: 20,
+          target,
+          viewport: { zoom, width: 800, height: 800 },
+          ...(maxDownsample !== undefined ? { maxDownsample } : {}),
+        });
+        down(h.tool, 1_050, 1_050);
+        for (let x = 1_060; x <= 1_450; x += 10) move(h.tool, x, 1_050 + (x - 1_050) / 4);
+        up(h.tool, 1_450, 1_150);
+        const label = `zoom ${zoom}, maxDownsample ${maxDownsample}`;
+        expect(
+          h.capacityErrors.map((e) => e.message),
+          label,
+        ).toEqual([]);
+        expect(h.commits, label).toHaveLength(1);
+        // Back at its own grid, never coarser than it started.
+        expect(h.commits[0]!.snapshot.downsample, label).toBe(2);
+        expect(h.commits[0]!.startDownsample).toBe(2);
+      }
+    }
+  });
+
+  it('does not re-grid past the canvas side limit, and coarsens back if it must (P2)', () => {
+    // A d=4 mask 40,160 x 160 px: at d=1 or 2 its cells are 40,160 or 20,080
+    // wide, past or near the 32,767 a canvas draws. Every close-zoom stroke was
+    // refused; it now stays at the grid that draws.
+    const target = coarseMask(4, { x: 1_000, y: 500, width: 40_160, height: 160 }, BIG);
+    for (const maxDownsample of [undefined, 8]) {
+      for (const zoom of [0.25, 0.5, 1, 4]) {
+        const h = harness({
+          imageSize: BIG,
+          radius: 10,
+          target,
+          viewport: { zoom, width: 800, height: 800 },
+          ...(maxDownsample !== undefined ? { maxDownsample } : {}),
+        });
+        // Across the mask's top edge, so the stroke adds cells and commits.
+        down(h.tool, 20_000, 495);
+        move(h.tool, 20_040, 495);
+        up(h.tool, 20_040, 495);
+        const label = `zoom ${zoom}, maxDownsample ${maxDownsample}`;
+        expect(
+          h.capacityErrors.map((e) => e.message),
+          label,
+        ).toEqual([]);
+        expect(h.commits, label).toHaveLength(1);
+        expect(h.commits[0]!.snapshot.cells.width, label).toBeLessThanOrEqual(MAX_MASK_CANVAS_SIDE);
+      }
+    }
+  });
+});
+
+describe('SegmentationBrushTool: the canvas side limit, at the press and mid-stroke (#243 P2)', () => {
+  const BIG = { width: 100_000, height: 2_000 } as const;
+
+  it('chooses a press grid whose cells a canvas draws, and the cue agrees', () => {
+    // 40,160 px wide at d=4: d=1 would be 40,160 cells, past the limit, so at
+    // zoom 1 the finest drawable grid is d=2, and the cue shows its cells.
+    const box = { x: 1_000, y: 500, width: 40_160, height: 160 };
+    const h = harness({
+      imageSize: BIG,
+      radius: 10,
+      peekTarget: () => ({ downsample: 4, box }),
+      viewport: { zoom: 1, width: 800, height: 800 },
+    });
+    move(h.tool, 20_000, 495);
+    expect(h.objects.some((o) => o.type === 'path')).toBe(true);
+  });
+
+  it('coarsens a re-gridded stroke back when it grows past the limit mid-stroke', () => {
+    // 20,000 px wide at d=4 re-grids to d=1 at zoom 1, which fits. Dragged on
+    // past the end, it reaches 35,000 cells wide: past what a canvas draws at
+    // d=1, so it returns to d=2 instead of being refused.
+    const buffer = new BoundedDenseMaskBuffer({
+      imageWidth: BIG.width,
+      imageHeight: BIG.height,
+      downsample: 4,
+    });
+    for (let x = 250; x < 5_250; x++) buffer.set(x, 125, 1);
+    const target = { annotationId: createAnnotationId('long'), snapshot: buffer.raster() };
+    const h = harness({
+      imageSize: BIG,
+      radius: 3,
+      target,
+      viewport: { zoom: 1, width: 800, height: 800 },
+    });
+    down(h.tool, 20_990, 502);
+    for (let x = 21_000; x <= 36_000; x += 500) move(h.tool, x, 502);
+    up(h.tool, 36_000, 502);
+    expect(h.capacityErrors.map((e) => e.message)).toEqual([]);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.snapshot.downsample).toBeGreaterThan(1);
+    expect(h.commits[0]!.snapshot.cells.width).toBeLessThanOrEqual(MAX_MASK_CANVAS_SIDE);
+  });
+});
+
+describe('SegmentationBrushTool: the preview under the display budget (#243 P5)', () => {
+  it('stays within the budget for any mask under it', () => {
+    // A 3,000-square mask, 9 M cells: the margin rule let its preview reach
+    // 9 M + 16 Mi, past the 16 Mi an iPad draws, though a 16 Mi maxPixels
+    // would never have coarsened it.
+    for (const side of [1_000, 2_048, 3_000, 4_000]) {
+      const buffer = new BoundedDenseMaskBuffer({ imageWidth: 10_000, imageHeight: 10_000 });
+      stampCircle(buffer, 5_000, 5_000, 2, 1);
+      stampCircle(buffer, 5_000 + side - 3, 5_000 + side - 3, 2, 1);
+      const h = harness({
+        imageSize: { width: 10_000, height: 10_000 },
+        radius: 3,
+        target: { annotationId: createAnnotationId('m'), snapshot: buffer.raster() },
+      });
+      down(h.tool, 5_000 + side / 2, 5_000 + side / 2);
+      const preview = h.objects.find((o) => o.type === 'image')!;
+      expect(preview.width! * preview.height!, `side ${side}`).toBeLessThanOrEqual(
+        MAX_MASK_CANVAS_PIXELS,
+      );
+      up(h.tool, 5_000 + side / 2, 5_000 + side / 2);
+    }
   });
 });
 

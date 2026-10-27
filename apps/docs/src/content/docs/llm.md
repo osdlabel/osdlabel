@@ -1752,11 +1752,14 @@ A mask may be stored at a power-of-two **downsample**, each cell standing for a
 resolution, whatever the zoom. A stroke on an existing mask paints at that
 mask's own downsample, or finer when the view is close enough to show it. At
 the press, the brush picks the finest power of two no finer than an image pixel
-per screen pixel, as long as the mask's box and the first dab fit the cap there.
-In a context that does not coarsen, the finer box must leave three
-quarters of the cap free, so re-gridding never turns a stroke that would have
-fitted into a refusal. Re-gridding replicates each cell into the finer cells it
-covers, so the mask loses nothing. A coarse mask refined zoomed out stays
+per screen pixel, as long as the mask's box and the first dab fit the cap there,
+and each side fits the 32,767 cells a canvas draws. In a context that does not
+coarsen, the finer box must also leave three quarters of the cap free. If a
+re-gridded stroke still outgrows the cap, or its preview the canvas side, the
+brush coarsens it back toward the grid it started from rather than refusing
+it, so re-gridding never turns a stroke that would have fitted into a refusal;
+that is lossless, and `onCoarsen` is not called for it. Re-gridding replicates
+each cell into the finer cells it covers, so the mask loses nothing. A coarse mask refined zoomed out stays
 coarse, and the cursor's cells show the grid the press will paint on.
 The box stays in image pixels at every downsample; the grid conventions are in
 the [Serialization guide](/osdlabel/guides/serialization/#masks-at-a-downsample).
@@ -2085,9 +2088,10 @@ mask is unchanged. Drawing just the visible region at full resolution is the
 proper fix, and belongs with
 [#158](https://github.com/osdlabel/osdlabel/issues/158).
 
-The live preview grows ahead of the stroke, so it is not rebuilt at every step,
-but its margin never costs more than the larger of the mask itself and the
-display budget. A preview the engine refuses to allocate is reported through
+The live preview grows ahead of the stroke, so it is not rebuilt at every step.
+While the mask is within the display budget, the preview stays within it too;
+past the budget, its margin costs at most the mask's own area, so growth stays
+geometric. A preview the engine refuses to allocate is reported through
 `onCapacityExceeded`, and the stroke is abandoned with the mask unchanged.
 
 A canvas also has a longest side: Firefox draws none past 32,767 pixels

@@ -172,8 +172,9 @@ mask at full resolution), and `createFabricObjectFromRawData` and
 through `onAnnotationRenderError` while the other annotations render. A stroke
 whose live preview would pass the side limit is refused through
 `onCapacityExceeded`, whose argument is now `BrushCapacityError`
-(`MaskCapacityExceededError | MaskCanvasTooLargeError`). The preview's margin
-costs at most the larger of the mask's own area and the display budget (#158).
+(`MaskCapacityExceededError | MaskCanvasTooLargeError`). The preview stays
+within the display budget while the mask is, and past it its margin costs at
+most the mask's own area (#158).
 
 ## New API
 

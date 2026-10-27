@@ -601,11 +601,13 @@ export class SegmentationBrushTool extends BaseTool {
    * The downsample a stroke pressed at `point` paints a `downsample` mask at:
    * the finest power of two no finer than the view shows (an image pixel per
    * screen pixel or more), whose box — the mask's, `box` in image pixels, and
-   * the first dab's — fits. A context that coarsens (`maxDownsample` above 1)
-   * may fill the cap; one that
-   * does not keeps three quarters of it free, so re-gridding never turns a
-   * stroke that would have fitted at the mask's own resolution into a refusal.
-   * The mask's own downsample when nothing finer fits.
+   * the first dab's — fits, with no side longer than a canvas draws. A
+   * context that coarsens (`maxDownsample` above 1) may fill the cap; one that
+   * does not keeps three quarters of it free. A stroke that outgrows the cap
+   * or the canvas side anyway coarsens back toward the mask's own grid (see
+   * `coarsenBuffer`), so re-gridding never turns a stroke that would have
+   * fitted at the mask's own resolution into a refusal. The mask's own
+   * downsample when nothing finer fits.
    */
   private strokeDownsample(
     downsample: number,
@@ -639,10 +641,13 @@ export class SegmentationBrushTool extends BaseTool {
     if (right <= left || bottom <= top) return downsample;
     const limit = maxDownsample > 1 ? this.capacity() : this.capacity() / 4;
     for (let d = finest; d < downsample; d *= 2) {
-      const cells =
-        (Math.ceil(right / d) - Math.floor(left / d)) *
-        (Math.ceil(bottom / d) - Math.floor(top / d));
-      if (cells <= limit) return d;
+      const wide = Math.ceil(right / d) - Math.floor(left / d);
+      const tall = Math.ceil(bottom / d) - Math.floor(top / d);
+      // And no side longer than a canvas draws: a wide coarse mask re-gridded
+      // finer was refused at every close zoom (#243 P2).
+      if (wide * tall <= limit && wide <= MAX_MASK_CANVAS_SIDE && tall <= MAX_MASK_CANVAS_SIDE) {
+        return d;
+      }
     }
     return downsample;
   }
@@ -657,7 +662,12 @@ export class SegmentationBrushTool extends BaseTool {
     const buffer = this.buffer;
     if (!buffer) return false;
     const d = buffer.downsample;
-    if (d * 2 > this.strokeMaxDownsample || d * 2 > MAX_MASK_DOWNSAMPLE) return false;
+    // As far as the context allows, or back to the grid the stroke started
+    // from: a stroke that re-gridded finer may always return there, losslessly
+    // (rule 3 of the strategy contract), so re-gridding never turns a stroke
+    // that fits at the mask's own grid into a refusal (#243 P1).
+    const limit = Math.max(this.strokeMaxDownsample, this.startDownsample);
+    if (d * 2 > limit || d * 2 > MAX_MASK_DOWNSAMPLE) return false;
     const strategy = this.config.getCoarsenStrategy?.() ?? majorityCoarsen;
     const coarse = strategy(buffer.raster());
     if (coarse.downsample !== d * 2) {
@@ -714,46 +724,66 @@ export class SegmentationBrushTool extends BaseTool {
         }
       }
     }
-    // `touched` arrives in image pixels; the preview, like the buffer, is in
-    // cells — after any coarsening, the coarser ones. Rounded outward so a
-    // partly-touched cell is still repainted.
-    const buffer = this.buffer;
-    if (!buffer) return;
-    const d = buffer.downsample;
-    const left = Math.floor(touched.x / d);
-    const top = Math.floor(touched.y / d);
-    const touchedCells: MaskRegion = {
-      x: left,
-      y: top,
-      width: Math.ceil((touched.x + touched.width) / d) - left,
-      height: Math.ceil((touched.y + touched.height) / d) - top,
-    };
+    if (!this.buffer) return;
     // Only painting can set a cell, and only the dabs' own cells: growing by
     // the swept slack box, or while erasing, refused near-limit strokes for
     // cells that were never set. Measured on the buffer's grid now, after any
     // coarsening.
     if (!this.erasing) this.growPaintedBounds(this.footprint(from, to));
-    try {
-      this.syncPreview(touchedCells);
-    } catch (error) {
-      // The pixel cap bounds the one-byte buffer, but the preview is a
-      // four-byte RGBA raster over up to 2x the buffer's box in each axis,
-      // and an engine refuses a canvas or `ImageData` past its own limit (iOS
-      // Safari at about 16 megapixels of area) with a plain `RangeError`.
-      // That is a capacity failure in every way that matters to the host:
-      // report it as one and abandon the stroke with the mask unchanged.
-      const bounds = this.previewBounds ?? this.buffer.cellBounds;
-      this.config.onCapacityExceeded?.(
-        error instanceof MaskCapacityExceededError || error instanceof MaskCanvasTooLargeError
-          ? error
-          : new MaskCapacityExceededError(
-              bounds.width * bounds.height,
-              this.maxPixelsOption().maxPixels ?? DEFAULT_MAX_MASK_PIXELS,
-              this.buffer.downsample,
-            ),
-      );
-      this.endStroke();
+    for (;;) {
+      try {
+        this.syncPreview(this.cellsOf(touched));
+        return;
+      } catch (error) {
+        // A stroke that re-gridded finer may find its preview longer than a
+        // canvas draws, where the mask's own grid was not: coarsen back
+        // toward it, as on an overflow, and draw again (#243 P2).
+        if (
+          error instanceof MaskCanvasTooLargeError &&
+          this.buffer.downsample < this.startDownsample &&
+          this.coarsenBuffer()
+        ) {
+          continue;
+        }
+        this.refusePreview(error);
+        return;
+      }
     }
+  }
+
+  /** `touched`, in image pixels, as the cells it covers on the buffer's grid. */
+  private cellsOf(touched: MaskRegion): MaskRegion {
+    const d = this.buffer?.downsample ?? 1;
+    const left = Math.floor(touched.x / d);
+    const top = Math.floor(touched.y / d);
+    return {
+      x: left,
+      y: top,
+      width: Math.ceil((touched.x + touched.width) / d) - left,
+      height: Math.ceil((touched.y + touched.height) / d) - top,
+    };
+  }
+
+  /** Reports a preview the engine or the canvas limit refused, and ends the stroke. */
+  private refusePreview(error: unknown): void {
+    if (!this.buffer) return;
+    // The pixel cap bounds the one-byte buffer, but the preview is a
+    // four-byte RGBA raster over up to 2x the buffer's box in each axis,
+    // and an engine refuses a canvas or `ImageData` past its own limit (iOS
+    // Safari at about 16 megapixels of area) with a plain `RangeError`.
+    // That is a capacity failure in every way that matters to the host:
+    // report it as one and abandon the stroke with the mask unchanged.
+    const bounds = this.previewBounds ?? this.buffer.cellBounds;
+    this.config.onCapacityExceeded?.(
+      error instanceof MaskCapacityExceededError || error instanceof MaskCanvasTooLargeError
+        ? error
+        : new MaskCapacityExceededError(
+            bounds.width * bounds.height,
+            this.maxPixelsOption().maxPixels ?? DEFAULT_MAX_MASK_PIXELS,
+            this.buffer.downsample,
+          ),
+    );
+    this.endStroke();
   }
 
   /**
@@ -928,17 +958,20 @@ export class SegmentationBrushTool extends BaseTool {
         Math.floor((MAX_MASK_CANVAS_SIDE - bounds.height) / 2),
       ),
     );
-    // Nor letting the margin cost more than the mask itself, or the display
-    // budget while the mask is under it (#158): half the extent on every side
-    // made a preview up to 4x the buffer — 466 MB of RGBA for a 53 MB mask.
-    // The margin still scales with the extent, so growth stays geometric.
+    // Nor letting the margin take the preview past the display budget while
+    // the mask is under it, or cost more than the mask itself once past it
+    // (#158, #243 P5): half the extent on every side made a preview up to 4x
+    // the buffer — 466 MB of RGBA for a 53 MB mask — and a mask of 4 Mi cells
+    // a preview past the 16 Mi an iPad draws. Past the budget the margin still
+    // scales with the extent, so growth stays geometric; under it, growth costs
+    // a bounded number of copies of at most the budget each.
     const area = bounds.width * bounds.height;
     const scale = marginScale(
       bounds.width,
       bounds.height,
       sideX,
       sideY,
-      area + Math.max(area, MAX_MASK_CANVAS_PIXELS),
+      area <= MAX_MASK_CANVAS_PIXELS ? MAX_MASK_CANVAS_PIXELS : 2 * area,
     );
     const marginX = Math.floor(sideX * scale);
     const marginY = Math.floor(sideY * scale);
