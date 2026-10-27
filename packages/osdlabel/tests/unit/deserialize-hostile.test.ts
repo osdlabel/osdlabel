@@ -909,25 +909,28 @@ describe('deserialize: the budget path keeps each mask its own reason (#149 mino
   });
 
   it('bills the runs a padded payload holds, not just the spans they decode to (#149 final 8)', () => {
-    // A solid 1000² mask with 8 M zero-length runs after its two: it decodes
-    // to the same spans, and was billed the same 1,000,002 as the honest one,
-    // though it took about 500 times as long to decode.
-    const padding = 8_000_000;
-    // The runs' 4 bytes and two zeros, then the other zeros three bytes to
-    // each 'AAAA', built as base64 directly: spreading 8 M bytes overflows.
-    const head = [0, ...encodeLeb(1000 * 1000), 0, 0];
-    expect(head).toHaveLength(6);
+    // A solid 100² mask with 80,000 zero-length runs after its two decodes to
+    // the same spans as the honest one, and was billed the same 10,002, while
+    // its decode walks every padded run. (Scaled down from the reviewer's
+    // 1000² and 8 M runs, which took over 5 s on CI.)
+    const padding = 80_000;
     const padded = {
-      ...solidMask(1000),
-      counts: toBase64(head) + 'AAAA'.repeat((padding - 2) / 3),
+      ...solidMask(100),
+      counts: btoa(String.fromCharCode(0, ...encodeLeb(100 * 100)) + '\0'.repeat(padding)),
     };
     const doc = [
       { ...maskAnnotation(padded), id: 'padded' },
       { ...maskAnnotation(solidMask(1)), id: 'b' },
     ];
-    // Enough for the honest pair (see the test above), not for the padding.
-    expect(() => deserialize(doc, { maxTotalMaskPixels: 1_000_003 })).toThrow(SerializationError);
-    expect(deserialize(doc, { maxTotalMaskPixels: 1_000_000 + padding + 3 }).skipped).toEqual([]);
+    // The honest pair fits 10,003 (as the test above shows at 1000²); the
+    // padded one needs its runs too.
+    const honest = [{ ...maskAnnotation(solidMask(100)), id: 'a' }, doc[1]!];
+    expect(deserialize(honest, { maxTotalMaskPixels: 10_003 }).skipped).toEqual([]);
+    expect(() => deserialize(doc, { maxTotalMaskPixels: 10_003 })).toThrow(SerializationError);
+    expect(deserialize(doc, { maxTotalMaskPixels: 10_000 + padding + 3 }).skipped).toEqual([]);
+    expect(() => deserialize(doc, { maxTotalMaskPixels: 10_000 + padding + 2 })).toThrow(
+      SerializationError,
+    );
   });
 
   it('skips a mask whose fault comes after its decode, even under the budget (#149 final 9)', () => {
