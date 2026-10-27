@@ -259,6 +259,26 @@ describe('pycocotools interop limits', () => {
     expect(isCocoInteropSafe(bottomRow(65_537))).toBe(false);
   });
 
+  it('is false for a foreground area of exactly 2^32, which rleArea reads back as 0', () => {
+    // rleArea sums in a uint too, and rleToBbox survives a foreground end at
+    // exactly 2^32. With no pixel at index 2^32 or past it, an area of 2^32
+    // is every pixel in [0, 2^32): one run of 2^32, past the 32-bit run store,
+    // so the run check answers it. Here, a solid 65,536-square block at d=16
+    // in the top-left of an image 65,536 tall; one cell column fewer is safe.
+    const solid = (columns: number) =>
+      runRaster(
+        {
+          cells: { x: 0, y: 0, width: columns, height: 4_096 },
+          imageWidth: 70_000,
+          imageHeight: 65_536,
+          downsample: 16,
+        },
+        [0, columns * 4_096],
+      );
+    expect(isCocoInteropSafe(solid(4_096))).toBe(false);
+    expect(isCocoInteropSafe(solid(4_095))).toBe(true);
+  });
+
   it('is false once the runs pass the bound the exporter refuses at', { timeout: 60_000 }, () => {
     // Alternating rows of d=16 cells, 2,100 x 4,096 of them on a 65,536-square
     // image: about 137.6 M runs, past MAX_COCO_RUNS, while every run, delta

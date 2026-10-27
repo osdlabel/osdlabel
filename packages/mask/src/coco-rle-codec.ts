@@ -850,6 +850,8 @@ const COCO_MAX_INTEROP_POSITION = 2 ** 32;
  *   `rleToBbox` accumulates the position, and `rleArea` the area, in a `uint`.
  *   Past it the box is wrong, and on a large mask the area too: a one-pixel
  *   line across a 100,000 x 80,000 image comes back as a 53,687 x 7,297 box.
+ *   An area of 2^32 needs no check of its own: with no pixel at index 2^32
+ *   or past it, it is the single run [0, 2^32), which the first limit refuses.
  *
  * Verified against pycocotools 2.0.11. Decided from the mask's own runs, by a
  * sweep that stops at the first one out of range, or at
