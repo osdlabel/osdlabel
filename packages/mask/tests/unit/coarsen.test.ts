@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   BoundedDenseMaskBuffer,
+  denseRaster,
   majorityCoarsen,
+  rasterToRuns,
+  runRaster,
+  toDenseSnapshot,
   rasterPixelCount,
   snapshotImageBox,
   stampCircle,
@@ -46,8 +50,8 @@ describe('majorityCoarsen', () => {
     const next = random(5);
     for (let trial = 0; trial < 20; trial++) {
       // An odd-sized image, so the last coarse column and row have one child.
-      const imageWidth = 51 + 2 * Math.floor(next() * 40) + 1;
-      const imageHeight = 31 + 2 * Math.floor(next() * 40) + 1;
+      const imageWidth = 51 + 2 * Math.floor(next() * 40);
+      const imageHeight = 31 + 2 * Math.floor(next() * 40);
       const coarseBuffer = new BoundedDenseMaskBuffer({ imageWidth, imageHeight, downsample: 2 });
       for (let s = 0; s < 4; s++) {
         stampCircle(coarseBuffer, next() * imageWidth, next() * imageHeight, 2 + next() * 12, 1);
@@ -94,6 +98,57 @@ describe('majorityCoarsen', () => {
         expect(coarse.get(cx, cy), `cell ${cx},${cy}`).toBe(expected);
       }
     }
+  });
+
+  it('breaks ties by absolute parity whatever the box, on dense and run rasters (#243 minor 6)', () => {
+    // A checkerboard from an odd origin: relative to the box, every coarse
+    // cell's parity is flipped, so a box-relative tie-break sets the others.
+    const imageWidth = 40;
+    const imageHeight = 30;
+    const box = { x: 3, y: 5, width: 30, height: 20 };
+    const data = new Uint8Array(box.width * box.height);
+    for (let r = 0; r < box.height; r++) {
+      for (let c = 0; c < box.width; c++) {
+        if ((box.x + c + box.y + r) % 2 === 0) data[r * box.width + c] = 1;
+      }
+    }
+    const tight = denseRaster({ cells: box, data, imageWidth, imageHeight, downsample: 1 });
+    const padded = toDenseSnapshot(tight);
+    const wide = { x: 0, y: 0, width: imageWidth, height: imageHeight };
+    const wideData = new Uint8Array(imageWidth * imageHeight);
+    tight.forEachSpan((cy, x0, x1) => wideData.fill(1, cy * imageWidth + x0, cy * imageWidth + x1));
+    const sources = [
+      tight,
+      runRaster(tight, rasterToRuns(tight)),
+      denseRaster({ ...padded, cells: wide, data: wideData }),
+    ];
+    for (const [i, source] of sources.entries()) {
+      const coarse = majorityCoarsen(source);
+      // The coarse cells whose four children all lie inside the box: ties.
+      for (let cy = 3; cy < 12; cy++) {
+        for (let cx = 2; cx < 16; cx++) {
+          expect(coarse.get(cx, cy), `source ${i}, cell ${cx},${cy}`).toBe(
+            (cx + cy) % 2 === 0 ? 1 : 0,
+          );
+        }
+      }
+      expect(setCells(coarse), `source ${i}`).toEqual(setCells(majorityCoarsen(tight)));
+    }
+  });
+
+  it('counts a dense byte only when it is 1, as the span path does (#243 minor 5)', () => {
+    const cells = { x: 0, y: 0, width: 2, height: 2 };
+    const raster = denseRaster({
+      cells,
+      data: new Uint8Array([2, 2, 1, 0]),
+      imageWidth: 2,
+      imageHeight: 2,
+      downsample: 1,
+    });
+    // One child of four is set, as `get` and the spans read it.
+    expect(raster.cellCount).toBe(1);
+    expect(majorityCoarsen(raster).get(0, 0)).toBe(0);
+    expect(majorityCoarsen(runRaster(raster, rasterToRuns(raster))).get(0, 0)).toBe(0);
   });
 
   it('keeps area unbiased on random discs, through d = 16', () => {

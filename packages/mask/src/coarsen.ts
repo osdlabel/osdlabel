@@ -109,7 +109,9 @@ function countSpans(
 /**
  * Set children per coarse cell, from a dense snapshot's bytes: each source row
  * pair once, adding a byte pair per coarse cell, with no span to find: about
- * 300 ms against 400 for the span walk on an 8,180-square buffer, in Node.
+ * 300 ms against 400 for the span walk on an 8,180-square buffer, in Node. A
+ * byte counts only when it is 1, as `DenseMaskRaster` reads it, so both paths
+ * agree on any bytes.
  */
 function countDense(
   source: MaskSnapshot,
@@ -128,13 +130,14 @@ function countDense(
     // A leading odd column pairs with nothing to its left in the box.
     let col = 0;
     if ((x & 1) === 1) {
-      counts[base + (x >> 1)]! += data[offset]!;
+      counts[base + (x >> 1)]! += data[offset] === 1 ? 1 : 0;
       col = 1;
     }
     for (; col + 1 < width; col += 2) {
-      counts[base + ((x + col) >> 1)]! += data[offset + col]! + data[offset + col + 1]!;
+      counts[base + ((x + col) >> 1)]! +=
+        (data[offset + col] === 1 ? 1 : 0) + (data[offset + col + 1] === 1 ? 1 : 0);
     }
-    if (col < width) counts[base + ((x + col) >> 1)]! += data[offset + col]!;
+    if (col < width) counts[base + ((x + col) >> 1)]! += data[offset + col] === 1 ? 1 : 0;
   }
   return counts;
 }

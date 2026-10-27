@@ -5,6 +5,7 @@ import {
   toDenseSnapshot,
   verifyCoarsenStrategy,
   type CoarsenStrategy,
+  type MaskRaster,
 } from '../../src/index.js';
 
 const rules = (violations: readonly string[]) => new Set(violations.map((v) => v.split(':')[0]));
@@ -72,5 +73,54 @@ describe('verifyCoarsenStrategy', () => {
     expect(found).toContain('undoes re-gridding');
     expect(found).not.toContain('deterministic');
     expect(found).not.toContain('valid');
+  });
+
+  it('catches a strategy that pairs children from the box origin, not the grid (#243 minor 2)', () => {
+    // Majority over the cells shifted to an even origin: at an even origin the
+    // same as the built-in rule; at an odd one, each pair straddles two coarse
+    // cells, and the mask moves by one fine cell.
+    const boxRelative: CoarsenStrategy = (source) => {
+      const snapshot = toDenseSnapshot(source);
+      const { x, y } = snapshot.cells;
+      return majorityCoarsen(
+        denseRaster({ ...snapshot, cells: { ...snapshot.cells, x: x - (x & 1), y: y - (y & 1) } }),
+      );
+    };
+    const found = rules(verifyCoarsenStrategy(boxRelative));
+    expect(found).toContain('deterministic');
+    expect(found).toContain('undoes re-gridding');
+  });
+
+  it('reports a strategy that returns no raster, rather than passing or throwing (#243 minor 3)', () => {
+    for (const value of [undefined, null, {}, 3]) {
+      const broken = (() => value) as unknown as CoarsenStrategy;
+      const violations = verifyCoarsenStrategy(broken);
+      expect(rules(violations), String(value)).toEqual(new Set(['valid']));
+      expect(violations[0]).toMatch(/not a raster/);
+    }
+  });
+
+  it("does not trust a result's cellCount or get (#243 minor 4)", () => {
+    // Erodes like `unanimous` above would, then reports the built-in rule's
+    // count and answers `get` as the built-in result does.
+    const liar: CoarsenStrategy = (source) => {
+      const honest = majorityCoarsen(source);
+      const eroded = toDenseSnapshot(honest);
+      const data = eroded.data.slice();
+      const last = data.lastIndexOf(1);
+      if (last >= 0) data[last] = 0;
+      const spans = denseRaster({ ...eroded, data });
+      const result: MaskRaster = {
+        cells: honest.cells,
+        imageWidth: honest.imageWidth,
+        imageHeight: honest.imageHeight,
+        downsample: honest.downsample,
+        cellCount: honest.cellCount,
+        get: (cx, cy) => honest.get(cx, cy),
+        forEachSpan: (visit, within) => spans.forEachSpan(visit, within),
+      };
+      return result;
+    };
+    expect(rules(verifyCoarsenStrategy(liar))).toContain('undoes re-gridding');
   });
 });

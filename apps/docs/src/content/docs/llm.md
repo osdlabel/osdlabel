@@ -2171,11 +2171,12 @@ at every d up to 16. A host may supply its own as
 `brushOptions.coarsen` (a `CoarsenStrategy`: a raster in, the raster at twice
 its downsample out). It must meet the contract `verifyCoarsenStrategy` checks:
 
-1. it is deterministic;
+1. it is deterministic, whatever box holds the cells: it pairs children on the
+   grid, not from the box's origin;
 2. it returns a valid coarsening, at twice the downsample, on the same grid,
    with nothing set outside the source's box;
 3. it undoes re-gridding: a mask replicated one step finer (`refineRaster`)
-   coarsens back to itself.
+   coarsens back to itself, from an odd box origin too.
 
 ```ts
 

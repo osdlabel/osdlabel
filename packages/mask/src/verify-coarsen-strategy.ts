@@ -3,6 +3,7 @@ import { maskGridSize } from './downsample.js';
 import {
   denseRaster,
   forEachCheckedSpan,
+  isMaskRaster,
   rasterToRuns,
   runRaster,
   type MaskRaster,
@@ -16,13 +17,18 @@ const MAX_PER_RULE = 3;
  * Checks a {@link CoarsenStrategy} against the contract the brush relies on,
  * on generated masks, and returns the violations found — empty when it holds.
  *
- * 1. **Deterministic:** the same raster, or an equal one, coarsens the same.
+ * 1. **Deterministic:** the same raster, or an equal one, coarsens the same,
+ *    whatever box holds its cells: a copy with the box padded and its origin
+ *    shifted coarsens to the same cells, so a strategy that pairs children
+ *    from the box's origin rather than the grid's fails.
  * 2. **Valid:** the result is at twice the downsample, on the same image,
  *    inside the coarse grid, keeps the span contract, and sets no cell outside
  *    the source's box rounded out to the coarse grid.
  * 3. **Undoes re-gridding:** coarsening a mask just re-gridded one step finer
- *    ({@link refineRaster}) returns it. Without this, refining at a closer zoom
- *    and overflowing again would erode the mask a little every cycle.
+ *    ({@link refineRaster}) returns it, also when the refined mask's box is
+ *    re-boxed to an odd origin, as the brush's tight boxes often are. Without
+ *    this, refining at a closer zoom and overflowing again would erode the
+ *    mask a little every cycle.
  *
  * The masks cover odd image sizes, boxes against the image's edges, noise at
  * several densities, discs, checkerboards (every coarse cell a tie) and the
@@ -37,12 +43,20 @@ export function verifyCoarsenStrategy(strategy: CoarsenStrategy): readonly strin
     found.set(rule, list);
   };
   const run = (raster: MaskRaster, label: string): MaskRaster | null => {
+    let result: unknown;
     try {
-      return strategy(raster);
+      result = strategy(raster);
     } catch (error) {
       report('valid', `${label}: threw ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
+    // A host strategy is typed, but not checked: report a non-raster here
+    // rather than failing on it below.
+    if (typeof result !== 'object' || result === null || !isMaskRaster(result as MaskRaster)) {
+      report('valid', `${label}: returned ${describe(result)}, not a raster`);
+      return null;
+    }
+    return result as MaskRaster;
   };
 
   const random = mulberry32(0x5eed);
@@ -55,13 +69,18 @@ export function verifyCoarsenStrategy(strategy: CoarsenStrategy): readonly strin
       for (const [kind, mask] of generateMasks(imageWidth, imageHeight, d, random)) {
         const label = `${kind} on ${imageWidth}x${imageHeight} at d=${d}`;
 
-        // 1. Deterministic, on the same raster and on an equal copy.
+        // 1. Deterministic, on the same raster, on an equal copy, and on the
+        // same cells under a padded box with a shifted origin.
         const first = run(mask, label);
         const again = run(mask, label);
         const copy = run(runRaster(mask, rasterToRuns(mask)), label);
+        const padded = run(rebox(mask, 1), `${label}, padded`);
         if (!first) continue;
         if ((again && !sameCells(first, again)) || (copy && !sameCells(first, copy))) {
           report('deterministic', `${label}: two runs disagree`);
+        }
+        if (padded && !sameCells(first, padded)) {
+          report('deterministic', `${label}: a padded box coarsens differently`);
         }
 
         // 2. Valid.
@@ -71,9 +90,21 @@ export function verifyCoarsenStrategy(strategy: CoarsenStrategy): readonly strin
         // 3. Undoes re-gridding: the mask at 2d, refined to d, coarsened.
         if (d * 4 > 1 << 16) continue;
         const coarse = asCoarse(mask);
-        const back = run(refineRaster(coarse, d), `${label}, re-gridded`);
+        const refined = refineRaster(coarse, d);
+        const back = run(refined, `${label}, re-gridded`);
         if (back && !sameCells(back, coarse)) {
           report('undoes re-gridding', `${label}: re-gridded then coarsened differs`);
+        }
+        // A refined box always starts on an even cell; pad it by one to start
+        // on an odd one, where children pair across the box's first column.
+        if (refined.cells.x > 0 && refined.cells.y > 0) {
+          const odd = run(rebox(refined, 1), `${label}, re-gridded at an odd origin`);
+          if (odd && !sameCells(odd, coarse)) {
+            report(
+              'undoes re-gridding',
+              `${label}: re-gridded, re-boxed at an odd origin, then coarsened differs`,
+            );
+          }
         }
       }
     }
@@ -120,20 +151,63 @@ function invalidity(source: MaskRaster, result: MaskRaster): string | null {
   return outside;
 }
 
-/** Whether two rasters set the same cells at the same downsample, whatever their boxes. */
+/**
+ * Whether two rasters set the same cells at the same downsample, whatever
+ * their boxes: from each one's checked spans, not its `cellCount` or `get`,
+ * which a strategy's own raster could report wrongly.
+ */
 function sameCells(a: MaskRaster, b: MaskRaster): boolean {
-  if (a.downsample !== b.downsample || a.cellCount !== b.cellCount) return false;
-  let same = true;
-  a.forEachSpan((cy, x0, x1) => {
-    if (!same) return;
-    for (let cx = x0; cx < x1; cx++) {
-      if (b.get(cx, cy) !== 1) {
-        same = false;
-        return;
-      }
-    }
+  if (a.downsample !== b.downsample) return false;
+  const left = cellsOf(a);
+  const right = cellsOf(b);
+  if (!left || !right || left.size !== right.size) return false;
+  for (const cell of left) if (!right.has(cell)) return false;
+  return true;
+}
+
+/** A raster's set cells as `cx,cy` keys, or `null` if its spans break the contract. */
+function cellsOf(raster: MaskRaster): Set<string> | null {
+  const out = new Set<string>();
+  try {
+    forEachCheckedSpan(raster, (cy, x0, x1) => {
+      for (let cx = x0; cx < x1; cx++) out.add(`${cx},${cy}`);
+    });
+  } catch {
+    return null;
+  }
+  return out;
+}
+
+/**
+ * The same cells in a box grown by `pad` cells on every side, clipped to the
+ * grid: an equal mask whose box, and so whose origin's parity, differs.
+ */
+function rebox(mask: MaskRaster, pad: number): MaskRaster {
+  const grid = maskGridSize(mask.imageWidth, mask.imageHeight, mask.downsample);
+  const { cells } = mask;
+  if (cells.width === 0 || cells.height === 0) return mask;
+  const x = Math.max(0, cells.x - pad);
+  const y = Math.max(0, cells.y - pad);
+  const width = Math.min(grid.width, cells.x + cells.width + pad) - x;
+  const height = Math.min(grid.height, cells.y + cells.height + pad) - y;
+  const data = new Uint8Array(width * height);
+  mask.forEachSpan((cy, x0, x1) => {
+    data.fill(1, (cy - y) * width + (x0 - x), (cy - y) * width + (x1 - x));
   });
-  return same;
+  return denseRaster({
+    cells: { x, y, width, height },
+    data,
+    imageWidth: mask.imageWidth,
+    imageHeight: mask.imageHeight,
+    downsample: mask.downsample,
+  });
+}
+
+/** A short description of a value a strategy returned. */
+function describe(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value === 'object') return Array.isArray(value) ? 'an array' : 'an object';
+  return typeof value === 'undefined' ? 'undefined' : `a ${typeof value}`;
 }
 
 /**
