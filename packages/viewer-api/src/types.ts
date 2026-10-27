@@ -163,8 +163,9 @@ export interface KeyboardShortcutMap {
   /**
    * Start a separate mask: deselect, keeping the brush, so the next stroke
    * creates a mask instead of refining the selected one. Only while the brush
-   * is the active tool, and below the context's mask limit; mid-stroke it waits
-   * for the release. Unlike `cancel`, a second press never leaves the brush.
+   * is the active tool, and below the context's mask limit. It is ignored while
+   * a stroke is open: press it again after releasing. Unlike `cancel`, a
+   * second press never leaves the brush.
    */
   readonly newMask: string;
   readonly cancel: string;

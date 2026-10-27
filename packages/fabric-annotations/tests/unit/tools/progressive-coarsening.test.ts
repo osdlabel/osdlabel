@@ -97,6 +97,9 @@ function paintProgressively(strokes: readonly Stroke[], maxPixels: number): Mask
   const refused: unknown[] = [];
   const objects: unknown[] = [];
   const canvas = {
+    // The tool listens to renders to keep its cue sized; nothing renders here.
+    on: () => {},
+    off: () => {},
     add: (...added: unknown[]) => objects.push(...added),
     remove: () => {},
     getObjects: () => [],

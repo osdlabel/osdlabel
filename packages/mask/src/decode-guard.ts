@@ -111,11 +111,21 @@ export function assertBoxInsideImage(
   height: number,
   imageWidth: number,
   imageHeight: number,
+  /**
+   * When the box is in cells at a downsample above 1, the grid it is checked
+   * against: `imageWidth` / `imageHeight` are then that cell grid, and this
+   * names the image and downsample it belongs to, so the message says so.
+   */
+  grid?: { readonly downsample: number; readonly imageWidth: number; readonly imageHeight: number },
 ): void {
   if (x < 0 || y < 0 || x + width > imageWidth || y + height > imageHeight) {
     throw new RangeError(
-      `Mask box ${width}x${height} at (${x}, ${y}) lies outside its ` +
-        `${imageWidth}x${imageHeight} image`,
+      grid && grid.downsample > 1
+        ? `Mask box ${width}x${height} cells at (${x}, ${y}) lies outside the ` +
+            `${imageWidth}x${imageHeight}-cell grid of its ${grid.imageWidth}x${grid.imageHeight} ` +
+            `image at downsample ${grid.downsample}`
+        : `Mask box ${width}x${height} at (${x}, ${y}) lies outside its ` +
+            `${imageWidth}x${imageHeight} image`,
     );
   }
 }

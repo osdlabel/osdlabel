@@ -833,3 +833,78 @@ describe('deserialize: a codec that returns a raster its data does not fill', ()
     expect(skipped).toEqual([]);
   });
 });
+
+describe('deserialize: the budget path keeps each mask its own reason (#149 minors 13-15)', () => {
+  /** A codec that throws `thrown` for every mask, and decodes nothing. */
+  const throwing = (thrown: unknown) =>
+    createMaskCodecRegistry({
+      format: 'throws',
+      encode: () => ({}),
+      decode: () => {
+        throw thrown;
+      },
+    } as never);
+
+  it('names a non-object payload, even once the budget limits the cap', () => {
+    // The first mask spends most of the budget, so the second is decoded
+    // under a budget-shrunk cap; its null payload was retried and reported as
+    // "Cannot read properties of null".
+    const doc = [
+      { ...maskAnnotation(solidMask(900)), id: 'big' },
+      { ...maskAnnotation(null as unknown as Record<string, unknown>), id: 'null-data' },
+    ];
+    const { skipped } = deserialize(doc, { maxTotalMaskPixels: 1_000_000 });
+    expect(skipped).toEqual([
+      { id: 'null-data', reason: 'Mask payload must be an object, got null' },
+    ]);
+  });
+
+  it('skips a mask whose codec throws a value with no string form, on either path', () => {
+    for (const maxTotalMaskPixels of [Infinity, 1_000]) {
+      const doc = [{ ...maskAnnotation({ side: 1 }, 'throws'), id: 'm' }];
+      const { skipped } = deserialize(doc, {
+        maskCodecs: throwing(Object.create(null)),
+        maxTotalMaskPixels,
+      });
+      expect(skipped, `budget ${maxTotalMaskPixels}`).toEqual([
+        {
+          id: 'm',
+          reason:
+            'Codec "throws" could not decode the mask: the codec threw a value with no string form',
+        },
+      ]);
+    }
+  });
+
+  it('gives a codec throwing undefined one reason, whichever path it took', () => {
+    const reasons = [Infinity, 1_000].map((maxTotalMaskPixels) =>
+      deserialize([{ ...maskAnnotation({ side: 1 }, 'throws'), id: 'm' }], {
+        maskCodecs: throwing(undefined),
+        maxTotalMaskPixels,
+      }).skipped.map((s) => s.reason),
+    );
+    expect(reasons[0]).toEqual([
+      'Codec "throws" could not decode the mask: the codec threw undefined',
+    ]);
+    expect(reasons[1]).toEqual(reasons[0]);
+  });
+
+  it('bills the runs a payload holds, not the length of its base64 string', () => {
+    // A solid 1000² mask costs its 1,000,000 cells and 2 runs, which leaves
+    // exactly the one cell a 1 x 1 mask needs at a budget of 1,000,003. Billed
+    // by its 8-character counts string instead, it left none, and the pair was
+    // refused there.
+    const doc = [
+      { ...maskAnnotation(solidMask(1000)), id: 'a' },
+      { ...maskAnnotation(solidMask(1)), id: 'b' },
+    ];
+    const { byImage, skipped } = deserialize(doc, { maxTotalMaskPixels: 1_000_003 });
+    expect(skipped).toEqual([]);
+    expect(
+      Object.values(byImage)
+        .flatMap((forImage) => Object.keys(forImage))
+        .sort(),
+    ).toEqual(['a', 'b']);
+    expect(() => deserialize(doc, { maxTotalMaskPixels: 1_000_002 })).toThrow(SerializationError);
+  });
+});

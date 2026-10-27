@@ -410,6 +410,62 @@ describe('the brush config names the bound New mask key (m19)', () => {
     expect(reported).toHaveLength(1);
     expect(reported[0]!.message).toMatch(/Start a separate mask with New mask \(m\)\.$/);
   });
+
+  it('not when the context is at its limit, where New mask cannot help (#149 minor 10)', () => {
+    createdTools.length = 0;
+    const reported: BrushCapacityError[] = [];
+    const overlay = makeOverlay();
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    const mask = createMaskAnnotation(buffer.raster(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    createRoot((d) => {
+      dispose = d;
+      createComponent(AnnotatorProvider, {
+        keyboardShortcuts: { newMask: 'm' },
+        brushOptions: { onCapacityExceeded: (error) => reported.push(error) },
+        get children() {
+          untrack(() => {
+            const annotator = useAnnotator();
+            annotator.actions.setContexts([
+              {
+                id: contextId,
+                label: 'Test',
+                tools: [{ type: 'segmentationBrush', maxCount: 1 }],
+              },
+            ]);
+            annotator.actions.setActiveContext(contextId);
+            annotator.actions.assignImageToCell(0, imageId);
+            annotator.actions.addAnnotation(mask);
+            annotator.actions.setSelectedAnnotation(mask.id);
+            annotator.actions.setActiveTool('segmentationBrush');
+            useAnnotationTool(
+              () => overlay,
+              () => imageId,
+              () => true,
+            );
+          });
+          return null;
+        },
+      });
+    });
+
+    const built = createdTools.at(-1);
+    expect(built).toBeDefined();
+    const config = (built!.options as { segmentationBrush: SegmentationBrushToolConfig })
+      .segmentationBrush;
+    // A refining stroke resolves its target first; then the cap is hit.
+    expect(config.getTarget()?.annotationId).toBe(mask.id);
+    config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(reported).toHaveLength(1);
+    // The one allowed mask exists, so New mask is disabled: the default
+    // advice stays, without pointing to it.
+    expect(reported[0]!.message).not.toMatch(/New mask/);
+    expect(reported[0]!.message).toMatch(/Paint a smaller region/);
+  });
 });
 
 describe("the provider's brush options", () => {

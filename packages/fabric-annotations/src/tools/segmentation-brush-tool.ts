@@ -206,6 +206,8 @@ export class SegmentationBrushTool extends BaseTool {
   private cursorCells: Path | null = null;
   /** Where the cursor was last drawn, to redraw it when what it shows changes. */
   private cursorPoint: Point | null = null;
+  /** The zoom the cue was last sized for, so a zoom without a move resizes it. */
+  private cursorZoom: number | undefined;
   /**
    * A box, in cells, holding every cell the stroke's mask can have set: the
    * target's own box, grown by each region painted into. Tighter than the
@@ -257,12 +259,25 @@ export class SegmentationBrushTool extends BaseTool {
   ): void {
     super.activate(overlay, imageId, callbacks, shortcuts);
     this.ensureCursor();
+    overlay.canvas.on('before:render', this.onBeforeRender);
   }
 
   deactivate(): void {
+    this.overlay?.canvas.off('before:render', this.onBeforeRender);
     this.removeCursor();
     super.deactivate();
   }
+
+  /**
+   * Redraws the cue when the zoom changed with no pointer move — a Ctrl/Cmd
+   * scroll, the reset-view key — so it stays a fixed size on screen. Changes
+   * to the objects here are drawn by the render under way.
+   */
+  private readonly onBeforeRender = (): void => {
+    if (!this.cursorPoint || !this.overlay) return;
+    if (this.overlay.canvas.getZoom() === this.cursorZoom) return;
+    this.updateCursor(this.cursorPoint);
+  };
 
   onPointerDown(event: PointerEvent, imagePoint: Point): void {
     if (!this.overlay || !this.imageId || !this.callbacks) return;
@@ -349,6 +364,8 @@ export class SegmentationBrushTool extends BaseTool {
     this.paint(
       () => stampCircle(this.buffer!, imagePoint.x, imagePoint.y, this.radius(), this.value()),
       this.discRegion(imagePoint.x, imagePoint.y),
+      imagePoint,
+      imagePoint,
     );
   }
 
@@ -386,6 +403,8 @@ export class SegmentationBrushTool extends BaseTool {
           this.value(),
         ),
       this.sweptRegion(from.x, from.y, imagePoint.x, imagePoint.y),
+      from,
+      imagePoint,
     );
   }
 
@@ -506,12 +525,13 @@ export class SegmentationBrushTool extends BaseTool {
     // New mask and cancel change what the next stroke paints into, and the
     // host applies them after this handler returns: redraw the cue then,
     // rather than leave it stale until the pointer moves.
-    if (
-      !this.painting &&
-      this.shortcuts &&
-      (event.key.toLowerCase() === this.shortcuts.newMask.toLowerCase() ||
-        event.key === this.shortcuts.cancel)
-    ) {
+    // Shift with the New mask key is another shortcut (toggleNegative), as
+    // the keyboard map decides it.
+    const isNewMask =
+      this.shortcuts !== null &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === this.shortcuts.newMask.toLowerCase();
+    if (!this.painting && this.shortcuts && (isNewMask || event.key === this.shortcuts.cancel)) {
       queueMicrotask(() => this.refreshCursor());
     }
     if (this.painting && this.shortcuts) {
@@ -520,14 +540,15 @@ export class SegmentationBrushTool extends BaseTool {
         return true;
       }
       // Deleting the mask being refined mid-stroke would leave the stroke
-      // with nothing to commit into; the key waits for the release.
+      // with nothing to commit into, so the key is ignored while a stroke is
+      // open: press it again after releasing.
       if (event.key === this.shortcuts.delete || event.key === this.shortcuts.deleteAlt) {
         return true;
       }
       // New mask mid-stroke would deselect the mask being refined; at the
       // limit that disabled the brush and tore the stroke down unsaved.
-      // Swallowed until the release, like Delete.
-      if (event.key.toLowerCase() === this.shortcuts.newMask.toLowerCase()) {
+      // Ignored while the stroke is open, like Delete.
+      if (isNewMask) {
         return true;
       }
     }
@@ -669,7 +690,7 @@ export class SegmentationBrushTool extends BaseTool {
    * is what keeps a pointer move proportional to the brush rather than to the
    * whole mask.
    */
-  private paint(apply: () => void, touched: MaskRegion): void {
+  private paint(apply: () => void, touched: MaskRegion, from: Point, to: Point): void {
     if (!this.buffer) return;
     // A step that would outgrow the cap writes nothing — the buffer grows
     // before any cell is set — so after coarsening it is painted again whole.
@@ -707,7 +728,11 @@ export class SegmentationBrushTool extends BaseTool {
       width: Math.ceil((touched.x + touched.width) / d) - left,
       height: Math.ceil((touched.y + touched.height) / d) - top,
     };
-    this.growPaintedBounds(touchedCells);
+    // Only painting can set a cell, and only the dabs' own cells: growing by
+    // the swept slack box, or while erasing, refused near-limit strokes for
+    // cells that were never set. Measured on the buffer's grid now, after any
+    // coarsening.
+    if (!this.erasing) this.growPaintedBounds(this.footprint(from, to));
     try {
       this.syncPreview(touchedCells);
     } catch (error) {
@@ -744,6 +769,26 @@ export class SegmentationBrushTool extends BaseTool {
       `It is already at the coarsest downsample this context allows (maxDownsample ` +
         `${this.strokeMaxDownsample}). Paint a smaller region, or start a separate mask.`,
     );
+  }
+
+  /**
+   * The cells a dab at `from`, swept to `to`, can set, in cells: the
+   * rasterizer's own rule, a cell whose centre is within the radius (one cell
+   * for a radius under √½). Every stamp of a segment lies between its ends,
+   * so the two ends' footprints bound it.
+   */
+  private footprint(from: Point, to: Point): MaskRegion {
+    const d = this.buffer?.downsample ?? 1;
+    const radius = this.radius() / d;
+    const minX = Math.min(from.x, to.x) / d;
+    const maxX = Math.max(from.x, to.x) / d;
+    const minY = Math.min(from.y, to.y) / d;
+    const maxY = Math.max(from.y, to.y) / d;
+    const left = Math.min(Math.floor(minX), Math.ceil(minX - radius - 0.5));
+    const top = Math.min(Math.floor(minY), Math.ceil(minY - radius - 0.5));
+    const right = Math.max(Math.floor(maxX), Math.floor(maxX + radius - 0.5)) + 1;
+    const bottom = Math.max(Math.floor(maxY), Math.floor(maxY + radius - 0.5)) + 1;
+    return { x: left, y: top, width: right - left, height: bottom - top };
   }
 
   /** Grows {@link paintedBounds} by a touched region, clipped to the buffer's grid. */
@@ -1150,6 +1195,7 @@ export class SegmentationBrushTool extends BaseTool {
     // viewport's zoom, so at a whole-slide zoom of 0.1 a 1-pixel ring and its
     // dashes shrank to a tenth and solid could not be told from dashed.
     const zoom = this.overlay.canvas.getZoom();
+    this.cursorZoom = zoom;
     const perScreenPixel = Number.isFinite(zoom) && zoom > 0 ? 1 / zoom : 1;
     const strokeWidth = CURSOR_STROKE_SCREEN_PX * perScreenPixel;
     const dash = creating ? CURSOR_DASH_SCREEN_PX.map((length) => length * perScreenPixel) : null;

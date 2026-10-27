@@ -1831,9 +1831,10 @@ which stores its cells.
 `serialize` reports a refusal as a `SerializationError` whose `cause` is the
 `CocoRunLimitExceededError` (with `runs`, `maxRuns` and `downsample`), so a
 host can tell it apart by type. Where the runs come back as an array —
-`snapshotToCocoCounts` and the uncompressed codec — the bound is
-`MAX_COCO_ARRAY_RUNS` (2²⁷, an engine's array limit), so the one most extreme
-legal mask is refused there by name and exports through `cocoRleCodec`.
+`snapshotToCocoCounts` and the uncompressed codec — and where a compressed
+string is read back, the bound is `MAX_COCO_ARRAY_RUNS`: 112,813,858, the
+array limit of Node 21–22's V8 (Node 24's is 2²⁷). The most extreme legal
+masks are refused there by name, and export through `cocoRleCodec`.
 
 ### Verified against pycocotools
 
@@ -1842,17 +1843,22 @@ The compressed codec is checked against the reference implementation:
 `pycocotools.mask.encode`, and the codec reproduces them byte for byte.
 
 :::note[`pycocotools` limitations, if your images are very large]
-`pycocotools`' C decoder misreads two kinds of count when it reads a mask back.
-The area survives, but the mask _moves_:
+`pycocotools`' C code misreads three kinds of mask when it reads one back. The
+mask _moves_, and in the last case its area can be wrong too:
 
 - a run longer than 2³²−1, which it truncates to 32 bits — a small mask at the
   centre of a 100000×100000 image comes back near the top-left corner;
 - a delta (`counts[i] − counts[i−2]`) below −2²⁹, which overflows its
   sign extension — three pixels on a 24,000×24,000 image, a huge gap then a
-  short one, come back with the right area and the wrong box.
+  short one, come back with the right area and the wrong box;
+- a foreground pixel at column-major index 2³² or past it, because its box
+  and area are summed in a 32-bit `uint`. Any image of more than 2³² pixels
+  can reach it, which is an ordinary whole-slide size (65,536²): a one-pixel
+  line across 100,000×80,000 comes back as a 53,687×7,297 box, and a large
+  solid mask with the wrong area.
 
 On an image of 2²⁹ pixels or fewer (`COCO_MAX_INTEROP_IMAGE_PIXELS`, about 0.54
-gigapixels) neither can happen. Past that it depends on the mask's runs, so
+gigapixels) none of these can happen. Past that it depends on the mask's runs, so
 check them before exporting:
 
 ```ts
@@ -2260,8 +2266,9 @@ While the segmentation brush is the active tool, `n` (`newMask`) deselects and
 keeps the brush, so the next stroke starts a separate mask instead of refining
 the selected one. It does what the first `Escape` does, but a second press never
 leaves the brush. Outside the brush it does nothing, and so it does at the
-context's `maxCount`, where the New mask button is disabled; while a stroke is
-open it waits for the release. `Shift+N` is still `toggleNegative`.
+context's `maxCount`, where the New mask button is disabled. It is ignored while
+a stroke is open, as `Delete` is: press it again after releasing. `Shift+N` is
+still `toggleNegative`, mid-stroke too.
 
 ### Annotation context cycling
 

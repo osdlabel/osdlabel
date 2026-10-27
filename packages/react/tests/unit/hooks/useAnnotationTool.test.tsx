@@ -627,6 +627,38 @@ describe('useAnnotationTool', () => {
     expect(slot.handler).toBeNull();
   });
 
+  it('the brush config leaves New mask out of the advice at the limit (#149 minor 10)', () => {
+    // The parity of Solid's case: with the one allowed mask present, New mask
+    // is disabled, so the refusal keeps the default advice.
+    const reported: BrushCapacityError[] = [];
+    const brushOptions = {
+      onCapacityExceeded: (error: BrushCapacityError) => reported.push(error),
+    };
+    const h = setup('segmentationBrush', { keyboardShortcuts: { newMask: 'm' }, brushOptions });
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    buffer.set(10, 10, 1);
+    const mask = createMaskAnnotation(buffer.raster(), {
+      id: createAnnotationId('m1'),
+      imageId,
+      contextId,
+    });
+    h.run((a) => {
+      a.setContexts([
+        { id: contextId, label: 'All', tools: [{ type: 'segmentationBrush', maxCount: 1 }] },
+      ]);
+      a.addAnnotation(mask);
+      a.setSelectedAnnotation(mask.id);
+    });
+    const tool = built.at(-1)?.tool;
+    expect(tool).toBeDefined();
+    const config = (tool as unknown as { config: SegmentationBrushToolConfig }).config;
+    expect(config.getTarget()?.annotationId).toBe(mask.id);
+    config.onCapacityExceeded!(new MaskCapacityExceededError(100, 50));
+    expect(reported).toHaveLength(1);
+    expect(reported[0]!.message).not.toMatch(/New mask/);
+    expect(reported[0]!.message).toMatch(/Paint a smaller region/);
+  });
+
   it('the brush config names the bound New mask key in a capacity failure (m19)', () => {
     // The parity of Solid's `useAnnotationTool.config.test.ts` case, plus a
     // rebinding: the shortcut map is a dependency, so the rebuilt config

@@ -136,7 +136,11 @@ export class BoundedDenseMaskBuffer implements MaskBuffer {
     // does not, and `reserve` clips the overhang away: the mask would come
     // back quietly truncated on its first refining stroke, which is the
     // failure this guard exists to prevent everywhere else.
-    assertBoxInsideImage(box.x, box.y, box.width, box.height, this.gridWidth, this.gridHeight);
+    assertBoxInsideImage(box.x, box.y, box.width, box.height, this.gridWidth, this.gridHeight, {
+      downsample: this.downsample,
+      imageWidth: this.imageWidth,
+      imageHeight: this.imageHeight,
+    });
 
     this.reserve(box);
 

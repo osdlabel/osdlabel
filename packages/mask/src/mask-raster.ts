@@ -1,5 +1,6 @@
 import {
   assertBoxInsideImage,
+  assertCountableImage,
   assertDecodableArea,
   assertDecodableOrigin,
   assertPixelDimensions,
@@ -168,6 +169,38 @@ export function forEachCheckedSpan(
 export type MaskLevel0SpanVisitor = (y: number, x0: number, x1: number) => void;
 
 /**
+ * Refuses a raster whose box breaks the grid conventions: an image size that
+ * is not a countable integer, a factor that is not a power of two, a
+ * fractional or negative origin, or a box outside its image's cell grid. The
+ * encoders and the buffer already refuse such input; the readers that turn
+ * cells into image pixels check it here, so they do not clip, or place at
+ * negative image columns, what the writers would refuse. Applied to any
+ * raster, including a host's own. Off the barrel.
+ */
+export function assertRasterOnGrid(raster: MaskRaster): void {
+  const { x, y, width, height } = raster.cells;
+  // First: a NaN or infinite image makes every comparison below pass.
+  assertCountableImage(raster.imageWidth, raster.imageHeight);
+  assertMaskDownsample(raster.downsample);
+  assertDecodableOrigin(x, y);
+  assertPixelDimensions(width, height);
+  const grid = maskGridSize(raster.imageWidth, raster.imageHeight, raster.downsample);
+  assertBoxInsideImage(x, y, width, height, grid.width, grid.height, raster);
+}
+
+/**
+ * A raster for any mask input, held to the contract before it is read: a
+ * plain snapshot is wrapped (which checks its data fills its box), and a
+ * non-empty box is checked against its grid. For the readers that took a
+ * plain snapshot as it came. Off the barrel.
+ */
+export function checkedRaster(input: MaskRasterInput): MaskRaster {
+  const raster = asMaskRaster(input);
+  if (raster.cells.width > 0 && raster.cells.height > 0) assertRasterOnGrid(raster);
+  return raster;
+}
+
+/**
  * Visits the level-0 image pixels a raster covers, as maximal horizontal
  * spans in row-major order — the mask its payload means, without
  * materialising it.
@@ -179,23 +212,6 @@ export type MaskLevel0SpanVisitor = (y: number, x0: number, x1: number) => void;
  * proportional to the image rows covered times the spans per row, never to
  * the box's area.
  */
-/**
- * Refuses a raster whose box breaks the grid conventions: a factor that is not
- * a power of two, a fractional or negative origin, or a box outside its
- * image's cell grid. The encoders and the buffer already refuse such input;
- * the readers that turn cells into image pixels check it here, so they do not
- * clip, or place at negative image columns, what the writers would refuse.
- * Applied to any raster, including a host's own.
- */
-function assertRasterOnGrid(raster: MaskRaster): void {
-  const { x, y, width, height } = raster.cells;
-  assertMaskDownsample(raster.downsample);
-  assertDecodableOrigin(x, y);
-  assertPixelDimensions(width, height);
-  const grid = maskGridSize(raster.imageWidth, raster.imageHeight, raster.downsample);
-  assertBoxInsideImage(x, y, width, height, grid.width, grid.height);
-}
-
 export function forEachLevel0Span(raster: MaskRaster, visit: MaskLevel0SpanVisitor): void {
   if (raster.cells.width > 0 && raster.cells.height > 0) assertRasterOnGrid(raster);
   const d = raster.downsample;
@@ -480,14 +496,15 @@ export function rasterToRuns(raster: MaskRaster): number[] {
  * Refused above `maxCells` cells (default: the decode cap). A raster that
  * already wraps a dense snapshot hands it back without a copy.
  */
-export function toDenseSnapshot(raster: MaskRasterInput, maxCells?: number): MaskSnapshot {
-  if (!isMaskRaster(raster)) return raster;
+export function toDenseSnapshot(input: MaskRasterInput, maxCells?: number): MaskSnapshot {
+  // Checked before the early returns, so a plain or dense snapshot is held to
+  // the grid as a run raster is.
+  const raster = checkedRaster(input);
   if (raster instanceof DenseMaskRaster) return raster.dense;
   const box = raster.cells;
   if (box.width === 0 || box.height === 0) {
     return emptySnapshot(raster.imageWidth, raster.imageHeight, raster.downsample);
   }
-  assertRasterOnGrid(raster);
   assertDecodableArea(box.width, box.height, maxCells, raster.downsample);
   const data = new Uint8Array(box.width * box.height);
   const { x, y, width } = box;

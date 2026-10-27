@@ -134,13 +134,17 @@ no full-resolution mask is refused — from a counting pass that stops at the
 bound (`countCocoRuns` reports the exact cost without exporting). Within it a
 coarse mask exports, slowly: 6.7 kB of d=16 alternating cell rows takes about
 13 s. The compressed codec streams its string without an array of runs; the
-paths that return an array are bounded at `MAX_COCO_ARRAY_RUNS` (2^27).
+paths that return an array, and `decodeCocoCountsString`, are bounded at
+`MAX_COCO_ARRAY_RUNS` (112,813,858, the array limit of Node 21–22's V8; Node
+24's is 2^27).
 `serialize` reports the refusal as a `SerializationError` whose `cause` is the
 codec's error (`SerializationError` now takes a `cause`).
 
 `isCocoInteropSafe` now decides from a mask's runs whether `pycocotools` reads
-it back correctly — it truncates runs past 32 bits and misreads deltas below
--2^29 — and `COCO_MAX_INTEROP_IMAGE_PIXELS` is 2^29, the image size within
+it back correctly — it truncates runs past 32 bits, misreads deltas below
+-2^29, and misplaces a foreground pixel at column-major index 2^32 or past it,
+where its box and area are summed in 32 bits (on a large mask the area is
+wrong too) — and `COCO_MAX_INTEROP_IMAGE_PIXELS` is 2^29, the image size within
 which every mask is safe. It was 2^32 - 1, which pycocotools does not honour. On import `MaskDecodeOptions.downsample` decodes COCO straight
 into cells, and `deserialize` passes the annotation's `geometry.downsample`, so
 a coarse mask comes back coarse; a payload that is not constant within each
@@ -200,7 +204,7 @@ costs at most the larger of the mask's own area and the display budget (#158).
   `COCO_RLE_UNCOMPRESSED_FORMAT`, `snapshotToCocoCounts`,
   `cocoCountsToSnapshot`, `encodeCocoCountsString`, `decodeCocoCountsString`,
   `cocoBbox`, `cocoArea`, `isCocoInteropSafe`,
-  `COCO_MAX_INTEROP_IMAGE_PIXELS`); the decode guards `assertBoxInsideImage` and `assertCountableImage`,
+  `COCO_MAX_INTEROP_IMAGE_PIXELS`); the decode guards `assertBoxInsideImage` (whose optional last argument names the image and downsample, when the box is in cells) and `assertCountableImage`,
   for a third-party codec that honours `maxPixels`, and `MAX_IMAGE_SIDE`, the
   longest image side a mask may record (2^26, the same bound the validation
   schema applies); and the COCO payload types
@@ -255,9 +259,10 @@ press. A **New mask** button beside Erase in both Toolbars
 (`data-testid="brush-new-mask"`) and the `newMask` shortcut (default `n`, brush
 only) deselect while keeping the brush, so the next stroke starts a separate
 mask. The button is `aria-pressed` while the next stroke will create a mask and
-disabled at the context's `maxCount`; the key does nothing there either, and
-waits for the release while a stroke is open. The cursor ring is solid when the
-next stroke refines and dashed when it creates, sized in screen pixels, and on
+disabled at the context's `maxCount`; the key does nothing there either, and is
+ignored while a stroke is open (press it again after releasing). The cursor ring
+is solid when the next stroke refines and dashed when it creates, sized in
+screen pixels at every zoom, and on
 a mask at a downsample above 1 it is drawn as the cells one dab sets. A capacity
 failure on a refining stroke says "Start a separate mask with New mask (n)",
 naming the bound key, when a new mask may still be added; otherwise it keeps the
@@ -376,8 +381,9 @@ degrades alone instead of blanking its whole grid cell.
   forwards on OpenSeadragon's behalf no longer passes through the tracker's
   own element, where it removed a live contact and turned the second finger
   into a phantom press.
-- **Delete waits for the release** while a stroke is open; deleting the mask
-  being refined mid-stroke left the stroke nothing to commit into. The brush
+- **Delete is ignored while a stroke is open** (press it again after
+  releasing); deleting the mask being refined mid-stroke left the stroke
+  nothing to commit into. The brush
   cancels on the `cancel` shortcut, not `polylineCancel` (both are Escape by
   default).
 - **A mask is hit-tested by its pixels**, not its bounding box, so a click

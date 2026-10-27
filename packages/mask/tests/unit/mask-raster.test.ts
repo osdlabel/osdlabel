@@ -8,6 +8,8 @@ import {
   forEachCheckedSpan,
   forEachLevel0Span,
   rasterPixelCount,
+  runRaster,
+  snapshotCellCount,
   snapshotImageBox,
   snapshotPixelCount,
   stampCircle,
@@ -17,6 +19,7 @@ import {
   upsampleSnapshot,
   type MaskCellBox,
   type MaskRaster,
+  type MaskSnapshot,
 } from '../../src/index.js';
 import { TiledMaskRaster } from './tiled-mask-raster.js';
 
@@ -334,5 +337,61 @@ describe('a box with no area is the empty mask, in every unit', () => {
       width: 0,
       height: 0,
     });
+  });
+});
+
+describe('every reader holds a plain snapshot to the grid (#149 minors 4, 5, 7)', () => {
+  /** 2 x 1 cells at (9, 2) at d=4 on 37 x 23: the 10 x 6 cell grid ends at column 10. */
+  const offGrid: MaskSnapshot = {
+    cells: { x: 9, y: 2, width: 2, height: 1 },
+    data: Uint8Array.from([1, 1]),
+    imageWidth: 37,
+    imageHeight: 23,
+    downsample: 4,
+  };
+  const message =
+    /2x1 cells at \(9, 2\) lies outside the 10x6-cell grid of its 37x23 image at downsample 4/;
+
+  it('refuses it in the readers that took it as it came, naming the units', () => {
+    // Before: upsampleSnapshot gave {36, 8, 1, 4}, dropping a cell, and the
+    // counts read pixels outside the image.
+    expect(() => upsampleSnapshot(offGrid, 1_000)).toThrow(message);
+    expect(() => snapshotPixelCount(offGrid)).toThrow(message);
+    expect(() => snapshotCellCount(offGrid)).toThrow(message);
+    expect(() => toDenseSnapshot(offGrid)).toThrow(message);
+  });
+
+  it('refuses a plain snapshot whose data does not fill its box', () => {
+    const short = {
+      ...offGrid,
+      cells: { x: 0, y: 0, width: 2, height: 1 },
+      data: Uint8Array.from([1]),
+    };
+    expect(() => snapshotPixelCount(short)).toThrow(RangeError);
+    expect(() => snapshotCellCount(short)).toThrow(RangeError);
+  });
+
+  it('refuses an image size that is not a countable integer, before the grid passes vacuously', () => {
+    for (const imageWidth of [Number.NaN, Infinity]) {
+      const raster = runRaster(
+        { cells: { x: 0, y: 0, width: 1, height: 1 }, imageWidth, imageHeight: 10, downsample: 1 },
+        [0, 1],
+      );
+      expect(() => forEachLevel0Span(raster, () => {})).toThrow(/Image dimensions|exceeds/);
+    }
+  });
+
+  it('still reads an on-grid snapshot as before, empty ones included', () => {
+    const onGrid = { ...offGrid, cells: { x: 8, y: 2, width: 2, height: 1 } };
+    // Cells 8 and 9 at d=4: columns 32-35 and 36 (clipped), rows 8-11.
+    expect(snapshotPixelCount(onGrid)).toBe(5 * 4);
+    expect(snapshotCellCount(onGrid)).toBe(2);
+    expect(toDenseSnapshot(onGrid)).toBe(onGrid);
+    const empty = {
+      ...offGrid,
+      cells: { x: 0, y: 0, width: 0, height: 0 },
+      data: new Uint8Array(0),
+    };
+    expect(snapshotPixelCount(empty)).toBe(0);
   });
 });
