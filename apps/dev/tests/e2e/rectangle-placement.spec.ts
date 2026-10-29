@@ -66,7 +66,7 @@ test.describe('Rectangle placement', () => {
     expect(await alphaAt(page, start.x - 30, start.y - 30)).toBe(0);
   });
 
-  test('keeps an earlier release’s rectangle where it was painted, and corrects its geometry', async ({
+  test('keeps an earlier release’s rectangle where it was painted, its geometry as saved', async ({
     page,
   }) => {
     await page.goto('/');
@@ -118,12 +118,10 @@ test.describe('Rectangle placement', () => {
     expect(await alphaAt(page, start.x - 30, start.y - 30)).toBeGreaterThan(0);
     expect(await alphaAt(page, end.x - 12, end.y - 12)).toBe(0);
 
-    // Its geometry now names the corner it is painted at.
+    // Importing changes nothing: the geometry is as it was saved. Correcting it
+    // is the host's choice, through migrateLegacyRectangle.
     const [loaded] = await readAnnotations(page);
     if (!loaded) throw new Error('The rectangle was not imported');
-    expect(loaded.geometry.origin.x).toBeCloseTo(corner.x - drawn.geometry.width / 2);
-    expect(loaded.geometry.origin.y).toBeCloseTo(corner.y - drawn.geometry.height / 2);
-    expect(loaded.geometry.width).toBeCloseTo(drawn.geometry.width);
-    expect(loaded.geometry.height).toBeCloseTo(drawn.geometry.height);
+    expect(loaded.geometry).toEqual(legacy.geometry);
   });
 });

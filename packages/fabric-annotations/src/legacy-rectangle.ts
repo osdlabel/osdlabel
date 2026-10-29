@@ -21,14 +21,15 @@ function isNear(saved: unknown, value: number): saved is number {
 
 /**
  * Corrects the geometry of a rectangle saved before rectangles were placed by
- * their centre.
+ * their centre. Nothing in the library calls it: a host that wants stored
+ * rectangles' geometry corrected calls it on each annotation it loads.
  *
- * Earlier releases built a rectangle with its top-left corner as `left`/`top`
- * but no origin, so under Fabric 7's default centre origin it was painted
- * centred on that corner, and its geometry recorded the corner it was meant
- * to have. Its saved Fabric data still paints where the user saw it, so that
- * is kept, and the geometry is recomputed from it: measurements, labels and
- * exports then describe the rectangle on screen.
+ * Releases up to 0.21.0 built a rectangle with its top-left corner as
+ * `left`/`top` but no origin, so under Fabric 7's default centre origin it
+ * was painted centred on that corner, and its geometry recorded the corner it
+ * was meant to have. Its saved Fabric data still paints where the user saw
+ * it, so that is kept, and the geometry is recomputed from it: measurements,
+ * labels and exports then describe the rectangle on screen.
  *
  * Such a rectangle is recognised by a centre origin whose `left`/`top` match
  * the geometry's origin, to within the rounding `toObject()` applied. A
@@ -36,6 +37,21 @@ function isNear(saved: unknown, value: number): saved is number {
  * diagonal apart, so it can only match when it is a few hundredths of a pixel
  * across; its corner is then recomputed from where it is painted, which is
  * where it already is. Anything else is returned unchanged, as the same object.
+ *
+ * It lives in its own module, so a bundle that never imports it does not
+ * carry it; it is also importable on its own as
+ * `@osdlabel/fabric-annotations/legacy-rectangle`.
+ *
+ * @example
+ * ```ts
+ * const { byImage } = deserialize(doc);
+ * for (const annotations of Object.values(byImage)) {
+ *   for (const annotation of Object.values(annotations)) {
+ *     annotations[annotation.id] = migrateLegacyRectangle(annotation);
+ *   }
+ * }
+ * actions.loadAnnotations(byImage);
+ * ```
  */
 export function migrateLegacyRectangle<A extends Annotation<FabricFields>>(annotation: A): A {
   const { geometry, rawAnnotationData: raw } = annotation;

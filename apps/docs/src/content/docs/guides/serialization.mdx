@@ -79,9 +79,25 @@ So: persist the **flat** array, load it back through `deserialize` to get the **
 
 ### Rectangles saved by earlier releases
 
-Up to 0.21.0, a rectangle was painted centred on the corner its geometry records, half its size up and to the left of where it was drawn. Fabric 7 places an object by its centre unless told otherwise, and the rectangle tool never told it. Its saved Fabric data paints it where users saw it, so that is kept, and `deserialize` recomputes the geometry to match. Measurements, labels and exports then describe the rectangle on screen. A current rectangle is never changed this way.
+Up to 0.21.0, a rectangle was painted centred on the corner its geometry records, half its size up and to the left of where it was drawn. Fabric 7 places an object by its centre unless told otherwise, and the rectangle tool never told it. Rectangles are now painted where their geometry says.
 
-A rectangle from an earlier release is recognised by Fabric data with a centre origin whose `left` / `top` match the geometry's `origin`, to within the rounding Fabric applies when it saves (the geometry was stored unrounded). If you load stored annotations without going through `deserialize`, pass each one through `migrateLegacyRectangle` (exported alongside it) before `loadAnnotations`; it returns any other annotation unchanged.
+A rectangle saved by an earlier release still paints where users saw it, because its saved Fabric data is what is drawn. Its geometry is loaded as saved, though, so its measurements, labels and exports sit half its size from the shape on screen. The geometry is corrected the first time the rectangle is edited, because it is read back from the shape's centre.
+
+`deserialize` does not change it. To correct such rectangles when you load them, pass each annotation through `migrateLegacyRectangle`, which recomputes the geometry of an earlier release's rectangle from where it is painted and returns any other annotation unchanged:
+
+```ts
+import { deserialize, migrateLegacyRectangle } from '@osdlabel/solid'; // or '@osdlabel/react'
+
+const { byImage } = deserialize(JSON.parse(jsonString));
+for (const annotations of Object.values(byImage)) {
+  for (const annotation of Object.values(annotations)) {
+    annotations[annotation.id] = migrateLegacyRectangle(annotation);
+  }
+}
+actions.loadAnnotations(byImage);
+```
+
+It is a separate module that nothing else imports, so a bundle that does not use it does not include it. It is also importable on its own as `@osdlabel/fabric-annotations/legacy-rectangle`. It recognises an earlier release's rectangle by Fabric data with a centre origin whose `left` / `top` match the geometry's `origin`, to within the rounding Fabric applies when it saves.
 
 ## Seeding from external geometry
 
