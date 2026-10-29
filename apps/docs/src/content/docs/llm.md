@@ -1216,6 +1216,8 @@ So: persist the **flat** array, load it back through `deserialize` to get the **
 
 Up to 0.21.0, a rectangle was painted centred on the corner its geometry records, half its size up and to the left of where it was drawn. Fabric 7 places an object by its centre unless told otherwise, and the rectangle tool never told it. Rectangles are now painted where their geometry says.
 
+A rectangle's `origin` has always meant its corner that is top-left before rotation, and still does. Those releases read it back from the shape as the centre it was painted at, so that is what a rectangle saved by them holds. On a rectangle never edited, that point is also the top-left corner of the drag; after a move, resize or rotation it is only the centre.
+
 A rectangle saved by an earlier release still paints where users saw it, because its saved Fabric data is what is drawn. Its geometry is loaded as saved, though, so its measurements, labels and exports sit half its size from the shape on screen. The geometry is corrected the first time the rectangle is edited, because it is read back from the shape's centre.
 
 `deserialize` does not change it. To correct such rectangles when you load them, pass each annotation through `migrateLegacyRectangle`, which recomputes the geometry of an earlier release's rectangle from where it is painted and returns any other annotation unchanged:
@@ -1526,7 +1528,7 @@ Image-space coordinates are stable regardless of zoom level. A point at `(500, 3
 ```ts
 const geometry = {
   type: 'rectangle' as const,
-  origin: { x: 100, y: 200 }, // image pixels
+  origin: { x: 100, y: 200 }, // image pixels; the corner that is top-left before rotation
   width: 300, // image pixels
   height: 150, // image pixels
   rotation: 0,

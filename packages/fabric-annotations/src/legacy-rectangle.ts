@@ -26,10 +26,13 @@ function isNear(saved: unknown, value: number): saved is number {
  *
  * Releases up to 0.21.0 built a rectangle with its top-left corner as
  * `left`/`top` but no origin, so under Fabric 7's default centre origin it
- * was painted centred on that corner, and its geometry recorded the corner it
- * was meant to have. Its saved Fabric data still paints where the user saw
- * it, so that is kept, and the geometry is recomputed from it: measurements,
- * labels and exports then describe the rectangle on screen.
+ * was painted centred on that point, and its geometry's `origin` was read
+ * back from `left`/`top`: the centre it was painted at. On a rectangle never
+ * edited, that point is also the top-left corner of the user's drag; after a
+ * move, resize or rotation it is only the centre. Its saved Fabric data still
+ * paints where the user saw it, so that is kept, and the geometry is
+ * recomputed from it: measurements, labels and exports then describe the
+ * rectangle on screen.
  *
  * Such a rectangle is recognised by a centre origin whose `left`/`top` match
  * the geometry's origin, to within the rounding `toObject()` applied. A
