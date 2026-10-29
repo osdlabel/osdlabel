@@ -36,7 +36,11 @@ Press `v` (or click the select tool) to enter selection mode:
 
 - **Click** an annotation to select it — shows resize handles and rotation control
 - **Drag** a selected annotation to move it
-- **Drag handles** to resize
+- **Drag handles** to resize. What each shape's handles can do keeps it a shape its geometry describes:
+  - a **rectangle**'s corner handles keep its proportions, or resize it freely while **Shift** is held; its side handles move one side, with or without Shift;
+  - a **circle** has corner handles only, and they always keep it a circle;
+  - a **line**, **polyline** or **polygon** has the full set, and **Shift** turns a side handle into a shear, which its stored points follow;
+  - a **point** has none: drag it to move it.
 - **Drag rotation control** (circle above the annotation) to rotate
 - **Escape** deselects the current annotation
 - **Delete** / **Backspace** deletes the selected annotation

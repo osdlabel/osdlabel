@@ -132,6 +132,12 @@ actions.loadAnnotations(byImage);
 
 It is a separate module that nothing else imports, so a bundle that does not use it does not include it. It is also importable on its own as `@osdlabel/fabric-annotations/legacy-rectangle`. It recognises an earlier release's rectangle by Fabric data with a centre origin whose `left` / `top` match the geometry's `origin`, to within the rounding Fabric applies when it saves.
 
+### Rectangles and circles saved skewed or stretched
+
+Up to 0.21.0, the select tool's handles could make a shape its geometry cannot describe. **Shift** with a side handle sheared a rectangle into a parallelogram, or a circle into a slanted ellipse, and a circle's side handles, or **Shift** with a corner, stretched it into an ellipse. The geometry kept the rectangle about the same centre, unsheared, or a circle of the larger radius, while the saved Fabric data kept the shape on screen. The handles no longer do either.
+
+Such an annotation loads as saved: it still paints the sheared or stretched shape, and its geometry is what it was. The first time it is edited (moved, resized or rotated), its Fabric data is replaced with data that paints its geometry, in the same style, and the shape on screen snaps to what its measurements, labels and exports already described. Nothing changes it on load, and there is no migration helper for it.
+
 ## Seeding from external geometry
 
 Loading already-serialized osdlabel documents is just `deserialize` (above). The harder case is **importing annotations from another system** — you have raw geometry (a bounding box from a detector, a contour from a segmentation model, points from a CSV) but no Fabric `rawAnnotationData` envelope.
@@ -188,7 +194,7 @@ const geometry = getGeometryFromFabricObject(obj, 'polygon'); // image-space geo
 const fabricObject = buildFabricObjectFromGeometry(geometry, getFabricOptions(style, id));
 ```
 
-These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
+These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). `buildFabricObjectFromGeometry` and `createFabricObjectFromRawData` also give a rectangle or circle the handles the library gives them (side handles that only scale on a rectangle, uniform corners only on a circle), which Fabric does not save; if you revive an annotation's object some other way, such as `deserializeFabricObject`, and put it on a canvas, call `applyShapeControls(obj, geometry.type)` first. The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
 
 ## Validation
 

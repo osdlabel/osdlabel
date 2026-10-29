@@ -69,6 +69,7 @@ export {
   createFabricObjectFromRawData,
   getGeometryFromFabricObject,
   buildFabricObjectFromGeometry,
+  applyShapeControls,
   migrateLegacyRectangle,
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,

@@ -16,6 +16,11 @@
  * - edits made through Fabric's own controls (move, rotate, resize, flip): the
  *   stored geometry follows the painted shape, a rotation changes only
  *   `rotation`, a move only `origin`, a resize keeps the opposite side fixed;
+ * - Shift, which Fabric's default side handles take as "skew" (a
+ *   parallelogram no rectangle geometry describes): a rectangle's side
+ *   handles only scale, however it reached the canvas, so Shift + a side
+ *   handle does what the handle does without it; data saved skewed still
+ *   paints as saved, and reads back as the box about the same centre;
  * - `RectangleTool`: the preview and the committed object cover the dragged box;
  * - data saved by releases up to 0.21.0: `migrateLegacyRectangle` gives a
  *   rotated one the origin it is painted at, with the expected values written
@@ -141,6 +146,90 @@ function readBack(object: FabricObject): RectangleGeometry {
 
 function build(geometry: RectangleGeometry, options = LIBRARY_OPTIONS): Rect {
   return expectFabricInstance(buildFabricObjectFromGeometry(geometry, options), Rect);
+}
+
+/**
+ * `object` saved with `geometry` and revived as the viewer revives every
+ * stored annotation, through JSON. Fabric does not serialize controls, so the
+ * revived `Rect`'s controls are whatever `createFabricObjectFromRawData` gave it.
+ */
+async function revive(
+  geometry: RectangleGeometry,
+  object: FabricObject = build(geometry),
+): Promise<Rect> {
+  const revived = await createFabricObjectFromRawData({
+    id,
+    geometry,
+    toolType: 'rectangle',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    rawAnnotationData: JSON.parse(
+      JSON.stringify(serializeFabricObject(object)),
+    ) as FabricRawAnnotationData,
+  });
+  expect(revived).not.toBeNull();
+  return expectFabricInstance(revived!, Rect);
+}
+
+/** The `Rect` RectangleTool commits for a drag from `a` to `b`. */
+function drawnWithTool(a: Point, b: Point): Rect {
+  const overlay = createMockToolOverlay(createMockCanvas());
+  const added: AddAnnotationParams[] = [];
+  const callbacks: ToolCallbacks = {
+    getActiveContextId: () => createAnnotationContextId('rect-suite-context'),
+    getToolConstraint: (type) => ({ type }),
+    canAddAnnotation: () => true,
+    addAnnotation: (params) => {
+      added.push(params);
+    },
+    updateAnnotation: vi.fn(),
+    deleteAnnotation: vi.fn(),
+    setSelectedAnnotation: vi.fn(),
+    getAnnotation: () => undefined,
+  };
+  const tool = new RectangleTool();
+  tool.activate(
+    overlay,
+    createImageId('rect-suite-image'),
+    callbacks,
+    createTestKeyboardShortcuts(),
+  );
+  const press = { type: 'pointerdown' } as PointerEvent;
+  overlay.stampPress(press);
+  tool.onPointerDown(press, a);
+  tool.onPointerMove({ type: 'pointermove' } as PointerEvent, b);
+  tool.onPointerUp({ type: 'pointerup' } as PointerEvent, b);
+  expect(added).toHaveLength(1);
+  return expectFabricInstance(added[0]!.fabricObject, Rect);
+}
+
+/** tan 20°: the skew a Shift + side-handle drag left on the worked example in the audit. */
+const TAN_20 = Math.tan((20 * Math.PI) / 180);
+
+/**
+ * The worked example with `skewX: 20`: Fabric shears the box about its centre
+ * (250, 125), x' = x + tan 20° · y in the box's own frame, so the top edge
+ * moves left by 25 · tan 20° and the bottom edge right by as much.
+ */
+const WORKED_SKEWED_X20: Corners = [
+  { x: 200 - 25 * TAN_20, y: 100 },
+  { x: 300 - 25 * TAN_20, y: 100 },
+  { x: 300 + 25 * TAN_20, y: 150 },
+  { x: 200 + 25 * TAN_20, y: 150 },
+];
+
+/** The worked example saved with `skewX: 20`, as releases before side handles were constrained could leave it. */
+function workedSkewedX20(): Rect {
+  return new Rect({
+    ...LIBRARY_OPTIONS,
+    left: 250,
+    top: 125,
+    width: 100,
+    height: 50,
+    originX: 'center',
+    originY: 'center',
+    skewX: 20,
+  });
 }
 
 /** Each field of `actual` within `tolerance` of `expected`. */
@@ -578,9 +667,24 @@ describe('getGeometryFromFabricObject reads back what is painted', () => {
     }
   });
 
-  it.todo(
-    'skew is lost by getGeometryFromFabricObject: a skewed Rect paints a parallelogram no RectangleGeometry can describe, and reads back as an unskewed box (known limitation, tracked separately)',
-  );
+  it('reads a skewed Rect, which paints a parallelogram no rectangle describes, as the unskewed box about the same centre', () => {
+    // Nothing the library builds can be skewed any more (see "Shift + a side
+    // handle" below), and osdlabel's edit commit replaces a skewed object's
+    // data with the box read back here; data saved skewed is the case left.
+    const rect = workedSkewedX20();
+    expectCorners(paintedCorners(rect), WORKED_SKEWED_X20, 1e-9, 'skewX 20');
+    expect(readBack(rect)).toEqual(rectangle(WORKED.origin, 100, 50, 0));
+    // The box read back is not what is painted: its corners are 25 · tan 20° off.
+    expect(cornerDeviation(paintedCorners(rect), WORKED_AT_0)).toBeCloseTo(25 * TAN_20, 9);
+  });
+
+  it('a Rect rebuilt from what a skewed one reads back as paints that box, unskewed', () => {
+    // How osdlabel's edit commit normalises a skewed rectangle.
+    const rebuilt = build(readBack(workedSkewedX20()));
+    expect(rebuilt.skewX).toBe(0);
+    expect(rebuilt.skewY).toBe(0);
+    expectCorners(paintedCorners(rebuilt), WORKED_AT_0, 1e-9, 'rebuilt');
+  });
 });
 
 // ── Save and reload ──────────────────────────────────────────────────────────
@@ -801,6 +905,11 @@ describe('editing a rectangle through Fabric', () => {
     zoom = 1,
     pan: Point = { x: 0, y: 0 },
   ) {
+    return mountInEditor(build(geometry, options), zoom, pan);
+  }
+
+  /** {@link openInEditor} for a `Rect` made some other way (revived, drawn). */
+  function mountInEditor(rect: Rect, zoom = 1, pan: Point = { x: 0, y: 0 }) {
     const element = document.createElement('canvas');
     document.body.appendChild(element);
     const canvas = new Canvas(element, {
@@ -813,7 +922,6 @@ describe('editing a rectangle through Fabric', () => {
     });
     editorCanvases.push(canvas);
     canvas.setViewportTransform([zoom, 0, 0, zoom, pan.x, pan.y]);
-    const rect = build(geometry, options);
     canvas.add(rect);
     canvas.setActiveObject(rect);
     rect.setCoords();
@@ -1070,7 +1178,8 @@ describe('editing a rectangle through Fabric', () => {
         // Outward in the box's own frame, turned into image space.
         const local = isCorner ? { x: sx * 17.5, y: sy * 11.25 } : { x: sx * 23.5, y: sy * 23.5 };
         const delta = rotateAbout(local, { x: 0, y: 0 }, rotation);
-        // Shift on a corner scales freely; on an edge it would skew, so edges go without.
+        // Shift on a corner scales freely; a side handle does the same with or
+        // without it (see "Shift + a side handle" below), so edges go without.
         const press = pressOn(rect, key);
         gesture(canvas, press, add(press, delta), isCorner);
 
@@ -1133,7 +1242,8 @@ describe('editing a rectangle through Fabric', () => {
           y: sy === 0 ? 0 : -sy * (geometry.height + 20),
         };
         const press = pressOn(rect, key);
-        // Shift on a corner scales freely; on an edge it would skew, so edges go without.
+        // Shift on a corner scales freely; a side handle does the same with or
+        // without it (see "Shift + a side handle" below), so edges go without.
         gesture(canvas, press, add(press, rotateAbout(local, { x: 0, y: 0 }, rotation)), isCorner);
 
         // The premise: Fabric flipped the box rather than ignoring the drag.
@@ -1153,6 +1263,122 @@ describe('editing a rectangle through Fabric', () => {
         expect(Math.abs(stored.height - (sy === 0 ? geometry.height : 20))).toBeLessThanOrEqual(1);
       },
     );
+  });
+
+  /**
+   * Shift is Fabric's `altActionKey`: on its default side handles it turns the
+   * scale into a skew, a parallelogram that no rectangle geometry describes
+   * and that the stored geometry silently dropped. A rectangle's side handles
+   * only scale, so Shift + a side handle does exactly what the handle does
+   * without it. (On a corner, Shift still scales freely: see above.)
+   */
+  describe('Shift + a side handle', () => {
+    const SIDES = ['ml', 'mr', 'mt', 'mb'] as const;
+    type Side = (typeof SIDES)[number];
+    /** Each side handle's outward direction in the box's own frame. */
+    const OUTWARD: Readonly<Record<Side, Point>> = {
+      ml: { x: -1, y: 0 },
+      mr: { x: 1, y: 0 },
+      mt: { x: 0, y: -1 },
+      mb: { x: 0, y: 1 },
+    };
+
+    /**
+     * Out by 23.5 and along the side by 17.25, in the box's own frame: the
+     * part along the side is what Fabric's default would skew by.
+     */
+    function sideDrag(key: Side, rotation: number): Point {
+      const out = OUTWARD[key];
+      const local = {
+        x: out.x * 23.5 + (out.x === 0 ? 17.25 : 0),
+        y: out.y * 23.5 + (out.y === 0 ? 17.25 : 0),
+      };
+      return rotateAbout(local, { x: 0, y: 0 }, rotation);
+    }
+
+    const CASES = EDIT_ROTATIONS.flatMap((rotation) => SIDES.map((key) => ({ rotation, key })));
+
+    it.each(CASES)(
+      '$key at $rotation°, dragged out and along its side: stored as without Shift, nothing skewed',
+      ({ rotation, key }) => {
+        const geometry = rectangle({ x: 300.375, y: 220.625 }, 110.5, 70.25, rotation);
+        const delta = sideDrag(key, rotation);
+        const plain = openInEditor(geometry);
+        const plainPress = pressOn(plain.rect, key);
+        gesture(plain.canvas, plainPress, add(plainPress, delta));
+        const shifted = openInEditor(geometry);
+        const press = pressOn(shifted.rect, key);
+        gesture(shifted.canvas, press, add(press, delta), true);
+
+        expect(shifted.rect.skewX, 'skewX').toBe(0);
+        expect(shifted.rect.skewY, 'skewY').toBe(0);
+        const stored = onlyCommit(shifted.commits);
+        expectShapeClose(stored, onlyCommit(plain.commits), 1e-9, `${key} with Shift`);
+        expectCorners(paintedCorners(shifted.rect), referenceCorners(stored), TOL, label(stored));
+        // It scaled that axis by the outward part of the drag. The press is a
+        // fraction of a pixel off the handle, which Fabric carries into the size.
+        if (OUTWARD[key].x !== 0) {
+          expect(Math.abs(stored.width - (geometry.width + 23.5))).toBeLessThanOrEqual(1);
+          expect(stored.height).toBe(geometry.height);
+        } else {
+          expect(Math.abs(stored.height - (geometry.height + 23.5))).toBeLessThanOrEqual(1);
+          expect(stored.width).toBe(geometry.width);
+        }
+      },
+    );
+
+    it('renders, after Shift + mr dragged along its side at 30°, exactly the stored box', () => {
+      const geometry = rectangle({ x: 120.5, y: 90.25 }, 140, 80, 30);
+      const { canvas, rect, commits } = openInEditor(geometry, RASTER_OPTIONS);
+      const press = pressOn(rect, 'mr');
+      gesture(canvas, press, add(press, sideDrag('mr', 30)), true);
+      const stored = onlyCommit(commits);
+      canvas.remove(rect);
+      expect(rasterMismatches(rect, referenceCorners(stored))).toEqual([]);
+    });
+
+    const MADE = ['revived from saved data', 'drawn with RectangleTool'] as const;
+
+    it.each(MADE)('a rectangle %s: Shift + mb dragged along its side scales it', async (how) => {
+      const geometry = rectangle({ x: 300.375, y: 220.625 }, 110.5, 70.25, 0);
+      const rect =
+        how === 'revived from saved data'
+          ? await revive(geometry)
+          : drawnWithTool(geometry.origin, add(geometry.origin, { x: 110.5, y: 70.25 }));
+      const { canvas, commits } = mountInEditor(rect);
+      const press = pressOn(rect, 'mb');
+      gesture(canvas, press, add(press, sideDrag('mb', 0)), true);
+
+      expect(rect.skewX, 'skewX').toBe(0);
+      expect(rect.skewY, 'skewY').toBe(0);
+      const stored = onlyCommit(commits);
+      expect(stored.width).toBeCloseTo(geometry.width, 9);
+      expect(Math.abs(stored.height - (geometry.height + 23.5))).toBeLessThanOrEqual(1);
+      expectCorners(
+        paintedCorners(rect),
+        referenceCorners(stored),
+        TOL,
+        `${how}: ${label(stored)}`,
+      );
+    });
+
+    it('a rectangle saved skewed is revived as saved; Shift + a side handle skews it no further', async () => {
+      const saved = workedSkewedX20();
+      const geometry = readBack(saved);
+      const rect = await revive(geometry, saved);
+      // Painted as saved: nothing is corrected on load.
+      expect(rect.skewX).toBe(20);
+      expectCorners(paintedCorners(rect), WORKED_SKEWED_X20, 1e-9, 'revived skewed');
+      expect(readBack(rect)).toEqual(geometry);
+
+      const { canvas, commits } = mountInEditor(rect);
+      const press = pressOn(rect, 'mr');
+      gesture(canvas, press, add(press, { x: 20, y: 30 }), true);
+      onlyCommit(commits);
+      expect(rect.skewX, 'the saved skew, which the edit commit removes').toBe(20);
+      expect(rect.skewY, 'no new skew').toBe(0);
+      expect(rect.scaleX, 'mr scaled its width').toBeGreaterThan(1.1);
+    });
   });
 
   /**
