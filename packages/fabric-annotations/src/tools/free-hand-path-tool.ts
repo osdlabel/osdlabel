@@ -123,6 +123,12 @@ export class FreeHandPathTool extends BaseTool {
     this.finish(closed);
   }
 
+  /** Drops the stroke the cancelled press began, and the editor's hold on the press. */
+  onPointerCancel(_event: PointerEvent, _pressSeq: number): void {
+    this.editor.onPointerCancel();
+    this.cancel();
+  }
+
   onKeyDown(event: KeyboardEvent): boolean {
     if (this.editor.onKeyDown(event)) return true;
     if (this.isDrawing && event.key === this.shortcuts?.cancel) {

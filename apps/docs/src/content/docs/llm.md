@@ -2681,6 +2681,10 @@ pointerup:
   ├── Pan gesture active? → End gesture, re-disable OSD nav
   └── Otherwise?          → Stop propagation, forward to Fabric
 
+pointercancel:
+  ├── Pan gesture active? → End gesture, re-disable OSD nav
+  └── Otherwise?          → Stop propagation, undo the press (see "Cancelled presses")
+
 scroll:
   └── Ctrl/Cmd held? → Manual viewport.zoomBy() (OSD scroll-zoom is disabled)
 ```
@@ -2779,6 +2783,28 @@ Two details carry the guarantee. `pressSeqOf` is keyed on the **synthetic** even
 #### Touch
 
 Touch reaches this layer as of [#175](https://github.com/osdlabel/osdlabel/issues/175). It previously did not: the synthetic `pointerdown` bubbled back to the container, OSD counted the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returned to zero contacts and `releaseHandler`, which this detection runs from, was never called. The press is now dispatched non-bubbling, so the count is correct and a double tap pairs like a double click. That was a property of the forwarding design rather than of this pairing.
+
+### Cancelled presses
+
+When the OS or the browser takes a touch or pen contact away mid-gesture (an edge swipe, palm rejection, a system dialog, an orientation change), the browser sends `pointercancel` for it and no `pointerup`. The viewer's elements are `touch-action: none`, so the browser never cancels a touch to scroll the page: a cancel always comes from outside it.
+
+Nothing downstream handles the event on its own. OSD's `MouseTracker` answers a cancel with `stopTrackingPointer` and never calls `releaseHandler`, and Fabric has no `pointercancel` handling. Before the overlay handled it, Fabric's transform stayed open. The shape stayed where the finger had left it while the stored geometry kept the old one, so labels, measurements and exports disagreed with the screen. The `pointermove` and `pointerup` listeners Fabric adds to the document on a press stayed attached, so the next movement of any pointer (a hover, a drag on empty canvas) carried the shape on, and the next release anywhere committed it there. A drawing tool's preview stayed painted, and a tap on the toolbar committed it.
+
+**Cancel means revert**, the platform's meaning for the event. `_cancelPress` runs from `preProcessEventHandler`, which is where OSD hands the overlay a `pointercancel`. It acts only for the pointer that pressed, in three steps:
+
+1. **Put the object back.** Fabric's `transform.original` holds the transformed object's placement at the press (position, scale, skew, angle, flip); its `originX` / `originY` are the transform's anchor, not the object's origin, so they are left alone. A polyline or polygon's points are not in it, so the overlay copies them on Fabric's `before:transform`, which fires before a control's `mouseDownHandler` and so also before the vertex the editor's insert handle adds on the press. Clearing `actionPerformed` keeps Fabric from firing `object:modified`.
+2. **Tell subscribers**, through `overlay.onPointerCancel(cb)`, with the event and the press's sequence. The framework hooks route it to the active tool's optional `onPointerCancel`. A shape tool or the free-hand tool drops its preview (`BaseTool`'s default calls `cancel()`). A polyline drops the vertex that press placed, found by its sequence as for a double click, and keeps the rest. The select tool passes it to the vertex editor, which drops a pending long press and rebuilds its handles for the restored points. `enableLiveDecorationUpdates` subscribes too: state never changed, so nothing else would re-run the providers, and the last live frame (a label where the finger was) would outlive the gesture. It re-derives the decorations from state on the next frame.
+3. **End Fabric's gesture** with a forwarded `pointerup`, after placing the object's controls. A release is the only way to run Fabric's own cleanup of the transform, its document listeners and its rubber band. It is built from the press rather than copied from the cancel, because Chrome's `pointercancel` carries `button` -1, which `__onMouseUp` takes for a right or middle button and returns on. It lands at the press's position, on what the press landed on, and `selection` is off while it runs, so it applies no rubber-band selection. With `actionPerformed` cleared it commits nothing.
+
+The order is load-bearing twice over. The release fires Fabric's `mouse:up`, on which a shape tool commits its preview, so the tool must have dropped the preview before it. And the controls are placed only after the subscribers: the editor's handles may still be the ones built for the vertex the revert has just taken away, and placing them would read past the end of `points`.
+
+The release runs while OSD still tracks the pointer, since `preProcessEventHandler` runs before OSD's own `updatePointerCancel`. OSD therefore counts it as that pointer's release, and the contact count returns to zero as it does after any release. The `_forwarding` guard keeps it out of `releaseHandler`, so it is no click.
+
+What the press did outside the gesture stands, as focus does after a cancelled press: an object it selected stays selected, and a polyline press that closed the path committed the polygon on the press, before the cancel. The press's pairing state is dropped, so the clicks either side of a cancelled press cannot pair into a double click.
+
+`lostpointercapture` is not treated as a cancel. The browser sends it after the `pointerup` or `pointercancel` that ends a press, and nothing in the overlay releases capture mid-press. Custom-control mode is untouched: its handlers hear no cancel, and the drag controls disarm on the next move with no button held.
+
+`apps/dev/tests/e2e/touch-cancel.spec.ts` drives all of this through CDP's `touchCancel`, which produces a genuine `pointercancel`.
 
 ## How annotations stay correct under rotation/flip
 

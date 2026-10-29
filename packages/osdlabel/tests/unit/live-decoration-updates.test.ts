@@ -23,7 +23,11 @@ interface TestRig {
   overlay: FabricOverlay;
   canvas: MockCanvas;
   handlers: Record<string, Array<(e: { target?: FabricObject | undefined }) => void>>;
+  /** Subscribers to `overlay.onPointerCancel` that have not unsubscribed. */
+  cancelSubscribers: Set<() => void>;
   fire(event: string, target?: FabricObject): void;
+  /** What `FabricOverlay` does when the platform cancels the press in progress. */
+  cancelPress(): void;
   flushRAF(): void;
 }
 
@@ -37,13 +41,27 @@ function createRig(): TestRig {
       handlers[event] = (handlers[event] ?? []).filter((x) => x !== h);
     }),
   };
-  const overlay = { canvas } as unknown as FabricOverlay;
+  const cancelSubscribers = new Set<() => void>();
+  const overlay = {
+    canvas,
+    // Mirrors FabricOverlay.onPointerCancel: registers and returns unsubscribe.
+    onPointerCancel: (callback: () => void) => {
+      cancelSubscribers.add(callback);
+      return () => {
+        cancelSubscribers.delete(callback);
+      };
+    },
+  } as unknown as FabricOverlay;
   return {
     overlay,
     canvas,
     handlers,
+    cancelSubscribers,
     fire(event, target) {
       for (const h of handlers[event] ?? []) h({ target });
+    },
+    cancelPress() {
+      for (const cb of [...cancelSubscribers]) cb();
     },
     flushRAF() {
       const cbs = [...rafQueue];
@@ -383,6 +401,7 @@ describe('enableLiveDecorationUpdates', () => {
     // rAF scheduled but not yet flushed
     dispose();
     expect(rig.canvas.off).toHaveBeenCalledTimes(3);
+    expect(rig.cancelSubscribers.size).toBe(0);
     rig.flushRAF();
     // Even if the cancelAnimationFrame mock didn't fully clear, the disposed
     // flag guards onDecorations from firing post-teardown.
@@ -462,5 +481,83 @@ describe('enableLiveDecorationUpdates', () => {
     expect(hudText.placement).toBe('top-right');
     expect(hudText.anchor).toEqual({ x: 1, y: 0 });
     dispose();
+  });
+  /**
+   * A press the platform cancels (`pointercancel`) is undone: `FabricOverlay`
+   * puts the shape back where the press found it and commits nothing. State
+   * never changed, so the host's state-driven effect does not re-run, and the
+   * last frame this helper emitted, from the live geometry, would stay on
+   * screen: the label left where the finger was, reading the dragged shape's
+   * area. The cancel must bring the decorations back to state.
+   */
+  describe('a cancelled press', () => {
+    const live: Annotation['geometry'] = {
+      type: 'rectangle',
+      origin: { x: 50, y: 60 },
+      width: 70,
+      height: 80,
+      rotation: 0,
+    };
+
+    function watch(rig: TestRig, stored: Annotation): () => Annotation['geometry'] | undefined {
+      let seen: Annotation['geometry'] | undefined;
+      enableLiveDecorationUpdates({
+        overlay: rig.overlay,
+        getVisibleAnnotations: () => [stored],
+        getPixelSpacing: () => undefined,
+        getProviders: () => [
+          ({ annotations }) => {
+            seen = annotations[0]?.geometry;
+            return [];
+          },
+        ],
+        onDecorations: vi.fn(),
+      });
+      return () => seen;
+    }
+
+    it('re-derives the decorations from state on the next frame', () => {
+      const rig = createRig();
+      const stored = rectAnnotation('a', 0, 0);
+      const seen = watch(rig, stored);
+      rig.fire('object:moving', fakeFabricTarget('a', live));
+      rig.flushRAF();
+      expect(seen()).toEqual(live);
+
+      rig.cancelPress();
+      expect(rafQueue, 'the cancel scheduled no frame').toHaveLength(1);
+      rig.flushRAF();
+
+      expect(seen()).toEqual(stored.geometry);
+    });
+
+    it('drops a live override still waiting for its frame', () => {
+      const rig = createRig();
+      const stored = rectAnnotation('a', 0, 0);
+      const seen = watch(rig, stored);
+      rig.fire('object:moving', fakeFabricTarget('a', live));
+
+      rig.cancelPress();
+      rig.flushRAF();
+
+      expect(seen()).toEqual(stored.geometry);
+    });
+
+    it('schedules nothing when no providers are registered', () => {
+      const rig = createRig();
+      const onDecorations = vi.fn();
+      enableLiveDecorationUpdates({
+        overlay: rig.overlay,
+        getVisibleAnnotations: () => [],
+        getPixelSpacing: () => undefined,
+        getProviders: () => [],
+        onDecorations,
+      });
+
+      rig.cancelPress();
+
+      expect(rafQueue).toHaveLength(0);
+      expect(onDecorations).not.toHaveBeenCalled();
+    });
   });
 });

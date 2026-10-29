@@ -78,6 +78,22 @@ export interface AnnotationTool {
     pressSeqs?: readonly [number, number],
   ): void;
 
+  /**
+   * The platform cancelled the press in progress (`pointercancel`: an OS
+   * gesture, palm rejection, a system dialog), so undo what that press began.
+   * Optional — {@link BaseTool} supplies a default that calls {@link cancel},
+   * which is right for a tool whose drawing lasts from press to release.
+   *
+   * `FabricOverlay` has already put back any object Fabric was moving,
+   * scaling or rotating. It then ends Fabric's gesture with a release that
+   * commits nothing, and that release arrives at {@link onPointerUp} *after*
+   * this call — so a tool that commits on the release must have dropped its
+   * preview here. A tool whose drawing spans several presses undoes only the
+   * cancelled press's part, which `pressSeq` identifies: it is the sequence
+   * {@link ToolOverlay.pressSeqOf} gave that press.
+   */
+  onPointerCancel?(event: PointerEvent, pressSeq: number): void;
+
   /** Handle key down - returns true if the key was consumed */
   onKeyDown(event: KeyboardEvent): boolean;
 
@@ -137,6 +153,15 @@ export abstract class BaseTool implements AnnotationTool {
 
   /** No-op by default; tools with a double-click gesture override this. */
   onDoubleClick(_event: PointerEvent, _imagePoint: Point): void {}
+
+  /**
+   * Drops the drawing in progress by default: right for a tool whose drawing
+   * is one press, drag and release. Tools that span presses, or that do not
+   * draw, override it.
+   */
+  onPointerCancel(_event: PointerEvent, _pressSeq: number): void {
+    this.cancel();
+  }
 
   abstract onPointerDown(event: PointerEvent, imagePoint: Point): void;
   abstract onPointerMove(event: PointerEvent, imagePoint: Point): void;

@@ -132,6 +132,27 @@ export class PolyVertexEditor {
     return false;
   }
 
+  /**
+   * The platform cancelled the press in progress (`pointercancel`). Called by
+   * the tool that owns the editor, after `FabricOverlay` has put the shape
+   * back, points included.
+   *
+   * A long press it interrupted must not enter edit mode when its timer
+   * fires. And in edit mode the handles are rebuilt for the points the shape
+   * now has: the insert handle adds a vertex on the press and rebuilds the
+   * handles for it, and once that vertex is gone the extra handles would
+   * point past the end of `points`.
+   */
+  onPointerCancel(): void {
+    this.clearPress();
+    const poly = this.editingObject;
+    if (!poly) return;
+    poly.controls = buildEditControls(poly);
+    poly.setCoords();
+    poly.set('dirty', true);
+    this.canvas?.requestRenderAll();
+  }
+
   // ── Long-press detection ───────────────────────────────────────────────────
 
   private handleMouseDown(e: TPointerEventInfo<TPointerEvent>): void {

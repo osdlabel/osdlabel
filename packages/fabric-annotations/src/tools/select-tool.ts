@@ -81,6 +81,17 @@ export class SelectTool extends BaseTool {
     this.overlay?.canvas.requestRenderAll();
   }
 
+  /**
+   * Nothing of the select tool's own to undo: `FabricOverlay` has already put
+   * back the object the press was moving, and an object the press selected
+   * stays selected. Not {@link cancel}, which discards the selection. The
+   * vertex editor still holds the press, in a long-press timer or handles
+   * built for points the overlay has just restored.
+   */
+  onPointerCancel(_event: PointerEvent, _pressSeq: number): void {
+    this.editor.onPointerCancel();
+  }
+
   private onSelectionCreated(e: SelectionEvent) {
     if (!this.callbacks) return;
     const selected = e.selected || [];

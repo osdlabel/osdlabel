@@ -955,7 +955,8 @@ describe('enableLiveDecorationUpdates during a drag', () => {
     }
 
     asOverlay(): FabricOverlay {
-      return { canvas: this } as unknown as FabricOverlay;
+      // No press is ever cancelled here, so the cancel subscription is inert.
+      return { canvas: this, onPointerCancel: () => () => {} } as unknown as FabricOverlay;
     }
   }
 

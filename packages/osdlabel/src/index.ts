@@ -109,6 +109,7 @@ export type {
   CustomControlEvent,
   CustomControlHandler,
   DoubleClickCallback,
+  PointerCancelCallback,
   DragValueControlConfig,
   DragVectorControlConfig,
   DragAxisBehavior,

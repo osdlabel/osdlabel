@@ -91,10 +91,13 @@ type DoubleClickListener = (
   pressSeqs?: readonly [number, number],
 ) => void;
 
+type PointerCancelListener = (event: PointerEvent, pressSeq: number) => void;
+
 /** Structural stand-in for the overlay: only what the hook and the real tools touch. */
 function createMockOverlay() {
   const listeners = new Map<string, Set<Listener>>();
   let doubleClickListeners: DoubleClickListener[] = [];
+  let pointerCancelListeners: PointerCancelListener[] = [];
   const canvas = {
     on: vi.fn((event: string, cb: Listener) => {
       const set = listeners.get(event) ?? new Set<Listener>();
@@ -123,6 +126,12 @@ function createMockOverlay() {
         doubleClickListeners = doubleClickListeners.filter((l) => l !== cb);
       };
     }),
+    onPointerCancel: vi.fn((cb: PointerCancelListener) => {
+      pointerCancelListeners.push(cb);
+      return () => {
+        pointerCancelListeners = pointerCancelListeners.filter((l) => l !== cb);
+      };
+    }),
   };
   /** Fires every listener registered for `event`, in the caller's `act`. */
   const emit = (event: string, payload: unknown): void => {
@@ -140,6 +149,7 @@ function createMockOverlay() {
     emit,
     listenerCount: (event: string) => listeners.get(event)?.size ?? 0,
     doubleClickListeners: () => doubleClickListeners,
+    pointerCancelListeners: () => pointerCancelListeners,
   };
 }
 
@@ -239,6 +249,33 @@ describe('useAnnotationTool', () => {
 
     h.unmount();
     expect(mo.doubleClickListeners()).toHaveLength(0);
+  });
+
+  /**
+   * The hook is the only thing joining `FabricOverlay.onPointerCancel` to the
+   * active tool. Fabric has no `pointercancel` handling of its own, so without
+   * this wiring a drawing tool never hears that its press was taken away, and
+   * the release the overlay forwards next commits the preview it left.
+   */
+  it('routes a cancelled press to the active tool, with its sequence, and unsubscribes on cleanup', () => {
+    const h = setup('polyline');
+    expect(mo.overlay.onPointerCancel).toHaveBeenCalledWith(expect.any(Function));
+    expect(mo.pointerCancelListeners()).toHaveLength(1);
+
+    const entry = built.at(-1);
+    expect(entry).toBeDefined();
+    expect(entry!.tool.type).toBe('polyline');
+    const spy = vi.spyOn(entry!.tool, 'onPointerCancel');
+
+    const event = { type: 'pointercancel' } as PointerEvent;
+    // The sequence is relayed too: a polyline takes back only the vertex the
+    // cancelled press placed, which it finds by it.
+    mo.pointerCancelListeners()[0]!(event, 9);
+
+    expect(spy).toHaveBeenCalledWith(event, 9);
+
+    h.unmount();
+    expect(mo.pointerCancelListeners()).toHaveLength(0);
   });
 
   describe('is not rebuilt when the host merely re-renders', () => {

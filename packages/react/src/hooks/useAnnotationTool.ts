@@ -216,6 +216,15 @@ export function useAnnotationTool(
       tool.onDoubleClick?.(e, p, pressSeqs);
     });
 
+    // Fabric has no pointercancel handling: the overlay hears a cancelled
+    // press, puts back what Fabric was moving, and tells us here, before it
+    // ends Fabric's gesture with a release that reaches handleUp. The tool
+    // drops what the press began (a preview, a polyline's vertex) first, so
+    // that release finds nothing to commit. The sequence names the press.
+    const unsubscribePointerCancel = overlay.onPointerCancel((e, pressSeq) => {
+      tool.onPointerCancel?.(e, pressSeq);
+    });
+
     overlay.canvas.on('mouse:down', handleDown);
     overlay.canvas.on('mouse:move', handleMove);
     overlay.canvas.on('mouse:up', handleUp);
@@ -225,6 +234,7 @@ export function useAnnotationTool(
         activeToolKeyHandlerRef.handler = null;
       }
       unsubscribeDoubleClick();
+      unsubscribePointerCancel();
       overlay.canvas.off('mouse:down', handleDown);
       overlay.canvas.off('mouse:move', handleMove);
       overlay.canvas.off('mouse:up', handleUp);

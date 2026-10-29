@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { Canvas, Polygon, Polyline, type FabricObject, type TMat2D, type Transform } from 'fabric';
+import { Canvas, Point, Polygon, Polyline, type FabricObject, type TMat2D, type Transform } from 'fabric';
 import { PolyVertexEditor } from '../../src/poly-vertex-editor.js';
 import { getGeometryFromFabricObject } from '../../src/fabric-utils.js';
 import { initFabricModule } from '../../src/fabric-module.js';
@@ -233,6 +233,58 @@ describe('PolyVertexEditor', () => {
     const insertKeys = Object.keys(line.controls).filter((k) => k.startsWith('ins'));
     // 3 points → 2 edges (no closing edge for a polyline).
     expect(insertKeys.length).toBe(2);
+  });
+
+  /**
+   * A press the platform cancels (`pointercancel`) is undone. `FabricOverlay`
+   * puts the shape back, points included, and then tells the active tool,
+   * which passes it here: the editor owns the long-press timer and the edit
+   * handles, and both still describe the press that was taken away.
+   */
+  describe('a cancelled press', () => {
+    it('never enters edit mode from a long press it interrupted', () => {
+      const poly = makePolygon('poly-1');
+      fire('mouse:down', downEvent(poly, 100, 100));
+
+      editor.onPointerCancel();
+      vi.advanceTimersByTime(500);
+
+      expect(editor.isEditing()).toBe(false);
+      expect(canvas.setActiveObject).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The insert handle splices its vertex on the press and rebuilds the
+     * handles for it. Once the overlay restores the points the press found,
+     * handles built for one vertex more point past the end of `points`:
+     * `ins4`'s position handler reads `points[4].x` and throws on the next
+     * `setCoords`, which every render runs.
+     */
+    it('rebuilds the handles for the points the shape was put back to', () => {
+      const poly = makePolygon('poly-1');
+      fire('mouse:down', downEvent(poly, 100, 100));
+      vi.advanceTimersByTime(500);
+      const atPress = poly.points.map((p) => new Point(p.x, p.y));
+      const transform = { target: poly, corner: 'ins0' } as unknown as Transform;
+      poly.controls['ins0']!.mouseDownHandler!(new MouseEvent('mousedown'), transform, 5, 0);
+      expect(poly.points).toHaveLength(5);
+
+      // What the overlay does on the cancel, before it tells the tool.
+      poly.points = atPress;
+      poly.setDimensions();
+      editor.onPointerCancel();
+
+      expect(editor.isEditing()).toBe(true);
+      expect(Object.keys(poly.controls).sort()).toEqual(
+        ['p0', 'p1', 'p2', 'p3', 'ins0', 'ins1', 'ins2', 'ins3'].sort(),
+      );
+      expect(() => poly.setCoords()).not.toThrow();
+    });
+
+    it('is harmless outside edit mode', () => {
+      expect(() => editor.onPointerCancel()).not.toThrow();
+      expect(editor.isEditing()).toBe(false);
+    });
   });
 });
 

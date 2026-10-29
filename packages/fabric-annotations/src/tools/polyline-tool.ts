@@ -161,6 +161,35 @@ export class PolylineTool extends BaseTool {
     this.finish(false);
   }
 
+  /**
+   * Take back the vertex the cancelled press placed, and keep the rest of the
+   * path: a polyline places its vertex on the press, and the earlier vertices
+   * belong to presses that completed. A path whose only vertex goes is
+   * dropped.
+   *
+   * The vertex is the tail, identified by `pressSeq`, as for a double click.
+   * A press that placed none (one the framework hooks suppressed for landing
+   * on an annotation) leaves the path alone, and so does one that closed it:
+   * the polygon was committed on the press, before the cancel.
+   */
+  onPointerCancel(_event: PointerEvent, pressSeq: number): void {
+    this.editor.onPointerCancel();
+    if (this.vertexSeqs[this.vertexSeqs.length - 1] !== pressSeq) return;
+    this.popVertex();
+    const last = this.vertices[this.vertices.length - 1];
+    if (!last) {
+      this.cancel();
+      return;
+    }
+    // The live cursor point rests on the last vertex until the pointer moves.
+    this.preview?.set({
+      points: [...this.vertices.map((p) => ({ x: p.x, y: p.y })), { x: last.x, y: last.y }],
+      dirty: true,
+    });
+    this.syncMarkers(last);
+    this.overlay?.canvas.requestRenderAll();
+  }
+
   onKeyDown(event: KeyboardEvent): boolean {
     if (this.editor.onKeyDown(event)) return true;
     const shortcuts = this.shortcuts;

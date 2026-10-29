@@ -41,6 +41,13 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<never, ne
  * already re-runs the providers from state — no override is needed and
  * none is applied here.
  *
+ * A press the platform cancels (`pointercancel`, see
+ * `FabricOverlay.onPointerCancel`) commits nothing, so state does not change
+ * and the host's effect does not re-run; the overlay puts the shape back
+ * instead. The helper then re-derives the decorations from state on the next
+ * frame, so the last live frame (a label where the finger was, reading the
+ * dragged shape's measurements) does not outlive the gesture.
+ *
  * Returns a teardown function that unsubscribes and cancels any pending
  * scheduled tick.
  */
@@ -94,15 +101,28 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
     rafHandle = requestAnimationFrame(flush);
   };
 
+  // A cancelled press leaves state as it was: the next frame drops any live
+  // override, pending or emitted, and runs the providers over state alone.
+  const onPointerCancel = (): void => {
+    if (disposed) return;
+    if (getProviders().length === 0) return;
+    pendingTarget = undefined;
+    if (scheduled) return;
+    scheduled = true;
+    rafHandle = requestAnimationFrame(flush);
+  };
+
   canvas.on('object:moving', handler);
   canvas.on('object:scaling', handler);
   canvas.on('object:rotating', handler);
+  const unsubscribePointerCancel = overlay.onPointerCancel(onPointerCancel);
 
   return () => {
     disposed = true;
     canvas.off('object:moving', handler);
     canvas.off('object:scaling', handler);
     canvas.off('object:rotating', handler);
+    unsubscribePointerCancel();
     if (rafHandle !== 0) {
       cancelAnimationFrame(rafHandle);
       rafHandle = 0;

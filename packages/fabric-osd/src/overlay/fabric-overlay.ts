@@ -1,6 +1,6 @@
 import OpenSeadragon from 'openseadragon';
-import { Canvas as FabricCanvas } from 'fabric';
-import type { TMat2D } from 'fabric';
+import { Canvas as FabricCanvas, Point as FabricPoint, Polyline } from 'fabric';
+import type { TMat2D, Transform } from 'fabric';
 import type { Point } from '@osdlabel/annotation';
 import type { CellTransform } from '@osdlabel/viewer-api';
 import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
@@ -71,6 +71,42 @@ export type DoubleClickCallback = (
    */
   pressSeqs?: readonly [number, number],
 ) => void;
+
+/**
+ * Called when the platform cancels the press in progress in annotation mode:
+ * a `pointercancel` for the pointer that pressed, sent when the OS or the
+ * browser takes a touch or pen contact away mid-gesture (an edge swipe, palm
+ * rejection, a system dialog, an orientation change). It receives the raw DOM
+ * event and the sequence of the press it took away (see
+ * {@link FabricOverlay.pressSeqOf}).
+ *
+ * The overlay has already put the object Fabric was transforming back as the
+ * press found it. What the press began elsewhere is the subscriber's to undo:
+ * a tool drops its preview, a polyline the vertex that press placed. The
+ * overlay then ends Fabric's gesture with a forwarded release that commits
+ * nothing, and that release reaches the tool's `onPointerUp`, so the tool must
+ * have dropped its preview by then; subscribers are called first for that
+ * reason.
+ */
+export type PointerCancelCallback = (event: PointerEvent, pressSeq: number) => void;
+
+/** The fields {@link FabricOverlay} copies onto each synthetic event it forwards to Fabric. */
+type ForwardedPointerFields = Pick<
+  PointerEvent,
+  | 'clientX'
+  | 'clientY'
+  | 'screenX'
+  | 'screenY'
+  | 'button'
+  | 'buttons'
+  | 'pointerId'
+  | 'pointerType'
+  | 'isPrimary'
+  | 'ctrlKey'
+  | 'shiftKey'
+  | 'altKey'
+  | 'metaKey'
+>;
 
 /** Options for creating a FabricOverlay */
 export interface OverlayOptions {
@@ -214,13 +250,34 @@ export class FabricOverlay {
   /** Callbacks fired on a double click in annotation mode. */
   private readonly _doubleClickSubscribers = new Set<DoubleClickCallback>();
 
-  /** The press in progress, so a release can be qualified as a click. */
+  /** Callbacks fired when the platform cancels the press in progress. */
+  private readonly _pointerCancelSubscribers = new Set<PointerCancelCallback>();
+
+  /**
+   * The press in progress, so a release can be qualified as a click and a
+   * cancel can be undone. `event` is the press as the browser delivered it,
+   * which the release that ends a cancelled gesture is built from.
+   */
   private _pendingPress: {
     time: number;
     x: number;
     y: number;
     pointerId: number;
     seq: number;
+    event: PointerEvent;
+  } | null = null;
+
+  /**
+   * The points of the polyline or polygon a Fabric transform started on, as
+   * they were when Fabric set the transform up, so a cancelled press can
+   * restore them. Fabric's own `transform.original` records only the object's
+   * placement (position, scale, skew, angle, flip), and a vertex drag moves
+   * points; the vertex editor's insert handle even adds one on the press,
+   * after the transform is set up and before any move.
+   */
+  private _transformPoints: {
+    readonly transform: Transform;
+    readonly points: readonly { readonly x: number; readonly y: number }[];
   } | null = null;
 
   /** The previous completed click, for double-click detection. */
@@ -288,6 +345,15 @@ export class FabricOverlay {
     event.preventDefaultAction = true;
   };
 
+  /** Record the points a transform starts from; see `_transformPoints`. */
+  private readonly _onBeforeTransform = ({ transform }: { transform: Transform }): void => {
+    const target = transform.target;
+    this._transformPoints =
+      target instanceof Polyline
+        ? { transform, points: target.points.map(({ x, y }) => ({ x, y })) }
+        : null;
+  };
+
   constructor(viewer: OpenSeadragon.Viewer, options?: OverlayOptions) {
     this._viewer = viewer;
 
@@ -342,6 +408,10 @@ export class FabricOverlay {
       width: containerSize.x,
       height: containerSize.y,
     });
+
+    // Fires as Fabric sets a transform up on a press, before any control's
+    // mouseDownHandler runs; see `_transformPoints`.
+    this._fabricCanvas.on('before:transform', this._onBeforeTransform);
 
     // ── Resolve Fabric's container div ───────────────────────────
     const container = this._fabricCanvas.getSelectionElement().parentElement;
@@ -452,6 +522,21 @@ export class FabricOverlay {
     this._doubleClickSubscribers.add(callback);
     return () => {
       this._doubleClickSubscribers.delete(callback);
+    };
+  }
+
+  /**
+   * Register a callback fired when the platform cancels the press in progress
+   * in annotation mode (`pointercancel`). Returns an unsubscribe function.
+   *
+   * See {@link PointerCancelCallback} for what the overlay has already undone
+   * when it is called, and what is left to the subscriber. The framework hooks
+   * route it to the active tool's optional `onPointerCancel`.
+   */
+  onPointerCancel(callback: PointerCancelCallback): () => void {
+    this._pointerCancelSubscribers.add(callback);
+    return () => {
+      this._pointerCancelSubscribers.delete(callback);
     };
   }
 
@@ -599,8 +684,10 @@ export class FabricOverlay {
   destroy(): void {
     this._customControlHandler = null;
     this._doubleClickSubscribers.clear();
+    this._pointerCancelSubscribers.clear();
     this._pendingPress = null;
     this._lastClick = null;
+    this._transformPoints = null;
     this._syncSubscribers.clear();
     this._disposeDevicePixelRatioObserver?.();
     this._disposeDevicePixelRatioObserver = null;
@@ -639,7 +726,7 @@ export class FabricOverlay {
    */
   private _forwardToFabric(
     type: typeof POINTER_DOWN | typeof POINTER_MOVE | typeof POINTER_UP | typeof POINTER_CANCEL,
-    originalEvent: PointerEvent,
+    originalEvent: ForwardedPointerFields,
     /**
      * The sequence to stamp on the dispatched event, passed by the one caller
      * that has just produced it. Taking it as a parameter rather than reading
@@ -694,8 +781,149 @@ export class FabricOverlay {
       y,
       pointerId: originalEvent.pointerId,
       seq: ++this._pressSeq,
+      event: originalEvent,
     };
     return this._pendingPress.seq;
+  }
+
+  /**
+   * Undo the press in progress, which the platform has cancelled.
+   *
+   * OSD answers `pointercancel` with `stopTrackingPointer` and never calls
+   * `releaseHandler`, and Fabric has no `pointercancel` handling, so without
+   * this nothing ends Fabric's gesture: its transform stays open, the object
+   * stays where the pointer left it while the host's state keeps it where it
+   * was, the document-level listeners Fabric added on the press keep running,
+   * so the next movement of any pointer carries the object on, and the next
+   * release anywhere commits it there.
+   *
+   * Cancel means revert, the platform's meaning for `pointercancel`:
+   *
+   * 1. Put the object Fabric was transforming back as the press found it, and
+   *    clear `actionPerformed`, so Fabric fires no `object:modified`.
+   * 2. Tell subscribers, so the active tool drops what the press began.
+   * 3. End Fabric's gesture with a release, which runs Fabric's own cleanup
+   *    (the open transform, the document listeners, the rubber band) and
+   *    commits nothing.
+   *
+   * The press's other effects stand, as focus does after a cancelled press:
+   * an object it selected stays selected. Its pairing state is dropped, so the
+   * clicks either side of a cancelled press cannot pair into a double click.
+   *
+   * Only a cancel of the pointer that pressed counts. `lostpointercapture` is
+   * not handled separately: the browser sends it after the `pointerup` or
+   * `pointercancel` that ends a press, and in this overlay nothing releases
+   * capture mid-press.
+   *
+   * Runs from `preProcessEventHandler`, before OSD's own `updatePointerCancel`
+   * stops tracking the pointer. The release dispatched here bubbles through
+   * the tracker's element while the pointer is still tracked, so OSD counts it
+   * as that pointer's release and its contact count returns to zero; the
+   * `_forwarding` guard keeps it out of `releaseHandler`.
+   */
+  private _cancelPress(cancelEvent: PointerEvent): void {
+    const press = this._pendingPress;
+    if (!press || press.pointerId !== cancelEvent.pointerId) return;
+    this._pendingPress = null;
+    this._lastClick = null;
+
+    const transform = this._fabricCanvas._currentTransform;
+    if (transform) this._revertTransform(transform);
+    this._transformPoints = null;
+
+    try {
+      // Snapshot + membership check, as for double clicks.
+      for (const callback of [...this._pointerCancelSubscribers]) {
+        if (!this._pointerCancelSubscribers.has(callback)) continue;
+        callback(cancelEvent, press.seq);
+      }
+    } finally {
+      // Place the object's controls for the shape as it now is: after the
+      // subscribers, who may have rebuilt them for the restored points, and
+      // before the release, which hit-tests them.
+      transform?.target.setCoords();
+      // Even if a subscriber throws: left open, the gesture is what moves the
+      // object on the next movement of any pointer.
+      this._endCancelledGesture(press.event);
+    }
+  }
+
+  /**
+   * Put a transform's object back as the press found it, and mark the
+   * transform as having done nothing, so ending it fires no `object:modified`.
+   *
+   * Fabric's `transform.original` holds the placement at the press. Its
+   * `originX` / `originY` are the transform's anchor (the corner opposite a
+   * dragged scale handle, say), not the object's origin, so they are not
+   * restored. Points come from `_transformPoints`.
+   */
+  private _revertTransform(transform: Transform): void {
+    const { target, original } = transform;
+    const recorded = this._transformPoints;
+    if (
+      recorded?.transform === transform &&
+      target instanceof Polyline &&
+      !samePoints(target.points, recorded.points)
+    ) {
+      // Fresh, mutable points: Fabric's poly controls edit them in place.
+      target.set({ points: recorded.points.map(({ x, y }) => new FabricPoint(x, y)) });
+      target.setDimensions();
+    }
+    target.set({
+      left: original.left,
+      top: original.top,
+      scaleX: original.scaleX,
+      scaleY: original.scaleY,
+      skewX: original.skewX,
+      skewY: original.skewY,
+      angle: original.angle,
+      flipX: original.flipX,
+      flipY: original.flipY,
+    });
+    // No `setCoords()` here: the object's controls may still be the ones the
+    // press built for points just taken back (the vertex editor's insert
+    // handle rebuilds them for its new vertex), and placing them would read
+    // past the end of `points`. Subscribers rebuild them; `_cancelPress`
+    // places them after that.
+    transform.actionPerformed = false;
+  }
+
+  /**
+   * End Fabric's gesture for a cancelled press, as a release would, without
+   * letting the release do what a release does.
+   *
+   * The release is built from the press, not copied from the cancel: Chrome
+   * sends `pointercancel` with `button` -1, which Fabric's `__onMouseUp` takes
+   * for a right or middle button and returns on before ending anything. At the
+   * press's position it lands on what the press landed on, now that the
+   * object is back there, so it reaches no other control's mouse-up handler.
+   * Fabric applies a rubber-band selection on release unless `selection` is
+   * off, so it is off for the duration.
+   */
+  private _endCancelledGesture(press: PointerEvent): void {
+    const canvas = this._fabricCanvas;
+    const selection = canvas.selection;
+    canvas.selection = false;
+    try {
+      this._forwardToFabric(POINTER_UP, {
+        clientX: press.clientX,
+        clientY: press.clientY,
+        screenX: press.screenX,
+        screenY: press.screenY,
+        button: 0,
+        buttons: 0,
+        pointerId: press.pointerId,
+        pointerType: press.pointerType,
+        isPrimary: press.isPrimary,
+        ctrlKey: press.ctrlKey,
+        shiftKey: press.shiftKey,
+        altKey: press.altKey,
+        metaKey: press.metaKey,
+      });
+    } finally {
+      canvas.selection = selection;
+    }
+    canvas.requestRenderAll();
   }
 
   /**
@@ -905,6 +1133,9 @@ export class FabricOverlay {
           }
           eventInfo.stopPropagation = true;
           eventInfo.preventDefault = true;
+          // OSD never calls `releaseHandler` for a cancelled pointer, so this
+          // is the only place the overlay hears of the cancel.
+          if (eventType === POINTER_CANCEL) this._cancelPress(domEvent);
           return;
         }
       },
@@ -951,6 +1182,8 @@ export class FabricOverlay {
 
         if (this._panGestureActive) return;
         this._forwardToFabric(POINTER_UP, originalEvent);
+        // The transform has ended; its recorded points are no use to anyone.
+        this._transformPoints = null;
         this._detectDoubleClick(originalEvent);
       },
 
@@ -992,4 +1225,12 @@ export class FabricOverlay {
       },
     });
   }
+}
+
+/** Whether two point lists hold the same coordinates, in order. */
+function samePoints(
+  a: readonly { readonly x: number; readonly y: number }[],
+  b: readonly { readonly x: number; readonly y: number }[],
+): boolean {
+  return a.length === b.length && a.every((p, i) => p.x === b[i]!.x && p.y === b[i]!.y);
 }
