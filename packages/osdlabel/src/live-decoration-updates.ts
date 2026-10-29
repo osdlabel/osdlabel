@@ -124,11 +124,12 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
  *
  * Caveat for `ActiveSelection`: child objects' `left/top` are reported
  * relative to the parent group, not the canvas. `getGeometryFromFabricObject`
- * is matrix-based for line/polyline/polygon (exact under groups) but reads
- * `left/top` / `getCenterPoint()` directly for rectangle/circle/point — those
- * may be slightly off during a multi-select drag. The commit on mouse-up
- * (via `object:modified`) is always correct because Fabric dissolves the
- * ActiveSelection before firing it.
+ * is matrix-based for line/polyline/polygon (exact under groups). For
+ * rectangle/circle/point it takes the centre from `getCenterPoint()`, which
+ * includes the group's transform, but reads size and rotation from the child,
+ * relative to the group — those may be off while a multi-selection is scaled
+ * or rotated. The commit on mouse-up (via `object:modified`) is always correct
+ * because Fabric dissolves the ActiveSelection before firing it.
  */
 function applyLiveOverride<E extends object>(
   annotations: readonly Annotation<E>[],

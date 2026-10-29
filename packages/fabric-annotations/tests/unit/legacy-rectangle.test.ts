@@ -34,27 +34,42 @@ function annotation(geometry: Geometry, object: Rect): Annotation<FabricFields> 
 }
 
 /**
- * A rectangle as earlier releases saved it: the dragged corner as both the
- * geometry's origin and the Fabric object's left/top, under Fabric 7's
- * default centre origin, so it was painted centred on that corner.
+ * A rectangle as earlier releases saved it, built the way they built it: a
+ * `Rect` with the corner as `left`/`top` and no origin (so Fabric 7 centres it
+ * there), the geometry read back as 0.21.0's `getGeometryFromFabricObject`
+ * read it (`left`/`top` unrounded, as the corner), and the Fabric data from
+ * `serializeFabricObject`, whose `toObject()` rounds `left`/`top` to 4 decimals.
  */
-function legacy(rotation: number): Annotation<FabricFields> {
-  const geometry: Geometry = {
-    type: 'rectangle',
-    origin: { x: 10, y: 20 },
-    width: 100,
-    height: 50,
-    rotation,
-  };
+function legacyRect(
+  corner: { x: number; y: number },
+  rotation: number,
+  scale: { x: number; y: number } = { x: 1, y: 1 },
+): Annotation<FabricFields> {
   const object = new Rect({
     ...options,
-    left: 10,
-    top: 20,
+    left: corner.x,
+    top: corner.y,
     width: 100,
     height: 50,
     angle: rotation,
+    scaleX: scale.x,
+    scaleY: scale.y,
   });
+  const geometry: Geometry = {
+    type: 'rectangle',
+    origin: { x: object.left, y: object.top },
+    width: object.width * object.scaleX,
+    height: object.height * object.scaleY,
+    rotation: object.angle,
+  };
   return annotation(geometry, object);
+}
+
+/** Drawn with the mouse: image coordinates carry many decimals. */
+const DRAWN = { x: 132.38578680202863, y: 218.61252115058915 };
+
+function legacy(rotation: number): Annotation<FabricFields> {
+  return legacyRect(DRAWN, rotation);
 }
 
 /** The geometry the saved Fabric data paints, read as current code reads it. */
@@ -77,23 +92,76 @@ describe('migrateLegacyRectangle', () => {
       expect(after.geometry.type).toBe('rectangle');
       expect(painted?.type).toBe('rectangle');
       if (after.geometry.type !== 'rectangle' || painted?.type !== 'rectangle') return;
-      expect(after.geometry.origin.x).toBeCloseTo(painted.origin.x);
-      expect(after.geometry.origin.y).toBeCloseTo(painted.origin.y);
+      expect(after.geometry.origin.x).toBeCloseTo(painted.origin.x, 3);
+      expect(after.geometry.origin.y).toBeCloseTo(painted.origin.y, 3);
       expect(after.geometry.width).toBe(100);
       expect(after.geometry.height).toBe(50);
       expect(after.geometry.rotation).toBe(rotation);
     },
   );
 
-  it('places an unrotated one half its size up and to the left', () => {
-    const after = migrateLegacyRectangle(legacy(0));
-    expect(after.geometry).toEqual({
+  it('places an unrotated one half its size up and to the left of its saved centre', () => {
+    const before = legacyRect({ x: 10, y: 20 }, 0);
+    expect(migrateLegacyRectangle(before).geometry).toEqual({
       type: 'rectangle',
       origin: { x: -40, y: -5 },
       width: 100,
       height: 50,
       rotation: 0,
     });
+  });
+
+  it('matches the saved left/top to the geometry despite toObject() rounding it', () => {
+    const before = legacy(0);
+    expect(before.rawAnnotationData.data.left).toBe(132.3858);
+    expect(before.geometry.type === 'rectangle' && before.geometry.origin.x).toBe(DRAWN.x);
+    const after = migrateLegacyRectangle(before);
+    expect(after).not.toBe(before);
+    if (after.geometry.type !== 'rectangle') return;
+    expect(after.geometry.origin.x).toBeCloseTo(DRAWN.x - 50, 3);
+    expect(after.geometry.origin.y).toBeCloseTo(DRAWN.y - 25, 3);
+  });
+
+  it('migrates a rectangle that was resized before it was saved', async () => {
+    const before = legacyRect({ x: 512.123456789, y: 77.987654321 }, 15, { x: 1.37, y: 0.61 });
+    const after = migrateLegacyRectangle(before);
+    const painted = await paintedGeometry(before);
+    expect(after).not.toBe(before);
+    if (after.geometry.type !== 'rectangle' || painted?.type !== 'rectangle') return;
+    expect(after.geometry.origin.x).toBeCloseTo(painted.origin.x, 3);
+    expect(after.geometry.origin.y).toBeCloseTo(painted.origin.y, 3);
+    expect(after.geometry.width).toBeCloseTo(137);
+    expect(after.geometry.height).toBeCloseTo(30.5);
+  });
+
+  it('migrates a rectangle converted from a circle by an earlier release', async () => {
+    // 0.21.0 converted a circle to its bounding box and built it as above:
+    // the corner, centre minus radius, as left/top with no origin.
+    const center = { x: 300.333333333, y: 140.666666667 };
+    const radius = 25.123456789;
+    const object = new Rect({
+      ...options,
+      left: center.x - radius,
+      top: center.y - radius,
+      width: 2 * radius,
+      height: 2 * radius,
+    });
+    const before = annotation(
+      {
+        type: 'rectangle',
+        origin: { x: center.x - radius, y: center.y - radius },
+        width: 2 * radius,
+        height: 2 * radius,
+        rotation: 0,
+      },
+      object,
+    );
+    const after = migrateLegacyRectangle(before);
+    const painted = await paintedGeometry(before);
+    expect(after).not.toBe(before);
+    if (after.geometry.type !== 'rectangle' || painted?.type !== 'rectangle') return;
+    expect(after.geometry.origin.x).toBeCloseTo(painted.origin.x, 3);
+    expect(after.geometry.origin.y).toBeCloseTo(painted.origin.y, 3);
   });
 
   it('runs once: a migrated rectangle is left alone', () => {
@@ -111,6 +179,25 @@ describe('migrateLegacyRectangle', () => {
     };
     const current = annotation(geometry, buildFabricObjectFromGeometry(geometry, options) as Rect);
     expect(migrateLegacyRectangle(current)).toBe(current);
+  });
+
+  it('leaves current rectangles alone at any size, rotation and position', () => {
+    for (const size of [0.1, 1, 37.5, 1000]) {
+      for (const rotation of [0, 15, 90, 180, -135]) {
+        const geometry: Geometry = {
+          type: 'rectangle',
+          origin: { x: 1234.56789123, y: 98.7654321 },
+          width: size,
+          height: size / 3,
+          rotation,
+        };
+        const current = annotation(
+          geometry,
+          buildFabricObjectFromGeometry(geometry, options) as Rect,
+        );
+        expect(migrateLegacyRectangle(current)).toBe(current);
+      }
+    }
   });
 
   it('leaves a rectangle whose Fabric data has a top-left origin alone: it was painted at its geometry', () => {

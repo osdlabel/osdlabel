@@ -11,9 +11,11 @@ initFabricModule();
 const imageId = createImageId('img-1');
 const contextId = createAnnotationContextId('ctx-1');
 
+// A corner drawn with the mouse: image coordinates carry many decimals.
+const corner = { x: 132.38578680202863, y: 218.61252115058915 };
 const geometry: Geometry = {
   type: 'rectangle',
-  origin: { x: 10, y: 20 },
+  origin: corner,
   width: 100,
   height: 50,
   rotation: 0,
@@ -27,19 +29,32 @@ describe('deserialize', () => {
       toolType: 'rectangle',
     });
     // As earlier releases saved it: left/top at the geometry's corner under a
-    // centre origin, so it was painted centred on that corner.
+    // centre origin, so it was painted centred on that corner, and rounded to
+    // 4 decimals by toObject() while the geometry kept every digit.
     const legacy = {
       ...current,
       rawAnnotationData: {
         ...current.rawAnnotationData,
-        data: { ...current.rawAnnotationData.data, left: 10, top: 20, originX: 'center' },
+        data: {
+          ...current.rawAnnotationData.data,
+          left: 132.3858,
+          top: 218.6125,
+          originX: 'center',
+          originY: 'center',
+        },
       },
     };
 
     const { byImage } = deserialize(JSON.parse(JSON.stringify([legacy])));
     const loaded = byImage[imageId]![current.id]!;
     expect(loaded).toBeDefined();
-    expect(loaded.geometry).toEqual({ ...geometry, origin: { x: -40, y: -5 } });
+    expect(loaded.geometry.type).toBe('rectangle');
+    if (loaded.geometry.type !== 'rectangle') return;
+    // Half its size up and to the left of the centre it is painted at.
+    expect(loaded.geometry.origin.x).toBeCloseTo(132.3858 - 50, 6);
+    expect(loaded.geometry.origin.y).toBeCloseTo(218.6125 - 25, 6);
+    expect(loaded.geometry.width).toBe(100);
+    expect(loaded.geometry.height).toBe(50);
     // The saved Fabric data, which paints it where the user saw it, is kept.
     expect(loaded.rawAnnotationData).toEqual(legacy.rawAnnotationData);
   });

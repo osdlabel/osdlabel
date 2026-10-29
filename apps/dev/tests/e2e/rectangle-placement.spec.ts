@@ -89,6 +89,7 @@ test.describe('Rectangle placement', () => {
     // Rewrite it as an earlier release saved it: the dragged corner as both
     // the geometry's origin and the Fabric object's left/top, under Fabric 7's
     // default centre origin. Such a rectangle was painted centred on that corner.
+    // The corner is a mouse position in image space, so it has many decimals.
     const [drawn] = await readAnnotations(page);
     if (!drawn) throw new Error('No rectangle was drawn');
     const corner = drawn.geometry.origin;
@@ -98,8 +99,9 @@ test.describe('Rectangle placement', () => {
         ...drawn.rawAnnotationData,
         data: {
           ...drawn.rawAnnotationData.data,
-          left: corner.x,
-          top: corner.y,
+          // toObject() rounded these to 4 decimals; the geometry kept every digit.
+          left: Number(corner.x.toFixed(4)),
+          top: Number(corner.y.toFixed(4)),
           originX: 'center',
           originY: 'center',
         },
