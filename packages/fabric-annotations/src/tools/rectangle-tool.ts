@@ -32,4 +32,14 @@ export class RectangleTool extends ShapeTool<Rect> {
       top: (imagePoint.y + startPoint.y) / 2,
     });
   }
+
+  /** The shorter side on screen: a box thinner than the minimum either way is discarded. */
+  protected override previewScreenSize(preview: Rect): number {
+    // Unrotated, and positioned by its centre (left/top).
+    const { left: cx, top: cy, width, height } = preview;
+    return Math.min(
+      this.screenDistance({ x: cx - width / 2, y: cy }, { x: cx + width / 2, y: cy }),
+      this.screenDistance({ x: cx, y: cy - height / 2 }, { x: cx, y: cy + height / 2 }),
+    );
+  }
 }

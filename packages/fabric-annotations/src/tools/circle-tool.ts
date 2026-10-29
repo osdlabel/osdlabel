@@ -28,4 +28,10 @@ export class CircleTool extends ShapeTool<Circle> {
 
     this.preview.set({ radius });
   }
+
+  /** The diameter on screen. */
+  protected override previewScreenSize(preview: Circle): number {
+    const { left: cx, top: cy, radius } = preview;
+    return this.screenDistance({ x: cx - radius, y: cy }, { x: cx + radius, y: cy });
+  }
 }

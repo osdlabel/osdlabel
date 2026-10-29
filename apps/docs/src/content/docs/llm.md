@@ -613,6 +613,8 @@ osdlabel provides six geometric annotation tools:
 | **Path**           | `d`      | Array of points, open/closed    | Click to add vertices, double click or `Enter` to finish, `c` to close |
 | **Free Hand Path** | `f`      | Array of sampled points         | Click and drag to draw; release to commit                              |
 
+A click without a drag draws nothing with the rectangle, circle or line tool. On release, a shape smaller than 3 screen pixels ([`MIN_SHAPE_SCREEN_PX`](/osdlabel/api/reference/osdlabel/fabric-annotations/variables/min_shape_screen_px/)) is discarded rather than stored, measured as a rectangle's shorter side, a circle's diameter or a line's length. A stray click therefore leaves no invisible annotation behind, and does not count toward a context's `maxCount`. The minimum is in screen pixels, so it is the same at every zoom: to draw a shape smaller than that, zoom in. The point tool is exempt, since a click is how a point is placed.
+
 ## Drawing workflow
 
 1. Select a drawing tool (toolbar click or keyboard shortcut)

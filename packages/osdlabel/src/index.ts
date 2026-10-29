@@ -55,6 +55,7 @@ export {
   initFabricModule,
   BaseTool,
   ShapeTool,
+  MIN_SHAPE_SCREEN_PX,
   RectangleTool,
   CircleTool,
   LineTool,

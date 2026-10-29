@@ -1262,9 +1262,11 @@ describe('RectangleTool draws the dragged box', () => {
   const imageId = createImageId('rect-suite-image');
   const contextId = createAnnotationContextId('rect-suite-context');
 
-  function setUpTool(defaultStyle?: Partial<AnnotationStyle>) {
+  /** `zoom` is the view's screen px per image px. */
+  function setUpTool(defaultStyle?: Partial<AnnotationStyle>, zoom = 1) {
     const canvas = createMockCanvas();
-    const overlay = createMockToolOverlay(canvas);
+    canvas.getZoom.mockReturnValue(zoom);
+    const overlay = createMockToolOverlay(canvas, (p) => ({ x: p.x * zoom, y: p.y * zoom }));
     const added: AddAnnotationParams[] = [];
     const callbacks: ToolCallbacks = {
       getActiveContextId: () => contextId,
@@ -1287,6 +1289,8 @@ describe('RectangleTool draws the dragged box', () => {
     readonly name: string;
     readonly start: Point;
     readonly end: Point;
+    /** Screen px per image px the drag is made at; 1 if absent. */
+    readonly zoom?: number;
   }
 
   const DRAGS: readonly Drag[] = [
@@ -1294,7 +1298,15 @@ describe('RectangleTool draws the dragged box', () => {
     { name: 'up-left', start: { x: 130.75, y: 95.875 }, end: { x: 10.25, y: 20.75 } },
     { name: 'up-right', start: { x: 10.25, y: 95.875 }, end: { x: 130.75, y: 20.75 } },
     { name: 'down-left', start: { x: 130.75, y: 20.75 }, end: { x: 10.25, y: 95.875 } },
-    { name: 'sub-pixel up-right', start: { x: 3.1, y: 8.05 }, end: { x: 3.6, y: 7.3 } },
+    // Seen zoomed in, as a box this small must be to be drawn at all: at zoom
+    // 1 it is under MIN_SHAPE_SCREEN_PX and the tool discards it. At 16 it is
+    // 8 x 12 screen px.
+    {
+      name: 'sub-pixel up-right',
+      start: { x: 3.1, y: 8.05 },
+      end: { x: 3.6, y: 7.3 },
+      zoom: 16,
+    },
     { name: 'large down-left', start: { x: 4097.3, y: 12.5 }, end: { x: -902.2, y: 3013 } },
   ];
 
@@ -1334,7 +1346,7 @@ describe('RectangleTool draws the dragged box', () => {
   it.each(DRAGS)(
     '$name: preview and committed object cover the box, geometry is its min corner and size',
     (drag) => {
-      const h = setUpTool();
+      const h = setUpTool(undefined, drag.zoom);
       const preview = drawDrag(h, drag);
 
       const params = h.added[0]!;

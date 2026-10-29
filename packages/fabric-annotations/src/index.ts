@@ -13,7 +13,7 @@ export type { VertexMarkerOptions } from './vertex-markers.js';
 export type { ToolOverlay, FabricFields, FabricRawAnnotationData } from './types.js';
 export type { AnnotationTool, ToolCallbacks, AddAnnotationParams } from './tools/base-tool.js';
 export { BaseTool } from './tools/base-tool.js';
-export { ShapeTool } from './tools/shape-tool.js';
+export { ShapeTool, MIN_SHAPE_SCREEN_PX } from './tools/shape-tool.js';
 export { RectangleTool } from './tools/rectangle-tool.js';
 export { CircleTool } from './tools/circle-tool.js';
 export { LineTool } from './tools/line-tool.js';
