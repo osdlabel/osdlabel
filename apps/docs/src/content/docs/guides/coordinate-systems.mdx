@@ -28,7 +28,7 @@ Image-space coordinates are stable regardless of zoom level. A point at `(500, 3
 ```ts
 const geometry = {
   type: 'rectangle' as const,
-  origin: { x: 100, y: 200 }, // image pixels; the corner that is top-left before rotation
+  origin: { x: 100, y: 200 }, // image pixels; top-left of the box before rotation
   width: 300, // image pixels
   height: 150, // image pixels
   rotation: 0,

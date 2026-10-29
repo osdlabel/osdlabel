@@ -101,7 +101,7 @@ export function getGeometryFromFabricObject(
 
     return {
       type: 'rectangle',
-      origin: rectangleOrigin(center, width, height, obj.angle),
+      origin: rectangleOrigin(center, width, height),
       width: width,
       height: height,
       rotation: obj.angle,

@@ -154,6 +154,7 @@ export {
   centroid,
   midpoint,
   boundingBox,
+  rectangleCorners,
   circleToBoundingRectangle,
   withSelectionEmphasis,
 } from '@osdlabel/decoration';

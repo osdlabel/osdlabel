@@ -167,12 +167,12 @@ describe('rectangle placement', () => {
     expect(center.y).toBeCloseTo(45);
   });
 
-  it('rotates a rectangle about its origin corner, as centroid() assumes', () => {
+  it('rotates a rectangle about its centre, as centroid() assumes', () => {
     const obj = buildFabricObjectFromGeometry(rectangle(30), options);
     const center = obj.getCenterPoint();
-    const theta = (30 * Math.PI) / 180;
-    expect(center.x).toBeCloseTo(10 + 50 * Math.cos(theta) - 25 * Math.sin(theta));
-    expect(center.y).toBeCloseTo(20 + 50 * Math.sin(theta) + 25 * Math.cos(theta));
+    expect(center.x).toBeCloseTo(60);
+    expect(center.y).toBeCloseTo(45);
+    expect(obj.angle).toBe(30);
   });
 
   it('reads the true corner of a rectangle saved with Fabric 7’s default centre origin', () => {
@@ -197,11 +197,19 @@ describe('rectangle placement', () => {
       originX: 'left',
       originY: 'top',
     });
+    // left/top place the rotated top-left corner; the centre is half the
+    // size from it along the rotated edges, and origin half the size from
+    // the centre along the image axes.
+    const theta = (30 * Math.PI) / 180;
+    const centre = {
+      x: 10 + 50 * Math.cos(theta) - 25 * Math.sin(theta),
+      y: 20 + 50 * Math.sin(theta) + 25 * Math.cos(theta),
+    };
     const back = getGeometryFromFabricObject(topLeft, 'rectangle');
     expect(back?.type).toBe('rectangle');
     if (back?.type !== 'rectangle') return;
-    expect(back.origin.x).toBeCloseTo(10);
-    expect(back.origin.y).toBeCloseTo(20);
+    expect(back.origin.x).toBeCloseTo(centre.x - 50);
+    expect(back.origin.y).toBeCloseTo(centre.y - 25);
     expect(back.rotation).toBe(30);
   });
 });

@@ -24,12 +24,7 @@ export function buildFabricObjectFromGeometry(
 ): FabricObject {
   switch (geometry.type) {
     case 'rectangle': {
-      const center = rectangleCenter(
-        geometry.origin,
-        geometry.width,
-        geometry.height,
-        geometry.rotation,
-      );
+      const center = rectangleCenter(geometry.origin, geometry.width, geometry.height);
       return new Rect({
         ...options,
         left: center.x,

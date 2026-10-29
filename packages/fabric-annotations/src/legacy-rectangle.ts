@@ -36,9 +36,9 @@ function isNear(saved: unknown, value: number): saved is number {
  *
  * Such a rectangle is recognised by a centre origin whose `left`/`top` match
  * the geometry's origin, to within the rounding `toObject()` applied. A
- * current one keeps its centre there and its corner in the geometry, half its
- * diagonal apart, so it can only match when it is a few hundredths of a pixel
- * across; its corner is then recomputed from where it is painted, which is
+ * current one keeps its centre there and its origin in the geometry, half its
+ * size apart, so it can only match when it is a few hundredths of a pixel
+ * across; its origin is then recomputed from where it is painted, which is
  * where it already is. Anything else is returned unchanged, as the same object.
  *
  * It lives in its own module, so a bundle that never imports it does not
@@ -64,12 +64,7 @@ export function migrateLegacyRectangle<A extends Annotation<FabricFields>>(annot
   const { left, top } = data;
   if (!isNear(left, geometry.origin.x) || !isNear(top, geometry.origin.y)) return annotation;
   // The saved left/top is the centre it is painted at.
-  const origin = rectangleOrigin(
-    { x: left, y: top },
-    geometry.width,
-    geometry.height,
-    geometry.rotation,
-  );
+  const origin = rectangleOrigin({ x: left, y: top }, geometry.width, geometry.height);
   if (origin.x === geometry.origin.x && origin.y === geometry.origin.y) return annotation;
   return { ...annotation, geometry: { ...geometry, origin } } as A;
 }
