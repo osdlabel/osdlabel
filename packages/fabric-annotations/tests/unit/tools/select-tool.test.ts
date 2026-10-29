@@ -14,13 +14,14 @@ import {
 import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
-import { ActiveSelection, FabricObject, type Canvas } from 'fabric';
+import { ActiveSelection, FabricObject, Polygon, type Canvas } from 'fabric';
 import { createTestKeyboardShortcuts, createMockToolOverlay } from '../test-helpers.js';
 import {
   click,
   controlNames,
   controlPoint,
   disposeCanvases,
+  forward,
   gesture,
   openCanvas,
 } from '../canvas-harness.js';
@@ -310,5 +311,90 @@ describe('SelectTool multi-selection, on a real canvas', () => {
 
     expect(canvas.getActiveObject()).toBeUndefined();
     rectangleTool.deactivate();
+  });
+});
+
+/**
+ * The select tool's vertex editor, reached through the tool as the bindings
+ * reach it. Delete is the tool's own key too: pressed outside vertex-edit mode
+ * it deletes the selected annotation. While a vertex is being dragged it must
+ * do neither: the editor ignores it until the release, and still consumes it,
+ * so it never falls through to deleting the annotation.
+ */
+describe('SelectTool vertex editing, on a real canvas', () => {
+  const imageId = createImageId('img');
+  const contextId = createAnnotationContextId('ctx');
+
+  beforeEach(() => {
+    // Only the long-press timer; Fabric's own scheduling stays real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    await disposeCanvases();
+  });
+
+  it('Delete while a vertex is dragged deletes neither the vertex nor the annotation; after the release it deletes the vertex', () => {
+    const canvas = openCanvas();
+    const poly = buildFabricObjectFromGeometry(
+      {
+        type: 'polygon',
+        points: [
+          { x: 100, y: 100 },
+          { x: 200, y: 100 },
+          { x: 250, y: 200 },
+          { x: 100, y: 200 },
+        ],
+      },
+      getFabricOptions(DEFAULT_ANNOTATION_STYLE, 'poly'),
+    );
+    expect(poly).toBeInstanceOf(Polygon);
+    canvas.add(poly);
+    const deleteAnnotation = vi.fn();
+    const tool = new SelectTool();
+    tool.activate(
+      createMockToolOverlay(canvas),
+      imageId,
+      {
+        getActiveContextId: () => contextId,
+        getToolConstraint: (type) => ({ type }),
+        canAddAnnotation: () => true,
+        addAnnotation: vi.fn(),
+        updateAnnotation: vi.fn(),
+        deleteAnnotation,
+        setSelectedAnnotation: vi.fn(),
+        getAnnotation: vi.fn().mockReturnValue(undefined),
+      },
+      createTestKeyboardShortcuts(),
+    );
+    const modified = vi.fn();
+    canvas.on('object:modified', modified);
+    const pointCount = () => (poly as Polygon).points.length;
+
+    // A long press on the body enters vertex-edit mode.
+    forward(canvas, 'pointerdown', { x: 150, y: 150 });
+    vi.advanceTimersByTime(500);
+    forward(canvas, 'pointerup', { x: 150, y: 150 });
+    expect(controlNames(poly)).toContain('ins0');
+
+    const p2 = controlPoint(poly, 'p2');
+    forward(canvas, 'pointerdown', p2);
+    forward(canvas, 'pointermove', { x: p2.x + 20, y: p2.y + 15 });
+    expect(tool.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }))).toBe(true);
+
+    expect(deleteAnnotation).not.toHaveBeenCalled();
+    expect(modified, 'Delete mid-drag committed').not.toHaveBeenCalled();
+    expect(pointCount()).toBe(4);
+
+    forward(canvas, 'pointerup', { x: p2.x + 20, y: p2.y + 15 });
+    expect(modified, 'expected the release, and only it, to commit').toHaveBeenCalledTimes(1);
+    expect(pointCount()).toBe(4);
+
+    expect(tool.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }))).toBe(true);
+    expect(modified).toHaveBeenCalledTimes(2);
+    expect(pointCount()).toBe(3);
+    expect(deleteAnnotation).not.toHaveBeenCalled();
+    tool.deactivate();
   });
 });

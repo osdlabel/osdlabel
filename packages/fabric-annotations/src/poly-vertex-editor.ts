@@ -47,7 +47,9 @@ export interface PolyVertexEditorOptions {
  * - **edge-insertion** handles at edge midpoints that splice a new vertex: a
  *   click commits it at the midpoint, a drag moves it and commits it on
  *   release, and
- * - **vertex deletion** (Delete/Backspace) honoring per-shape minimums.
+ * - **vertex deletion** (Delete/Backspace) honoring per-shape minimums, which
+ *   leaves every other vertex where it is and waits for the pointer to be
+ *   released.
  *
  * Every edit (vertex move, insertion, deletion) commits through the host's
  * existing `object:modified` → `getGeometryFromFabricObject` path. The editor
@@ -116,6 +118,15 @@ export class PolyVertexEditor {
   /**
    * Handle a key while editing. Returns true when consumed.
    * Escape exits edit mode; Delete/Backspace removes the hovered/active vertex.
+   *
+   * Delete/Backspace are ignored while the pointer is held (Fabric has a
+   * transform in progress, such as a vertex drag) and work again once it is
+   * released. Fabric's transform stays bound to the vertex index and the
+   * placement its press found, so a vertex removed under it would leave the
+   * drag moving whichever vertex took that index, and the release committing
+   * it there. Ignored or not, they are consumed. Escape stays live mid-drag:
+   * it changes only the handles, and the drag goes on moving the vertex it
+   * began on, which the release commits as painted.
    */
   onKeyDown(event: KeyboardEvent): boolean {
     if (!this.editingObject) return false;
@@ -124,9 +135,9 @@ export class PolyVertexEditor {
       return true;
     }
     if (event.key === 'Delete' || event.key === 'Backspace') {
-      // Consume while editing so a vertex delete never falls through to
+      // Consumed even when ignored, so a vertex delete never falls through to
       // deleting the whole annotation (the host tool's default Delete action).
-      this.deleteActiveVertex();
+      if (!this.canvas?._currentTransform) this.deleteActiveVertex();
       return true;
     }
     return false;
@@ -275,8 +286,7 @@ export class PolyVertexEditor {
     const min = poly instanceof Polygon ? MIN_POLYGON_POINTS : MIN_POLYLINE_POINTS;
     if (poly.points.length <= min) return false;
 
-    poly.points.splice(index, 1);
-    poly.setDimensions();
+    removeVertexInPlace(poly, index);
     poly.controls = buildEditControls(poly);
     poly.setCoords();
     this.activeVertexKey = null;
@@ -292,6 +302,30 @@ export class PolyVertexEditor {
     if (!target || !target.id || target._readOnly) return null;
     return target instanceof Polyline ? target : null;
   }
+}
+
+/**
+ * Removes vertex `index` from `poly` and leaves every other vertex where it
+ * was, in `poly`'s parent plane (image space on an annotation canvas).
+ *
+ * Fabric draws the points about `pathOffset`, the centre of their bounding
+ * box, which `setDimensions()` recomputes, while `left` / `top` stay put. So
+ * removing a vertex that alone holds a side of the box moves the box's centre
+ * and, through the object's transform, every remaining vertex with it.
+ * Fabric's own vertex move (`factoryPolyActionHandler`) compensates by
+ * keeping one vertex fixed, and so does this: a vertex that stays is the
+ * anchor, measured through `calcOwnMatrix()` before and after, and `left` /
+ * `top` take the difference back. Only the translation changes (angle,
+ * scale, skew and flip do not), so fixing one vertex fixes them all, under
+ * any origin.
+ */
+function removeVertexInPlace(poly: Polyline, index: number): void {
+  const anchor = new Point(poly.points[index === 0 ? 1 : 0]!);
+  const before = anchor.subtract(poly.pathOffset).transform(poly.calcOwnMatrix());
+  poly.points.splice(index, 1);
+  poly.setDimensions();
+  const after = anchor.subtract(poly.pathOffset).transform(poly.calcOwnMatrix());
+  poly.set({ left: poly.left - (after.x - before.x), top: poly.top - (after.y - before.y) });
 }
 
 // ── Control construction ───────────────────────────────────────────────────

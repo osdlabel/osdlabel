@@ -4,6 +4,7 @@ import {
   EMPTY_ALPHA,
   alphasAt,
   annotationsText,
+  controlOnPage,
   deselect,
   drag,
   expectPointClose,
@@ -462,5 +463,215 @@ test.describe('Vertex editing: insert handles commit what they paint', () => {
 
     await deselect(page);
     await expectPolyPaintedAs(page, view, inserted.geometry, 'after the insert click');
+  });
+});
+
+// ── Deleting a vertex moves no other ─────────────────────────────────────────
+
+/*
+ * Pins that Delete in vertex-edit mode removes the one vertex and leaves the
+ * others where they were, in what is stored and in what is painted. Until the
+ * fix, deleting a vertex that alone held a side of the shape's bounding box
+ * moved every other vertex by half the change in the box (Fabric draws the
+ * points about the box's centre), on the canvas and in state alike.
+ *
+ * And that Delete pressed while a vertex is being dragged does nothing: until
+ * the fix it deleted the vertex and committed at once, and the drag went on
+ * moving whichever vertex took the deleted one's index.
+ *
+ * Expected shapes come from what was stored before the delete, never from the
+ * code under test; paint is judged from the lower canvas's pixels.
+ */
+
+/** Turn the selected annotation `degrees` (clockwise on screen) about `centre` (image px) with its rotation handle. */
+async function rotateSelected(
+  page: Page,
+  view: View,
+  centre: Point,
+  degrees: number,
+): Promise<StoredPoly> {
+  const before = await annotationsText(page);
+  const handle = await controlOnPage(page, 'mtr');
+  const c = imageToPage(view, centre);
+  const dx = handle.x - c.x;
+  const dy = handle.y - c.y;
+  await page.mouse.move(handle.x, handle.y);
+  await page.mouse.down();
+  const steps = Math.max(6, Math.ceil(Math.abs(degrees) / 5));
+  for (let k = 1; k <= steps; k++) {
+    const t = (((degrees * k) / steps) * Math.PI) / 180;
+    await page.mouse.move(
+      c.x + dx * Math.cos(t) - dy * Math.sin(t),
+      c.y + dx * Math.sin(t) + dy * Math.cos(t),
+    );
+  }
+  await page.mouse.up();
+  await settle(page, before);
+  return readOnlyPoly(page);
+}
+
+/** Click vertex `index`'s handle, which makes it the delete target, and press Delete. */
+async function deleteVertex(
+  page: Page,
+  view: View,
+  g: PolyGeometry,
+  index: number,
+): Promise<StoredPoly> {
+  const handle = await handleOnPage(page, view, `p${index}`, g.points[index]!);
+  await page.mouse.click(handle.x, handle.y);
+  const before = await annotationsText(page);
+  await page.keyboard.press('Delete');
+  await settle(page, before);
+  return readOnlyPoly(page);
+}
+
+const without = <T>(points: readonly T[], index: number): T[] =>
+  points.filter((_, i) => i !== index);
+
+test.describe('Vertex editing: deleting a vertex moves no other', () => {
+  /**
+   * A quadrilateral whose p2 alone is furthest right, at 2 screen px per image
+   * px: deleting p2 shrinks the box by 30 image px, which moved every other
+   * vertex 15 image px (30 css px) right.
+   */
+  const QUAD_ON_CANVAS: readonly Point[] = [
+    { x: 200, y: 200 },
+    { x: 320, y: 200 },
+    { x: 380, y: 320 },
+    { x: 200, y: 320 },
+  ];
+
+  test('deleting the vertex alone furthest right of a polygon leaves the others in place', async ({
+    page,
+  }) => {
+    const view = await openAnnotator(page, { imageScale: 2 });
+    const drawn = await drawPoly(
+      page,
+      QUAD_ON_CANVAS.map((p) => onCanvas(view, p)),
+      true,
+    );
+    await enterVertexEdit(page, onCanvas(view, { x: 260, y: 260 }));
+
+    const deleted = await deleteVertex(page, view, drawn.geometry, 2);
+
+    expect(deleted.id).toBe(drawn.id);
+    expect(deleted.rawPointCount).toBe(3);
+    const expected: PolyGeometry = {
+      type: 'polygon',
+      points: without(drawn.geometry.points, 2),
+    };
+    expectPointsClose(deleted.geometry.points, expected.points, 1e-3, 'after the delete');
+    await deselect(page);
+    await expectPolyPaintedAs(page, view, expected, 'after the delete');
+  });
+
+  test('deleting a vertex of a rotated polygon leaves the others in place', async ({ page }) => {
+    const view = await openAnnotator(page, { imageScale: 2 });
+    const drawn = await drawPoly(
+      page,
+      QUAD_ON_CANVAS.map((p) => onCanvas(view, p)),
+      true,
+    );
+    // The box's centre, which Fabric turns the shape about.
+    const centre = pageToImage(view, onCanvas(view, { x: 290, y: 260 }));
+    await selectAt(page, onCanvas(view, { x: 290, y: 260 }), drawn.id);
+    const rotated = await rotateSelected(page, view, centre, 35);
+    const turned = Math.atan2(
+      rotated.geometry.points[1]!.y - rotated.geometry.points[0]!.y,
+      rotated.geometry.points[1]!.x - rotated.geometry.points[0]!.x,
+    );
+    expect(Math.abs((turned * 180) / Math.PI), 'the polygon did not turn').toBeGreaterThan(20);
+    await enterVertexEdit(page, onCanvas(view, { x: 290, y: 260 }));
+
+    const deleted = await deleteVertex(page, view, rotated.geometry, 2);
+
+    expect(deleted.rawPointCount).toBe(3);
+    const expected: PolyGeometry = {
+      type: 'polygon',
+      points: without(rotated.geometry.points, 2),
+    };
+    expectPointsClose(deleted.geometry.points, expected.points, 1e-3, 'after the delete');
+    await deselect(page);
+    await expectPolyPaintedAs(page, view, expected, 'after the delete');
+  });
+
+  test("deleting an open polyline's first vertex, alone furthest left, leaves the others in place", async ({
+    page,
+  }) => {
+    const view = await openAnnotator(page, { imageScale: 2 });
+    const drawn = await drawPoly(
+      page,
+      [
+        { x: 200, y: 260 },
+        { x: 320, y: 200 },
+        { x: 380, y: 320 },
+      ].map((p) => onCanvas(view, p)),
+      false,
+    );
+    await enterVertexEdit(page, onCanvas(view, { x: 290, y: 260 }));
+
+    const deleted = await deleteVertex(page, view, drawn.geometry, 0);
+
+    expect(deleted.rawPointCount).toBe(2);
+    const expected: PolyGeometry = {
+      type: 'polyline',
+      points: without(drawn.geometry.points, 0),
+    };
+    expectPointsClose(deleted.geometry.points, expected.points, 1e-3, 'after the delete');
+    await deselect(page);
+    await expectPolyPaintedAs(page, view, expected, 'after the delete');
+  });
+
+  test('Delete while a vertex is dragged does nothing; after the release it deletes that vertex', async ({
+    page,
+  }) => {
+    const view = await openAnnotator(page, { imageScale: 2 });
+    const drawn = await drawPoly(
+      page,
+      SQUARE_ON_CANVAS.map((p) => onCanvas(view, p)),
+      true,
+    );
+    const square = drawn.geometry.points;
+    await enterVertexEdit(page, onCanvas(view, { x: 260, y: 260 }));
+
+    const from = onPixel(await handleOnPage(page, view, 'p2', square[2]!));
+    const midway = offset(from, 20, 14);
+    const to = offset(from, 40, 28);
+    const before = await annotationsText(page);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(midway.x, midway.y, { steps: 4 });
+    await page.keyboard.press('Delete');
+    await settle(page);
+    expect(await annotationsText(page), 'Delete mid-drag committed').toBe(before);
+    expect(
+      Object.keys(await activeControls(page))
+        .filter((k) => /^p\d+$/.test(k))
+        .sort(),
+      'Delete mid-drag removed a vertex',
+    ).toEqual(['p0', 'p1', 'p2', 'p3']);
+    await page.mouse.move(to.x, to.y, { steps: 4 });
+    await page.mouse.up();
+    await settle(page, before);
+
+    const dragged = await readOnlyPoly(page);
+    expect(dragged.rawPointCount).toBe(4);
+    expectPointsClose(
+      dragged.geometry.points,
+      [square[0]!, square[1]!, pageToImage(view, to), square[3]!],
+      0.01,
+      'after the drag',
+    );
+
+    // Released, Delete works again, on the vertex just dragged.
+    const afterDrag = await annotationsText(page);
+    await page.keyboard.press('Delete');
+    await settle(page, afterDrag);
+    const deleted = await readOnlyPoly(page);
+    expect(deleted.rawPointCount).toBe(3);
+    const expected: PolyGeometry = { type: 'polygon', points: without(dragged.geometry.points, 2) };
+    expectPointsClose(deleted.geometry.points, expected.points, 1e-3, 'after the delete');
+    await deselect(page);
+    await expectPolyPaintedAs(page, view, expected, 'after the delete');
   });
 });

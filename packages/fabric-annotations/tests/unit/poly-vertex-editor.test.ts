@@ -531,4 +531,251 @@ describe('PolyVertexEditor through Fabric pointer events', () => {
     expectPointsClose(commits[1]!, SQUARE, 'committed by the delete');
     expectPointsClose(storedPoints(poly), SQUARE, 'on the canvas after the delete');
   });
+
+  /**
+   * Fabric draws a poly's points about `pathOffset`, the centre of their
+   * bounding box, which `setDimensions()` recomputes from the points while
+   * `left` / `top` stay put. Until the fix, deleting a vertex that alone held
+   * one side of that box moved the box's centre, and with it every vertex
+   * left: the reported quadrilateral below committed (125, 100), (225, 100),
+   * (125, 200), each 25 px right of where it was. The invariant: a delete
+   * removes one vertex and moves none of the others, in whatever placement
+   * the shape has, and what it commits is what the canvas then holds.
+   */
+  describe('deleting a vertex', () => {
+    /** The centre of the bounding box of `points`, which is where `pathOffset` puts it. */
+    function boxCentre(points: readonly Pt[]): Pt {
+      const xs = points.map((p) => p.x);
+      const ys = points.map((p) => p.y);
+      return {
+        x: (Math.min(...xs) + Math.max(...xs)) / 2,
+        y: (Math.min(...ys) + Math.max(...ys)) / 2,
+      };
+    }
+
+    const without = <T>(points: readonly T[], index: number): T[] =>
+      points.filter((_, i) => i !== index);
+
+    /** Press vertex `key`'s handle and release without moving: the delete target. */
+    function pressVertex(canvas: Canvas, poly: Polyline, key: string): void {
+      click(canvas, control(poly, key));
+    }
+
+    it('the reported case: deleting the vertex furthest right moves no other vertex', () => {
+      const corners: readonly Pt[] = [
+        { x: 100, y: 100 },
+        { x: 200, y: 100 },
+        { x: 250, y: 200 },
+        { x: 100, y: 200 },
+      ];
+      const poly = new Polygon(
+        corners.map((p) => ({ ...p })),
+        { id: 'quad' },
+      );
+      const { canvas, editor, commits } = openInEditMode(poly, { x: 150, y: 150 });
+
+      pressVertex(canvas, poly, 'p2');
+      expect(editor.onKeyDown({ key: 'Delete' } as KeyboardEvent)).toBe(true);
+
+      expect(commits, 'the delete was never committed').toHaveLength(1);
+      const expected = without(corners, 2);
+      expectPointsClose(commits[0]!, expected, 'committed');
+      expectPointsClose(storedPoints(poly), expected, 'on the canvas after the delete');
+    });
+
+    /** p0 to p3 each hold one side of the box alone: least x, least y, most x, most y. */
+    const PENTAGON: readonly Pt[] = [
+      { x: 80, y: 130 },
+      { x: 160, y: 90 },
+      { x: 250, y: 140 },
+      { x: 220, y: 230 },
+      { x: 110, y: 210 },
+    ];
+    /** The same for an open path, both of whose ends are among them. */
+    const PATH: readonly Pt[] = [
+      { x: 100, y: 100 },
+      { x: 200, y: 60 },
+      { x: 260, y: 180 },
+      { x: 140, y: 220 },
+    ];
+
+    interface Placement {
+      readonly name: string;
+      readonly options: {
+        readonly angle?: number;
+        readonly scaleX?: number;
+        readonly scaleY?: number;
+        readonly skewX?: number;
+        readonly flipX?: boolean;
+        readonly originX?: 'left';
+        readonly originY?: 'top';
+      };
+    }
+
+    const PLACEMENTS: readonly Placement[] = [
+      { name: 'unrotated', options: {} },
+      { name: 'rotated', options: { angle: 30 } },
+      { name: 'scaled', options: { scaleX: 1.5, scaleY: 0.75 } },
+      {
+        name: 'rotated, scaled, sheared and mirrored',
+        options: { angle: -50, scaleX: 0.8, scaleY: 1.2, skewX: 12, flipX: true },
+      },
+      // As Fabric before v7 placed it, and data saved then still is.
+      {
+        name: 'top-left-placed, rotated',
+        options: { originX: 'left', originY: 'top', angle: 20 },
+      },
+    ];
+
+    const SHAPES = [
+      {
+        name: 'polygon',
+        points: PENTAGON,
+        make: (options: Placement['options']) =>
+          new Polygon(
+            PENTAGON.map((p) => ({ ...p })),
+            { ...options, id: 'pentagon' },
+          ),
+      },
+      {
+        name: 'polyline',
+        points: PATH,
+        make: (options: Placement['options']) =>
+          new Polyline(
+            PATH.map((p) => ({ ...p })),
+            { ...options, id: 'path', fill: 'transparent' },
+          ),
+      },
+    ] as const;
+
+    for (const shape of SHAPES) {
+      for (const placement of PLACEMENTS) {
+        for (const index of [0, 1, 2, 3]) {
+          it(`${shape.name}, ${placement.name}: deleting p${index}, alone on a side of its box, moves no other vertex`, () => {
+            // The fixture is what makes this case: without p<index>, the box's centre moves.
+            const centre = boxCentre(shape.points);
+            const centreAfter = boxCentre(without(shape.points, index));
+            expect(Math.hypot(centreAfter.x - centre.x, centreAfter.y - centre.y)).toBeGreaterThan(
+              5,
+            );
+
+            const poly = shape.make(placement.options);
+            const { canvas, editor, commits } = openInEditMode(poly, poly.getCenterPoint());
+            const before = storedPoints(poly);
+
+            pressVertex(canvas, poly, `p${index}`);
+            expect(commits, 'pressing the vertex committed something').toEqual([]);
+            expect(editor.onKeyDown({ key: 'Delete' } as KeyboardEvent)).toBe(true);
+
+            expect(commits, 'the delete was never committed').toHaveLength(1);
+            const expected = without(before, index);
+            expectPointsClose(commits[0]!, expected, 'committed');
+            expectPointsClose(storedPoints(poly), expected, 'on the canvas after the delete');
+            // The handles left are drawn on the vertices they move.
+            expected.forEach((p, i) => {
+              const at = control(poly, `p${i}`);
+              const want = toScreen(p);
+              expect(
+                Math.hypot(at.x - want.x, at.y - want.y),
+                `handle p${i} is at (${at.x}, ${at.y}), its vertex at (${want.x}, ${want.y})`,
+              ).toBeLessThan(1e-6);
+            });
+          });
+        }
+      }
+    }
+  });
+
+  /**
+   * A key that edits the shape must not act while Fabric is carrying out a
+   * gesture on it. Fabric's transform for a vertex drag is bound to that
+   * vertex's index and to the placement the press found. Until the fix,
+   * Delete mid-drag removed the vertex and committed at once, and the drag
+   * then went on moving whichever vertex had taken the deleted one's index,
+   * which the release committed too. Delete (and Backspace) are now ignored
+   * while the pointer is held, and work again once it is released. They are
+   * still consumed: let through, the tool would delete the whole annotation.
+   *
+   * Escape, the editor's other key, does not touch the shape: it only puts
+   * the default handles back. A drag it interrupts goes on moving the vertex
+   * it began on, and the release commits what is painted.
+   */
+  describe('a key pressed while the pointer is held', () => {
+    for (const key of ['Delete', 'Backspace']) {
+      it(`${key} while a vertex is dragged deletes nothing; the release commits the drag, and ${key} then deletes`, () => {
+        const poly = square();
+        const { canvas, editor, commits } = openInEditMode(poly, { x: 130, y: 170 });
+
+        forward(canvas, 'pointerdown', control(poly, 'p2'));
+        forward(canvas, 'pointermove', toScreen({ x: 220, y: 215 }));
+        expect(
+          editor.onKeyDown({ key } as KeyboardEvent),
+          `${key} mid-drag fell through to the tool, which deletes the annotation`,
+        ).toBe(true);
+
+        expect(commits, `${key} mid-drag committed`).toEqual([]);
+        const dragging = [SQUARE[0]!, SQUARE[1]!, { x: 220, y: 215 }, SQUARE[3]!];
+        expectPointsClose(storedPoints(poly), dragging, `on the canvas right after ${key}`);
+
+        forward(canvas, 'pointermove', toScreen({ x: 240, y: 230 }));
+        forward(canvas, 'pointerup', toScreen({ x: 240, y: 230 }));
+
+        const released = [SQUARE[0]!, SQUARE[1]!, { x: 240, y: 230 }, SQUARE[3]!];
+        expect(commits, 'expected the release, and only it, to commit').toHaveLength(1);
+        expectPointsClose(commits[0]!, released, 'committed by the release');
+        expectPointsClose(storedPoints(poly), released, 'on the canvas after the release');
+
+        // Released, the key deletes the vertex just dragged, which now holds
+        // two sides of the box alone, and leaves the others where they are.
+        expect(editor.onKeyDown({ key } as KeyboardEvent)).toBe(true);
+        expect(commits, `${key} after the release was never committed`).toHaveLength(2);
+        const deleted = [SQUARE[0]!, SQUARE[1]!, SQUARE[3]!];
+        expectPointsClose(commits[1]!, deleted, `committed by ${key} after the release`);
+        expectPointsClose(storedPoints(poly), deleted, `on the canvas after ${key}`);
+      });
+    }
+
+    it('Delete while a vertex is dragged out of an insert handle deletes nothing; the release commits it', () => {
+      const poly = square();
+      const { canvas, editor, commits } = openInEditMode(poly, { x: 130, y: 170 });
+
+      forward(canvas, 'pointerdown', offCentre(poly, 'ins0'));
+      forward(canvas, 'pointermove', toScreen({ x: 155, y: 70 }));
+      expect(editor.onKeyDown({ key: 'Delete' } as KeyboardEvent)).toBe(true);
+
+      expect(commits, 'Delete mid-drag committed').toEqual([]);
+      expectPointsClose(
+        storedPoints(poly),
+        [SQUARE[0]!, { x: 155, y: 70 }, SQUARE[1]!, SQUARE[2]!, SQUARE[3]!],
+        'on the canvas right after Delete',
+      );
+
+      forward(canvas, 'pointermove', toScreen({ x: 160, y: 60 }));
+      forward(canvas, 'pointerup', toScreen({ x: 160, y: 60 }));
+
+      const released = [SQUARE[0]!, { x: 160, y: 60 }, SQUARE[1]!, SQUARE[2]!, SQUARE[3]!];
+      expect(commits, 'expected the release, and only it, to commit').toHaveLength(1);
+      expectPointsClose(commits[0]!, released, 'committed by the release');
+      expectPointsClose(storedPoints(poly), released, 'on the canvas after the release');
+    });
+
+    it('Escape while a vertex is dragged leaves edit mode; the drag goes on, and the release commits what is painted', () => {
+      const poly = square();
+      const { canvas, editor, commits } = openInEditMode(poly, { x: 130, y: 170 });
+
+      forward(canvas, 'pointerdown', control(poly, 'p2'));
+      forward(canvas, 'pointermove', toScreen({ x: 220, y: 215 }));
+      expect(editor.onKeyDown({ key: 'Escape' } as KeyboardEvent)).toBe(true);
+      expect(editor.isEditing()).toBe(false);
+      expect(commits, 'Escape mid-drag committed').toEqual([]);
+
+      forward(canvas, 'pointermove', toScreen({ x: 240, y: 230 }));
+      forward(canvas, 'pointerup', toScreen({ x: 240, y: 230 }));
+
+      const released = [SQUARE[0]!, SQUARE[1]!, { x: 240, y: 230 }, SQUARE[3]!];
+      expect(commits, 'expected the release, and only it, to commit').toHaveLength(1);
+      expectPointsClose(commits[0]!, released, 'committed by the release');
+      expectPointsClose(storedPoints(poly), released, 'on the canvas after the release');
+    });
+  });
 });
