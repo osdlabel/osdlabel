@@ -613,6 +613,8 @@ osdlabel provides six geometric annotation tools:
 | **Path**           | `d`      | Array of points, open/closed    | Click to add vertices, double click or `Enter` to finish, `c` to close |
 | **Free Hand Path** | `f`      | Array of sampled points         | Click and drag to draw; release to commit                              |
 
+A click without a drag draws nothing with the rectangle, circle or line tool. On release, a shape smaller than 3 screen pixels ([`MIN_SHAPE_SCREEN_PX`](/osdlabel/api/reference/osdlabel/fabric-annotations/variables/min_shape_screen_px/)) is discarded rather than stored, measured as a rectangle's shorter side, a circle's diameter or a line's length. A stray click therefore leaves no invisible annotation behind, and does not count toward a context's `maxCount`. The minimum is in screen pixels, so it is the same at every zoom: to draw a shape smaller than that, zoom in. The point tool is exempt, since a click is how a point is placed.
+
 ## Drawing workflow
 
 1. Select a drawing tool (toolbar click or keyboard shortcut)
@@ -627,7 +629,11 @@ Press `v` (or click the select tool) to enter selection mode:
 
 - **Click** an annotation to select it — shows resize handles and rotation control
 - **Drag** a selected annotation to move it
-- **Drag handles** to resize
+- **Drag handles** to resize. What each shape's handles can do keeps it a shape its geometry describes:
+  - a **rectangle**'s corner handles keep its proportions, or resize it freely while **Shift** is held; its side handles move one side, with or without Shift;
+  - a **circle** has corner handles only, and they always keep it a circle;
+  - a **line**, **polyline** or **polygon** has the full set, and **Shift** turns a side handle into a shear, which its stored points follow;
+  - a **point** has none: drag it to move it.
 - **Drag rotation control** (circle above the annotation) to rotate
 - **Escape** deselects the current annotation
 - **Delete** / **Backspace** deletes the selected annotation
@@ -1203,7 +1209,7 @@ const { byImage } = deserialize(parsed);
 actions.loadAnnotations(byImage);
 ```
 
-`deserialize()` validates the basic structure of the array and throws `SerializationError` on invalid input. For deep validation, the library integrates with Valibot in `@osdlabel/validation`.
+`deserialize()` checks every annotation with `OsdAnnotationSchema` from `@osdlabel/validation` (see [Validation](#validation)). If any annotation is invalid it throws `SerializationError`, whose message names the first problem, and returns nothing, so a bad document is never half loaded.
 
 ### Flat out, keyed in
 
@@ -1213,6 +1219,37 @@ The two directions are intentionally **asymmetric**, and it trips people up:
 - **`deserialize(doc)` returns a keyed `{ byImage }` map** — `Record<ImageId, Record<AnnotationId, Annotation>>` — which is the exact shape `loadAnnotations` expects for the store.
 
 So: persist the **flat** array, load it back through `deserialize` to get the **keyed** map. If you keep your own annotation list (e.g. a flat `Annotation[]` from `onAnnotationsChange`), you still pass it through `deserialize` to seed the store.
+
+### Geometry and the saved Fabric object
+
+Every annotation stores its shape twice, and each copy is authoritative for something different:
+
+| Field               | Authoritative for                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `rawAnnotationData` | What is painted on the canvas, and what the user selects, drags, resizes and rotates                           |
+| `geometry`          | What is measured and labelled, what `boundingBox` and `centroid` read, and the shape hosts read from an export |
+
+When the user draws or edits a shape, both fields are written together from the same Fabric object: an edit recomputes `geometry` from the edited object. So the two agree in everything the annotator saves, except rectangles saved by releases up to 0.21.0 ([below](#rectangles-saved-by-earlier-releases)).
+
+A document edited by hand or written by another tool can pair them wrongly. `deserialize` rejects an annotation whose saved Fabric object is not the class that paints its geometry's type:
+
+| `geometry.type`   | Fabric class in `rawAnnotationData.data.type` |
+| ----------------- | --------------------------------------------- |
+| `rectangle`       | `Rect`                                        |
+| `circle`, `point` | `Circle`                                      |
+| `line`            | `Line`                                        |
+| `polyline`        | `Polyline`                                    |
+| `polygon`         | `Polygon`                                     |
+
+Fabric saves the class name capitalised, as above; the lowercase name, which Fabric also loads, is accepted too. The error names the annotation and both types:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData is a Fabric Circle, not a Rect
+```
+
+`deserialize` cannot tell whether the saved object sits where the geometry says: that needs Fabric to rebuild the object, and `deserialize` is synchronous. An annotation whose two fields describe the same kind of shape in different places loads as saved. It is painted from `rawAnnotationData`, measured from `geometry`, and its geometry moves to the painted shape the first time the user edits it.
+
+So don't pair the two fields by hand. Build annotations with [`createAnnotationFromGeometry`](#seeding-from-external-geometry), which writes both from one geometry. If you change an annotation's geometry outside the annotator, rebuild it the same way, with its `id`, `toolType`, `label` and style, rather than editing `geometry` alone. `loadAnnotations` and `initialAnnotations` check neither field, so pass data from outside your app through `deserialize` first.
 
 ### Rectangles saved by earlier releases
 
@@ -1236,6 +1273,12 @@ actions.loadAnnotations(byImage);
 ```
 
 It is a separate module that nothing else imports, so a bundle that does not use it does not include it. It is also importable on its own as `@osdlabel/fabric-annotations/legacy-rectangle`. It recognises an earlier release's rectangle by Fabric data with a centre origin whose `left` / `top` match the geometry's `origin`, to within the rounding Fabric applies when it saves.
+
+### Rectangles and circles saved skewed or stretched
+
+Up to 0.21.0, the select tool's handles could make a shape its geometry cannot describe. **Shift** with a side handle sheared a rectangle into a parallelogram, or a circle into a slanted ellipse, and a circle's side handles, or **Shift** with a corner, stretched it into an ellipse. The geometry kept the rectangle about the same centre, unsheared, or a circle of the larger radius, while the saved Fabric data kept the shape on screen. The handles no longer do either.
+
+Such an annotation loads as saved: it still paints the sheared or stretched shape, and its geometry is what it was. The first time it is edited (moved, resized or rotated), its Fabric data is replaced with data that paints its geometry, in the same style, and the shape on screen snaps to what its measurements, labels and exports already described. Nothing changes it on load, and there is no migration helper for it.
 
 ## Seeding from external geometry
 
@@ -1292,7 +1335,7 @@ const geometry = getGeometryFromFabricObject(obj, 'polygon'); // image-space geo
 const fabricObject = buildFabricObjectFromGeometry(geometry, getFabricOptions(style, id));
 ```
 
-These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
+These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). `buildFabricObjectFromGeometry` and `createFabricObjectFromRawData` also give a rectangle or circle the handles the library gives them (side handles that only scale on a rectangle, uniform corners only on a circle), which Fabric does not save; if you revive an annotation's object some other way, such as `deserializeFabricObject`, and put it on a canvas, call `applyShapeControls(obj, geometry.type)` first. The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
 
 ## Validation
 
@@ -1311,6 +1354,7 @@ Validation checks include:
 - Geometry type and shape validation
 - Numeric bounds checking (coordinates, dimensions)
 - Extension fields (when composed into a custom schema)
+- That the saved Fabric object is the class that paints the geometry's type (`OsdAnnotationSchema`, which is what `deserialize` uses; see [above](#geometry-and-the-saved-fabric-object))
 
 ## Listening to changes
 
@@ -1330,7 +1374,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 
 ## Annotations that cannot be rendered
 
-`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type and that type's key fields, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
+`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type, that type's key fields and that the type matches the geometry's, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
 
 Such an annotation is skipped on the canvas and stays in state, and every other annotation on the image still renders. Its decorations, such as labels and measurements, are derived from its geometry rather than from the canvas object, so they still appear where the shape would be. By default it is reported with a `console.warn` naming the annotation and its image. Pass `onAnnotationRenderError` to handle it yourself:
 
@@ -2639,6 +2683,10 @@ pointerup:
   ├── Pan gesture active? → End gesture, re-disable OSD nav
   └── Otherwise?          → Stop propagation, forward to Fabric
 
+pointercancel:
+  ├── Pan gesture active? → End gesture, re-disable OSD nav
+  └── Otherwise?          → Stop propagation, undo the press (see "Cancelled presses")
+
 scroll:
   └── Ctrl/Cmd held? → Manual viewport.zoomBy() (OSD scroll-zoom is disabled)
 ```
@@ -2737,6 +2785,28 @@ Two details carry the guarantee. `pressSeqOf` is keyed on the **synthetic** even
 #### Touch
 
 Touch reaches this layer as of [#175](https://github.com/osdlabel/osdlabel/issues/175). It previously did not: the synthetic `pointerdown` bubbled back to the container, OSD counted the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returned to zero contacts and `releaseHandler`, which this detection runs from, was never called. The press is now dispatched non-bubbling, so the count is correct and a double tap pairs like a double click. That was a property of the forwarding design rather than of this pairing.
+
+### Cancelled presses
+
+When the OS or the browser takes a touch or pen contact away mid-gesture (an edge swipe, palm rejection, a system dialog, an orientation change), the browser sends `pointercancel` for it and no `pointerup`. The viewer's elements are `touch-action: none`, so the browser never cancels a touch to scroll the page: a cancel always comes from outside it.
+
+Nothing downstream handles the event on its own. OSD's `MouseTracker` answers a cancel with `stopTrackingPointer` and never calls `releaseHandler`, and Fabric has no `pointercancel` handling. Before the overlay handled it, Fabric's transform stayed open. The shape stayed where the finger had left it while the stored geometry kept the old one, so labels, measurements and exports disagreed with the screen. The `pointermove` and `pointerup` listeners Fabric adds to the document on a press stayed attached, so the next movement of any pointer (a hover, a drag on empty canvas) carried the shape on, and the next release anywhere committed it there. A drawing tool's preview stayed painted, and a tap on the toolbar committed it.
+
+**Cancel means revert**, the platform's meaning for the event. `_cancelPress` runs from `preProcessEventHandler`, which is where OSD hands the overlay a `pointercancel`. It acts only for the pointer that pressed, in three steps:
+
+1. **Put the object back.** Fabric's `transform.original` holds the transformed object's placement at the press (position, scale, skew, angle, flip); its `originX` / `originY` are the transform's anchor, not the object's origin, so they are left alone. A polyline or polygon's points are not in it, so the overlay copies them on Fabric's `before:transform`, which fires before a control's `mouseDownHandler` and so also before the vertex the editor's insert handle adds on the press. Clearing `actionPerformed` keeps Fabric from firing `object:modified`.
+2. **Tell subscribers**, through `overlay.onPointerCancel(cb)`, with the event and the press's sequence. The framework hooks route it to the active tool's optional `onPointerCancel`. A shape tool or the free-hand tool drops its preview (`BaseTool`'s default calls `cancel()`). A polyline drops the vertex that press placed, found by its sequence as for a double click, and keeps the rest. The select tool passes it to the vertex editor, which drops a pending long press and rebuilds its handles for the restored points. `enableLiveDecorationUpdates` subscribes too: state never changed, so nothing else would re-run the providers, and the last live frame (a label where the finger was) would outlive the gesture. It re-derives the decorations from state on the next frame.
+3. **End Fabric's gesture** with a forwarded `pointerup`, after placing the object's controls. A release is the only way to run Fabric's own cleanup of the transform, its document listeners and its rubber band. It is built from the press rather than copied from the cancel, because Chrome's `pointercancel` carries `button` -1, which `__onMouseUp` takes for a right or middle button and returns on. It lands at the press's position, on what the press landed on, and `selection` is off while it runs, so it applies no rubber-band selection. With `actionPerformed` cleared it commits nothing.
+
+The order is load-bearing twice over. The release fires Fabric's `mouse:up`, on which a shape tool commits its preview, so the tool must have dropped the preview before it. And the controls are placed only after the subscribers: the editor's handles may still be the ones built for the vertex the revert has just taken away, and placing them would read past the end of `points`.
+
+The release runs while OSD still tracks the pointer, since `preProcessEventHandler` runs before OSD's own `updatePointerCancel`. OSD therefore counts it as that pointer's release, and the contact count returns to zero as it does after any release. The `_forwarding` guard keeps it out of `releaseHandler`, so it is no click.
+
+What the press did outside the gesture stands, as focus does after a cancelled press: an object it selected stays selected, and a polyline press that closed the path committed the polygon on the press, before the cancel. The press's pairing state is dropped, so the clicks either side of a cancelled press cannot pair into a double click.
+
+`lostpointercapture` is not treated as a cancel. The browser sends it after the `pointerup` or `pointercancel` that ends a press, and nothing in the overlay releases capture mid-press. Custom-control mode is untouched: its handlers hear no cancel, and the drag controls disarm on the next move with no button held.
+
+`apps/dev/tests/e2e/touch-cancel.spec.ts` drives all of this through CDP's `touchCancel`, which produces a genuine `pointercancel`.
 
 ## Saving edits
 

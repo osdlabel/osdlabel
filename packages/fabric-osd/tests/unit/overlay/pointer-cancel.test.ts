@@ -303,6 +303,9 @@ describe('FabricOverlay: a cancelled press is undone', () => {
   });
 
   it('drops a rubber-band selection the cancel interrupted, then and later', () => {
+    // Annotation mode alone leaves drag-box selection off; SelectTool turns it
+    // on while it is the active tool.
+    overlay.canvas.selection = true;
     press({ x: 20, y: 20 });
     move({ x: 120, y: 120 });
     move({ x: 200, y: 200 });
@@ -313,7 +316,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
 
     expect(overlay.canvas.getActiveObject()).toBeUndefined();
     // The overlay suppresses the band by lowering `selection` for the release
-    // it forwards; annotation mode's value must be back afterwards.
+    // it forwards; the select tool's value must be back afterwards.
     expect(overlay.canvas.selection).toBe(true);
   });
 

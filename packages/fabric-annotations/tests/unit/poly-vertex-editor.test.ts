@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { Canvas, Point, Polygon, Polyline, type FabricObject, type TMat2D, type Transform } from 'fabric';
+import {
+  Canvas,
+  Point,
+  Polygon,
+  Polyline,
+  type FabricObject,
+  type TMat2D,
+  type Transform,
+} from 'fabric';
 import { PolyVertexEditor } from '../../src/poly-vertex-editor.js';
 import { getGeometryFromFabricObject } from '../../src/fabric-utils.js';
 import { initFabricModule } from '../../src/fabric-module.js';

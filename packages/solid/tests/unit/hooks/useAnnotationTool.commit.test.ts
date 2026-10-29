@@ -120,6 +120,7 @@ async function setup() {
     imageToScreen: (p: Point) => p,
     pressSeqOf: () => undefined,
     onDoubleClick: () => () => {},
+    onPointerCancel: () => () => {},
   } as unknown as FabricOverlay;
   const modified: (string | undefined)[] = [];
   canvas.on('object:modified', ({ target }) => modified.push(target.id));
