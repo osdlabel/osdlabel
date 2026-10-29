@@ -148,8 +148,11 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
  * rectangle/circle/point it takes the centre from `getCenterPoint()`, which
  * includes the group's transform, but reads size and rotation from the child,
  * relative to the group — those may be off while a multi-selection is scaled
- * or rotated. The commit on mouse-up (via `object:modified`) is always correct
- * because Fabric dissolves the ActiveSelection before firing it.
+ * or rotated. That is a live preview only. Fabric does not dissolve the
+ * selection before reporting the edit: its `object:modified` targets the
+ * selection, members still inside it. The commit, `enableObjectModifiedCommits`,
+ * dissolves it first, which bakes each member's absolute transform, and then
+ * reads each member on its own, so what is stored is exact.
  */
 function applyLiveOverride<E extends object>(
   annotations: readonly Annotation<E>[],

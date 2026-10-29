@@ -45,6 +45,8 @@ Press `v` (or click the select tool) to enter selection mode:
 - **Escape** deselects the current annotation
 - **Delete** / **Backspace** deletes the selected annotation
 
+To edit several annotations together, drag a box from empty canvas over them, or **Shift+click** to add or remove one at a time. A multi-selection can be moved, rotated with its rotation control, and resized from its corners only. It always keeps its proportions, even with Shift held: stretching it would skew a rotated rectangle or turn a circle into an ellipse, which their geometry cannot record. The edit saves every annotation in the selection as one change, and the selection stays selected. Only the select tool selects by drag-box, so dragging a drawing tool across existing annotations selects none of them.
+
 ## Pan and zoom in annotation mode
 
 While drawing or selecting, you can still navigate:

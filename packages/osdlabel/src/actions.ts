@@ -13,6 +13,17 @@ import type { OsdAnnotation, OsdFields } from './types.js';
 // Action type discriminated unions
 // ---------------------------------------------------------------------------
 
+/** The fields of an annotation an update may change, any subset of them. */
+export type AnnotationPatch = Partial<
+  Omit<OsdAnnotation, 'id' | 'imageId' | 'createdAt' | 'updatedAt'>
+>;
+
+/** One annotation's part of an `UPDATE_ANNOTATIONS`. */
+export interface AnnotationUpdate {
+  readonly id: AnnotationId;
+  readonly patch: AnnotationPatch;
+}
+
 export type AnnotationAction =
   | {
       readonly type: 'ADD_ANNOTATION';
@@ -23,7 +34,19 @@ export type AnnotationAction =
       readonly payload: {
         readonly id: AnnotationId;
         readonly imageId: ImageId;
-        readonly patch: Partial<Omit<OsdAnnotation, 'id' | 'imageId' | 'createdAt' | 'updatedAt'>>;
+        readonly patch: AnnotationPatch;
+      };
+    }
+  | {
+      /**
+       * Several annotations on one image changed by one edit, such as a moved
+       * multi-selection: applied as one change, so it is one rebuild and one
+       * `onAnnotationsChange`. Ids the image does not hold are skipped.
+       */
+      readonly type: 'UPDATE_ANNOTATIONS';
+      readonly payload: {
+        readonly imageId: ImageId;
+        readonly updates: readonly AnnotationUpdate[];
       };
     }
   | {
@@ -130,6 +153,21 @@ export function applyAnnotationAction(
         };
         draft.changeCounter += 1;
       }
+      break;
+    }
+    case 'UPDATE_ANNOTATIONS': {
+      const { imageId, updates } = action.payload;
+      const imageAnns = draft.byImage[imageId];
+      if (!imageAnns) break;
+      const now = new Date().toISOString();
+      let changed = false;
+      for (const { id, patch } of updates) {
+        const current = imageAnns[id];
+        if (!current) continue;
+        imageAnns[id] = { ...current, ...patch, updatedAt: now };
+        changed = true;
+      }
+      if (changed) draft.changeCounter += 1;
       break;
     }
     case 'DELETE_ANNOTATION': {

@@ -63,6 +63,10 @@ export {
   PolylineTool,
   FreeHandPathTool,
   SelectTool,
+  isGroupSelection,
+  configureGroupSelection,
+  dissolveGroupSelection,
+  reselectWhenAdded,
   getFabricOptions,
   serializeFabricObject,
   deserializeFabricObject,
@@ -200,7 +204,13 @@ export {
   applyContextAction,
   validateAddAnnotation,
 } from './actions.js';
-export type { AnnotationAction, UIAction, ContextAction } from './actions.js';
+export type {
+  AnnotationAction,
+  AnnotationPatch,
+  AnnotationUpdate,
+  UIAction,
+  ContextAction,
+} from './actions.js';
 
 // Initial state factories
 export {
@@ -250,6 +260,14 @@ export {
   processConvertCircleToRectangle,
 } from './tool-factory.js';
 export type { CreateAnnotationToolOptions } from './tool-factory.js';
+
+// Saving what Fabric reports as edited, multi-selections included
+export { enableObjectModifiedCommits, processGroupModified } from './object-modified.js';
+export type {
+  ObjectModifiedCommitOptions,
+  ObjectModifiedPatch,
+  ObjectModifiedUpdate,
+} from './object-modified.js';
 
 // Live decoration update wiring
 export { enableLiveDecorationUpdates } from './live-decoration-updates.js';

@@ -8,11 +8,11 @@ import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
   createAnnotationTool,
   createDragVectorControl,
+  enableObjectModifiedCommits,
   getScenePointFromEvent,
   getToneValue,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
-  processObjectModified,
   VIEWER_CONTROL_SPECS,
 } from 'osdlabel';
 import type { DragAxisBehavior, ViewerControlAxisSpec } from 'osdlabel';
@@ -58,24 +58,19 @@ export function useAnnotationTool(
   // store, which already holds every write, not the last rendered state (#217).
   // `store` is stable, so depending on it never rebuilds the tool.
 
-  // Handle object:modified events
+  // Save every edit Fabric reports (move, resize, rotate), whatever the tool,
+  // of one annotation or of a multi-selection. Shared with Solid, including
+  // why a commit waits for a microtask: see enableObjectModifiedCommits.
   useEffect(() => {
     if (!overlay || !imageId) return;
 
-    const handleObjectModified = (e: { target: FabricObject }) => {
-      const result = processObjectModified(e.target, store.getSnapshot().annotationState, imageId);
-      if (result) {
-        actions.updateAnnotation(result.id, imageId, {
-          geometry: result.geometry!,
-          rawAnnotationData: result.rawAnnotationData,
-        });
-      }
-    };
-
-    overlay.canvas.on('object:modified', handleObjectModified);
-    return () => {
-      overlay.canvas.off('object:modified', handleObjectModified);
-    };
+    return enableObjectModifiedCommits({
+      overlay,
+      imageId,
+      getAnnotationState: () => store.getSnapshot().annotationState,
+      updateAnnotation: (id, patch) => actions.updateAnnotation(id, imageId, patch),
+      updateAnnotations: (updates) => actions.updateAnnotations(imageId, updates),
+    });
   }, [overlay, imageId, actions, store]);
 
   // Main tool lifecycle effect

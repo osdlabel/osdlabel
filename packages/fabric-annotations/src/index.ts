@@ -3,6 +3,12 @@ export * from './fabric-utils.js';
 export { buildFabricObjectFromGeometry } from './build-fabric-object.js';
 export { applyShapeControls } from './shape-controls.js';
 export { migrateLegacyRectangle } from './legacy-rectangle.js';
+export {
+  isGroupSelection,
+  configureGroupSelection,
+  dissolveGroupSelection,
+  reselectWhenAdded,
+} from './group-selection.js';
 export { getPreviewOptions, DEFAULT_PREVIEW_DASH_SCREEN_PX } from './preview-style.js';
 export type { PreviewOptions } from './preview-style.js';
 export {

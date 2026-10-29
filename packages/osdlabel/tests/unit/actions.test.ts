@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { AnnotationId, ToolType } from '@osdlabel/annotation';
-import type { ViewerControlId } from '@osdlabel/viewer-api';
+import { createAnnotationContextId } from '@osdlabel/annotation-context';
+import type { AnnotationState, ImageId, ViewerControlId } from '@osdlabel/viewer-api';
 import { createImageId, DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
-import { applyUIAction } from '../../src/actions.js';
-import { createInitialUIState } from '../../src/initial-state.js';
+import { applyAnnotationAction, applyUIAction } from '../../src/actions.js';
+import { createInitialAnnotationState, createInitialUIState } from '../../src/initial-state.js';
+import type { OsdAnnotation, OsdFields } from '../../src/types.js';
 
 const RECTANGLE: ToolType = 'rectangle';
 const TONE: ViewerControlId = 'tone';
@@ -540,5 +542,105 @@ describe('applyUIAction — an invalid cell index never touches a real cell', ()
 
     applyUIAction(state, { type: 'SET_GRID_DIMENSIONS', payload: { columns: 2, rows: 2 } });
     expect(state.gridAssignments[3]).toBe(IMG);
+  });
+});
+
+describe('applyAnnotationAction — UPDATE_ANNOTATIONS', () => {
+  const IMAGE: ImageId = createImageId('img-batch');
+  const STAMP = '2026-01-01T00:00:00.000Z';
+
+  function square(id: string, x: number): OsdAnnotation {
+    return {
+      id: annId(id),
+      imageId: IMAGE,
+      contextId: createAnnotationContextId('ctx'),
+      toolType: 'rectangle',
+      geometry: { type: 'rectangle', origin: { x, y: 0 }, width: 10, height: 10, rotation: 0 },
+      rawAnnotationData: { format: 'fabric', fabricVersion: 'test', data: { left: x } },
+      createdAt: STAMP,
+      updatedAt: STAMP,
+    };
+  }
+
+  function stateOf(...annotations: OsdAnnotation[]): AnnotationState<OsdFields> {
+    const state = createInitialAnnotationState();
+    state.byImage[IMAGE] = Object.fromEntries(annotations.map((a) => [a.id, a]));
+    return state;
+  }
+
+  const moved = (x: number) =>
+    ({
+      geometry: { type: 'rectangle', origin: { x, y: 5 }, width: 10, height: 10, rotation: 0 },
+      rawAnnotationData: { format: 'fabric', fabricVersion: 'test', data: { left: x } },
+    }) as const;
+
+  it('patches every listed annotation as one change, with one timestamp', () => {
+    const state = stateOf(square('a', 0), square('b', 20), square('c', 40));
+    const before = state.changeCounter;
+
+    applyAnnotationAction(state, {
+      type: 'UPDATE_ANNOTATIONS',
+      payload: {
+        imageId: IMAGE,
+        updates: [
+          { id: annId('a'), patch: moved(100) },
+          { id: annId('c'), patch: moved(140) },
+        ],
+      },
+    });
+
+    const bucket = state.byImage[IMAGE];
+    expect(bucket).toBeDefined();
+    expect(bucket![annId('a')]!.geometry).toEqual(moved(100).geometry);
+    expect(bucket![annId('a')]!.rawAnnotationData).toEqual(moved(100).rawAnnotationData);
+    expect(bucket![annId('c')]!.geometry).toEqual(moved(140).geometry);
+    // Untouched: not listed.
+    expect(bucket![annId('b')]).toEqual(square('b', 20));
+    // One edit of several annotations is one change, as the host sees it.
+    expect(state.changeCounter).toBe(before + 1);
+    const stamp = bucket![annId('a')]!.updatedAt;
+    expect(stamp).not.toBe(STAMP);
+    expect(bucket![annId('c')]!.updatedAt).toBe(stamp);
+    // The fields a patch may not change are kept.
+    expect(bucket![annId('a')]!.createdAt).toBe(STAMP);
+    expect(bucket![annId('a')]!.id).toBe(annId('a'));
+  });
+
+  it('skips an id the image does not hold, and is no change when it holds none', () => {
+    const state = stateOf(square('a', 0));
+    const before = state.changeCounter;
+
+    applyAnnotationAction(state, {
+      type: 'UPDATE_ANNOTATIONS',
+      payload: {
+        imageId: IMAGE,
+        updates: [
+          { id: annId('gone'), patch: moved(1) },
+          { id: annId('a'), patch: moved(2) },
+        ],
+      },
+    });
+    expect(state.byImage[IMAGE]![annId('a')]!.geometry).toEqual(moved(2).geometry);
+    expect(state.byImage[IMAGE]![annId('gone')]).toBeUndefined();
+    expect(state.changeCounter).toBe(before + 1);
+
+    applyAnnotationAction(state, {
+      type: 'UPDATE_ANNOTATIONS',
+      payload: { imageId: IMAGE, updates: [{ id: annId('gone'), patch: moved(3) }] },
+    });
+    applyAnnotationAction(state, {
+      type: 'UPDATE_ANNOTATIONS',
+      payload: {
+        imageId: createImageId('no-such-image'),
+        updates: [{ id: annId('a'), patch: moved(4) }],
+      },
+    });
+    applyAnnotationAction(state, {
+      type: 'UPDATE_ANNOTATIONS',
+      payload: { imageId: IMAGE, updates: [] },
+    });
+    expect(state.changeCounter).toBe(before + 1);
+    expect(state.byImage[IMAGE]![annId('a')]!.geometry).toEqual(moved(2).geometry);
+    expect(state.byImage[IMAGE]![annId('gone')]).toBeUndefined();
   });
 });

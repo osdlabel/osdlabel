@@ -73,9 +73,12 @@ describe('FabricOverlay mode switching', () => {
   );
 
   describe('annotation mode', () => {
-    it('enables canvas selection and hands input to Fabric', () => {
+    // Drag-box (and Shift+click) group selection belongs to the select tool,
+    // which turns it on while it is active. Left on for every tool, a drawing
+    // drag across shapes also selected them as a group.
+    it('hands input to Fabric, with drag-box selection left off', () => {
       overlay.setMode('annotation');
-      expect(overlay.canvas.selection).toBe(true);
+      expect(overlay.canvas.selection).toBe(false);
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
       expect(isTracking(overlay)).toBe(true);
     });
@@ -110,6 +113,8 @@ describe('FabricOverlay mode switching', () => {
   describe('navigation mode', () => {
     it('disables selection and returns input to OSD', () => {
       overlay.setMode('annotation');
+      // As the select tool leaves it while active.
+      overlay.canvas.selection = true;
       overlay.setMode('navigation');
       expect(overlay.canvas.selection).toBe(false);
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
@@ -204,7 +209,8 @@ describe('FabricOverlay mode switching', () => {
       overlay.setMode(to);
 
       expect(overlay.getMode()).toBe(to);
-      expect(overlay.canvas.selection).toBe(to === 'annotation');
+      // No mode turns drag-box selection on: the select tool does.
+      expect(overlay.canvas.selection).toBe(false);
       expect(obj.selectable).toBe(to === 'annotation');
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(to === 'navigation');
       expect(isTracking(overlay)).toBe(to !== 'navigation');

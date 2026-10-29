@@ -6,7 +6,15 @@ import type {
   AnnotationContextId,
   ContextState,
 } from '@osdlabel/annotation-context';
-import type { OsdAnnotation, OsdFields, AnnotationAction, UIAction, ContextAction } from 'osdlabel';
+import type {
+  AnnotationPatch,
+  AnnotationUpdate,
+  OsdAnnotation,
+  OsdFields,
+  AnnotationAction,
+  UIAction,
+  ContextAction,
+} from 'osdlabel';
 import {
   validateAddAnnotation,
   computeConstraintStatus,
@@ -26,12 +34,18 @@ export function createActions(
     dispatchAnnotation({ type: 'ADD_ANNOTATION', payload: annotation });
   }
 
-  function updateAnnotation(
-    id: AnnotationId,
-    imageId: ImageId,
-    patch: Partial<Omit<OsdAnnotation, 'id' | 'imageId' | 'createdAt' | 'updatedAt'>>,
-  ): void {
+  function updateAnnotation(id: AnnotationId, imageId: ImageId, patch: AnnotationPatch): void {
     dispatchAnnotation({ type: 'UPDATE_ANNOTATION', payload: { id, imageId, patch } });
+  }
+
+  /**
+   * Updates several annotations on one image as one change: one store write,
+   * so one rebuild of the canvas and one `onAnnotationsChange`. Ids the image
+   * does not hold are skipped. A moved, scaled or rotated multi-selection is
+   * committed this way.
+   */
+  function updateAnnotations(imageId: ImageId, updates: readonly AnnotationUpdate[]): void {
+    dispatchAnnotation({ type: 'UPDATE_ANNOTATIONS', payload: { imageId, updates } });
   }
 
   /**
@@ -160,6 +174,7 @@ export function createActions(
   return {
     addAnnotation,
     updateAnnotation,
+    updateAnnotations,
     convertAnnotation,
     deleteAnnotation,
     setActiveTool,

@@ -146,6 +146,17 @@ function createMockOverlay() {
         emit(event, payload);
       });
     },
+    /**
+     * Fires `event` and lets the commit it causes land: `object:modified` is
+     * committed a microtask later, once Fabric has finished the release (see
+     * `enableObjectModifiedCommits`).
+     */
+    async fireAndCommit(event: string, payload: unknown): Promise<void> {
+      await act(async () => {
+        emit(event, payload);
+        await Promise.resolve();
+      });
+    },
     emit,
     listenerCount: (event: string) => listeners.get(event)?.size ?? 0,
     doubleClickListeners: () => doubleClickListeners,
@@ -199,24 +210,24 @@ describe('useAnnotationTool', () => {
     return h;
   }
 
-  it('should register object:modified handler and update annotation', () => {
+  it('should register object:modified handler and update annotation', async () => {
     const h = setup('rectangle', { initialAnnotations: byImage(rect('ann-1')) });
     expect(mo.overlay.canvas.on).toHaveBeenCalledWith('object:modified', expect.any(Function));
 
-    mo.fire('object:modified', { target: { id: 'ann-1' } });
+    await mo.fireAndCommit('object:modified', { target: { id: 'ann-1' } });
 
     const ann = h.current.annotationState.byImage[imageId]?.[createAnnotationId('ann-1')];
     expect(ann).toBeDefined();
     expect(ann!.geometry).toEqual(movedGeometry);
   });
 
-  it('object:modified sees an annotation added after the handler was registered', () => {
+  it('object:modified sees an annotation added after the handler was registered', async () => {
     // The handler is registered once per overlay/image and reads the store;
     // a value captured at registration would find nothing to update.
     const h = setup('select');
     h.run((a) => a.addAnnotation(rect('late')));
 
-    mo.fire('object:modified', { target: { id: 'late' } });
+    await mo.fireAndCommit('object:modified', { target: { id: 'late' } });
 
     expect(
       h.current.annotationState.byImage[imageId]![createAnnotationId('late')]!.geometry,
@@ -501,12 +512,14 @@ describe('useAnnotationTool', () => {
       expect(activeContextId).toBe(otherContext);
     });
 
-    it('object:modified, for an annotation added earlier in the task', () => {
+    it('object:modified, for an annotation added earlier in the task', async () => {
       const h = setup('select');
 
-      act(() => {
+      await act(async () => {
         h.current.actions.addAnnotation(rect('late'));
         mo.emit('object:modified', { target: { id: 'late' } });
+        // The commit waits for Fabric to finish the release (a microtask).
+        await Promise.resolve();
       });
 
       expect(

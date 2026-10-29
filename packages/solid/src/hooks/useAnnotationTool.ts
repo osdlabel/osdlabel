@@ -8,11 +8,11 @@ import { DEFAULT_CELL_TRANSFORM } from '@osdlabel/viewer-api';
 import {
   createAnnotationTool,
   createDragVectorControl,
+  enableObjectModifiedCommits,
   getScenePointFromEvent,
   getToneValue,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
-  processObjectModified,
   VIEWER_CONTROL_SPECS,
 } from 'osdlabel';
 import type { DragAxisBehavior, ViewerControlAxisSpec } from 'osdlabel';
@@ -52,27 +52,24 @@ export function useAnnotationTool(
     }
   });
 
-  // Handle object modification (resize, rotate, move) globally
+  // Save every edit Fabric reports (move, resize, rotate), whatever the tool,
+  // of one annotation or of a multi-selection. Shared with React, including
+  // why a commit waits for a microtask: see enableObjectModifiedCommits.
   createEffect(() => {
     const ov = overlay();
     const imgId = imageId();
 
     if (!ov || !imgId) return;
 
-    const handleObjectModified = (e: { target: FabricObject }) => {
-      const result = processObjectModified(e.target, annotationState, imgId);
-      if (result) {
-        actions.updateAnnotation(result.id, imgId, {
-          geometry: result.geometry!,
-          rawAnnotationData: result.rawAnnotationData,
-        });
-      }
-    };
-
-    ov.canvas.on('object:modified', handleObjectModified);
-    onCleanup(() => {
-      ov.canvas.off('object:modified', handleObjectModified);
-    });
+    onCleanup(
+      enableObjectModifiedCommits({
+        overlay: ov,
+        imageId: imgId,
+        getAnnotationState: () => annotationState,
+        updateAnnotation: (id, patch) => actions.updateAnnotation(id, imgId, patch),
+        updateAnnotations: (updates) => actions.updateAnnotations(imgId, updates),
+      }),
+    );
   });
 
   createEffect(() => {

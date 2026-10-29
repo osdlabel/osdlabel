@@ -1,276 +1,453 @@
+// @vitest-environment jsdom
 /**
- * Pins `processObjectModified`, the edit commit both bindings run on Fabric's
- * `object:modified`, for shapes other than rectangles (those are pinned in the
- * rectangle suite, `rectangle-annotation.test.ts`):
+ * Saving what Fabric reports as edited (`enableObjectModifiedCommits`, which
+ * both bindings' `useAnnotationTool` run), on a real Fabric canvas driven
+ * through pointer events, with a stand-in for the viewer's rebuild from state.
  *
- * - a circle stretched (`scaleX` ≠ `scaleY`) or sheared (a skew), and a point
- *   sheared, are shapes their geometry cannot describe. The commit stores the
- *   geometry read back, by the rule it always used (a circle's radius is
- *   `radius · max(|scaleX|, |scaleY|)`), and replaces the Fabric data with
- *   data that paints exactly that geometry, in the same style;
- * - an edit that leaves a describable shape is committed as Fabric serialized
- *   it, untouched;
- * - lines, polylines and polygons store points read through the object's
- *   whole transform, a shear included, so their data keeps it.
+ * A multi-selection is a Fabric `ActiveSelection`. Fabric reports a move,
+ * scale or rotation of one with a single `object:modified` whose target is the
+ * selection itself, with no annotation id, and with every member still inside
+ * it, its left/top/scale/angle relative to the selection. Nothing used to be
+ * committed for it. Pinned here:
  *
- * The circle handles can no longer stretch or shear a circle (fabric-annotations'
- * `shape-controls.test.ts`); what reaches this path is data saved by an earlier
- * release, or a host's own Fabric code.
+ * - every member is committed once, in one batch, with the geometry that is
+ *   painted, and its saved data paints there again when reloaded;
+ * - the same annotations are selected again once the rebuild brings their new
+ *   objects;
+ * - one gesture is one commit, also when the commit rebuilds synchronously
+ *   (Solid's store runs the rebuild inside the commit; it used to remove the
+ *   object mid-transform, and Fabric then reported the edit a second time);
+ * - a selection dissolved before Fabric reports it (a tool switch mid-drag)
+ *   still commits its members.
  */
-import { describe, expect, it } from 'vitest';
-import { Circle, FabricObject, Polygon, util } from 'fabric';
-import type {
-  AnnotationStyle,
-  CircleGeometry,
-  Geometry,
-  Point,
-  PolygonGeometry,
-} from '@osdlabel/annotation';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ActiveSelection, Canvas, Rect, util, type FabricObject, type TMat2D } from 'fabric';
+import type { AnnotationId, Geometry, Point, RectangleGeometry } from '@osdlabel/annotation';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
-import {
-  createFabricObjectFromRawData,
-  initFabricModule,
-  serializeFabricObject,
-} from '@osdlabel/fabric-annotations';
+import { createFabricObjectFromRawData, initFabricModule } from '@osdlabel/fabric-annotations';
 import { createImageId, type AnnotationState } from '@osdlabel/viewer-api';
+import { applyAnnotationAction } from '../../src/actions.js';
 import { createAnnotationFromGeometry } from '../../src/create-annotation.js';
-import { processObjectModified } from '../../src/tool-factory.js';
+import { createInitialAnnotationState } from '../../src/initial-state.js';
+import { enableObjectModifiedCommits, processGroupModified } from '../../src/object-modified.js';
 import type { OsdAnnotation, OsdFields } from '../../src/types.js';
+import {
+  cornerSetDeviation,
+  paintedCorners,
+  referenceCorners,
+  type Corners,
+} from './rectangle-reference.js';
 
 initFabricModule();
 
-const imageId = createImageId('img-object-modified');
-const contextId = createAnnotationContextId('ctx-object-modified');
+const imageId = createImageId('img-group');
+const contextId = createAnnotationContextId('ctx-group');
+const annId = (s: string): AnnotationId => s as AnnotationId;
 
-/** `toObject()` rounds to 4 decimals: a reloaded outline may move this much. */
-const SAVED_TOLERANCE = 1e-3;
+// ── A canvas, and pointer events as FabricOverlay forwards them ────────────
 
-const STYLE: AnnotationStyle = {
-  strokeColor: '#1a2b3c',
-  strokeWidth: 3,
-  strokeDashArray: [6, 2],
-  fillColor: '#00ff88',
-  fillOpacity: 0.35,
-  opacity: 0.8,
-  pointRadius: 7,
+const canvases: Canvas[] = [];
+afterEach(async () => {
+  await Promise.all(
+    canvases.splice(0).map(async (canvas) => {
+      const element = canvas.lowerCanvasEl;
+      await canvas.dispose();
+      element.remove();
+    }),
+  );
+});
+
+/** As the overlay configures it, with the select tool's drag-box on and an identity view. */
+function openCanvas(): Canvas {
+  const element = document.createElement('canvas');
+  document.body.appendChild(element);
+  const canvas = new Canvas(element, {
+    width: 800,
+    height: 600,
+    selection: true,
+    renderOnAddRemove: false,
+    skipOffscreen: false,
+    enablePointerEvents: true,
+  });
+  canvases.push(canvas);
+  return canvas;
+}
+
+function forward(canvas: Canvas, type: 'pointerdown' | 'pointermove' | 'pointerup', at: Point) {
+  canvas.upperCanvasEl.dispatchEvent(
+    new MouseEvent(type, {
+      clientX: at.x,
+      clientY: at.y,
+      bubbles: type !== 'pointerdown',
+      cancelable: true,
+      button: 0,
+    }),
+  );
+}
+
+function press(canvas: Canvas, from: Point, to: Point): void {
+  forward(canvas, 'pointermove', from);
+  forward(canvas, 'pointerdown', from);
+  for (let k = 1; k <= 4; k++) {
+    forward(canvas, 'pointermove', {
+      x: from.x + ((to.x - from.x) * k) / 4,
+      y: from.y + ((to.y - from.y) * k) / 4,
+    });
+  }
+}
+
+function gesture(canvas: Canvas, from: Point, to: Point): void {
+  press(canvas, from, to);
+  forward(canvas, 'pointerup', to);
+}
+
+/** Let every queued microtask and the rebuild's promises run. */
+const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+// ── The annotations, and a stand-in for the viewer ─────────────────────────
+
+const SHAPES: Record<
+  string,
+  { readonly toolType: OsdAnnotation['toolType']; readonly geometry: Geometry }
+> = {
+  rect: {
+    toolType: 'rectangle',
+    geometry: {
+      type: 'rectangle',
+      origin: { x: 100, y: 100 },
+      width: 120,
+      height: 60,
+      rotation: 30,
+    },
+  },
+  circle: {
+    toolType: 'circle',
+    geometry: { type: 'circle', center: { x: 380, y: 140 }, radius: 50 },
+  },
+  point: { toolType: 'point', geometry: { type: 'point', position: { x: 500, y: 140 } } },
+  line: {
+    toolType: 'line',
+    geometry: { type: 'line', start: { x: 100, y: 300 }, end: { x: 260, y: 360 } },
+  },
+  polygon: {
+    toolType: 'polyline',
+    geometry: {
+      type: 'polygon',
+      points: [
+        { x: 340, y: 300 },
+        { x: 460, y: 300 },
+        { x: 450, y: 380 },
+        { x: 350, y: 390 },
+      ],
+    },
+  },
 };
 
-/** The fields `getFabricOptions` writes: the annotation's style. */
-const STYLE_KEYS = ['fill', 'stroke', 'strokeWidth', 'strokeDashArray', 'opacity', 'strokeUniform'];
-
-const CIRCLE: CircleGeometry = { type: 'circle', center: { x: 412.5, y: 233.25 }, radius: 80 };
-
-function create(geometry: Geometry): OsdAnnotation {
-  return createAnnotationFromGeometry(geometry, {
-    imageId,
-    contextId,
-    toolType: geometry.type === 'polygon' ? 'polyline' : geometry.type,
-    style: STYLE,
-  });
+interface Commit {
+  readonly kind: 'one' | 'batch';
+  readonly ids: readonly string[];
 }
 
-/** As the viewer loads a stored annotation: from its JSON, through `createFabricObjectFromRawData`. */
-async function load(annotation: OsdAnnotation): Promise<FabricObject> {
-  const obj = await createFabricObjectFromRawData(
-    JSON.parse(JSON.stringify(annotation)) as OsdAnnotation,
-  );
-  expect(obj).not.toBeNull();
-  return obj!;
-}
-
-function asCircleObject(obj: FabricObject): Circle {
-  expect(obj).toBeInstanceOf(Circle);
-  return obj as Circle;
-}
-
-function stateOf(annotation: OsdAnnotation): AnnotationState<OsdFields> {
-  return { byImage: { [imageId]: { [annotation.id]: annotation } }, changeCounter: 1 };
-}
-
-type Committed = NonNullable<ReturnType<typeof processObjectModified>>;
-
-function commit(obj: FabricObject, stored: OsdAnnotation): Committed {
-  const committed = processObjectModified(obj, stateOf(stored), imageId);
-  expect(committed, 'processObjectModified resolved the edited annotation').not.toBeNull();
-  return committed!;
-}
-
-/** Reload what a commit stored, as the viewer does after the update. */
-function reloadCommitted(committed: Committed, stored: OsdAnnotation): Promise<FabricObject> {
-  expect(committed.geometry).not.toBeNull();
-  return load({
-    ...stored,
-    geometry: committed.geometry!,
-    rawAnnotationData: committed.rawAnnotationData,
-  });
-}
-
-/** Where Fabric paints a `Circle`'s outline (no stroke): its `radius` arc through `calcTransformMatrix()`. */
-function paintedOutline(circle: Circle, samples = 72): Point[] {
-  const matrix = circle.calcTransformMatrix();
-  return Array.from({ length: samples }, (_, i) => {
-    const t = (2 * Math.PI * i) / samples;
-    return util.transformPoint(
-      { x: circle.radius * Math.cos(t), y: circle.radius * Math.sin(t) },
-      matrix,
-    );
-  });
-}
-
-/** How far the painted outline strays from a circle about `center` of `radius`. */
-function deviationFrom(circle: Circle, center: Point, radius: number): number {
-  return Math.max(
-    ...paintedOutline(circle).map((p) =>
-      Math.abs(Math.hypot(p.x - center.x, p.y - center.y) - radius),
-    ),
-  );
-}
-
-function expectStyleKept(committed: Committed, stored: OsdAnnotation): void {
-  const data = committed.rawAnnotationData.data;
-  const before = stored.rawAnnotationData.data;
-  for (const key of STYLE_KEYS) {
-    expect(data[key], `style: ${key}`).toStrictEqual(before[key]);
+/**
+ * The state, a canvas showing it, and the commits made through
+ * `enableObjectModifiedCommits`. Each commit applies the real reducer and then
+ * rebuilds the canvas from state as ViewerCell does: every annotation object
+ * removed at once, new ones built from their saved data and added together
+ * once all are ready. `syncRemove` removes them inside the commit, as Solid's
+ * synchronously-run effect does; otherwise on the next task, as React's
+ * effect runs after the render.
+ */
+async function openViewer(options: { readonly syncRemove: boolean }) {
+  const canvas = openCanvas();
+  const state: AnnotationState<OsdFields> = createInitialAnnotationState();
+  state.byImage[imageId] = {};
+  for (const [id, shape] of Object.entries(SHAPES)) {
+    state.byImage[imageId]![annId(id)] = createAnnotationFromGeometry(shape.geometry, {
+      imageId,
+      contextId,
+      toolType: shape.toolType,
+      id: annId(id),
+    });
   }
-  expect(data['id']).toBe(stored.id);
+
+  const commits: Commit[] = [];
+  const modified: (string | undefined)[] = [];
+  canvas.on('object:modified', ({ target }) => modified.push(target.id));
+
+  let rebuilding: Promise<void> = Promise.resolve();
+  const rebuild = (): void => {
+    const remove = (): void => {
+      const old = canvas.getObjects().filter((o) => o.id);
+      if (old.length > 0) canvas.remove(...old);
+    };
+    const add = async (): Promise<void> => {
+      const stored = Object.values(state.byImage[imageId] ?? {}).map(
+        (a) => JSON.parse(JSON.stringify(a)) as OsdAnnotation,
+      );
+      const objects = await Promise.all(stored.map((a) => createFabricObjectFromRawData(a)));
+      canvas.add(...objects.filter((o): o is FabricObject => o !== null));
+      canvas.requestRenderAll();
+    };
+    if (options.syncRemove) {
+      remove();
+      rebuilding = add();
+    } else {
+      rebuilding = new Promise<void>((resolve) => setTimeout(resolve, 0)).then(() => {
+        remove();
+        return add();
+      });
+    }
+  };
+
+  const dispose = enableObjectModifiedCommits({
+    overlay: { canvas },
+    imageId,
+    getAnnotationState: () => state,
+    updateAnnotation: (id, patch) => {
+      commits.push({ kind: 'one', ids: [id] });
+      applyAnnotationAction(state, { type: 'UPDATE_ANNOTATION', payload: { id, imageId, patch } });
+      rebuild();
+    },
+    updateAnnotations: (updates) => {
+      commits.push({ kind: 'batch', ids: updates.map((u) => u.id) });
+      applyAnnotationAction(state, { type: 'UPDATE_ANNOTATIONS', payload: { imageId, updates } });
+      rebuild();
+    },
+  });
+
+  rebuild();
+  await rebuilding;
+
+  return {
+    canvas,
+    state,
+    commits,
+    modified,
+    dispose,
+    /** Wait for the last commit's rebuild to finish. */
+    rebuilt: async (): Promise<void> => {
+      await settle();
+      await rebuilding;
+    },
+    stored: <G extends Geometry>(id: string): G =>
+      state.byImage[imageId]![annId(id)]!.geometry as G,
+    object: (id: string): FabricObject => {
+      const found = canvas.getObjects().find((o) => o.id === id);
+      expect(found, `object ${id} is on the canvas`).toBeDefined();
+      return found!;
+    },
+  };
 }
 
-describe('processObjectModified', () => {
-  describe('a circle stretched or sheared, which no circle geometry describes', () => {
-    const CASES = [
-      { name: 'stretched along x by a side handle', props: { scaleX: 1.5 } },
-      {
-        name: 'stretched and squashed by Shift + a corner',
-        props: { scaleX: 0.7504, scaleY: 1.4163 },
-      },
-      { name: 'sheared by Shift + a side handle', props: { skewX: 20 } },
-      {
-        name: 'sheared, stretched and turned',
-        props: { skewY: -12, scaleY: 1.2, angle: 30 },
-      },
-    ] as const;
+type Viewer = Awaited<ReturnType<typeof openViewer>>;
 
-    it.each(CASES)(
-      '$name: commits the circle it reads as, and data that paints exactly that circle in the same style',
-      async ({ props }) => {
-        const stored = create(CIRCLE);
-        const circle = asCircleObject(await load(stored));
-        circle.set(props);
-        circle.setCoords();
-        const centre = circle.getCenterPoint();
-        const radius = CIRCLE.radius * Math.max(circle.scaleX, circle.scaleY);
-        // The premise: what is painted is not a circle.
-        expect(deviationFrom(circle, centre, radius)).toBeGreaterThan(5);
+/** Drag-box from empty canvas over all five shapes. */
+function selectAll(viewer: Viewer): ActiveSelection {
+  gesture(viewer.canvas, { x: 20, y: 20 }, { x: 780, y: 580 });
+  const active = viewer.canvas.getActiveObject();
+  expect(active).toBeInstanceOf(ActiveSelection);
+  const selection = active as ActiveSelection;
+  expect(
+    selection
+      .getObjects()
+      .map((o) => o.id)
+      .sort(),
+  ).toEqual(Object.keys(SHAPES).sort());
+  return selection;
+}
 
-        const committed = commit(circle, stored);
-        // The geometry, by the rule it always had: the centre where it is
-        // painted, the radius the larger of the scaled radii.
-        expect(committed.geometry).toStrictEqual({
-          type: 'circle',
-          center: { x: centre.x, y: centre.y },
-          radius,
-        });
-        expect(committed.rawAnnotationData.data).toMatchObject({
-          type: 'Circle',
-          scaleX: 1,
-          scaleY: 1,
-          skewX: 0,
-          skewY: 0,
-        });
-        expectStyleKept(committed, stored);
-        const reloaded = asCircleObject(await reloadCommitted(committed, stored));
-        expect(deviationFrom(reloaded, centre, radius)).toBeLessThanOrEqual(SAVED_TOLERANCE);
-      },
+// ── What the stored geometry must be ───────────────────────────────────────
+
+function apply(m: TMat2D, p: Point): Point {
+  const q = util.transformPoint(p, m);
+  return { x: q.x, y: q.y };
+}
+
+function expectPoint(actual: Point, expected: Point, tol: number, what: string): void {
+  expect(
+    Math.hypot(actual.x - expected.x, actual.y - expected.y),
+    `${what}: (${actual.x}, ${actual.y}), expected (${expected.x}, ${expected.y})`,
+  ).toBeLessThanOrEqual(tol);
+}
+
+/** Every stored shape is the one before the edit carried through `m`, which scales by `k`. */
+function expectCarried(viewer: Viewer, m: TMat2D, k: number, tol: number): void {
+  const rect0 = SHAPES['rect']!.geometry as RectangleGeometry;
+  const rect1 = viewer.stored<RectangleGeometry>('rect');
+  const [a, b, c, d] = referenceCorners(rect0);
+  const carried: Corners = [apply(m, a), apply(m, b), apply(m, c), apply(m, d)];
+  expect(
+    cornerSetDeviation(referenceCorners(rect1), carried),
+    `rectangle ${JSON.stringify(rect1)}`,
+  ).toBeLessThanOrEqual(tol);
+  expect(rect1.width).toBeCloseTo(rect0.width * k, 6);
+  expect(rect1.height).toBeCloseTo(rect0.height * k, 6);
+
+  const circle0 = SHAPES['circle']!.geometry as Extract<Geometry, { type: 'circle' }>;
+  const circle1 = viewer.stored<Extract<Geometry, { type: 'circle' }>>('circle');
+  expectPoint(circle1.center, apply(m, circle0.center), tol, 'circle centre');
+  expect(circle1.radius).toBeCloseTo(circle0.radius * k, 6);
+
+  const point0 = SHAPES['point']!.geometry as Extract<Geometry, { type: 'point' }>;
+  expectPoint(
+    viewer.stored<Extract<Geometry, { type: 'point' }>>('point').position,
+    apply(m, point0.position),
+    tol,
+    'point',
+  );
+
+  const line0 = SHAPES['line']!.geometry as Extract<Geometry, { type: 'line' }>;
+  const line1 = viewer.stored<Extract<Geometry, { type: 'line' }>>('line');
+  expectPoint(line1.start, apply(m, line0.start), tol, 'line start');
+  expectPoint(line1.end, apply(m, line0.end), tol, 'line end');
+
+  const polygon0 = SHAPES['polygon']!.geometry as Extract<Geometry, { type: 'polygon' }>;
+  const polygon1 = viewer.stored<Extract<Geometry, { type: 'polygon' }>>('polygon');
+  expect(polygon1.points).toHaveLength(polygon0.points.length);
+  polygon0.points.forEach((p, i) =>
+    expectPoint(polygon1.points[i]!, apply(m, p), tol, `vertex ${i}`),
+  );
+}
+
+// ── Specs ──────────────────────────────────────────────────────────────────
+
+describe.each([
+  { binding: 'removed inside the commit (Solid)', syncRemove: true },
+  { binding: 'removed after the commit (React)', syncRemove: false },
+])('enableObjectModifiedCommits, objects $binding', ({ syncRemove }) => {
+  it('commits every member of a moved selection once, in one batch, where it is painted', async () => {
+    const viewer = await openViewer({ syncRemove });
+    selectAll(viewer);
+
+    // Press on the rectangle's centre, which lies inside it at any rotation.
+    gesture(viewer.canvas, { x: 160, y: 130 }, { x: 197, y: 109 });
+    await viewer.rebuilt();
+
+    expect(viewer.modified).toEqual([undefined]);
+    expect(viewer.commits).toHaveLength(1);
+    expect(viewer.commits[0]!.kind).toBe('batch');
+    expect([...viewer.commits[0]!.ids].sort()).toEqual(Object.keys(SHAPES).sort());
+    expectCarried(viewer, [1, 0, 0, 1, 37, -21], 1, 1e-6);
+  });
+
+  it('commits a scaled and rotated selection as the shapes it paints', async () => {
+    const viewer = await openViewer({ syncRemove });
+    const selection = selectAll(viewer);
+    const before = selection.calcTransformMatrix();
+    selection.set({ scaleX: 1.4, scaleY: 1.4, angle: 25 });
+    selection.setCoords();
+    // Where the edited selection paints each member, as a map of the scene.
+    const m = util.multiplyTransformMatrices(
+      selection.calcTransformMatrix(),
+      util.invertTransform(before),
     );
+    viewer.canvas.fire('object:modified', { target: selection });
+    await viewer.rebuilt();
 
-    it('a circle scaled uniformly and turned is committed as Fabric serialized it', async () => {
-      const stored = create(CIRCLE);
-      const circle = asCircleObject(await load(stored));
-      circle.set({ scaleX: 1.375, scaleY: 1.375, angle: 48, flipY: true });
-      const committed = commit(circle, stored);
-      expect(committed.rawAnnotationData).toStrictEqual(serializeFabricObject(circle));
-      expect(committed.geometry).toStrictEqual({
-        type: 'circle',
-        center: { x: circle.getCenterPoint().x, y: circle.getCenterPoint().y },
-        radius: 110,
-      });
-    });
+    expect(viewer.commits.map((c) => c.kind)).toEqual(['batch']);
+    expectCarried(viewer, m, 1.4, 1e-6);
 
-    it("keeps the host's own custom properties when it replaces the data", async () => {
-      const registered = FabricObject.customProperties;
-      FabricObject.customProperties = [...registered, 'reviewer'];
-      try {
-        const stored = create(CIRCLE);
-        const circle = asCircleObject(await load(stored));
-        circle.set({ skewX: 15 });
-        (circle as FabricObject & { reviewer?: string }).reviewer = 'dr-who';
-        const committed = commit(circle, stored);
-        expect(committed.rawAnnotationData.data).toMatchObject({ skewX: 0, reviewer: 'dr-who' });
-      } finally {
-        FabricObject.customProperties = registered;
-      }
-    });
+    // The rebuilt rectangle, from its saved data, paints the stored corners.
+    const rect = viewer.object('rect');
+    expect(rect).toBeInstanceOf(Rect);
+    expect(
+      cornerSetDeviation(paintedCorners(rect as Rect), referenceCorners(viewer.stored('rect'))),
+    ).toBeLessThanOrEqual(1e-3);
   });
 
-  describe('a point', () => {
-    it('sheared: commits its position, and data for an unsheared dot of the same size and style', async () => {
-      const stored = create({ type: 'point', position: { x: 90.5, y: 61.25 } });
-      const dot = asCircleObject(await load(stored));
-      dot.set({ skewX: 30, left: dot.left + 4 });
-      const committed = commit(dot, stored);
-      expect(committed.geometry).toStrictEqual({ type: 'point', position: { x: 94.5, y: 61.25 } });
-      expect(committed.rawAnnotationData.data).toMatchObject({
-        type: 'Circle',
-        radius: 7,
-        skewX: 0,
-        skewY: 0,
-        left: 94.5,
-        top: 61.25,
-      });
-      expectStyleKept(committed, stored);
-      const reloaded = asCircleObject(await reloadCommitted(committed, stored));
-      expect(reloaded.hasControls).toBe(false);
-      expect(deviationFrom(reloaded, { x: 94.5, y: 61.25 }, 7)).toBeLessThanOrEqual(
-        SAVED_TOLERANCE,
-      );
-    });
+  it('selects the same annotations again once their rebuilt objects are back', async () => {
+    const viewer = await openViewer({ syncRemove });
+    const selection = selectAll(viewer);
+    const oldMembers = selection.getObjects();
 
-    it('moved: committed as Fabric serialized it', async () => {
-      const stored = create({ type: 'point', position: { x: 90.5, y: 61.25 } });
-      const dot = await load(stored);
-      dot.set({ left: dot.left - 12, top: dot.top + 3 });
-      expect(commit(dot, stored).rawAnnotationData).toStrictEqual(serializeFabricObject(dot));
-    });
+    gesture(viewer.canvas, { x: 160, y: 130 }, { x: 197, y: 109 });
+    await viewer.rebuilt();
+
+    const active = viewer.canvas.getActiveObject();
+    expect(active).toBeInstanceOf(ActiveSelection);
+    const members = (active as ActiveSelection).getObjects();
+    expect(members.map((o) => o.id).sort()).toEqual(Object.keys(SHAPES).sort());
+    for (const member of members) {
+      expect(viewer.canvas.getObjects()).toContain(member);
+      expect(oldMembers).not.toContain(member);
+    }
+    // And it is the uniform-only selection the select tool makes.
+    expect(Object.keys(active!.controls).sort()).toEqual(['bl', 'br', 'mtr', 'tl', 'tr']);
   });
 
-  describe('a sheared polygon', () => {
-    it('keeps its shear: the points stored are the ones painted', async () => {
-      const square: PolygonGeometry = {
-        type: 'polygon',
-        points: [
-          { x: 100, y: 100 },
-          { x: 200, y: 100 },
-          { x: 200, y: 200 },
-          { x: 100, y: 200 },
-        ],
-      };
-      const stored = create(square);
-      const polygon = await load(stored);
-      expect(polygon).toBeInstanceOf(Polygon);
-      polygon.set({ skewX: 20 });
-      const committed = commit(polygon, stored);
-      expect(committed.rawAnnotationData).toStrictEqual(serializeFabricObject(polygon));
-      expect(committed.rawAnnotationData.data['skewX']).toBe(20);
-      // Sheared about its centre (150, 150): x' = x + tan 20° · (y - 150).
-      const t = Math.tan((20 * Math.PI) / 180);
-      const geometry = committed.geometry;
-      if (geometry === null || geometry.type !== 'polygon') {
-        throw new Error(`expected polygon geometry, got ${JSON.stringify(geometry)}`);
-      }
-      square.points.forEach((p, i) => {
-        expect(geometry.points[i]!.x).toBeCloseTo(p.x + t * (p.y - 150), 9);
-        expect(geometry.points[i]!.y).toBeCloseTo(p.y, 9);
-      });
-    });
+  it('commits a one-object drag once', async () => {
+    const viewer = await openViewer({ syncRemove });
+    const centre = { x: 160, y: 130 };
+    forward(viewer.canvas, 'pointermove', centre);
+    forward(viewer.canvas, 'pointerdown', centre);
+    forward(viewer.canvas, 'pointerup', centre);
+    expect(viewer.canvas.getActiveObject()?.id).toBe('rect');
+
+    gesture(viewer.canvas, centre, { x: 183, y: 141 });
+    await viewer.rebuilt();
+
+    expect(viewer.modified).toEqual(['rect']);
+    expect(viewer.commits).toEqual([{ kind: 'one', ids: ['rect'] }]);
+    expectPoint(
+      viewer.stored<RectangleGeometry>('rect').origin,
+      { x: 123, y: 111 },
+      1e-6,
+      'rectangle origin',
+    );
+  });
+
+  it('commits the members of a selection dissolved before Fabric reports the edit', async () => {
+    const viewer = await openViewer({ syncRemove });
+    selectAll(viewer);
+
+    // Mid-drag, the select tool is switched away: it discards the selection,
+    // which bakes the drag so far into each member and empties the selection
+    // before Fabric ends the transform and reports it.
+    press(viewer.canvas, { x: 160, y: 130 }, { x: 197, y: 109 });
+    viewer.canvas.discardActiveObject();
+    forward(viewer.canvas, 'pointerup', { x: 197, y: 109 });
+    await viewer.rebuilt();
+
+    expect(viewer.commits).toHaveLength(1);
+    expect([...viewer.commits[0]!.ids].sort()).toEqual(Object.keys(SHAPES).sort());
+    expectCarried(viewer, [1, 0, 0, 1, 37, -21], 1, 1e-6);
+  });
+});
+
+describe('enableObjectModifiedCommits teardown', () => {
+  it('commits nothing reported after it is disposed', async () => {
+    const viewer = await openViewer({ syncRemove: true });
+    viewer.dispose();
+    selectAll(viewer);
+    gesture(viewer.canvas, { x: 160, y: 130 }, { x: 197, y: 109 });
+    await viewer.rebuilt();
+    expect(viewer.commits).toEqual([]);
+  });
+
+  it('still saves an edit reported just before it, but reselects nothing', async () => {
+    const viewer = await openViewer({ syncRemove: false });
+    selectAll(viewer);
+    gesture(viewer.canvas, { x: 160, y: 130 }, { x: 197, y: 109 });
+    // The cell re-subscribes in the same task (say, a new image id).
+    viewer.dispose();
+    await viewer.rebuilt();
+    expect(viewer.commits).toHaveLength(1);
+    expect(viewer.canvas.getActiveObject()).toBeUndefined();
+  });
+});
+
+describe('processGroupModified', () => {
+  it('reads every member it can resolve, and skips the rest', async () => {
+    const viewer = await openViewer({ syncRemove: true });
+    const stray = new Rect({ left: 10, top: 10, width: 5, height: 5 });
+    const unknown = new Rect({ left: 10, top: 10, width: 5, height: 5 });
+    unknown.id = 'not-stored';
+    const members = [viewer.object('circle'), stray, unknown, viewer.object('point')];
+
+    const updates = processGroupModified(members, viewer.state, imageId);
+
+    expect(updates.map((u) => u.id)).toEqual(['circle', 'point']);
+    expect(updates[0]!.patch.geometry).toEqual(viewer.stored('circle'));
+    expect(updates[0]!.patch.rawAnnotationData.format).toBe('fabric');
   });
 });

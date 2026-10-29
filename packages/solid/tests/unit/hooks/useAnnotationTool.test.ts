@@ -181,7 +181,7 @@ describe('useAnnotationTool', () => {
         // Wait for effect to run. Reject rather than let an assertion escape
         // the timer callback, where it would surface as a 5s test timeout
         // naming nothing instead of a failed expectation.
-        setTimeout(() => {
+        setTimeout(async () => {
           try {
             // Verify listener is registered
             expect(mockCanvas.on).toHaveBeenCalledWith('object:modified', expect.any(Function));
@@ -193,6 +193,10 @@ describe('useAnnotationTool', () => {
             if (handler) {
               handler({ target: mockObj });
             }
+            // Committed once Fabric is done with the release, a microtask
+            // later (see enableObjectModifiedCommits).
+            expect(mockActions.updateAnnotation).not.toHaveBeenCalled();
+            await Promise.resolve();
 
             // Verify action called
             expect(mockActions.updateAnnotation).toHaveBeenCalledWith(

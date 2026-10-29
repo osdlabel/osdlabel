@@ -212,7 +212,10 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  * Three interaction modes:
  * - **navigation**: OSD handles all input, Fabric is display-only.
  * - **annotation**: Fabric handles all input (select, move, draw).
- *   Ctrl+drag or Command+drag pans OSD within annotation mode.
+ *   Ctrl+drag or Command+drag pans OSD within annotation mode. Fabric's group
+ *   selection (`canvas.selection`: drag-box and Shift+click) is left off; the
+ *   select tool turns it on while it is active. A host driving the overlay
+ *   without the library's tools sets it itself.
  * - **customControl**: neither OSD nor Fabric reacts; pointer events are
  *   forwarded to a registered {@link CustomControlHandler} (e.g. drag-to-adjust
  *   exposure). Ctrl/Cmd+scroll still zooms OSD.
@@ -637,8 +640,11 @@ export class FabricOverlay {
         // Fabric interactive: selection, moving, and drawing.
         // OSD mouse nav is disabled.
         // Respect per-object _readOnly flag set by displayed-but-not-active contexts.
+        // Group selection (drag-box, Shift+click) stays off: the select tool
+        // turns it on while it is active. On for every tool, a drawing drag
+        // across shapes also selected them as a group.
         this._overlayTracker.setTracking(true);
-        this._fabricCanvas.selection = true;
+        this._fabricCanvas.selection = false;
         this._fabricCanvas.forEachObject((obj) => {
           const readOnly = obj._readOnly === true;
           obj.selectable = !readOnly;
