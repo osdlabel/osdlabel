@@ -137,6 +137,14 @@ React unit-test mechanics:
 - **To test an effect's dependency list,** re-render with an equal-valued but new object and assert nothing was rebuilt or re-subscribed, then re-render with a changed value and assert it was. Count `on(...)` registrations, not live listeners: a re-subscription that cleans up after itself leaves the live count unchanged.
 - **To test a ref read by a long-lived handler** (e.g. `enableLiveDecorationUpdates`), change the input and reset what the probe recorded. Then run one drag frame through a hand-flushed rAF queue (`vi.stubGlobal('requestAnimationFrame', …)`), so the state-driven effect's own provider call cannot mask a stale ref.
 
+#### The rectangle suite
+
+- **Why it exists.** Until #244 every rectangle was painted centred on the corner its geometry records, half its size from where its labels, measurements and exports put it, and no test noticed: the tests compared the library with itself. The suite pins one invariant at every layer: what is painted is the shape the stored geometry describes (`rectangleCorners`), and the stored geometry is what the user did.
+- **The contract.** `RectangleGeometry`'s `origin`, `width` and `height` are the box before rotation; `rotation` turns it clockwise (image y points down) about its centre, `origin + (width / 2, height / 2)`, so rotating changes only `rotation`. The worked example every layer pins by hand: origin (200, 100), 100 × 50, rotation 90 covers x 225–275, y 75–175.
+- **Where it lives.** Every file has `rectangle` in its name: `rectangle-*.test.ts` in `packages/geometry`, `packages/decoration`, `packages/fabric-annotations` and `packages/osdlabel` (alongside `legacy-rectangle`, `rectangle-anchor` and `tools/rectangle-tool`), and `apps/dev/tests/e2e/rectangle/`, which runs against both bindings like every spec. Run it with `pnpm test:rectangle` and `pnpm test:e2e:rectangle`; new rectangle behaviour gets its test there.
+- **Expected values never come from the code under test.** Each package's `rectangle-reference.ts` (and the E2E `helpers.ts`) computes corners independently and is pinned by hand to the worked example; test trees cannot share code, so the copies are deliberate. In the browser, paint is judged from pixels, not from Fabric's own numbers.
+- **It is mutation-checked.** When it was added, reintroducing the original placement bug, the old corner pivot, a dropped angle, an ignored scale, a reverse-drag bug and a wrong centroid each failed tests in the layer where the bug lives. Keep it so: before trusting a new test, break the code it guards (in a scratch copy, not the working tree) and watch it fail.
+
 #### Performance benchmarks
 
 - **The `DecorationLayer` hot path has a real-browser harness at `apps/bench/` (`@osdlabel/bench`).** It drives an OSD viewer + `FabricOverlay` + `DecorationLayer` in headless Chromium and times `_reposition` / `setDecorations` per call across a scenario × phase matrix. jsdom cannot see CSSOM reserialization or forced layout, which is why it exists.
@@ -204,6 +212,8 @@ pnpm build          # Build all packages (annotation → viewer-api → geometry
 pnpm typecheck      # Type-check all packages (src AND test trees)
 pnpm test           # Run Vitest unit tests across all packages
 pnpm test:e2e       # Run Playwright E2E tests: every spec in apps/dev/tests/e2e, against the Solid app, then the React app
+pnpm test:rectangle # Run the rectangle suite's unit tests (geometry, decoration, fabric-annotations, osdlabel)
+pnpm test:e2e:rectangle # Run apps/dev/tests/e2e/rectangle/ against the Solid app, then the React app
 pnpm lint           # Run ESLint across all packages (CI runs this)
 pnpm format         # Run Prettier across the workspace
 pnpm check-versions # Validate lockstep package versions

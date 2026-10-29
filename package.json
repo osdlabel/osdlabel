@@ -20,6 +20,8 @@
     "test": "turbo test",
     "test:all": "turbo run test test:e2e",
     "test:e2e": "turbo test:e2e",
+    "test:e2e:rectangle": "turbo run test:e2e --filter=@osdlabel/dev --filter=@osdlabel/dev-react --concurrency=1 -- tests/e2e/rectangle/",
+    "test:rectangle": "turbo run test --filter=@osdlabel/geometry --filter=@osdlabel/decoration --filter=@osdlabel/fabric-annotations --filter=osdlabel -- rectangle",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {

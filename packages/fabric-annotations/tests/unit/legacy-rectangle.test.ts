@@ -80,6 +80,9 @@ async function paintedGeometry(ann: Annotation<FabricFields>): Promise<Geometry 
 }
 
 describe('migrateLegacyRectangle', () => {
+  // The expectation here is read back by the library's own
+  // getGeometryFromFabricObject. The 'legacy data' cases in
+  // rectangle-fabric.test.ts pin rotated rectangles with values worked by hand.
   it.each([0, 30, 90, -45])(
     'moves the geometry of a rectangle saved at %d° to where it is painted',
     async (rotation) => {
