@@ -44,13 +44,15 @@ export interface PolyVertexEditorOptions {
  * already moves vertices and fires `object:modified`). On top of that this adds:
  *
  * - a configurable **long-press** to enter a sticky edit mode (tablet-friendly),
- * - **edge-insertion** handles at edge midpoints that splice a new vertex and
- *   continue the same drag, and
+ * - **edge-insertion** handles at edge midpoints that splice a new vertex: a
+ *   click commits it at the midpoint, a drag moves it and commits it on
+ *   release, and
  * - **vertex deletion** (Delete/Backspace) honoring per-shape minimums.
  *
- * Vertex moves commit through the host's existing `object:modified` →
- * `getGeometryFromFabricObject` path. The editor is Fabric-only (SolidJS / OSD
- * agnostic) and is owned by the Select / Polyline / Free-draw tools.
+ * Every edit (vertex move, insertion, deletion) commits through the host's
+ * existing `object:modified` → `getGeometryFromFabricObject` path. The editor
+ * is Fabric-only (SolidJS / OSD agnostic) and is owned by the Select /
+ * Polyline / Free-draw tools.
  */
 export class PolyVertexEditor {
   private canvas: Canvas | null = null;
@@ -138,9 +140,11 @@ export class PolyVertexEditor {
 
     if (this.editingObject) {
       if (target === this.editingObject) {
-        // Pressing a vertex control records it as the deletion target; pressing
-        // the body or an insert handle clears it. Fabric has already set
-        // `__corner` for this mouse:down (cleared again on the matching mouse:up).
+        // Pressing a vertex control records it as the deletion target, and
+        // pressing an insert handle records the vertex it inserted (its
+        // mouseDownHandler has already pointed `__corner` at it); pressing the
+        // body clears it. Fabric has already set `__corner` for this mouse:down
+        // (cleared again on the matching mouse:up).
         const corner = this.editingObject.__corner;
         this.activeVertexKey = corner && corner.startsWith('p') ? corner : null;
         return; // let Fabric's control pipeline handle the interaction
@@ -318,15 +322,20 @@ function makeInsertPositionHandler(edge: number) {
 /**
  * On press of an edge-insert handle: splice a new vertex at the edge midpoint,
  * rebuild controls, then redirect the in-flight transform to the new vertex's
- * move handler so the same drag rubber-bands the freshly inserted point.
+ * move handler, so a drag moves the new vertex with the pointer.
+ *
+ * The insertion is an edit even if the pointer never moves, so the press marks
+ * the transform as performed. Fabric fires `object:modified` on release only
+ * for a performed transform, and sets the flag itself only when a pointer move
+ * runs the action handler; without this, a click (press and release without
+ * moving) left a vertex on the canvas that state never received, and the next
+ * rebuild dropped it. The vertex stays at the midpoint until the pointer
+ * moves, wherever on the handle the press landed: a click commits it there,
+ * a drag where it is released.
  */
 function makeInsertMouseDownHandler(edge: number) {
-  return function mouseDownHandler(
-    eventData: TPointerEvent,
-    transform: Transform,
-    x: number,
-    y: number,
-  ): boolean {
+  // The press position is deliberately unused: see above.
+  return function mouseDownHandler(_eventData: TPointerEvent, transform: Transform): boolean {
     const poly = transform.target as Polyline;
     const n = poly.points.length;
     const a = poly.points[edge]!;
@@ -337,6 +346,8 @@ function makeInsertMouseDownHandler(edge: number) {
     poly.setDimensions();
     poly.controls = buildEditControls(poly);
     poly.setCoords();
+    // Commit on release even if the pointer never moves.
+    transform.actionPerformed = true;
 
     const key = `p${insertIndex}`;
     const vertexControl = poly.controls[key];
@@ -349,7 +360,6 @@ function makeInsertMouseDownHandler(edge: number) {
     transform.actionHandler = vertexControl.actionHandler;
     poly.__corner = key;
 
-    vertexControl.actionHandler(eventData, transform, x, y);
     poly.set('dirty', true);
     poly.canvas?.requestRenderAll();
     return true;

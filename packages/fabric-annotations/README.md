@@ -37,13 +37,14 @@ npm install @osdlabel/fabric-annotations fabric
 `PolyVertexEditor` builds on Fabric v7's native poly controls
 (`controlsUtils.createPolyControls`) and adds three things on top: a configurable
 **long-press** to enter a sticky edit mode (tablet-friendly), **edge-insertion**
-handles at edge midpoints that splice in a new vertex and continue the same
-drag, and **vertex deletion** via `Delete`/`Backspace`, honoring per-shape
-minimums (3 points for a polygon, 2 for a polyline).
+handles at edge midpoints that splice in a new vertex (a click inserts it at the
+midpoint; a drag moves it with the pointer until release), and **vertex
+deletion** via `Delete`/`Backspace`, honoring per-shape minimums (3 points for a
+polygon, 2 for a polyline).
 
 It is owned by the Select, Polyline, and free-draw tools, so it is active
-automatically — vertex moves commit through the same `object:modified` →
-`getGeometryFromFabricObject` path as any other edit. Tune the gesture through
+automatically — every vertex move, insertion and deletion commits through the
+same `object:modified` → `getGeometryFromFabricObject` path as any other edit. Tune the gesture through
 `SelectTool`'s constructor, or through the `vertexEditLongPressMs` /
 `vertexEditMoveTolerancePx` props on the framework `Annotator`.
 
