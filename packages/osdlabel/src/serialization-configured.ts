@@ -3,6 +3,7 @@ import type { ImageId } from '@osdlabel/viewer-api';
 import type { AnnotationState } from '@osdlabel/viewer-api';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
 import { OsdAnnotationSchema } from '@osdlabel/validation';
+import { migrateLegacyRectangle } from '@osdlabel/fabric-annotations';
 import type { OsdFields } from './types.js';
 import * as v from 'valibot';
 
@@ -36,7 +37,11 @@ export function deserialize(doc: unknown): DeserializeResult<OsdFields> {
   }
 
   const byImage: Record<ImageId, Record<AnnotationId, Annotation<OsdFields>>> = {};
-  for (const ann of annotations) {
+  for (const parsed of annotations) {
+    // Rectangles saved before they were placed by their centre recorded a
+    // corner they were not painted at; their geometry is corrected here, so
+    // what is measured and exported matches what is on screen.
+    const ann = migrateLegacyRectangle(parsed);
     const existing = byImage[ann.imageId];
     if (existing) {
       existing[ann.id] = ann;
