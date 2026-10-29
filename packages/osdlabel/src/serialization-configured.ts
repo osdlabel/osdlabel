@@ -30,13 +30,19 @@ export function serialize(state: AnnotationState<OsdFields>): Annotation<OsdFiel
  *
  * Each annotation is checked with `OsdAnnotationSchema` from
  * `@osdlabel/validation`: its base fields, `imageId`, `contextId`, its saved
- * Fabric object in `rawAnnotationData`, and that the saved object is the
+ * Fabric object in `rawAnnotationData`, that the saved object is the
  * Fabric class that paints its geometry's type (`Rect` for a rectangle,
- * `Circle` for a circle or a point, `Line`, `Polyline`, `Polygon`). If any
- * annotation fails, nothing is returned: it throws a
- * {@link SerializationError} whose message names the first problem. For a payload of the wrong class,
- * that is the annotation's id, its geometry type, the class it holds and the
- * class it needs.
+ * `Circle` for a circle or a point, `Line`, `Polyline`, `Polygon`), and that
+ * its `toolType` is a tool that draws that type (the tool of the same name for
+ * a rectangle, circle, line or point, `polyline` or `freeHandPath` for a
+ * polyline or a polygon). Constraints count annotations by `toolType`, so an
+ * annotation recorded under another tool would count against that tool's
+ * limit. If any annotation fails, nothing is returned: it throws a
+ * {@link SerializationError} whose message names the first problem. For a
+ * payload of the wrong class, that is the annotation's id, its geometry type,
+ * the class it holds and the class it needs; for a `toolType` that does not
+ * draw its geometry, the annotation's id, its geometry type, its `toolType`
+ * and the tool types that draw it.
  *
  * An annotation stores its shape twice, and each field is authoritative for
  * something different:

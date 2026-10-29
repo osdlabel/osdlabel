@@ -1296,11 +1296,11 @@ const annotation = createAnnotationFromGeometry(
 actions.addAnnotation(annotation);
 ```
 
-It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
+It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so, given a `toolType` that draws the geometry ([below](#choosing-a-tooltype)), the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
 
 ### Choosing a `toolType`
 
-`toolType` is recorded independently of `geometry.type`. For most shapes they match (`'rectangle'` ↔ `rectangle`, `'circle'` ↔ `circle`, …). The exception is freehand:
+`toolType` records which tool drew the annotation, and constraints count annotations by it: a context's limit on rectangles counts the annotations whose `toolType` is `'rectangle'`. Pass a tool that draws your geometry's type. For most shapes that is the tool of the same name. A path has two, because the polyline and freehand tools each draw an open path or close one:
 
 | `toolType`     | Resulting `geometry.type`                         |
 | -------------- | ------------------------------------------------- |
@@ -1308,10 +1308,18 @@ It accepts any `Geometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `
 | `circle`       | `circle`                                          |
 | `line`         | `line`                                            |
 | `point`        | `point`                                           |
-| `polyline`     | `polyline`                                        |
+| `polyline`     | `polyline` (open path) or `polygon` (closed path) |
 | `freeHandPath` | `polygon` (closed path) or `polyline` (open path) |
 
-The static `toolTypeToGeometryType('freeHandPath')` helper returns `polyline`, but the freehand **tool** produces a closed `polygon` by default at runtime (open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
+`deserialize` rejects any other pairing. Loaded, an annotation recorded under another tool would count against that tool's limit and free a place in its own: a rectangle recorded as `'line'` would use up one of the context's lines. The error names the annotation, its geometry type, its `toolType` and the tool types that draw it:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its toolType is "line", not "rectangle"
+```
+
+`createAnnotationFromGeometry` does not check the pairing, so an annotation built with another one is stored and counted as given, and its document is then refused when it is loaded.
+
+The static `toolTypeToGeometryType` helper returns one type per tool, `polyline` for both `'polyline'` and `'freeHandPath'`, but at runtime the polyline tool draws a closed `polygon` when the path is closed, and the freehand **tool** draws a closed `polygon` by default (an open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
 
 Multi-point shapes import the same way: pass `{ type: 'polyline', points }` (open) or `{ type: 'polygon', points }` (closed), where `points` is an array of image-space `{ x, y }` coordinates. Annotations drawn with the built-in freehand tool are already plain `polygon` / `polyline` geometry, so there is nothing special to handle when importing them either.
 
@@ -1355,6 +1363,7 @@ Validation checks include:
 - Numeric bounds checking (coordinates, dimensions)
 - Extension fields (when composed into a custom schema)
 - That the saved Fabric object is the class that paints the geometry's type (`OsdAnnotationSchema`, which is what `deserialize` uses; see [above](#geometry-and-the-saved-fabric-object))
+- That the `toolType` is a tool that draws the geometry's type (also `OsdAnnotationSchema`; see [Choosing a `toolType`](#choosing-a-tooltype))
 
 ## Listening to changes
 

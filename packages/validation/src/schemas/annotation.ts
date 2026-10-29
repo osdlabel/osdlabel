@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import type { GeometryType } from '@osdlabel/annotation';
+import type { GeometryType, ToolType } from '@osdlabel/annotation';
 import { GeometrySchema } from './geometry.js';
 import { ToolTypeSchema } from './tool.js';
 import { FabricRawAnnotationDataSchema } from './fabric-data.js';
@@ -42,9 +42,29 @@ const PAINTED_BY = {
   polygon: 'Polygon',
 } as const satisfies Record<GeometryType, string>;
 
-/** The part of a structurally valid annotation the cross-field check reads. */
+/**
+ * The geometry types each tool commits. Every shape tool commits its own type
+ * (`toolTypeToGeometryType`). The polyline and freehand tools commit a closed
+ * path as a `Polygon` and an open one as a `Polyline`, read back as polygon
+ * and polyline geometry. Converting a circle to a rectangle records the
+ * rectangle tool. Every release since 0.1.0 has saved exactly these pairings,
+ * so every document one exported passes.
+ */
+const DRAWS = {
+  rectangle: ['rectangle'],
+  circle: ['circle'],
+  line: ['line'],
+  point: ['point'],
+  polyline: ['polyline', 'polygon'],
+  freeHandPath: ['polyline', 'polygon'],
+} as const satisfies Record<ToolType, readonly GeometryType[]>;
+
+const TOOL_TYPES = Object.keys(DRAWS) as readonly ToolType[];
+
+/** The part of a structurally valid annotation the cross-field checks read. */
 interface PaintedAnnotation {
   readonly id: string;
+  readonly toolType: ToolType;
   readonly geometry: { readonly type: GeometryType };
   readonly rawAnnotationData: { readonly data: { readonly type: string } };
 }
@@ -62,10 +82,29 @@ function paintMismatchMessage(annotation: PaintedAnnotation): string {
   );
 }
 
+function draws(toolType: ToolType, geometryType: GeometryType): boolean {
+  const drawn: readonly GeometryType[] = DRAWS[toolType];
+  return drawn.includes(geometryType);
+}
+
+function drawsItsGeometry(annotation: PaintedAnnotation): boolean {
+  return draws(annotation.toolType, annotation.geometry.type);
+}
+
+function toolMismatchMessage(annotation: PaintedAnnotation): string {
+  const { id, geometry, toolType } = annotation;
+  const tools = TOOL_TYPES.filter((t) => draws(t, geometry.type));
+  return (
+    `Annotation "${id}" has ${geometry.type} geometry, but its toolType is "${toolType}", ` +
+    `not ${tools.map((t) => `"${t}"`).join(' or ')}`
+  );
+}
+
 /**
  * Schema for a whole {@link osdlabel!OsdAnnotation | OsdAnnotation}, as
  * `deserialize` validates each entry of a document: the base fields, the OSD
- * fields, and that the two halves describe the same kind of shape.
+ * fields, that the two halves describe the same kind of shape, and that the
+ * `toolType` is a tool that draws it.
  *
  * An annotation stores its shape twice. `rawAnnotationData` is the saved
  * Fabric object, and it is what is painted. `geometry` is what is measured,
@@ -81,11 +120,24 @@ function paintMismatchMessage(annotation: PaintedAnnotation): string {
  *
  * Only the kind is compared. Whether the payload sits where the geometry says
  * cannot be checked without Fabric, so it is not.
+ *
+ * The `toolType` must name a tool that draws the geometry's type: the tool of
+ * the same name for a rectangle, circle, line or point, and `polyline` or
+ * `freeHandPath` for a polyline or a polygon (either tool closes a path into
+ * a polygon). Constraints count annotations by `toolType`, so a rectangle
+ * recorded as drawn by the line tool would use up one of the context's lines
+ * and free one of its rectangles. It is rejected with an issue naming the
+ * annotation, its geometry type, its `toolType` and the tool types that draw
+ * it. When both checks fail, the payload's issue comes first.
  */
 export const OsdAnnotationSchema = v.pipe(
   v.intersect([BaseAnnotationSchema, OsdFieldsSchema]),
   v.check(
     (annotation) => paintsItsGeometry(annotation),
     (issue) => paintMismatchMessage(issue.input),
+  ),
+  v.check(
+    (annotation) => drawsItsGeometry(annotation),
+    (issue) => toolMismatchMessage(issue.input),
   ),
 );

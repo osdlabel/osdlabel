@@ -4,10 +4,15 @@
  * and the geometry is what is measured and exported, so an annotation whose
  * two disagree in kind (rectangle geometry, a Circle painted) would measure a
  * shape nobody sees.
+ *
+ * It also checks that the annotation's `toolType` names a tool that draws its
+ * geometry's type. Constraints count annotations by `toolType`, so a rectangle
+ * recorded as drawn by the line tool would use up a line and free a rectangle.
  */
 import { describe, expect, it } from 'vitest';
 import * as v from 'valibot';
 import { Circle, Line, Polygon, Polyline, Rect, type FabricObject } from 'fabric';
+import { toolTypeToGeometryType, type ToolType } from '@osdlabel/annotation';
 import { OsdAnnotationSchema } from '../../src/index.js';
 
 /** One geometry of each type. */
@@ -166,5 +171,98 @@ describe('OsdAnnotationSchema: the Fabric payload must paint the geometry', () =
     expect(result.issues!.map((issue) => issue.message)).toEqual([
       'Invalid key: Expected "rawAnnotationData" but received undefined',
     ]);
+  });
+});
+
+/** Every tool type, as `ToolTypeSchema` lists them. */
+const TOOL_TYPES = [
+  'rectangle',
+  'circle',
+  'line',
+  'point',
+  'polyline',
+  'freeHandPath',
+] as const satisfies readonly ToolType[];
+
+/**
+ * The geometry types each tool commits, read off the tools: every shape tool
+ * commits its own type, and the polyline and freehand tools commit a
+ * `Polygon` when the path is closed and a `Polyline` when it is open, which
+ * `getGeometryFromFabricObject` reads as polygon and polyline geometry. Every
+ * release since 0.1.0 has done the same.
+ */
+const DRAWS: Record<ToolType, readonly GeometryName[]> = {
+  rectangle: ['rectangle'],
+  circle: ['circle'],
+  line: ['line'],
+  point: ['point'],
+  polyline: ['polyline', 'polygon'],
+  freeHandPath: ['polyline', 'polygon'],
+};
+
+/** `geometry` with the payload that paints it, recorded as drawn by `toolType`. */
+function drawnBy(geometry: GeometryName, toolType: string): unknown {
+  const base = annotation(geometry, PAYLOADS[PAINTED_BY[geometry]]) as Record<string, unknown>;
+  return { ...base, toolType };
+}
+
+const toolPairings = TOOL_TYPES.flatMap((t) => geometryNames.map((g) => [t, g] as const));
+
+describe('OsdAnnotationSchema: the toolType must draw the geometry', () => {
+  it("every tool's static geometry type is among those it draws", () => {
+    for (const toolType of TOOL_TYPES) {
+      expect(DRAWS[toolType]).toContain(toolTypeToGeometryType(toolType));
+    }
+  });
+
+  it('there are 8 pairings a tool draws and 28 it does not', () => {
+    const drawn = toolPairings.filter(([t, g]) => DRAWS[t].includes(g));
+    expect(drawn).toHaveLength(8);
+    expect(toolPairings).toHaveLength(36);
+  });
+
+  it.each(toolPairings)('toolType %s with %s geometry', (toolType, geometry) => {
+    const result = v.safeParse(OsdAnnotationSchema, drawnBy(geometry, toolType));
+    expect(result.success).toBe(DRAWS[toolType].includes(geometry));
+  });
+
+  it('names the annotation, its geometry type, its toolType and the one it needs', () => {
+    const result = v.safeParse(OsdAnnotationSchema, drawnBy('rectangle', 'line'));
+    expect(result.success).toBe(false);
+    expect(result.issues).toBeDefined();
+    expect(result.issues!.map((issue) => issue.message)).toEqual([
+      'Annotation "ann-rectangle" has rectangle geometry, but its toolType is "line", not "rectangle"',
+    ]);
+  });
+
+  it('names both tools that draw a path', () => {
+    const result = v.safeParse(OsdAnnotationSchema, drawnBy('polygon', 'rectangle'));
+    expect(result.issues).toBeDefined();
+    expect(result.issues!.map((issue) => issue.message)).toEqual([
+      'Annotation "ann-polygon" has polygon geometry, but its toolType is "rectangle", not "polyline" or "freeHandPath"',
+    ]);
+  });
+
+  it('reports a wrong payload and a wrong toolType both, the payload first', () => {
+    const input = {
+      ...(annotation('rectangle', PAYLOADS.Circle) as Record<string, unknown>),
+      toolType: 'point',
+    };
+    const result = v.safeParse(OsdAnnotationSchema, input);
+    expect(result.issues).toBeDefined();
+    expect(result.issues!.map((issue) => issue.message)).toEqual([
+      'Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData is a Fabric Circle, not a Rect',
+      'Annotation "ann-rectangle" has rectangle geometry, but its toolType is "point", not "rectangle"',
+    ]);
+  });
+
+  it('reports a toolType no tool has as malformed, not as a mismatch', () => {
+    const result = v.safeParse(OsdAnnotationSchema, drawnBy('polygon', 'polygon'));
+    expect(result.success).toBe(false);
+    expect(result.issues).toBeDefined();
+    expect(result.issues!).toHaveLength(1);
+    expect(result.issues![0]!.message).toMatch(
+      /^Invalid type: Expected .* but received "polygon"$/,
+    );
   });
 });
