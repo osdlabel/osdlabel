@@ -51,6 +51,16 @@ export interface CreateAnnotationFromGeometryOptions {
  * the result always round-trips through `deserialize` →
  * `createFabricObjectFromRawData`.
  *
+ * Both halves come from the one `geometry`, so they agree, and that is the
+ * reason to build annotations here rather than by hand. An annotation stores
+ * its shape twice: `rawAnnotationData` is what is painted and what the user
+ * drags, `geometry` is what is measured, labelled and exported, and an edit
+ * recomputes `geometry` from the edited Fabric object. A hand-built pair that
+ * disagrees is drawn in one place and measured in another until its first
+ * edit. `deserialize` rejects a pair of different kinds, such as rectangle
+ * geometry with a `Circle` payload, but cannot see one that differs only in
+ * position, and `loadAnnotations` / `addAnnotation` check neither.
+ *
  * @example
  * ```ts
  * const annotation = createAnnotationFromGeometry(

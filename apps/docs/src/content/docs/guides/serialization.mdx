@@ -66,7 +66,7 @@ const { byImage } = deserialize(parsed);
 actions.loadAnnotations(byImage);
 ```
 
-`deserialize()` validates the basic structure of the array and throws `SerializationError` on invalid input. For deep validation, the library integrates with Valibot in `@osdlabel/validation`.
+`deserialize()` checks every annotation with `OsdAnnotationSchema` from `@osdlabel/validation` (see [Validation](#validation)). If any annotation is invalid it throws `SerializationError`, whose message names the first problem, and returns nothing, so a bad document is never half loaded.
 
 ### Flat out, keyed in
 
@@ -76,6 +76,37 @@ The two directions are intentionally **asymmetric**, and it trips people up:
 - **`deserialize(doc)` returns a keyed `{ byImage }` map** — `Record<ImageId, Record<AnnotationId, Annotation>>` — which is the exact shape `loadAnnotations` expects for the store.
 
 So: persist the **flat** array, load it back through `deserialize` to get the **keyed** map. If you keep your own annotation list (e.g. a flat `Annotation[]` from `onAnnotationsChange`), you still pass it through `deserialize` to seed the store.
+
+### Geometry and the saved Fabric object
+
+Every annotation stores its shape twice, and each copy is authoritative for something different:
+
+| Field               | Authoritative for                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `rawAnnotationData` | What is painted on the canvas, and what the user selects, drags, resizes and rotates                           |
+| `geometry`          | What is measured and labelled, what `boundingBox` and `centroid` read, and the shape hosts read from an export |
+
+When the user draws or edits a shape, both fields are written together from the same Fabric object: an edit recomputes `geometry` from the edited object. So the two agree in everything the annotator saves, except rectangles saved by releases up to 0.21.0 ([below](#rectangles-saved-by-earlier-releases)).
+
+A document edited by hand or written by another tool can pair them wrongly. `deserialize` rejects an annotation whose saved Fabric object is not the class that paints its geometry's type:
+
+| `geometry.type`   | Fabric class in `rawAnnotationData.data.type` |
+| ----------------- | --------------------------------------------- |
+| `rectangle`       | `Rect`                                        |
+| `circle`, `point` | `Circle`                                      |
+| `line`            | `Line`                                        |
+| `polyline`        | `Polyline`                                    |
+| `polygon`         | `Polygon`                                     |
+
+Fabric saves the class name capitalised, as above; the lowercase name, which Fabric also loads, is accepted too. The error names the annotation and both types:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData is a Fabric Circle, not a Rect
+```
+
+`deserialize` cannot tell whether the saved object sits where the geometry says: that needs Fabric to rebuild the object, and `deserialize` is synchronous. An annotation whose two fields describe the same kind of shape in different places loads as saved. It is painted from `rawAnnotationData`, measured from `geometry`, and its geometry moves to the painted shape the first time the user edits it.
+
+So don't pair the two fields by hand. Build annotations with [`createAnnotationFromGeometry`](#seeding-from-external-geometry), which writes both from one geometry. If you change an annotation's geometry outside the annotator, rebuild it the same way, with its `id`, `toolType`, `label` and style, rather than editing `geometry` alone. `loadAnnotations` and `initialAnnotations` check neither field, so pass data from outside your app through `deserialize` first.
 
 ### Rectangles saved by earlier releases
 
@@ -178,6 +209,7 @@ Validation checks include:
 - Geometry type and shape validation
 - Numeric bounds checking (coordinates, dimensions)
 - Extension fields (when composed into a custom schema)
+- That the saved Fabric object is the class that paints the geometry's type (`OsdAnnotationSchema`, which is what `deserialize` uses; see [above](#geometry-and-the-saved-fabric-object))
 
 ## Listening to changes
 
@@ -197,7 +229,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 
 ## Annotations that cannot be rendered
 
-`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type and that type's key fields, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
+`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type, that type's key fields and that the type matches the geometry's, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
 
 Such an annotation is skipped on the canvas and stays in state, and every other annotation on the image still renders. Its decorations, such as labels and measurements, are derived from its geometry rather than from the canvas object, so they still appear where the shape would be. By default it is reported with a `console.warn` naming the annotation and its image. Pass `onAnnotationRenderError` to handle it yourself:
 

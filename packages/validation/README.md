@@ -33,6 +33,14 @@ if (result.success) {
 }
 ```
 
+Besides each field, `OsdAnnotationSchema` checks that an annotation's saved
+Fabric object is the class that paints its geometry's type: `Rect` for a
+rectangle, `Circle` for a circle or a point, `Line`, `Polyline` and `Polygon`
+for the others. The saved object is what is painted and the geometry is what is
+measured, so a mismatch is reported with an issue naming the annotation and
+both types. `deserialize` in `osdlabel` validates each annotation with this
+schema.
+
 ## License
 
 BSD-3-Clause. Part of the [osdlabel](https://github.com/osdlabel/osdlabel) monorepo.

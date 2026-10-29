@@ -24,7 +24,36 @@ export function serialize(state: AnnotationState<OsdFields>): Annotation<OsdFiel
   return getAllAnnotationsFlat(state);
 }
 
-/** Deserialize with OSD field validation (contextId + rawAnnotationData) */
+/**
+ * Validate a document (a flat annotation array, as {@link serialize} returns
+ * it) and group it by image, the shape `loadAnnotations` takes.
+ *
+ * Each annotation is checked with `OsdAnnotationSchema` from
+ * `@osdlabel/validation`: its base fields, `imageId`, `contextId`, its saved
+ * Fabric object in `rawAnnotationData`, and that the saved object is the
+ * Fabric class that paints its geometry's type (`Rect` for a rectangle,
+ * `Circle` for a circle or a point, `Line`, `Polyline`, `Polygon`). If any
+ * annotation fails, nothing is returned: it throws a
+ * {@link SerializationError} whose message names the first problem. For a payload of the wrong class,
+ * that is the annotation's id, its geometry type, the class it holds and the
+ * class it needs.
+ *
+ * An annotation stores its shape twice, and each field is authoritative for
+ * something different:
+ *
+ * - `rawAnnotationData` is what is painted, and what the user drags.
+ * - `geometry` is what is measured, labelled and exported.
+ * - Editing the shape recomputes `geometry` from the edited Fabric object.
+ *
+ * Only their kind is compared here. Whether the payload sits where the
+ * geometry says needs Fabric to answer, so it is not checked, and an
+ * annotation whose two fields disagree in place loads as saved: it is painted
+ * from its payload and measured from its geometry until its first edit.
+ * Build annotations with `createAnnotationFromGeometry`, which writes both
+ * from one geometry, rather than pairing them by hand.
+ *
+ * @throws {SerializationError} when `doc` is not a valid document.
+ */
 export function deserialize(doc: unknown): DeserializeResult<OsdFields> {
   let annotations: Annotation<OsdFields>[];
   try {
