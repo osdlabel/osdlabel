@@ -151,6 +151,40 @@ export abstract class BaseTool implements AnnotationTool {
     this.shortcuts = null;
   }
 
+  /**
+   * The distance on screen, in CSS pixels, between two image-space points.
+   *
+   * Taken through the overlay's `imageToScreen`, so it is exact under any
+   * zoom, rotation or flip the view applies, and a tool needs nothing from
+   * OpenSeaDragon to measure. `Infinity` while the tool is inactive, so a
+   * size check made then never discards anything.
+   */
+  protected screenDistance(a: Point, b: Point): number {
+    if (!this.overlay) return Infinity;
+    const p = this.overlay.imageToScreen(a);
+    const q = this.overlay.imageToScreen(b);
+    return Math.hypot(q.x - p.x, q.y - p.y);
+  }
+
+  /**
+   * Whether the path through `points` is smaller on screen than `minimum` CSS
+   * pixels: every two of its points lie less than `minimum` apart, measured
+   * with {@link BaseTool.screenDistance}, in the view as it is now. Such a
+   * path paints no larger than a dot of that size, however many points it
+   * has or whichever of them it starts from.
+   *
+   * It stops at the first two points that are far enough apart, so a path of
+   * any real size is judged from its first few points.
+   */
+  protected isSmallerOnScreenThan(points: readonly Point[], minimum: number): boolean {
+    for (let i = 1; i < points.length; i++) {
+      for (let j = 0; j < i; j++) {
+        if (this.screenDistance(points[j]!, points[i]!) >= minimum) return false;
+      }
+    }
+    return true;
+  }
+
   /** No-op by default; tools with a double-click gesture override this. */
   onDoubleClick(_event: PointerEvent, _imagePoint: Point): void {}
 

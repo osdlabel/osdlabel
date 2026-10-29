@@ -615,6 +615,8 @@ osdlabel provides six geometric annotation tools:
 
 A click without a drag draws nothing with the rectangle, circle or line tool. On release, a shape smaller than 3 screen pixels ([`MIN_SHAPE_SCREEN_PX`](/osdlabel/api/reference/osdlabel/fabric-annotations/variables/min_shape_screen_px/)) is discarded rather than stored, measured as a rectangle's shorter side, a circle's diameter or a line's length. A stray click therefore leaves no invisible annotation behind, and does not count toward a context's `maxCount`. The minimum is in screen pixels, so it is the same at every zoom: to draw a shape smaller than that, zoom in. The point tool is exempt, since a click is how a point is placed.
 
+Paths follow the same rule when they are finished. A path or free-hand stroke whose points all lie within 3 screen pixels of one another is discarded rather than stored, however it was finished: clicks at one spot ended with a double click, `Enter` or `c`, or with a click back on the first point, or a free-hand tap or scribble that never leaves one spot. The tool is then ready to start a new path. A path that reaches 3 pixels in any direction is kept, however small its area: a thin path still paints its outline. As for shapes, the size is judged in the view when the path is finished.
+
 ## Drawing workflow
 
 1. Select a drawing tool (toolbar click or keyboard shortcut)

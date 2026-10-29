@@ -10,6 +10,7 @@ import {
 import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { getFabricOptions } from '../fabric-utils.js';
 import { getPreviewOptions } from '../preview-style.js';
+import { MIN_SHAPE_SCREEN_PX } from './shape-tool.js';
 import { VertexMarkerLayer, type VertexMarkerOptions } from '../vertex-markers.js';
 import type { ToolOverlay } from '../types.js';
 import type { ToolCallbacks } from './base-tool.js';
@@ -275,6 +276,16 @@ export class PolylineTool extends BaseTool {
     return dist < CLOSE_THRESHOLD_SCREEN_PX;
   }
 
+  /**
+   * Commit the path, as a polygon when `closed`. Every way of finishing comes
+   * here: a double click, the finish and close keys, and a click on the first
+   * vertex.
+   *
+   * A path too short to be one, or smaller on screen than
+   * {@link MIN_SHAPE_SCREEN_PX} (clicks at one spot, say), is discarded
+   * instead, preview and markers with it, leaving the tool ready for a new
+   * path.
+   */
   private finish(closed: boolean) {
     if (!this.overlay || !this.imageId || !this.callbacks) {
       this.cancel();
@@ -284,6 +295,15 @@ export class PolylineTool extends BaseTool {
     // Need at least 2 points for an open path, 3 for a closed polygon
     const minPoints = closed ? 3 : 2;
     if (this.vertices.length < minPoints) {
+      this.cancel();
+      return;
+    }
+
+    // Too small to see, such as two clicks at one spot and Enter: discard it
+    // rather than store an invisible annotation that still counts toward
+    // maxCount. Measured across the whole path, so a path that reaches the
+    // minimum in any direction is kept.
+    if (this.isSmallerOnScreenThan(this.vertices, MIN_SHAPE_SCREEN_PX)) {
       this.cancel();
       return;
     }
