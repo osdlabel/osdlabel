@@ -117,7 +117,7 @@ function fakeActiveSelection(children: readonly FabricObject[]): FabricObject {
 }
 
 describe('enableLiveDecorationUpdates', () => {
-  it('subscribes to object:moving, object:scaling, and object:rotating', () => {
+  it('subscribes to object:moving, object:scaling, object:rotating, and object:skewing', () => {
     const rig = createRig();
     const dispose = enableLiveDecorationUpdates({
       overlay: rig.overlay,
@@ -126,10 +126,71 @@ describe('enableLiveDecorationUpdates', () => {
       getProviders: () => [],
       onDecorations: vi.fn(),
     });
-    expect(rig.canvas.on).toHaveBeenCalledTimes(3);
+    expect(rig.canvas.on).toHaveBeenCalledTimes(4);
     const events = rig.canvas.on.mock.calls.map((c) => c[0]);
-    expect(events).toEqual(['object:moving', 'object:scaling', 'object:rotating']);
+    expect(events).toEqual([
+      'object:moving',
+      'object:scaling',
+      'object:rotating',
+      'object:skewing',
+    ]);
     dispose();
+  });
+
+  /**
+   * Shift + a side handle shears a line, polyline or polygon (Fabric's
+   * `altActionKey`), and Fabric reports each step with `object:skewing`, not
+   * `object:scaling`. Their stored points follow the shear, so their labels
+   * must too, while it is dragged.
+   */
+  it('re-runs the providers with the live geometry on object:skewing', () => {
+    const rig = createRig();
+    const stored: Annotation = {
+      id: annId('p'),
+      geometry: {
+        type: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
+        ],
+      },
+      toolType: 'polyline',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const sheared: Annotation['geometry'] = {
+      type: 'polygon',
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 14, y: 10 },
+        { x: 4, y: 10 },
+      ],
+    };
+    const seen: Annotation['geometry'][] = [];
+    const onDecorations = vi.fn();
+    enableLiveDecorationUpdates({
+      overlay: rig.overlay,
+      getVisibleAnnotations: () => [stored],
+      getPixelSpacing: () => undefined,
+      getProviders: () => [
+        ({ annotations }) => {
+          seen.push(annotations[0]!.geometry);
+          return [];
+        },
+      ],
+      onDecorations,
+    });
+
+    rig.fire('object:skewing', fakeFabricTarget('p', sheared));
+    rig.fire('object:skewing', fakeFabricTarget('p', sheared));
+    expect(rafQueue, 'one frame for both events').toHaveLength(1);
+    rig.flushRAF();
+
+    expect(onDecorations).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual([sheared]);
   });
 
   it('throttles multiple events within a frame to one onDecorations call', () => {
@@ -154,6 +215,7 @@ describe('enableLiveDecorationUpdates', () => {
     rig.fire('object:moving', t);
     rig.fire('object:scaling', t);
     rig.fire('object:rotating', t);
+    rig.fire('object:skewing', t);
     expect(onDecorations).not.toHaveBeenCalled();
     rig.flushRAF();
     expect(onDecorations).toHaveBeenCalledTimes(1);
@@ -384,6 +446,7 @@ describe('enableLiveDecorationUpdates', () => {
     rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     rig.fire('object:scaling', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     rig.fire('object:rotating', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
+    rig.fire('object:skewing', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     expect(rafQueue).toHaveLength(0);
   });
 
@@ -400,7 +463,10 @@ describe('enableLiveDecorationUpdates', () => {
     rig.fire('object:moving', fakeFabricTarget('x', null as unknown as Annotation['geometry']));
     // rAF scheduled but not yet flushed
     dispose();
-    expect(rig.canvas.off).toHaveBeenCalledTimes(3);
+    expect(rig.canvas.off).toHaveBeenCalledTimes(4);
+    for (const event of ['object:moving', 'object:scaling', 'object:rotating', 'object:skewing']) {
+      expect(rig.handlers[event] ?? [], `${event} listeners left`).toHaveLength(0);
+    }
     expect(rig.cancelSubscribers.size).toBe(0);
     rig.flushRAF();
     // Even if the cancelAnimationFrame mock didn't fully clear, the disposed

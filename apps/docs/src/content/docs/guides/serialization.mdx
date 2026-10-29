@@ -138,6 +138,8 @@ Up to 0.21.0, the select tool's handles could make a shape its geometry cannot d
 
 Such an annotation loads as saved: it still paints the sheared or stretched shape, and its geometry is what it was. The first time it is edited (moved, resized or rotated), its Fabric data is replaced with data that paints its geometry, in the same style, and the shape on screen snaps to what its measurements, labels and exports already described. Nothing changes it on load, and there is no migration helper for it.
 
+Points follow the same rule. A point's dot is always drawn at its style's radius, the `radius` its Fabric `Circle` was saved with. A point saved with a scale or a skew on that `Circle` still paints the dot it saved, larger, smaller or slanted, until its next edit redraws it at that radius.
+
 ## Seeding from external geometry
 
 Loading already-serialized osdlabel documents is just `deserialize` (above). The harder case is **importing annotations from another system** — you have raw geometry (a bounding box from a detector, a contour from a segmentation model, points from a CSV) but no Fabric `rawAnnotationData` envelope.

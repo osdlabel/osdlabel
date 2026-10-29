@@ -646,7 +646,7 @@ Press `v` (or click the select tool) to enter selection mode:
 - **Escape** deselects the current annotation
 - **Delete** / **Backspace** deletes the selected annotation
 
-To edit several annotations together, drag a box from empty canvas over them, or **Shift+click** to add or remove one at a time. A multi-selection can be moved, rotated with its rotation control, and resized from its corners only. It always keeps its proportions, even with Shift held: stretching it would skew a rotated rectangle or turn a circle into an ellipse, which their geometry cannot record. The edit saves every annotation in the selection as one change, and the selection stays selected. Only the select tool selects by drag-box, so dragging a drawing tool across existing annotations selects none of them.
+To edit several annotations together, drag a box from empty canvas over them, or **Shift+click** to add or remove one at a time. A multi-selection can be moved, rotated with its rotation control, and resized from its corners only. It always keeps its proportions, even with Shift held: stretching it would skew a rotated rectangle or turn a circle into an ellipse, which their geometry cannot record. Resizing it moves the point annotations in it apart or together, but each one's dot keeps its size: a point is a position, and its dot is always drawn at its style's radius. The edit saves every annotation in the selection as one change, and the selection stays selected. Only the select tool selects by drag-box, so dragging a drawing tool across existing annotations selects none of them.
 
 ## Pan and zoom in annotation mode
 
@@ -1287,6 +1287,8 @@ It is a separate module that nothing else imports, so a bundle that does not use
 Up to 0.21.0, the select tool's handles could make a shape its geometry cannot describe. **Shift** with a side handle sheared a rectangle into a parallelogram, or a circle into a slanted ellipse, and a circle's side handles, or **Shift** with a corner, stretched it into an ellipse. The geometry kept the rectangle about the same centre, unsheared, or a circle of the larger radius, while the saved Fabric data kept the shape on screen. The handles no longer do either.
 
 Such an annotation loads as saved: it still paints the sheared or stretched shape, and its geometry is what it was. The first time it is edited (moved, resized or rotated), its Fabric data is replaced with data that paints its geometry, in the same style, and the shape on screen snaps to what its measurements, labels and exports already described. Nothing changes it on load, and there is no migration helper for it.
+
+Points follow the same rule. A point's dot is always drawn at its style's radius, the `radius` its Fabric `Circle` was saved with. A point saved with a scale or a skew on that `Circle` still paints the dot it saved, larger, smaller or slanted, until its next edit redraws it at that radius.
 
 ## Seeding from external geometry
 
@@ -2173,11 +2175,11 @@ export const lineRatioHudProvider: DecorationProvider = ({ annotations, pixelSpa
 };
 ```
 
-Because the anchor is `{ x: 1, y: 0 }` in `'cell'` space with `placement: 'top-right'`, the readout's top-right corner sits 8px in from the cell's own top-right corner, no matter how the user has panned, zoomed, rotated, or flipped the image underneath — only editing the annotations (or resizing the cell) moves it. Live drag updates work exactly as for image-anchored decorations: while the user moves, scales, or rotates `first` or `second`, `enableLiveDecorationUpdates` re-runs this provider against the live geometry every animation frame, so the ratio text updates mid-drag and the readout stays HUD-fixed throughout. Vertex (endpoint) edits are committed on release, so for those the readout updates when the drag ends.
+Because the anchor is `{ x: 1, y: 0 }` in `'cell'` space with `placement: 'top-right'`, the readout's top-right corner sits 8px in from the cell's own top-right corner, no matter how the user has panned, zoomed, rotated, or flipped the image underneath — only editing the annotations (or resizing the cell) moves it. Live drag updates work exactly as for image-anchored decorations: while the user moves, scales, rotates or shears `first` or `second`, `enableLiveDecorationUpdates` re-runs this provider against the live geometry every animation frame, so the ratio text updates mid-drag and the readout stays HUD-fixed throughout. Vertex (endpoint) edits are committed on release, so for those the readout updates when the drag ends.
 
 ## Live updates during drag
 
-When the user moves, scales, or rotates an annotation, providers are re-run against the live Fabric geometry on every frame (throttled to `requestAnimationFrame`, capped at 60 fps). Labels and connector lines track the shape smoothly instead of snapping only on commit.
+When the user moves, scales, rotates or shears an annotation (**Shift** with a side handle shears a line, polyline or polygon), providers are re-run against the live Fabric geometry on every frame (throttled to `requestAnimationFrame`, capped at 60 fps). Labels and connector lines track the shape smoothly instead of snapping only on commit.
 
 This wiring is handled automatically inside `Annotator` / `ViewerCell` — there's nothing you need to do.
 
@@ -2831,7 +2833,7 @@ Fabric reports a finished move, resize or rotation with `object:modified`. Both 
 
 - **It fires while the transform is still current.** Fabric ends the transform only after its listeners return. A commit that rebuilds the canvas at once removes the edited object mid-transform; Solid's store runs the rebuild synchronously, so it did. Fabric's discard then ended the transform itself and reported the same edit again, and every Solid drag was committed twice. So every commit waits for a microtask, by which time Fabric has finished the pointer release.
 - **A multi-selection is reported as one event about the selection.** The target is the `ActiveSelection` itself, which has no annotation id. Every member is still inside it, its `left`/`top`/scale/angle relative to the group. Fabric does not dissolve the selection first. It bakes the group's transform into each member only when the selection is discarded, and fires nothing then. So the commit dissolves it (`dissolveGroupSelection`) and reads each member on its own. It saves them all with one `UPDATE_ANNOTATIONS`, so the canvas is rebuilt once. Then it selects the same annotations again once the rebuild has added their new objects (`reselectWhenAdded`). A selection discarded before the event, say by a tool switch mid-drag, commits the members it held when the transform began (`before:transform`).
-- **A stretch baked into a rotated member skews it.** A rectangle would become a parallelogram and a circle an ellipse, which their geometry cannot record. So every selection is uniform-only (`configureGroupSelection`): four corner handles that keep proportions whatever the modifier, the rotation handle, no side handles, and skew locked. Uniform scale commutes with rotation, so each baked member is still the shape it was.
+- **A stretch baked into a rotated member skews it.** A rectangle would become a parallelogram and a circle an ellipse, which their geometry cannot record. So every selection is uniform-only (`configureGroupSelection`): four corner handles that keep proportions whatever the modifier, the rotation handle, no side handles, and skew locked. Uniform scale commutes with rotation, so each baked member is still the shape it was. A point's dot does take the scale, though a point has no size: `processObjectModified` redraws any point whose object is scaled or skewed at its style's radius, the `radius` its `Circle` was saved with.
 
 Group selection itself, by drag-box or Shift+click, belongs to the select tool. `setMode('annotation')` leaves Fabric's `canvas.selection` off, and `SelectTool` turns it on while active. When it was on for every tool, a drawing drag across existing shapes also ran Fabric's drag-box. It left them selected, and, once the canvas was rebuilt, the selection held objects no longer on it.
 

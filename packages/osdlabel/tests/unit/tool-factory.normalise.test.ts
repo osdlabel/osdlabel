@@ -3,11 +3,14 @@
  * `object:modified`, for shapes other than rectangles (those are pinned in the
  * rectangle suite, `rectangle-annotation.test.ts`):
  *
- * - a circle stretched (`scaleX` ≠ `scaleY`) or sheared (a skew), and a point
- *   sheared, are shapes their geometry cannot describe. The commit stores the
- *   geometry read back, by the rule it always used (a circle's radius is
+ * - a circle stretched (`scaleX` ≠ `scaleY`) or sheared (a skew) is a shape
+ *   its geometry cannot describe. The commit stores the geometry read back, by
+ *   the rule it always used (a circle's radius is
  *   `radius · max(|scaleX|, |scaleY|)`), and replaces the Fabric data with
  *   data that paints exactly that geometry, in the same style;
+ * - a point's dot is drawn at its style's radius, never scaled or sheared: a
+ *   point committed with any scale other than 1, or any skew, keeps its
+ *   position and gets data for a dot of that radius, in the same style;
  * - an edit that leaves a describable shape is committed as Fabric serialized
  *   it, untouched;
  * - lines, polylines and polygons store points read through the object's
@@ -15,16 +18,18 @@
  *
  * The circle handles can no longer stretch or shear a circle (fabric-annotations'
  * `shape-controls.test.ts`); what reaches this path is data saved by an earlier
- * release, or a host's own Fabric code.
+ * release, or a host's own Fabric code. A point has no handles, but a scaled
+ * multi-selection bakes its scale into the dot (`object-modified.test.ts`).
  */
 import { describe, expect, it } from 'vitest';
 import { Circle, FabricObject, Polygon, util } from 'fabric';
-import type {
-  AnnotationStyle,
-  CircleGeometry,
-  Geometry,
-  Point,
-  PolygonGeometry,
+import {
+  DEFAULT_POINT_RADIUS,
+  type AnnotationStyle,
+  type CircleGeometry,
+  type Geometry,
+  type Point,
+  type PolygonGeometry,
 } from '@osdlabel/annotation';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import {
@@ -45,6 +50,9 @@ const contextId = createAnnotationContextId('ctx-object-modified');
 /** `toObject()` rounds to 4 decimals: a reloaded outline may move this much. */
 const SAVED_TOLERANCE = 1e-3;
 
+/** The test style's point radius, in image px: not {@link DEFAULT_POINT_RADIUS}. */
+const POINT_RADIUS = 7;
+
 const STYLE: AnnotationStyle = {
   strokeColor: '#1a2b3c',
   strokeWidth: 3,
@@ -52,7 +60,7 @@ const STYLE: AnnotationStyle = {
   fillColor: '#00ff88',
   fillOpacity: 0.35,
   opacity: 0.8,
-  pointRadius: 7,
+  pointRadius: POINT_RADIUS,
 };
 
 /** The fields `getFabricOptions` writes: the annotation's style. */
@@ -212,33 +220,101 @@ describe('processObjectModified', () => {
     });
   });
 
-  describe('a point', () => {
-    it('sheared: commits its position, and data for an unsheared dot of the same size and style', async () => {
-      const stored = create({ type: 'point', position: { x: 90.5, y: 61.25 } });
+  /**
+   * A point's geometry is a position: it has no size. Its dot is drawn at its
+   * style's radius (`AnnotationStyle.pointRadius`, which the point's `Circle`
+   * carries as its `radius`), never scaled or sheared. A point has no handles,
+   * but a multi-selection that is scaled bakes its scale into the dot, and
+   * host code can set any transform; the commit redraws it at its radius.
+   */
+  describe('a point, whose dot is drawn at its style radius', () => {
+    const POSITION: Point = { x: 90.5, y: 61.25 };
+    const MOVED: Point = { x: 94.5, y: 61.25 };
+
+    const CASES = [
+      { name: 'scaled 1.7', props: { scaleX: 1.7, scaleY: 1.7 } },
+      { name: 'shrunk to 0.4', props: { scaleX: 0.4, scaleY: 0.4 } },
+      { name: 'stretched along x and squashed along y', props: { scaleX: 1.7, scaleY: 0.6 } },
+      { name: 'sheared', props: { skewX: 30 } },
+      { name: 'sheared and scaled 1.7', props: { skewY: -20, scaleX: 1.7, scaleY: 1.7 } },
+      { name: 'scaled 1.7 and turned', props: { scaleX: 1.7, scaleY: 1.7, angle: 40 } },
+    ] as const;
+
+    it.each(CASES)(
+      '$name, and moved: commits its position, and data for an unscaled, unsheared dot of its style radius',
+      async ({ props }) => {
+        const stored = create({ type: 'point', position: POSITION });
+        const dot = asCircleObject(await load(stored));
+        dot.set({ ...props, left: dot.left + 4 });
+        dot.setCoords();
+        // The premise: what is painted is not a dot of the style's radius.
+        expect(deviationFrom(dot, MOVED, POINT_RADIUS)).toBeGreaterThan(1);
+
+        const committed = commit(dot, stored);
+        expect(committed.geometry).toStrictEqual({ type: 'point', position: MOVED });
+        expect(committed.rawAnnotationData.data).toMatchObject({
+          type: 'Circle',
+          radius: POINT_RADIUS,
+          scaleX: 1,
+          scaleY: 1,
+          skewX: 0,
+          skewY: 0,
+          left: MOVED.x,
+          top: MOVED.y,
+        });
+        expectStyleKept(committed, stored);
+        const reloaded = asCircleObject(await reloadCommitted(committed, stored));
+        expect(reloaded.hasControls).toBe(false);
+        expect(deviationFrom(reloaded, MOVED, POINT_RADIUS)).toBeLessThanOrEqual(SAVED_TOLERANCE);
+      },
+    );
+
+    it('of the default style: is redrawn at DEFAULT_POINT_RADIUS, not at the custom radius', async () => {
+      const stored = createAnnotationFromGeometry(
+        { type: 'point', position: POSITION },
+        { imageId, contextId, toolType: 'point' },
+      );
       const dot = asCircleObject(await load(stored));
-      dot.set({ skewX: 30, left: dot.left + 4 });
+      expect(dot.radius).toBe(DEFAULT_POINT_RADIUS);
+      dot.set({ scaleX: 1.7, scaleY: 1.7 });
       const committed = commit(dot, stored);
-      expect(committed.geometry).toStrictEqual({ type: 'point', position: { x: 94.5, y: 61.25 } });
       expect(committed.rawAnnotationData.data).toMatchObject({
-        type: 'Circle',
-        radius: 7,
-        skewX: 0,
-        skewY: 0,
-        left: 94.5,
-        top: 61.25,
+        radius: DEFAULT_POINT_RADIUS,
+        scaleX: 1,
+        scaleY: 1,
       });
-      expectStyleKept(committed, stored);
       const reloaded = asCircleObject(await reloadCommitted(committed, stored));
-      expect(reloaded.hasControls).toBe(false);
-      expect(deviationFrom(reloaded, { x: 94.5, y: 61.25 }, 7)).toBeLessThanOrEqual(
+      expect(deviationFrom(reloaded, POSITION, DEFAULT_POINT_RADIUS)).toBeLessThanOrEqual(
         SAVED_TOLERANCE,
       );
     });
 
-    it('moved: committed as Fabric serialized it', async () => {
-      const stored = create({ type: 'point', position: { x: 90.5, y: 61.25 } });
+    it("keeps the host's own custom properties when it redraws the dot", async () => {
+      const registered = FabricObject.customProperties;
+      FabricObject.customProperties = [...registered, 'reviewer'];
+      try {
+        const stored = create({ type: 'point', position: POSITION });
+        const dot = asCircleObject(await load(stored));
+        dot.set({ scaleX: 1.7, scaleY: 1.7 });
+        (dot as FabricObject & { reviewer?: string }).reviewer = 'dr-who';
+        const committed = commit(dot, stored);
+        expect(committed.rawAnnotationData.data).toMatchObject({
+          scaleX: 1,
+          radius: POINT_RADIUS,
+          reviewer: 'dr-who',
+        });
+      } finally {
+        FabricObject.customProperties = registered;
+      }
+    });
+
+    it.each([
+      { name: 'moved', props: { left: 78.5, top: 64.25 } },
+      { name: 'turned and moved', props: { angle: 40, left: 78.5, top: 64.25 } },
+    ])('$name only: committed as Fabric serialized it', async ({ props }) => {
+      const stored = create({ type: 'point', position: POSITION });
       const dot = await load(stored);
-      dot.set({ left: dot.left - 12, top: dot.top + 3 });
+      dot.set(props);
       expect(commit(dot, stored).rawAnnotationData).toStrictEqual(serializeFabricObject(dot));
     });
   });

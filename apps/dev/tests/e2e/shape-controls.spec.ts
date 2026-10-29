@@ -13,7 +13,11 @@
  * - Shift + a press where a side handle was takes the circle's body: it moves
  *   the circle, and nothing is sheared;
  * - Shift + a side handle still shears a line or a polygon, whose stored
- *   points are read through the whole transform, so they follow the shear.
+ *   points are read through the whole transform, so they follow the shear;
+ * - and their measurement label follows the shear while it is dragged, as it
+ *   follows a move, a resize or a rotation. Fabric reports a shear with
+ *   `object:skewing`, which the live decorations did not listen for, so the
+ *   label stayed put for the whole drag and jumped on release.
  *
  * After every edit the painted pixels are judged against the stored geometry.
  * Rectangles are covered by the rectangle suite (`rectangle/rectangle-shift.spec.ts`).
@@ -286,6 +290,121 @@ async function expectEdgesPaintedAs(page: Page, g: PointsGeometry, what: string)
   await expectProbes(page, view, probes, `${what} (${JSON.stringify(g.points)})`);
 }
 
+// ── Labels ───────────────────────────────────────────────────────────────────
+
+/**
+ * The points Fabric paints for the selected line's ends or polygon's vertices
+ * at this moment, in image px: its own points through its whole transform, as
+ * the canvas draws them. Read mid-drag, this is the shape on screen, which
+ * state does not hold until the release.
+ */
+async function paintedPointsOfSelection(page: Page): Promise<Point[]> {
+  return page.evaluate(() => {
+    interface Shape {
+      calcTransformMatrix(): number[];
+      points?: { x: number; y: number }[];
+      pathOffset?: { x: number; y: number };
+      x1?: number;
+      y1?: number;
+      x2?: number;
+      y2?: number;
+    }
+    const host = document.querySelector('.openseadragon-canvas') as
+      | (Element & { __osdOverlay?: { canvas: { getActiveObject(): Shape | null | undefined } } })
+      | null;
+    const overlay = host?.__osdOverlay;
+    if (!overlay) throw new Error('overlay test hook not installed');
+    const active = overlay.canvas.getActiveObject();
+    if (!active) throw new Error('nothing is selected');
+    const [a, b, c, d, e, f] = active.calcTransformMatrix() as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ];
+    let local: { x: number; y: number }[];
+    if (active.points && active.pathOffset) {
+      const offset = active.pathOffset;
+      local = active.points.map((p) => ({ x: p.x - offset.x, y: p.y - offset.y }));
+    } else if (
+      active.x1 !== undefined &&
+      active.y1 !== undefined &&
+      active.x2 !== undefined &&
+      active.y2 !== undefined
+    ) {
+      const hx = (active.x2 - active.x1) / 2;
+      const hy = (active.y2 - active.y1) / 2;
+      local = [
+        { x: -hx, y: -hy },
+        { x: hx, y: hy },
+      ];
+    } else {
+      throw new Error('the selection is not a line or a polygon');
+    }
+    return local.map((p) => ({ x: a * p.x + c * p.y + e, y: b * p.x + d * p.y + f }));
+  });
+}
+
+function meanOf(points: readonly Point[]): Point {
+  return {
+    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
+  };
+}
+
+/** The summed length of the path through `points`, closed back to the first when `closed`. */
+function pathLength(points: readonly Point[], closed: boolean): number {
+  let total = 0;
+  const edges = closed ? points.length : points.length - 1;
+  for (let i = 0; i < edges; i++) {
+    const p = points[i]!;
+    const q = points[(i + 1) % points.length]!;
+    total += Math.hypot(q.x - p.x, q.y - p.y);
+  }
+  return total;
+}
+
+/**
+ * Where the dev app's measurement label of a line or polygon must sit, and
+ * what it must read, for the shape painted at `points` (image px): centred on
+ * a polygon's centroid, reading its perimeter; or with its bottom edge 6
+ * screen px above a line's midpoint, reading its length. The dev app's pixel
+ * spacing is 1 px per image px, so both read in image px.
+ */
+function expectedLabel(
+  view: View,
+  type: 'line' | 'polygon',
+  points: readonly Point[],
+): { readonly at: Point; readonly name: 'P' | 'L'; readonly value: number } {
+  const centre = imageToPage(view, meanOf(points));
+  return type === 'polygon'
+    ? { at: centre, name: 'P', value: pathLength(points, true) }
+    : { at: { x: centre.x, y: centre.y - 6 }, name: 'L', value: pathLength(points, false) };
+}
+
+/** Where the label sits, by the same reference point `expectedLabel` gives: its centre, or its bottom centre. */
+async function labelAt(page: Page, id: string, type: 'line' | 'polygon'): Promise<Point> {
+  const box = await page
+    .locator(`[data-osdlabel="decoration-text"][data-decoration-id="measurement:${id}"]`)
+    .boundingBox();
+  if (!box) throw new Error(`the measurement label of ${id} is not laid out`);
+  return type === 'polygon'
+    ? { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    : { x: box.x + box.width / 2, y: box.y + box.height };
+}
+
+async function labelReading(page: Page, id: string, name: 'P' | 'L'): Promise<number> {
+  const text =
+    (await page
+      .locator(`[data-osdlabel="decoration-text"][data-decoration-id="measurement:${id}"]`)
+      .textContent()) ?? '';
+  const match = new RegExp(`^${name}: ([\\d.]+) px$`, 'm').exec(text);
+  if (!match) throw new Error(`the label "${text}" has no ${name} in px`);
+  return Number(match[1]);
+}
+
 // ── Circles ──────────────────────────────────────────────────────────────────
 
 test.describe('Shape controls: circles', () => {
@@ -436,6 +555,91 @@ test.describe("Shape controls: lines and polygons keep Fabric's", () => {
     await deselect(page);
     await expectEdgesPaintedAs(page, g1, 'sheared line');
   });
+});
+
+test.describe('Shape controls: the label of a sheared line or polygon', () => {
+  const SHAPES = [
+    {
+      type: 'polygon',
+      draw: (page: Page, view: View) =>
+        drawPolygon(page, view, [
+          { x: 560.2, y: 320.4 },
+          { x: 720.6, y: 320.4 },
+          { x: 720.6, y: 440.8 },
+          { x: 560.2, y: 440.8 },
+        ]),
+      body: { x: 600, y: 400 },
+    },
+    {
+      type: 'line',
+      draw: (page: Page, view: View) =>
+        drawLine(page, view, { x: 560.2, y: 330.4 }, { x: 720.6, y: 430.8 }),
+      body: { x: 640.4, y: 380.6 },
+    },
+  ] as const;
+
+  for (const shape of SHAPES) {
+    test(`follows a Shift + side-handle shear of a ${shape.type} while it is dragged`, async ({
+      page,
+    }) => {
+      const view = await openAnnotator(page, { imageScale: SCALE });
+      const drawn = await shape.draw(page, view);
+      await selectAt(page, onPixel(imageToPage(view, shape.body)), drawn.id);
+      const label = page.locator(
+        `[data-osdlabel="decoration-text"][data-decoration-id="measurement:${drawn.id}"]`,
+      );
+      await expect(label).toHaveCount(1);
+      const start = await labelAt(page, drawn.id, shape.type);
+      expectClose(
+        start,
+        expectedLabel(view, shape.type, drawn.geometry.points).at,
+        1.5,
+        'the label before the drag',
+      );
+
+      const stored = await annotationsText(page);
+      const from = onPixel(await controlOnPage(page, 'mb'));
+      await page.mouse.move(from.x, from.y);
+      await page.keyboard.down('Shift');
+      await page.mouse.down();
+      try {
+        await page.mouse.move(from.x + 60, from.y, { steps: 12 });
+
+        // Mid-drag: Fabric paints a sheared shape, which state does not hold yet.
+        const live = await paintedPointsOfSelection(page);
+        const expected = expectedLabel(view, shape.type, live);
+        expect(
+          Math.hypot(expected.at.x - start.x, expected.at.y - start.y),
+          'the shear moved the shape’s centre',
+        ).toBeGreaterThan(15);
+        expect(await annotationsText(page), 'nothing is committed mid-drag').toBe(stored);
+
+        await expect
+          .poll(
+            async () => {
+              const at = await labelAt(page, drawn.id, shape.type);
+              return Math.hypot(at.x - expected.at.x, at.y - expected.at.y);
+            },
+            {
+              message: `mid-drag, the label should sit at (${expected.at.x.toFixed(1)}, ${expected.at.y.toFixed(1)}), on the sheared ${shape.type}`,
+              timeout: 3000,
+            },
+          )
+          .toBeLessThanOrEqual(1.5);
+        expect(await labelReading(page, drawn.id, expected.name)).toBeCloseTo(expected.value, 1);
+      } finally {
+        await page.mouse.up();
+        await page.keyboard.up('Shift');
+      }
+
+      // The release commits the shear, and the label stays on it.
+      await settle(page, stored);
+      const { geometry: committed } = await readOnlyPoints(page);
+      const after = expectedLabel(view, shape.type, committed.points);
+      expectClose(await labelAt(page, drawn.id, shape.type), after.at, 1.5, 'the label after');
+      expect(await labelReading(page, drawn.id, after.name)).toBeCloseTo(after.value, 1);
+    });
+  }
 });
 
 function expectClose(actual: Point, expected: Point, tol: number, what: string) {

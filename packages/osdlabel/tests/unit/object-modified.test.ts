@@ -18,11 +18,29 @@
  *   (Solid's store runs the rebuild inside the commit; it used to remove the
  *   object mid-transform, and Fabric then reported the edit a second time);
  * - a selection dissolved before Fabric reports it (a tool switch mid-drag)
- *   still commits its members.
+ *   still commits its members;
+ * - a point in a scaled (or, by host code, skewed) selection keeps its dot at
+ *   its style's radius: dissolving bakes the scale into the dot, and the
+ *   commit redraws it at the radius, where it used to save the scale.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { ActiveSelection, Canvas, Rect, util, type FabricObject, type TMat2D } from 'fabric';
-import type { AnnotationId, Geometry, Point, RectangleGeometry } from '@osdlabel/annotation';
+import {
+  ActiveSelection,
+  Canvas,
+  Circle,
+  Rect,
+  util,
+  type FabricObject,
+  type TMat2D,
+} from 'fabric';
+import {
+  DEFAULT_ANNOTATION_STYLE,
+  type AnnotationId,
+  type AnnotationStyle,
+  type Geometry,
+  type Point,
+  type RectangleGeometry,
+} from '@osdlabel/annotation';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createFabricObjectFromRawData, initFabricModule } from '@osdlabel/fabric-annotations';
 import { createImageId, type AnnotationState } from '@osdlabel/viewer-api';
@@ -106,9 +124,17 @@ const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 // ── The annotations, and a stand-in for the viewer ─────────────────────────
 
+/** The point's dot radius, in image px: its style's, not the default. */
+const POINT_RADIUS = 7;
+const POINT_STYLE: AnnotationStyle = { ...DEFAULT_ANNOTATION_STYLE, pointRadius: POINT_RADIUS };
+
 const SHAPES: Record<
   string,
-  { readonly toolType: OsdAnnotation['toolType']; readonly geometry: Geometry }
+  {
+    readonly toolType: OsdAnnotation['toolType'];
+    readonly geometry: Geometry;
+    readonly style?: AnnotationStyle;
+  }
 > = {
   rect: {
     toolType: 'rectangle',
@@ -124,7 +150,11 @@ const SHAPES: Record<
     toolType: 'circle',
     geometry: { type: 'circle', center: { x: 380, y: 140 }, radius: 50 },
   },
-  point: { toolType: 'point', geometry: { type: 'point', position: { x: 500, y: 140 } } },
+  point: {
+    toolType: 'point',
+    geometry: { type: 'point', position: { x: 500, y: 140 } },
+    style: POINT_STYLE,
+  },
   line: {
     toolType: 'line',
     geometry: { type: 'line', start: { x: 100, y: 300 }, end: { x: 260, y: 360 } },
@@ -167,6 +197,7 @@ async function openViewer(options: { readonly syncRemove: boolean }) {
       contextId,
       toolType: shape.toolType,
       id: annId(id),
+      ...(shape.style !== undefined ? { style: shape.style } : {}),
     });
   }
 
@@ -309,6 +340,21 @@ function expectCarried(viewer: Viewer, m: TMat2D, k: number, tol: number): void 
   );
 }
 
+/** How far the outline Fabric paints for `dot` (its `radius` arc through its whole transform) strays from a circle of `radius` about `centre`. */
+function dotDeviation(dot: Circle, centre: Point, radius: number): number {
+  const matrix = dot.calcTransformMatrix();
+  let worst = 0;
+  for (let i = 0; i < 72; i++) {
+    const t = (2 * Math.PI * i) / 72;
+    const p = util.transformPoint(
+      { x: dot.radius * Math.cos(t), y: dot.radius * Math.sin(t) },
+      matrix,
+    );
+    worst = Math.max(worst, Math.abs(Math.hypot(p.x - centre.x, p.y - centre.y) - radius));
+  }
+  return worst;
+}
+
 // ── Specs ──────────────────────────────────────────────────────────────────
 
 describe.each([
@@ -354,6 +400,54 @@ describe.each([
       cornerSetDeviation(paintedCorners(rect as Rect), referenceCorners(viewer.stored('rect'))),
     ).toBeLessThanOrEqual(1e-3);
   });
+
+  it.each([
+    { name: 'scaled 1.7', props: { scaleX: 1.7, scaleY: 1.7 } },
+    { name: 'shrunk to 0.6 and turned', props: { scaleX: 0.6, scaleY: 0.6, angle: 35 } },
+    {
+      name: 'scaled 1.7 and, by host code, skewed',
+      props: { scaleX: 1.7, scaleY: 1.7, skewX: 20 },
+    },
+  ])(
+    'commits the point of a selection $name as a dot of its style radius, where it is painted',
+    async ({ props }) => {
+      const viewer = await openViewer({ syncRemove });
+      const selection = selectAll(viewer);
+      const before = selection.calcTransformMatrix();
+      selection.set(props);
+      selection.setCoords();
+      const m = util.multiplyTransformMatrices(
+        selection.calcTransformMatrix(),
+        util.invertTransform(before),
+      );
+      const point0 = SHAPES['point']!.geometry as Extract<Geometry, { type: 'point' }>;
+      const centre = apply(m, point0.position);
+      // The premise: the selection paints the dot at another size, or sheared.
+      const member = selection.getObjects().find((o) => o.id === 'point');
+      expect(member).toBeInstanceOf(Circle);
+      expect(dotDeviation(member as Circle, centre, POINT_RADIUS)).toBeGreaterThan(1);
+
+      viewer.canvas.fire('object:modified', { target: selection });
+      await viewer.rebuilt();
+
+      expect(viewer.commits.map((c) => c.kind)).toEqual(['batch']);
+      const stored = viewer.stored<Extract<Geometry, { type: 'point' }>>('point');
+      expectPoint(stored.position, centre, 1e-6, 'point');
+      const data = viewer.state.byImage[imageId]![annId('point')]!.rawAnnotationData.data;
+      expect(data).toMatchObject({
+        type: 'Circle',
+        radius: POINT_RADIUS,
+        scaleX: 1,
+        scaleY: 1,
+        skewX: 0,
+        skewY: 0,
+      });
+      // The rebuilt dot, from its saved data, is the style's dot at the stored position.
+      const dot = viewer.object('point');
+      expect(dot).toBeInstanceOf(Circle);
+      expect(dotDeviation(dot as Circle, stored.position, POINT_RADIUS)).toBeLessThanOrEqual(1e-3);
+    },
+  );
 
   it('selects the same annotations again once their rebuilt objects are back', async () => {
     const viewer = await openViewer({ syncRemove });

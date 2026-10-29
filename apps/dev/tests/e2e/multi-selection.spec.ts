@@ -24,7 +24,11 @@
  * - only the select tool selects by drag-box: a rectangle drawn across shapes
  *   leaves none of them selected;
  * - a Shift+click selection is the same uniform-only group, and does not
- *   name one of its members as the selected annotation.
+ *   name one of its members as the selected annotation;
+ * - a point in a scaled selection moves with it but keeps its dot at its
+ *   style's radius, judged from canvas pixels after the commit and after a
+ *   rebuild: dissolving the selection bakes its scale into the dot, and the
+ *   commit used to save that scale, so the dot grew or shrank with the group.
  */
 import type { Page } from '@playwright/test';
 import { test, expect } from './helpers/fixtures.js';
@@ -32,6 +36,7 @@ import { selectedAnnotationId } from './helpers/selection.js';
 import {
   CORNER_SIGNS,
   EMPTY_ALPHA,
+  PAINTED_ALPHA,
   alphasAt,
   annotationsText,
   controlOnPage,
@@ -47,6 +52,7 @@ import {
   scaleOf,
   settle,
   waitForStableView,
+  type Bounds,
   type ControlName,
   type Point,
   type RectangleGeometry,
@@ -525,6 +531,94 @@ async function rebuildFromState(page: Page): Promise<void> {
   await settle(page);
 }
 
+/** The dev app draws points in the default style: `DEFAULT_POINT_RADIUS`, 5 image px. */
+const DOT_RADIUS = 5;
+
+/**
+ * The box, in canvas CSS px, of every pixel within `reach` px of `at` (canvas
+ * CSS px) that is painted with an alpha of at least `PAINTED_ALPHA`, or `null`
+ * if there is none. Pixel `i` spans `[i, i + 1)`.
+ */
+async function paintedNear(page: Page, at: Point, reach: number): Promise<Bounds | null> {
+  return page.evaluate(
+    ({ at, reach, minAlpha }) => {
+      const host = document.querySelector('.openseadragon-canvas') as
+        | (Element & { __osdOverlay?: { canvas: { getElement(): HTMLCanvasElement } } })
+        | null;
+      const overlay = host?.__osdOverlay;
+      if (!overlay) throw new Error('overlay test hook not installed');
+      const el = overlay.canvas.getElement();
+      const ratio = el.width / el.clientWidth;
+      const ctx = el.getContext('2d');
+      if (!ctx) throw new Error('lower canvas has no 2d context');
+      const x0 = Math.max(0, Math.floor((at.x - reach) * ratio));
+      const y0 = Math.max(0, Math.floor((at.y - reach) * ratio));
+      const x1 = Math.min(el.width, Math.ceil((at.x + reach) * ratio));
+      const y1 = Math.min(el.height, Math.ceil((at.y + reach) * ratio));
+      const { data } = ctx.getImageData(x0, y0, x1 - x0, y1 - y0);
+      const w = x1 - x0;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (let y = 0; y < y1 - y0; y++) {
+        for (let x = 0; x < w; x++) {
+          if (data[(y * w + x) * 4 + 3]! >= minAlpha) {
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+      if (minX === Infinity) return null;
+      return {
+        minX: (x0 + minX) / ratio,
+        minY: (y0 + minY) / ratio,
+        maxX: (x0 + maxX + 1) / ratio,
+        maxY: (y0 + maxY + 1) / ratio,
+      };
+    },
+    { at, reach, minAlpha: PAINTED_ALPHA },
+  );
+}
+
+/**
+ * The stored point `id` is painted as a dot of `radius` image px, its style's,
+ * about its stored position, and its saved Fabric data draws it so, unscaled
+ * and unsheared. Judged from the pixels around it: the box of painted pixels
+ * is the dot and its stroke, `radius + strokeWidth / 2` image px each way.
+ */
+async function expectDotPainted(page: Page, id: string, radius: number, what: string) {
+  const found = (await readAnnotations(page)).find((a) => a.id === id);
+  if (!found || found.geometry.type !== 'point') throw new Error(`${what}: no point ${id}`);
+  const position = (geometryOf(found) as PointGeometry).position;
+
+  const view = await readView(page);
+  const s = scaleOf(view);
+  const centre = imageToCanvas(view, position);
+  const half = (radius + (await strokeWidthOf(page, id)) / 2) * s;
+  const box = await paintedNear(page, centre, 3 * half + 4);
+  expect(box, `${what}: nothing is painted at the point`).not.toBeNull();
+  const painted = {
+    centre: { x: (box!.minX + box!.maxX) / 2, y: (box!.minY + box!.maxY) / 2 },
+    halfWidth: (box!.maxX - box!.minX) / 2,
+    halfHeight: (box!.maxY - box!.minY) / 2,
+  };
+  const message = `${what}: the dot painted at ${JSON.stringify(painted)}, expected ${half.toFixed(2)} px about (${centre.x.toFixed(1)}, ${centre.y.toFixed(1)})`;
+  expectPointNear(painted.centre, centre, 1, message);
+  expectClose(painted.halfWidth, half, 1.25, message);
+  expectClose(painted.halfHeight, half, 1.25, message);
+
+  expect(found.rawAnnotationData.data, `${what}: the point's saved Fabric data`).toMatchObject({
+    radius,
+    scaleX: 1,
+    scaleY: 1,
+    skewX: 0,
+    skewY: 0,
+  });
+}
+
 // ── Specs ────────────────────────────────────────────────────────────────
 
 test.describe('Multi-selection edits', () => {
@@ -759,5 +853,47 @@ test.describe('Multi-selection edits', () => {
     expect(after.point).toEqual(before.point);
     expect(after.line).toEqual(before.line);
     expect(after.polygon).toEqual(before.polygon);
+  });
+
+  test("scaling a selection keeps a point's dot at its style's radius, after the commit and after a rebuild", async ({
+    page,
+  }) => {
+    const view = await openAnnotator(page);
+    const ids = await drawShapes(page, view);
+    await deselect(page);
+    // The judge's premise: the dot as drawn, in the dev app's default style.
+    await expectDotPainted(page, ids.point, DOT_RADIUS, 'as drawn');
+
+    const before = await readShapes(page, ids);
+    await boxSelectAll(page, view, ids);
+    const stored = await annotationsText(page);
+    // The bottom-right corner carried to twice its distance from the top-left
+    // one: the selection, and every member in it, doubles.
+    const tl = await controlOnPage(page, 'tl');
+    await dragControl(page, 'br', (br) => ({
+      x: tl.x + 2 * (br.x - tl.x),
+      y: tl.y + 2 * (br.y - tl.y),
+    }));
+    await settle(page, stored);
+
+    const after = await readShapes(page, ids);
+    const k = after.rectangle.width / before.rectangle.width;
+    expect(k, 'the selection was scaled').toBeGreaterThan(1.8);
+    // The point went where the selection took it…
+    expectClose(
+      len(sub(after.point.position, after.circle.center)) /
+        len(sub(before.point.position, before.circle.center)),
+      k,
+      1e-3,
+      'circle to point',
+    );
+    // …and its dot is the size it was.
+    await deselect(page);
+    await expectDotPainted(page, ids.point, DOT_RADIUS, 'after the commit');
+
+    await rebuildFromState(page);
+    expect(await readShapes(page, ids)).toEqual(after);
+    await deselect(page);
+    await expectDotPainted(page, ids.point, DOT_RADIUS, 'after switching image and back');
   });
 });

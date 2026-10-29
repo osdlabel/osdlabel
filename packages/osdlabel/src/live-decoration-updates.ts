@@ -28,11 +28,18 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<never, ne
 }
 
 /**
- * Subscribe to Fabric `object:moving` / `object:scaling` / `object:rotating`
- * on the overlay's canvas. While the user drags, the moving annotation's
- * geometry in state is stale (state only updates on `object:modified`); this
- * helper overlays the *live* Fabric geometry on top of the state-derived
- * annotations, re-runs the decoration providers, and calls `onDecorations`.
+ * Subscribe to Fabric `object:moving` / `object:scaling` / `object:rotating` /
+ * `object:skewing` on the overlay's canvas. While the user drags, the moving
+ * annotation's geometry in state is stale (state only updates on
+ * `object:modified`); this helper overlays the *live* Fabric geometry on top
+ * of the state-derived annotations, re-runs the decoration providers, and
+ * calls `onDecorations`.
+ *
+ * `object:skewing` is how Fabric reports Shift + a side handle (its
+ * `altActionKey`), which shears a line, polyline or polygon: their stored
+ * points follow the shear exactly, so their labels follow it too, instead of
+ * jumping on release. Rectangles, circles and points have no handle that
+ * skews them.
  *
  * Recomputation is throttled to one call per `requestAnimationFrame` so the
  * cost is bounded at 60fps regardless of how often Fabric fires the event.
@@ -115,6 +122,7 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
   canvas.on('object:moving', handler);
   canvas.on('object:scaling', handler);
   canvas.on('object:rotating', handler);
+  canvas.on('object:skewing', handler);
   const unsubscribePointerCancel = overlay.onPointerCancel(onPointerCancel);
 
   return () => {
@@ -122,6 +130,7 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
     canvas.off('object:moving', handler);
     canvas.off('object:scaling', handler);
     canvas.off('object:rotating', handler);
+    canvas.off('object:skewing', handler);
     unsubscribePointerCancel();
     if (rafHandle !== 0) {
       cancelAnimationFrame(rafHandle);
