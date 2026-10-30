@@ -419,6 +419,19 @@ export const PAINTED_ALPHA = 16;
 export const EMPTY_ALPHA = 4;
 
 /**
+ * How far, in canvas CSS px, each side of `paintedBounds` may sit from the
+ * stored geometry's stroke outline. Pixels are whole, and an antialiased edge
+ * covers part of the next one, so a bound can land a pixel past the outline
+ * even when the shape is exact. A resized rectangle is painted from Fabric's
+ * cache canvas, and some Chromium builds resample it with one more pixel above
+ * PAINTED_ALPHA: CI's measured a bottom edge 1.63 px out after a corner resize
+ * while another build measured under 1.5. The bounds catch paint away from the
+ * shape (a duplicate, a wrong size); a misplaced shape is caught by the probes,
+ * whose outside points sit the same 2.5 px past the outline.
+ */
+export const BOUNDS_TOLERANCE = 2.5;
+
+/**
  * The box, in canvas CSS px, of every pixel on the lower canvas painted with
  * an alpha of at least `PAINTED_ALPHA`, or `null` if there is none. Pixel `i`
  * spans `[i, i + 1)`.
@@ -654,7 +667,7 @@ export async function expectPaintedAs(
     expect(
       Math.abs(painted![side] - expected[side]),
       `${what}: painted ${side} ${painted![side]}, the stored geometry's outline ${expected[side]}`,
-    ).toBeLessThanOrEqual(1.5);
+    ).toBeLessThanOrEqual(BOUNDS_TOLERANCE);
   }
 }
 
