@@ -1,6 +1,6 @@
 ---
-'@osdlabel/fabric-annotations': patch
-'osdlabel': patch
+'@osdlabel/fabric-annotations': minor
+'osdlabel': minor
 ---
 
 A click without a drag no longer saves an invisible shape.

@@ -213,9 +213,10 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  * - **navigation**: OSD handles all input, Fabric is display-only.
  * - **annotation**: Fabric handles all input (select, move, draw).
  *   Ctrl+drag or Command+drag pans OSD within annotation mode. Fabric's group
- *   selection (`canvas.selection`: drag-box and Shift+click) is left off; the
- *   select tool turns it on while it is active. A host driving the overlay
- *   without the library's tools sets it itself. A gesture belongs to the
+ *   selection (`canvas.selection`: drag-box and Shift+click) is turned off on
+ *   every entry to annotation mode; the select tool turns it on while it is
+ *   active. A host driving the overlay without the library's tools sets it
+ *   itself after each `setMode('annotation')`. A gesture belongs to the
  *   pointer that pressed: its lift ends it, though another finger is still
  *   down, and a pointer that goes down meanwhile starts nothing until it lifts
  *   and presses again. There is no two-finger gesture.

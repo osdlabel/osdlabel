@@ -19,7 +19,8 @@ npm install @osdlabel/fabric-annotations fabric
 
 - Drawing tools: `RectangleTool`, `CircleTool`, `LineTool`, `PointTool`,
   `PolylineTool`, `FreeHandPathTool`, `SelectTool` (plus `BaseTool` / `ShapeTool`
-  base classes) and the `ToolOverlay` interface
+  base classes) and the `ToolOverlay` interface, plus `MIN_SHAPE_SCREEN_PX`, the
+  on-screen size under which a drawn shape or path is discarded
 - `PolyVertexEditor` — interactive vertex editing for polygon / polyline
   annotations, plus `DEFAULT_VERTEX_EDIT_LONG_PRESS_MS` and
   `DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX`
@@ -30,6 +31,11 @@ npm install @osdlabel/fabric-annotations fabric
 - `buildFabricObjectFromGeometry` — rebuilds a Fabric object from annotation
   geometry (used when an annotation's geometry changes type, e.g. circle →
   rectangle)
+- `applyShapeControls` — the handles a rectangle or circle gets, so that editing
+  it cannot make a shape its geometry does not describe
+- Multi-selections: `isGroupSelection`, `configureGroupSelection`,
+  `dissolveGroupSelection` and `reselectWhenAdded` — the Fabric half of saving
+  an edit of several annotations at once
 - `FabricRawAnnotationData` and the `FabricFields` extension interface
 
 ## Vertex editing

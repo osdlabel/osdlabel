@@ -1,6 +1,6 @@
 ---
-'@osdlabel/fabric-annotations': patch
-'osdlabel': patch
+'@osdlabel/fabric-annotations': minor
+'osdlabel': minor
 ---
 
 The select tool's handles can no longer make a rectangle or a circle that its geometry cannot describe.
@@ -11,7 +11,7 @@ Fabric's default handles let a user hold **Shift** on a side handle to shear a r
 - **Circles**: four corner handles that always scale uniformly, Shift or not, and the rotation handle. No side handles.
 - **Lines, polylines and polygons** keep Fabric's handles, Shift + a side handle shear included: their stored points follow the shear exactly.
 
-The handles are installed on every path that puts an annotation's object on the canvas: the rectangle and circle tools, `buildFabricObjectFromGeometry` and `createFabricObjectFromRawData`. The new `applyShapeControls(object, geometryType)` (exported from `@osdlabel/fabric-annotations`, `osdlabel` and both bindings) does it, for hosts that build or revive objects some other way, such as with `deserializeFabricObject`.
+The handles are installed on every path that puts an annotation's object on the canvas: the rectangle and circle tools, `buildFabricObjectFromGeometry` and `createFabricObjectFromRawData`. The new `applyShapeControls(object, geometryType)` (exported from `@osdlabel/fabric-annotations`, `osdlabel` and both bindings) does it, for hosts that build or revive objects some other way, such as with `deserializeFabricObject`. It builds on the controls the object already has, so rectangle and circle controls a host customised through Fabric's `createControls` are kept, apart from the handlers the library constrains: a rotation handle the host removed stays removed.
 
 **The edit commit normalises such shapes.** When `processObjectModified` commits a rectangle, circle or point that is skewed, or a circle scaled differently along its two axes, it stores the geometry read back as before (a circle's radius is still `radius × max(scaleX, scaleY)`) and replaces the Fabric data with data that paints exactly that geometry, in the same style, keeping any custom properties the host registered.
 

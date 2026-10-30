@@ -1,9 +1,9 @@
 ---
-'@osdlabel/fabric-osd': patch
-'@osdlabel/fabric-annotations': patch
-'osdlabel': patch
-'@osdlabel/solid': patch
-'@osdlabel/react': patch
+'@osdlabel/fabric-osd': minor
+'@osdlabel/fabric-annotations': minor
+'osdlabel': minor
+'@osdlabel/solid': minor
+'@osdlabel/react': minor
 ---
 
 A touch or pen gesture that the system cancels is now undone, instead of left half-done.
@@ -16,4 +16,4 @@ For hosts that build on the lower layers:
 
 - `FabricOverlay.onPointerCancel(callback)` is new, with the `PointerCancelCallback` type (exported by `@osdlabel/fabric-osd`, `osdlabel` and both bindings). It reports a cancelled press, with the press's sequence, after the overlay has put Fabric's side back.
 - `AnnotationTool` gains an optional `onPointerCancel(event, pressSeq)`. `BaseTool` implements it by calling `cancel()`, which suits a tool whose drawing lasts from press to release. `PolyVertexEditor` gains `onPointerCancel()`.
-- `enableLiveDecorationUpdates` now subscribes to `onPointerCancel`, so a test double of `FabricOverlay` passed to it needs that method, returning an unsubscribe function.
+- Both bindings' `useAnnotationTool` (`@osdlabel/solid/hooks/useAnnotationTool`, `@osdlabel/react/hooks/useAnnotationTool`, and so `ViewerCell`) and `enableLiveDecorationUpdates` now subscribe to `onPointerCancel`, so a test double of `FabricOverlay` given to any of them needs that method, returning an unsubscribe function.

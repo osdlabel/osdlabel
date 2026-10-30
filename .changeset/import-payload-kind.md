@@ -1,6 +1,6 @@
 ---
-'@osdlabel/validation': patch
-'osdlabel': patch
+'@osdlabel/validation': minor
+'osdlabel': minor
 ---
 
 `deserialize` rejects an annotation whose saved Fabric object is not the kind of shape its geometry describes.
