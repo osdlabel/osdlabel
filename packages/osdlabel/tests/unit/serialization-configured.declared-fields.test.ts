@@ -427,6 +427,37 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
     expect(after.decodes()).toBe(0);
   });
 
+  it('a COCO mask rebuilt with its downsample but no type is refused; typed, it loads coarse', () => {
+    // A COCO segmentation carries no downsample, so a dataset builder keeps
+    // `geometry.downsample` beside it. Kept alone, it is no mask geometry.
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 400, imageHeight: 300, downsample: 4 });
+    stampCircle(buffer, 120.5, 90.5, 10, 1);
+    const id = createAnnotationId('m1');
+    const original = createMaskAnnotation(buffer.snapshot(), { imageId, contextId, id });
+    const [entry] = saved([original], cocoRleCodec);
+    expect(entry!['geometry']).toMatchObject({ type: 'mask', downsample: 4 });
+
+    const refused = countingCoco();
+    const bare = edited(entry!, { geometry: { downsample: 4 } });
+    expect(rejection([bare], refused.options).message).toBe(
+      'Validation failed: Annotation "m1" has a mask payload (format "coco-rle"), but its ' +
+        'geometry is an object with no type, not a mask geometry',
+    );
+    expect(refused.decodes()).toBe(0);
+
+    const typed = countingCoco();
+    const least = edited(entry!, { geometry: { type: 'mask', downsample: 4 } });
+    const { byImage, skipped } = deserialize([least], typed.options);
+    expect(skipped).toEqual([]);
+    expect(typed.decodes()).toBe(1);
+    expect(byImage[imageId]![id]).toEqual(original);
+
+    // With none, it decodes at full resolution: the same pixels, at downsample 1.
+    const omitted = withoutGeometry(entry!, {});
+    const full = deserialize([omitted], countingCoco().options).byImage[imageId]![id]!;
+    expect(full.geometry).toEqual({ ...original.geometry, downsample: undefined });
+  });
+
   describe('one that declares no geometry is checked as mask geometry', () => {
     it.each([CANONICAL, COCO])(
       'a %s mask with none under another tool is refused before any decode',
@@ -555,6 +586,16 @@ describe('deserialize: an entry of the wrong shape is left to the full schema', 
     ['a toolType no tool has', edited(rect!, { toolType: 'brush' })],
     ['a payload that is a string', edited(rect!, { rawAnnotationData: 'fabric' })],
     ['a payload with no format', edited(rect!, { rawAnnotationData: { data: {} } })],
+    // Neither payload is a mask's, so the missing geometry is not counted as
+    // mask geometry, which the rectangle tool would be refused for.
+    [
+      'a payload with no format, and no geometry',
+      edited(rect!, { geometry: undefined, rawAnnotationData: { data: {} } }),
+    ],
+    [
+      'no payload, and no geometry',
+      edited(rect!, { geometry: undefined, rawAnnotationData: undefined }),
+    ],
     [
       'a Fabric payload with no class',
       edited(rect!, { rawAnnotationData: { format: 'fabric', fabricVersion: '7', data: {} } }),

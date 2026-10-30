@@ -145,8 +145,41 @@ function isToolType(value: unknown): value is ToolType {
   return typeof value === 'string' && (TOOL_TYPES as readonly string[]).includes(value);
 }
 
-/** The most of a declared `type` an issue quotes. */
+/** The most of a declared `type` an issue quotes, in code points. */
 const QUOTED_TYPE_LENGTH = 32;
+
+/**
+ * The characters JSON leaves raw that would reorder or hide the text of a
+ * message around them: format characters (bidi overrides, zero-width marks)
+ * and the line and paragraph separators.
+ */
+const UNSEEN = /[\p{Cf}\u2028\u2029]/gu;
+
+/** `value` as a JSON string, with `UNSEEN` characters escaped as well. */
+function jsonQuoted(value: string): string {
+  return JSON.stringify(value).replace(UNSEEN, (char) =>
+    char
+      .split('')
+      .map((unit) => `\\u${unit.charCodeAt(0).toString(16).padStart(4, '0')}`)
+      .join(''),
+  );
+}
+
+/**
+ * A declared `type`, quoted for an issue: as JSON (`jsonQuoted`), and cut to
+ * its first `QUOTED_TYPE_LENGTH` code points, so the cut never splits a
+ * surrogate pair.
+ */
+function quotedType(type: string): string {
+  let head = '';
+  let points = 0;
+  for (const point of type) {
+    if (points === QUOTED_TYPE_LENGTH) return `${jsonQuoted(head)}…`;
+    head += point;
+    points++;
+  }
+  return jsonQuoted(type);
+}
 
 /** A value's kind, as an issue names it: `null`, `an array`, `a string`, `an object`. */
 function kindOf(value: unknown): string {
@@ -159,18 +192,14 @@ function kindOf(value: unknown): string {
 /**
  * A geometry that is no geometry, as an issue describes it. It is untrusted,
  * so nothing of it is quoted but a `type` that is a string, and that cut
- * short; anything else is named by its kind.
+ * short (`quotedType`); anything else is named by its kind.
  */
 function describeGeometry(geometry: unknown): string {
   if (!isRecord(geometry) || Array.isArray(geometry)) return kindOf(geometry);
   const type = geometry['type'];
   if (type === undefined) return 'an object with no type';
   if (typeof type !== 'string') return `an object whose type is ${kindOf(type)}`;
-  const quoted =
-    type.length > QUOTED_TYPE_LENGTH
-      ? `${JSON.stringify(type.slice(0, QUOTED_TYPE_LENGTH))}…`
-      : JSON.stringify(type);
-  return `an object whose type is ${quoted}`;
+  return `an object whose type is ${quotedType(type)}`;
 }
 
 /**
@@ -178,24 +207,25 @@ function describeGeometry(geometry: unknown): string {
  * geometry type to compare, which every check needs.
  *
  * A mask payload is the exception, since decoding replaces the entry's
- * geometry with the one its pixels give: whatever the entry declared is gone
- * by the time the full schema runs, so it is read here or never. Its geometry
- * may be omitted, since decoding supplies one, and then counts as the mask
- * geometry decoding will give it. Present, it must be a geometry, and the
- * pairing check refuses any but a mask's: one that is not (`null`,
- * `{ type: 'Rectangle' }`) leaves `geometryType` `undefined` for it to
- * refuse, rather than passing for the full schema to judge the replacement.
+ * geometry with the one its pixels give: once its mask is decoded, whatever
+ * the entry declared is gone by the time the full schema runs, so it is read
+ * here, before that. Its geometry may be omitted, since decoding supplies
+ * one, and then counts as the mask geometry decoding will give it. Present,
+ * it must be a geometry, and the pairing check refuses any but a mask's: one
+ * that is not (`null`, `{ type: 'Rectangle' }`, `{ downsample: 4 }`) leaves
+ * `geometryType` `undefined` for it to refuse, rather than passing for the
+ * full schema to judge the replacement.
  */
 function declaredCrossFields(entry: unknown): CrossFields | undefined {
   if (!isRecord(entry)) return undefined;
   const { id, geometry, toolType, rawAnnotationData: raw } = entry;
   const format = isRecord(raw) && typeof raw['format'] === 'string' ? raw['format'] : undefined;
+  const maskPayload = format !== undefined && format !== 'fabric';
   const declared = isRecord(geometry) ? geometry['type'] : undefined;
   let geometryType: GeometryType | undefined;
   if (isGeometryType(declared)) geometryType = declared;
-  else if (format !== undefined && format !== 'fabric') {
-    geometryType = geometry === undefined ? 'mask' : undefined;
-  } else return undefined;
+  else if (maskPayload) geometryType = geometry === undefined ? 'mask' : undefined;
+  else return undefined;
   const data = format === 'fabric' && isRecord(raw) ? raw['data'] : undefined;
   return {
     subject: subjectOf(id),
@@ -224,6 +254,11 @@ function pairsItsPayload(fields: CrossFields): boolean {
  * the one it needs, rather than calling the payload a mask: before decoding,
  * a format that is not `'fabric'` may be a mask's or a misspelling
  * (`'Fabric'`), and only the format is certain.
+ *
+ * A geometry that is no geometry gives no such hint of which was meant. Its
+ * issue calls the payload a mask payload, which is how the rule that refuses
+ * it counts one, and quotes the `format` beside it, so that a misspelled
+ * `'fabric'` shows there.
  */
 function pairMismatchMessage(fields: CrossFields): string {
   const { subject, geometryType, format } = fields;
@@ -388,11 +423,12 @@ export const OsdAnnotationSchema = v.pipe(
  * - Under a mask payload the geometry must be a mask geometry, or be omitted,
  *   since decoding gives the entry one. Omitted, it counts as mask geometry,
  *   so the `toolType` must still be a tool that draws a mask. Present but no
- *   geometry at all (`null`, an array, a string, an object with no `type` or
- *   with one that is no geometry type), it is refused with an issue naming
- *   the payload's `format` as written and what the geometry is, quoting
- *   nothing of it but a string `type`, cut short. Only its `type` is read:
- *   its other fields, which decoding replaces, are not compared.
+ *   geometry at all (`null`, an array, a string, an object with no `type`,
+ *   such as `{ downsample: 4 }`, or with one that is no geometry type), it is
+ *   refused with an issue naming the payload's `format` as written and what
+ *   the geometry is, quoting nothing of it but a string `type`, as JSON and
+ *   cut short. Only its `type` is read: its other fields, which decoding
+ *   replaces, are not compared.
  * - Otherwise it checks only the fields it can read. An entry whose payload
  *   is not a mask's passes when its `geometry` is missing or its `type` is
  *   no geometry type, and so does each check whose own fields are missing or

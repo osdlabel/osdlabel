@@ -291,7 +291,12 @@ the full-resolution mask it stands for, each cell written out as the pixels it
 covers. Nothing in the segmentation records the downsample: the exported
 annotation's **`geometry.downsample`** does, and it is what brings the mask
 back coarse on import. If you assemble a COCO dataset from these
-segmentations, keep that attribute alongside each one.
+segmentations, keep that attribute alongside each one, and when you rebuild an
+annotation from one, keep it in a mask geometry. Decoding supplies the rest,
+so `{ "type": "mask", "downsample": 4 }` is the least that geometry may say.
+A geometry with no `type`, such as `{ "downsample": 4 }`, is not a mask
+geometry, and `deserialize` refuses it. Omit the geometry instead and the mask
+comes back at full resolution.
 
 Expanding cells multiplies their runs by the downsample, so a small payload
 with fine structure can ask for an enormous export. Export is therefore
@@ -373,11 +378,12 @@ Decoding then replaces the geometry with one read off the pixels, so this is
 the only point at which a rectangle declared over a mask payload can be told
 from a mask. A mask that declares no geometry is given one by decoding, and is
 checked here as mask geometry, so it too needs the brush. A geometry that is
-present but is no geometry at all (`null`, a string, `{ "type": "Rectangle" }`)
-is refused. A document that fails these checks is refused before any mask
-costs a decode, and that refusal wins over what decoding would have reported:
-such an annotation refuses the document even when its pixels are corrupt too,
-and a document over the decode budget is refused for what was declared.
+present but is no geometry at all (`null`, a string, `{ "type": "Rectangle" }`,
+or `{ "downsample": 4 }`, which has no `type`) is refused. A document that
+fails these checks is refused before any mask costs a decode, and that refusal
+wins over what decoding would have reported: such an annotation refuses the
+document even when its pixels are corrupt too, and a document over the decode
+budget is refused for what was declared.
 
 Every mask in the document is decoded on import — canonical ones included, not
 just the foreign formats a codec handles. That does three things: it converts
@@ -387,12 +393,13 @@ the pixels** instead of trusted from the document, so a stale or hand-written
 bounding box cannot surface as a wrong area or a misplaced selection box.
 
 A COCO payload has no downsample of its own, so `deserialize` decodes it at the
-one the annotation's `geometry.downsample` declares, writing the runs straight
-into cells — a 21,024×17,024-pixel region at d=16 is 1,314×1,064 cells, well
-within the cap that its image pixels would break. A payload that is not
-constant within each cell cannot be stored at that downsample, and is skipped
-with a reason saying so rather than decoded at full resolution or rounded.
-Without a declared downsample, a COCO mask decodes at full resolution.
+one the annotation's mask geometry declares in `downsample`, writing the runs
+straight into cells — a 21,024×17,024-pixel region at d=16 is 1,314×1,064
+cells, well within the cap that its image pixels would break. A payload that
+is not constant within each cell cannot be stored at that downsample, and is
+skipped with a reason saying so rather than decoded at full resolution or
+rounded. Without a declared downsample, a COCO mask decodes at full
+resolution.
 
 Decoding is bounded. `maxMaskPixels` caps any single mask (64 Mi cells, which
 is also the ceiling — it can only be lowered) and `maxTotalMaskPixels` caps the
@@ -434,11 +441,14 @@ document drops it** — including a mask skipped only because you lowered
 `maxMaskPixels` below what it needs. Keep the original file if you import with
 tight bounds and save afterwards.
 
-Everything else still throws: a schema violation, or a document that blows the
-decode budget, is a property of the file rather than of one annotation in it,
-and loading part of it silently would be worse than refusing. Once the masks are
-decoded, every annotation is checked whole against `OsdAnnotationSchema`, which
-has the final word on what loads.
+Everything else still throws: a schema violation in an annotation that loads,
+or a document that blows the decode budget, is a property of the file rather
+than of one annotation in it, and loading part of it silently would be worse
+than refusing. A skipped mask is never checked whole, so a fault in a field
+the checks before decoding do not read, such as a missing `imageId`, is
+dropped with it unreported. Once the masks are decoded, every annotation is
+checked whole against `OsdAnnotationSchema`, which has the final word on what
+loads.
 
 Round-tripping through a codec is lossless for pixels but not for styling: the
 render tint is an osdlabel field that COCO has nowhere to put, so re-imported

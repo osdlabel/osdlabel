@@ -53,18 +53,21 @@ export interface DeserializeResult<E extends object = Record<never, never>> {
    * clean, and refuse the document yourself if partial data is not acceptable
    * for your use.
    *
-   * Empty on a clean load. Everything else — a schema violation, a blown
-   * budget — still throws, because those are properties of the document rather
-   * than of one annotation in it. That includes an annotation whose declared
-   * geometry disagrees with its payload or its `toolType` (a mask payload under
-   * vector geometry, or mask geometry under a `toolType` other than
-   * `segmentationBrush`, say), and a mask payload whose geometry is present
-   * but is no geometry (`null`, `{ type: 'Rectangle' }`): those are checked
-   * before any mask is decoded, so such an annotation refuses the document
-   * even when its pixels could not have been decoded either. A mask that
-   * declares no geometry is checked as mask geometry, so under another tool it
-   * refuses the document too, whatever its pixels. Only a mask whose declared
-   * fields pass those checks can be skipped here.
+   * Empty on a clean load. Everything else — a schema violation in an
+   * annotation that loads, a blown budget — still throws, because those are
+   * properties of the document rather than of one annotation in it. That
+   * includes an annotation whose declared geometry disagrees with its payload
+   * or its `toolType` (a mask payload under vector geometry, or mask geometry
+   * under a `toolType` other than `segmentationBrush`, say), and a mask
+   * payload whose geometry is present but is no geometry (`null`,
+   * `{ type: 'Rectangle' }`): those are checked before any mask is decoded,
+   * so such an annotation refuses the document even when its pixels could not
+   * have been decoded either. A mask that declares no geometry is checked as
+   * mask geometry, so under another tool it refuses the document too, whatever
+   * its pixels. Only a mask whose declared fields pass those checks can be
+   * skipped here. A skipped mask is never checked whole, so a fault in a
+   * field those checks do not read (a missing `imageId`, a `toolType` that
+   * names no tool) goes with it unreported.
    */
   readonly skipped: readonly DeserializeSkip[];
 }
@@ -232,12 +235,13 @@ export function serialize(
  *    mask). Constraints count annotations by `toolType`, so an annotation
  *    recorded under another tool would count against that tool's limit.
  *    Fields missing or of the wrong type are left to step 3, but for the
- *    geometry under a mask payload: step 2 replaces it, so what the entry
- *    declared is checked here or never. It must be a mask geometry, or be
- *    omitted, and then counts as one, so the `toolType` must still be a tool
- *    that draws a mask. One that is present but is no geometry (`null`, a
- *    string, `{ type: 'Rectangle' }`) is refused. An entry whose `id` is not a
- *    string is checked all the same, and named as having none.
+ *    geometry under a mask payload: step 2 replaces it when it decodes the
+ *    mask, so what the entry declared is checked here, before that. It must
+ *    be a mask geometry, or be omitted, and then counts as one, so the
+ *    `toolType` must still be a tool that draws a mask. One that is present
+ *    but is no geometry (`null`, a string, `{ type: 'Rectangle' }`, or
+ *    `{ downsample: 4 }`, which has no `type`) is refused. An entry whose
+ *    `id` is not a string is checked all the same, and named as having none.
  * 2. **Mask payloads are converted.** One written in a downstream format is
  *    converted back to the canonical encoding by `options.maskCodecs`, and
  *    every mask is decoded, within the budgets in {@link DeserializeOptions},

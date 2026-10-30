@@ -228,7 +228,7 @@ This is checked on the fields as the document writes them, before the mask is de
 Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData's format is "coco-rle", not "fabric"
 ```
 
-A mask payload may omit its `geometry`, since decoding supplies one, but a geometry it declares must be a geometry. One that is not, such as `null`, a string, or `{ "type": "Rectangle" }`, is refused with a message saying what it is, which quotes nothing of it but a string `type`, cut short:
+A mask payload may omit its `geometry`, since decoding supplies one, but a geometry it declares must be a geometry. One that is not, such as `null`, a string, `{ "type": "Rectangle" }`, or `{ "downsample": 4 }` (a mask geometry needs its `"type": "mask"`, whatever else it records), is refused with a message saying what it is, which quotes nothing of it but a string `type`, cut short. The message calls the payload a mask payload, since that is how the rule counts it, and quotes its format, so a misspelled `"fabric"` shows there:
 
 ```text
 Validation failed: Annotation "m1" has a mask payload (format "coco-rle"), but its geometry is an object whose type is "Rectangle", not a mask geometry

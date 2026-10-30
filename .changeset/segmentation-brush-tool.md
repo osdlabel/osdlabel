@@ -36,15 +36,19 @@ Three behaviour changes: two on the import path, and one for older readers:
   dropped and reported in the new `DeserializeResult.skipped`, so one corrupt
   annotation does not cost you the rest of the document. Check `skipped` if
   partial data is not acceptable for your use — it is empty on a clean load.
-  Schema violations and a blown decode budget still throw, and so does an
-  annotation whose declared geometry disagrees with its payload or its tool
-  (a mask payload under vector geometry, say, or mask geometry recorded under
-  another tool) even when its own pixels could not be decoded either: those
-  are checked before any mask is decoded. A mask payload must declare a mask
-  geometry or none, and one that declares none is checked as mask geometry,
-  so it too is refused under another tool, and one whose geometry is present
-  but is no geometry (`null`, `{ type: 'Rectangle' }`) is refused whatever
-  its tool, rather than skipped when its pixels are corrupt.
+  Schema violations in an annotation that loads and a blown decode budget
+  still throw, and so does an annotation whose declared geometry disagrees
+  with its payload or its tool (a mask payload under vector geometry, say, or
+  mask geometry recorded under another tool) even when its own pixels could
+  not be decoded either: those are checked before any mask is decoded. A mask
+  payload must declare a mask geometry or none, and one that declares none is
+  checked as mask geometry, so it too is refused under another tool, and one
+  whose geometry is present but is no geometry (`null`,
+  `{ type: 'Rectangle' }`, or `{ downsample: 4 }` with no `type`) is refused
+  whatever its tool, rather than skipped when its pixels are corrupt. An
+  annotation rebuilt from a COCO segmentation keeps its downsample as
+  `geometry: { type: 'mask', downsample: 4 }`, or omits `geometry` to load at
+  full resolution.
 - **Earlier releases cannot read a document that holds a mask.** Their schema
   rejects `geometry.type: 'mask'` and `toolType: 'segmentationBrush'`, and a
   schema failure costs the whole document, vector annotations included. Export
@@ -155,9 +159,9 @@ it back correctly — it truncates runs past 32 bits, misreads deltas below
 where its box and area are summed in 32 bits (on a large mask the area is
 wrong too) — and `COCO_MAX_INTEROP_IMAGE_PIXELS` is 2^29, the image size within
 which every mask is safe. It was 2^32 - 1, which pycocotools does not honour. On import `MaskDecodeOptions.downsample` decodes COCO straight
-into cells, and `deserialize` passes the annotation's `geometry.downsample`, so
-a coarse mask comes back coarse; a payload that is not constant within each
-cell is skipped with that reason.
+into cells, and `deserialize` passes the `downsample` of the annotation's mask
+geometry, so a coarse mask comes back coarse; a payload that is not constant
+within each cell is skipped with that reason.
 
 The mask cap is counted in cells: 64 Mi cells (`DEFAULT_MAX_MASK_PIXELS`,
 `MAX_MASK_PIXELS`), enforced by the validation schema and the decoders, and on

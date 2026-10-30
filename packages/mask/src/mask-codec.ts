@@ -29,7 +29,9 @@ export interface MaskDecodeOptions {
    * The downsample to decode at, for a format that cannot carry one itself —
    * COCO's runs are always image pixels. `deserialize` passes the annotation's
    * `geometry.downsample`, which is therefore what a COCO dataset builder must
-   * keep alongside each segmentation for a coarse mask to come back coarse.
+   * keep alongside each segmentation for a coarse mask to come back coarse,
+   * in a mask geometry: `{ type: 'mask', downsample: 4 }` at the least.
+   * `deserialize` refuses a geometry with no `type` under a mask payload.
    *
    * A codec that honours it returns a raster at that downsample, and refuses a
    * payload that cannot be stored at it (one not constant within each cell)

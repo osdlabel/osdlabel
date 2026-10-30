@@ -504,6 +504,8 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
     ['a number', 42, 'a number'],
     ['a boolean', true, 'a boolean'],
     ['an empty object', {}, 'an object with no type'],
+    // What a COCO dataset builder who kept only the downsample would write.
+    ['a downsample alone', { downsample: 4 }, 'an object with no type'],
     ['an object with no prototype', Object.create(null), 'an object with no type'],
     [
       'a mask geometry with no type',
@@ -565,6 +567,33 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, quoted))).toEqual([
       'Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "Rect\\"\\nangle", not a mask geometry',
     ]);
+  });
+
+  it('cuts a type by code point, never inside a surrogate pair', () => {
+    // 31 letters, then two characters outside the BMP: counted in code units,
+    // the cut at 32 falls between the halves of the first one's pair.
+    const input = { ...maskAnnotation(), geometry: { type: `${'x'.repeat(31)}😀😀` } };
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
+      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(31)}😀"…, not a mask geometry`,
+    ]);
+    // Exactly 32 code points, 34 code units: nothing is cut.
+    const whole = { ...maskAnnotation(), geometry: { type: `${'x'.repeat(30)}😀😀` } };
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, whole))).toEqual([
+      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(30)}😀😀", not a mask geometry`,
+    ]);
+  });
+
+  it('escapes the characters JSON leaves raw that would reorder or hide the message', () => {
+    // A right-to-left override, a zero-width space, the line and paragraph
+    // separators, and a format character outside the BMP (a language tag).
+    const type = 'a\u202Eb\u200Bc\u2028d\u2029e\u{E0001}f';
+    const input = { ...maskAnnotation(), geometry: { type } };
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
+      'Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "a\\u202eb\\u200bc\\u2028d\\u2029e\\udb40\\udc01f", not a mask geometry',
+    ]);
+    // What is escaped is still the type: the quote is a JSON string of it.
+    const [message] = messages(v.safeParse(OsdAnnotationCrossFieldSchema, input));
+    expect(JSON.parse(/type is (".*"), not/.exec(message!)![1]!)).toBe(type);
   });
 
   it('names an entry with no string id as such', () => {
@@ -649,6 +678,20 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
     it('passes a Fabric payload with no geometry, for OsdAnnotationSchema to refuse', () => {
       const input: Record<string, unknown> = { ...rect };
       delete input['geometry'];
+      expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([]);
+      expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
+    });
+
+    // Under a tool that draws no mask, so that counting one of these as a
+    // mask payload would refuse it as mask geometry under the wrong tool.
+    it.each([
+      ['a payload with no format', { data: MASK_RAW.data }],
+      ['a payload whose format is not a string', { format: 7, data: MASK_RAW.data }],
+      ['a payload that is a string', 'osdlabel-mask'],
+      ['no payload', undefined],
+    ])('passes %s and no geometry, for OsdAnnotationSchema to refuse', (_name, raw) => {
+      const input = withoutGeometry({ toolType: 'rectangle', rawAnnotationData: raw });
+      if (raw === undefined) delete input['rawAnnotationData'];
       expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([]);
       expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
     });
