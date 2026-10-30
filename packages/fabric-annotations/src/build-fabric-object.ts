@@ -1,6 +1,7 @@
 import { Rect, Circle, Line, Polyline, Polygon, type FabricObject } from 'fabric';
 import { DEFAULT_POINT_RADIUS, type Geometry } from '@osdlabel/annotation';
 import type { FabricShapeOptions } from './fabric-utils.js';
+import { rectangleCenter } from './rectangle-anchor.js';
 
 /**
  * Construct a Fabric object from image-space {@link Geometry}. This is the
@@ -22,17 +23,21 @@ export function buildFabricObjectFromGeometry(
   pointRadius: number = DEFAULT_POINT_RADIUS,
 ): FabricObject {
   switch (geometry.type) {
-    case 'rectangle':
+    case 'rectangle': {
+      const center = rectangleCenter(geometry.origin, geometry.width, geometry.height);
       return new Rect({
         ...options,
-        left: geometry.origin.x,
-        top: geometry.origin.y,
+        left: center.x,
+        top: center.y,
         width: geometry.width,
         height: geometry.height,
         angle: geometry.rotation,
+        originX: 'center',
+        originY: 'center',
         selectable: true,
         evented: true,
       });
+    }
     case 'circle':
       return new Circle({
         ...options,

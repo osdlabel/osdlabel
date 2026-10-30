@@ -68,6 +68,7 @@ export {
   createFabricObjectFromRawData,
   getGeometryFromFabricObject,
   buildFabricObjectFromGeometry,
+  migrateLegacyRectangle,
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
@@ -153,6 +154,7 @@ export {
   centroid,
   midpoint,
   boundingBox,
+  rectangleCorners,
   circleToBoundingRectangle,
   withSelectionEmphasis,
 } from '@osdlabel/decoration';

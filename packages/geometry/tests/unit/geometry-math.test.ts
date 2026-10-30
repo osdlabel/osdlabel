@@ -197,7 +197,7 @@ describe('centroid', () => {
       }),
     ).toEqual({ x: 13, y: 24 });
   });
-  it('rectangle (90° rotation): local (w/2, h/2) rotates about origin', () => {
+  it('rectangle (90° rotation): turns about its centre, which stays put', () => {
     const c = centroid({
       type: 'rectangle',
       origin: { x: 0, y: 0 },
@@ -205,8 +205,7 @@ describe('centroid', () => {
       height: 4,
       rotation: 90,
     });
-    expect(c.x).toBeCloseTo(-2);
-    expect(c.y).toBeCloseTo(5);
+    expect(c).toEqual({ x: 5, y: 2 });
   });
   it('circle: center', () => {
     expect(centroid({ type: 'circle', center: { x: 3, y: 4 }, radius: 7 })).toEqual({ x: 3, y: 4 });

@@ -7,12 +7,16 @@ export class RectangleTool extends ShapeTool<Rect> {
   readonly type: ToolType = 'rectangle';
 
   protected createPreview(imagePoint: Point, options: FabricShapeOptions): Rect {
+    // Positioned by its centre, which is also how the geometry is read back
+    // (see rectangle-anchor.ts).
     return new Rect({
       ...options,
       left: imagePoint.x,
       top: imagePoint.y,
       width: 0,
       height: 0,
+      originX: 'center',
+      originY: 'center',
       selectable: false,
       evented: false,
     });
@@ -21,14 +25,11 @@ export class RectangleTool extends ShapeTool<Rect> {
   protected updatePreview(imagePoint: Point, startPoint: Point): void {
     if (!this.preview) return;
 
-    const width = imagePoint.x - startPoint.x;
-    const height = imagePoint.y - startPoint.y;
-
     this.preview.set({
-      width: Math.abs(width),
-      height: Math.abs(height),
-      left: width < 0 ? imagePoint.x : startPoint.x,
-      top: height < 0 ? imagePoint.y : startPoint.y,
+      width: Math.abs(imagePoint.x - startPoint.x),
+      height: Math.abs(imagePoint.y - startPoint.y),
+      left: (imagePoint.x + startPoint.x) / 2,
+      top: (imagePoint.y + startPoint.y) / 2,
     });
   }
 }
