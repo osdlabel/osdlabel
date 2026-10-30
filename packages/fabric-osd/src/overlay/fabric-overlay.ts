@@ -88,10 +88,11 @@ export type DoubleClickCallback = (
  * Usually that is the platform's `pointercancel` for the pointer that
  * pressed, sent when the OS or the browser takes a touch or pen contact away
  * mid-gesture (an edge swipe, palm rejection, a system dialog, an orientation
- * change). The overlay also cancels a touch press itself when a pen presses
- * while it is held: the touch was a resting palm, and the event is then the
- * pen's `pointerdown`. It receives that raw DOM event and the sequence of the
- * press it took away (see {@link FabricOverlay.pressSeqOf}).
+ * change). The overlay also cancels a touch press itself when a pen or a mouse
+ * presses while it is held, since a touch never wins over either: the touch
+ * was a hand at rest, and the event is then that pointer's `pointerdown`. It
+ * receives that raw DOM event and the sequence of the press it took away (see
+ * {@link FabricOverlay.pressSeqOf}).
  *
  * The overlay has already put the object Fabric was transforming back as the
  * press found it. What the press began elsewhere is the subscriber's to undo:
@@ -233,9 +234,10 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  *   itself after each `setMode('annotation')`. A gesture belongs to the
  *   pointer that pressed: its lift ends it, though another finger is still
  *   down, and a pointer that goes down meanwhile starts nothing until it lifts
- *   and presses again. There is no two-finger gesture. The one exception is a
- *   pen pressing while a touch press is held: the touch is a resting palm, so
- *   its press is cancelled and the pen's goes through.
+ *   and presses again. There is no two-finger gesture. The one exception: a
+ *   touch never wins over a pen or a mouse. When either presses while a touch
+ *   press is held, the touch is taken for a hand at rest, so its press is
+ *   cancelled and the new one goes through.
  * - **paint**: as annotation, but every object is inert and group selection
  *   stays off, for a tool that paints into an annotation (the segmentation
  *   brush). A second finger landing mid-stroke ends the stroke there.
@@ -298,11 +300,11 @@ export class FabricOverlay {
 
   /**
    * Pointers that went down on the overlay as a second pointer (see
-   * `_isSecondPointer`): a second finger, a mouse next to a finger, or a
-   * finger (a resting palm) next to a pen. A touch press that a pen's press
-   * then reveals as a palm joins them too. Nothing a held pointer does reaches
-   * Fabric, its lift included, so it starts nothing until it lifts and presses
-   * again; nor OSD's gesture handling (`preventGesture`).
+   * `_isSecondPointer`): a second finger, a finger (a resting palm) next to a
+   * pen or mouse, or a pen and a mouse next to each other. A touch press that
+   * a pen's or mouse's press then takes over joins them too. Nothing a held
+   * pointer does reaches Fabric, its lift included, so it starts nothing until
+   * it lifts and presses again; nor OSD's gesture handling (`preventGesture`).
    *
    * An entry leaves on the pointer's `pointerup` or `pointercancel`, and, in
    * case that went unseen, on its next press or on a move with no button
@@ -597,8 +599,8 @@ export class FabricOverlay {
 
   /**
    * Register a callback fired when the press in progress in annotation or
-   * paint mode is cancelled (`pointercancel`, or a palm a pen's press
-   * revealed). Returns an unsubscribe function.
+   * paint mode is cancelled (`pointercancel`, or a touch press that a pen's or
+   * mouse's press took over). Returns an unsubscribe function.
    *
    * See {@link PointerCancelCallback} for what the overlay has already undone
    * when it is called, and what is left to the subscriber. The framework hooks
@@ -993,15 +995,18 @@ export class FabricOverlay {
    * - one the platform does not call primary: a finger put down while another
    *   touches the screen. Fabric ignores such a pointer's events anyway, but
    *   OSD can still report its press (see `_releasePress`);
-   * - any pointer of another type while a press is in progress: a mouse or
-   *   pen next to a finger, or a finger (a resting palm, say) next to a pen.
-   *   OSD counts each type's contacts apart, so it reports that press, and the
-   *   platform calls it primary, so Fabric would take it for the gesture's
-   *   own pointer.
+   * - any pointer of another type while a press is in progress: a finger (a
+   *   resting palm, say) next to a pen or mouse, or a pen and a mouse next to
+   *   each other. OSD counts each type's contacts apart, so it reports that
+   *   press, and the platform calls it primary, so Fabric would take it for
+   *   the gesture's own pointer.
    *
-   * A pointer of the press's own type that the platform calls primary is not
-   * held: it can only be pressing because the press's pointer has lifted, so
-   * it starts a gesture of its own, as it always has.
+   * A pen or mouse pressing beside a touch press is not one: a touch never
+   * wins over a pen or a mouse, so `preProcessEventHandler` has cancelled the
+   * touch's press before asking. A pointer of the press's own type that the
+   * platform calls primary is not held either: it can only be pressing
+   * because the press's pointer has lifted, so it starts a gesture of its own,
+   * as it always has.
    */
   private _isSecondPointer(event: PointerEvent): boolean {
     if (event.isPrimary === false) return true;
@@ -1012,9 +1017,10 @@ export class FabricOverlay {
   /**
    * Whether a move goes to Fabric. While a press is in progress, only its own
    * pointer's moves do: a mouse hovering beside a finger's drag would
-   * otherwise carry the shape after the mouse. Otherwise every move does (a
-   * mouse's hover sets Fabric's cursor and the polyline tool's rubber band),
-   * except a held pointer's.
+   * otherwise carry the shape after the mouse. (Were the mouse to press, it
+   * would take the gesture over instead: a touch never wins over a mouse.)
+   * Otherwise every move does (a mouse's hover sets Fabric's cursor and the
+   * polyline tool's rubber band), except a held pointer's.
    */
   private _movesFabric(event: PointerEvent): boolean {
     const press = this._pendingPress;
@@ -1077,10 +1083,12 @@ export class FabricOverlay {
    * clicks either side of a cancelled press cannot pair into a double click.
    *
    * Only a cancel of the pointer that pressed counts, with one exception:
-   * a pen pressing while a touch press is held reveals the touch as a palm,
-   * and `preProcessEventHandler` cancels the touch's press with the pen's
-   * `pointerdown` as `cancelEvent` (`revealedByOtherPointer`). The platform
-   * usually cancels a palm itself, but not always before the pen lands.
+   * a touch never wins over a pen or a mouse, so when either presses while a
+   * touch press is held, `preProcessEventHandler` cancels the touch's press
+   * with that `pointerdown` as `cancelEvent` (`revealedByOtherPointer`). The
+   * platform usually cancels a palm itself, but not always before the pen
+   * lands, and has no cause to cancel a finger left on a touchscreen beside
+   * the mouse.
    * `lostpointercapture` is not handled separately: the browser sends it
    * after the `pointerup` or `pointercancel` that ends a press, and in this
    * overlay nothing releases capture mid-press.
@@ -1389,15 +1397,29 @@ export class FabricOverlay {
           this._heldPointers.delete(domEvent.pointerId);
           const press = this._pendingPress;
           if (press !== null && !this._panGestureActive) {
-            if (press.pointerType === 'touch' && domEvent.pointerType === 'pen') {
-              // The pencil after the palm: the hand landed first, and the
-              // platform had not yet cancelled it. The touch was the palm, so
-              // undo its press as a cancel would (`_cancelPress`: revert, tell
-              // the tool, end Fabric's gesture with a release that commits
-              // nothing), hold the rest of it, and let this press through as
-              // the real one. Holding the pencil instead swallowed the whole
-              // of its stroke. Only a pen wins over a touch: a mouse beside a
-              // finger is held like any other second pointer.
+            if (
+              press.pointerType === 'touch' &&
+              (domEvent.pointerType === 'pen' || domEvent.pointerType === 'mouse')
+            ) {
+              // A touch never wins over a pen or a mouse. A touch press still
+              // held when one of them presses is a hand at rest: the palm the
+              // pencil landed after, which the platform had not yet
+              // cancelled, or a finger left on a touchscreen while the other
+              // hand took the mouse. So undo its press as a cancel would
+              // (`_cancelPress`: revert, tell the tool, end Fabric's gesture
+              // with a release that commits nothing), hold the rest of it,
+              // and let this press through as the real one. Holding this
+              // pointer instead swallowed the whole of its stroke, and the
+              // finger's lift then committed what the finger had done.
+              //
+              // Any press of the pen or mouse counts, whatever its button or
+              // modifiers: a right-button or a Ctrl/Cmd press shows as
+              // plainly where the hand is. What the press then does is
+              // decided below, as for any press: a pan trigger pans, and a
+              // press of a button other than the primary one starts nothing
+              // (OSD reports it only to a `nonPrimaryPressHandler`, which
+              // this tracker does not register). The reverse, a touch beside
+              // a pen or mouse press, is a second pointer, held below.
               this._heldPointers.add(press.pointerId);
               this._cancelPress(domEvent, true);
             } else if (

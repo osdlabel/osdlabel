@@ -7,7 +7,10 @@ import { createTestViewer, installPointerEventPolyfill, type TestViewer } from '
 
 /**
  * A second pointer on the overlay while a press is in progress: a second
- * finger, or a mouse or pen next to a finger.
+ * finger, a finger next to a pen or mouse, or a pen and a mouse next to each
+ * other. (A pen or mouse pressing next to a finger is not held: a touch never
+ * wins over either, so it takes the gesture over. That is a cancel, in
+ * `pointer-cancel.test.ts`.)
  *
  * OSD's MouseTracker counts contacts per pointer type and calls
  * `releaseHandler` only when the last contact of a type lifts. So when the
@@ -21,10 +24,10 @@ import { createTestViewer, installPointerEventPolyfill, type TestViewer } from '
  *
  * The lift of the pointer that pressed is a release: the gesture ends there
  * and commits as a mouse release would. Every other pointer that goes down
- * meanwhile is held: nothing it does reaches Fabric until it lifts. The
- * gesture end to end, through real two-finger touch input, is in
- * `apps/dev/tests/e2e/touch-second-finger.spec.ts`; this pins the overlay's
- * half against a real Fabric canvas.
+ * meanwhile is held, a pen or mouse beside a finger excepted: nothing it does
+ * reaches Fabric until it lifts. The gesture end to end, through real
+ * two-finger touch input, is in `apps/dev/tests/e2e/touch-second-finger.spec.ts`;
+ * this pins the overlay's half against a real Fabric canvas.
  *
  * The tracker's handlers are driven directly, as `pointer-cancel.test.ts`
  * does (under jsdom OSD binds mouse events, not pointer events). Each step
@@ -69,6 +72,8 @@ const FINGER_B: PointerSpec = { pointerId: 8, pointerType: 'touch', isPrimary: f
 const FINGER_C: PointerSpec = { pointerId: 9, pointerType: 'touch', isPrimary: false };
 /** A mouse: OSD counts its contacts apart from touch, and it is always primary. */
 const MOUSE: PointerSpec = { pointerId: 1, pointerType: 'mouse', isPrimary: true };
+/** A pen: counted apart from both, and primary too. */
+const PEN: PointerSpec = { pointerId: 2, pointerType: 'pen', isPrimary: true };
 
 /** A pointer event of `pointer`, as the browser delivers it. */
 function event(type: string, pointer: PointerSpec, at: At, timeStamp = 0): PointerEvent {
@@ -237,27 +242,53 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
   });
 
   /**
-   * A mouse next to a finger. OSD counts mouse and touch contacts apart, so it
-   * reports the mouse's press while the finger is down, and Chrome marks both
-   * primary, so Fabric does not tell them apart: a mouse press started a
-   * second gesture on top of the first, and a mouse hover carried the shape
-   * the finger was dragging.
+   * A pointer of another type. OSD counts each type's contacts apart, so it
+   * reports the second pointer's press while the first is down, and Chrome
+   * marks both primary, so Fabric does not tell them apart: the press started
+   * a second gesture on top of the first, and its moves carried the shape the
+   * first was dragging. A pen or mouse beside a finger is the one mix not held
+   * (see the file's comment); every other is.
    */
-  it('holds a pointer of another type that goes down mid-press, and its hover', () => {
-    press(FINGER_A, { x: 100, y: 100 });
-    move(FINGER_A, { x: 120, y: 110 });
-    const beforeMouse = fired.length;
+  it.each<[string, PointerSpec, PointerSpec]>([
+    ['a finger beside a mouse press', MOUSE, FINGER_A],
+    ['a finger beside a pen press', PEN, FINGER_A],
+    ['a mouse beside a pen press', PEN, MOUSE],
+    ['a pen beside a mouse press', MOUSE, PEN],
+  ])('holds %s, which starts nothing', (_name, first, second) => {
+    press(first, { x: 100, y: 100 });
+    move(first, { x: 120, y: 110 });
+    const beforeSecond = fired.length;
 
-    move(MOUSE, { x: 500, y: 400 }, 0);
-    press(MOUSE, { x: 500, y: 400 });
-    move(MOUSE, { x: 520, y: 420 });
-    release(MOUSE, { x: 520, y: 420 });
+    press(second, { x: 500, y: 400 });
+    move(second, { x: 520, y: 420 });
+    release(second, { x: 520, y: 420 });
 
-    expect(fired.slice(beforeMouse)).toEqual([]);
+    expect(fired.slice(beforeSecond)).toEqual([]);
     expect(rect.left).toBe(120);
     expect(transformOpen()).toBe(true);
 
-    // The finger's gesture is still the one in progress, and its lift ends it.
+    // The first pointer's gesture is still the one in progress, and its lift
+    // ends it.
+    move(first, { x: 150, y: 130 });
+    release(first, { x: 150, y: 130 });
+    expect(modified).toHaveBeenCalledTimes(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+  });
+
+  /**
+   * A hover is no press, so it takes nothing over, whatever the pointer: a
+   * mouse hovering beside a finger's drag carried the shape after the mouse.
+   */
+  it("forwards no other pointer's hover while a press is in progress", () => {
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 120, y: 110 });
+    const beforeHover = fired.length;
+
+    move(MOUSE, { x: 500, y: 400 }, 0);
+    move(MOUSE, { x: 520, y: 420 }, 0);
+
+    expect(fired.slice(beforeHover)).toEqual([]);
+    expect(rect.left).toBe(120);
     move(FINGER_A, { x: 150, y: 130 });
     release(FINGER_A, { x: 150, y: 130 });
     expect(modified).toHaveBeenCalledTimes(1);
@@ -360,9 +391,9 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
   });
 
   it('lets a held pointer go when it presses again, should its lift have gone unseen', () => {
-    press(FINGER_A, { x: 100, y: 100 });
+    press(PEN, { x: 100, y: 100 });
     press(MOUSE, { x: 500, y: 400 });
-    release(FINGER_A, { x: 100, y: 100 });
+    release(PEN, { x: 100, y: 100 });
     // The mouse's release never reached the overlay. Its next press is a
     // gesture: a pointer cannot press without having lifted.
     press(MOUSE, { x: 100, y: 100 });
@@ -374,9 +405,9 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
   });
 
   it('lets a held mouse go when it hovers, should its lift have gone unseen', () => {
-    press(FINGER_A, { x: 100, y: 100 });
+    press(PEN, { x: 100, y: 100 });
     press(MOUSE, { x: 500, y: 400 });
-    release(FINGER_A, { x: 100, y: 100 });
+    release(PEN, { x: 100, y: 100 });
     const beforeHover = fired.length;
 
     // No button down: the mouse has lifted, whatever the overlay saw.
@@ -386,12 +417,14 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
   });
 
   it('forgets held pointers when the mode changes', () => {
-    press(FINGER_A, { x: 100, y: 100 });
+    press(PEN, { x: 100, y: 100 });
     press(MOUSE, { x: 500, y: 400 });
     overlay.setMode('navigation');
     overlay.setMode('annotation');
     const before = fired.length;
 
+    // A button down: had the hold outlived the mode change, this move would
+    // be swallowed.
     move(MOUSE, { x: 300, y: 300 });
 
     expect(fired.slice(before).map((f) => f.name)).toEqual(['mouse:move:before']);

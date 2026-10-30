@@ -377,83 +377,242 @@ describe('FabricOverlay: a cancelled press is undone', () => {
   });
 
   /**
-   * On an iPad the hand often rests before the pencil lands, and the platform
-   * has not always cancelled it by then. A pen pressing while a touch press is
-   * held reveals the touch as the palm: its press is undone as a cancel would
-   * undo it, and the pen's press goes through. A mouse beside a touch has no
-   * such claim, and is held like any other second pointer.
+   * A touch never wins over a pen or a mouse. On an iPad the hand often rests
+   * before the pencil lands, and the platform has not always cancelled it by
+   * then; a finger left on a touchscreen while the other hand takes the mouse
+   * is not cancelled at all. Either way the touch was a hand at rest: when a
+   * pen or a mouse presses while a touch press is held, the touch's press is
+   * undone as a cancel would undo it, in annotation and paint mode alike, the
+   * rest of the touch is held to its lift, and the new press goes through.
    */
-  describe('another pointer type pressing while a touch press is held', () => {
+  describe('a pen or a mouse pressing while a touch press is held', () => {
     interface ProcessInfo extends EventProcessInfo {
       preventGesture?: boolean;
     }
-    const otherPress = (pointerType: 'pen' | 'mouse', at: { x: number; y: number }) => {
-      const e = touchEvent('pointerdown', at, { pointerId: 3, pointerType });
-      const info: ProcessInfo = { eventType: 'pointerdown', originalEvent: e };
-      tracker(overlay).preProcessEventHandler(info);
-      // OSD calls pressHandler for it either way: it is the first of its type.
-      // With `preventGesture` set it would not; the overlay's belt holds too.
-      if (info.preventGesture !== true) tracker(overlay).pressHandler({ originalEvent: e });
-      return { e, info };
-    };
-    const palmMove = (at: { x: number; y: number }): void => {
-      const e = touchEvent('pointermove', at);
-      tracker(overlay).preProcessEventHandler({ eventType: 'pointermove', originalEvent: e });
-      tracker(overlay).moveHandler({ originalEvent: e });
+    type At = { x: number; y: number };
+
+    /**
+     * One pointer, driven as OSD reports it: `preProcessEventHandler`, then
+     * the press, move or release handler. OSD skips the press and release
+     * handlers for a held pointer (`preventGesture`); calling them anyway
+     * checks the overlay's own belt as well.
+     */
+    const pointer = (pointerType: 'touch' | 'pen' | 'mouse', pointerId: number) => {
+      const drive = (
+        eventType: string,
+        at: At,
+        handler: 'pressHandler' | 'moveHandler' | 'releaseHandler',
+      ) => {
+        const e = touchEvent(eventType, at, { pointerType, pointerId });
+        const info: ProcessInfo = { eventType, originalEvent: e };
+        tracker(overlay).preProcessEventHandler(info);
+        tracker(overlay)[handler]({ originalEvent: e });
+        return { e, info };
+      };
+      return {
+        press: (at: At) => drive('pointerdown', at, 'pressHandler'),
+        move: (at: At) => drive('pointermove', at, 'moveHandler'),
+        release: (at: At) => drive('pointerup', at, 'releaseHandler'),
+      };
     };
 
-    it("a pen undoes the touch's press as a palm, tells subscribers with its own press, and goes through", () => {
-      const atPress = placement(rect);
-      const onCancel = vi.fn<PointerCancelCallback>();
-      overlay.onPointerCancel(onCancel);
-      const downs: PointerEvent[] = [];
-      const ups: PointerEvent[] = [];
+    /**
+     * What the cancel subscribers and Fabric heard, in order: each press with
+     * its sequence, each cancel with the press it took away and the pointer
+     * whose event it carries, and each release marked if it ends a cancel.
+     */
+    const listen = (): string[] => {
+      const heard: string[] = [];
+      overlay.onPointerCancel((event, pressSeq) => {
+        heard.push(`cancel #${pressSeq} by ${event.pointerType}`);
+      });
       overlay.canvas.on('mouse:down', (opt) => {
-        downs.push(opt.e as PointerEvent);
+        const e = opt.e as PointerEvent;
+        heard.push(`mouse:down ${e.pointerType} #${overlay.pressSeqOf(e)}`);
+      });
+      overlay.canvas.on('mouse:move', (opt) => {
+        heard.push(`mouse:move ${(opt.e as PointerEvent).pointerType}`);
       });
       overlay.canvas.on('mouse:up', (opt) => {
-        ups.push(opt.e as PointerEvent);
+        const e = opt.e as PointerEvent;
+        heard.push(
+          `mouse:up ${e.pointerType}${overlay.isCancelledRelease(e) ? ' (cancelled)' : ''}`,
+        );
+      });
+      return heard;
+    };
+
+    for (const pointerType of ['pen', 'mouse'] as const) {
+      it(`a ${pointerType} undoes the touch's drag, tells subscribers before Fabric's release, and goes through`, () => {
+        const atPress = placement(rect);
+        const onCancel = vi.fn<PointerCancelCallback>();
+        overlay.onPointerCancel(onCancel);
+        const heard = listen();
+        const touch = pointer('touch', PRESSING);
+        const other = pointer(pointerType, 3);
+
+        touch.press({ x: 100, y: 100 });
+        touch.move({ x: 130, y: 120 });
+        expect(rect.left).toBe(130);
+
+        const { e, info } = other.press({ x: 300, y: 300 });
+
+        // The drag is undone, and nothing is committed.
+        expect(placement(rect)).toEqual(atPress);
+        expect(modified).not.toHaveBeenCalled();
+        // The subscribers hear of it with the event that revealed it.
+        expect(onCancel).toHaveBeenCalledTimes(1);
+        expect(onCancel.mock.calls[0]![0]).toBe(e);
+        // The new press is not held: OSD's gesture handling may see it.
+        expect(info.preventGesture).not.toBe(true);
+
+        // The rest of the touch is held to its lift: neither its moves nor
+        // its lift reach Fabric.
+        touch.move({ x: 160, y: 140 });
+        touch.release({ x: 160, y: 140 });
+        expect(placement(rect)).toEqual(atPress);
+
+        // The new press's gesture is an ordinary one, to its own lift.
+        other.move({ x: 320, y: 310 });
+        other.release({ x: 320, y: 310 });
+
+        expect(heard).toEqual([
+          'mouse:down touch #1',
+          'mouse:move touch',
+          `cancel #1 by ${pointerType}`,
+          'mouse:up touch (cancelled)',
+          `mouse:down ${pointerType} #2`,
+          `mouse:move ${pointerType}`,
+          `mouse:up ${pointerType}`,
+        ]);
+        expect(placement(rect)).toEqual(atPress);
+        expect(modified).not.toHaveBeenCalled();
       });
 
-      press({ x: 100, y: 100 });
-      move({ x: 130, y: 120 });
-      expect(rect.left).toBe(130);
+      it(`in paint mode too: a ${pointerType} ends the touch's stroke as a cancel, and strokes on alone`, () => {
+        // Every object is inert in paint mode, so there is no transform to
+        // revert; what matters is that the brush hears of the cancel before
+        // the release, which it would otherwise commit as the dot a resting
+        // finger left, and that the release is marked.
+        overlay.setMode('paint');
+        const heard = listen();
+        const touch = pointer('touch', PRESSING);
+        const other = pointer(pointerType, 3);
 
-      const { e, info } = otherPress('pen', { x: 300, y: 300 });
+        touch.press({ x: 100, y: 100 });
+        touch.move({ x: 120, y: 110 });
+        const { info } = other.press({ x: 300, y: 300 });
+        expect(info.preventGesture).not.toBe(true);
+        other.move({ x: 340, y: 300 });
+        touch.move({ x: 140, y: 120 });
+        other.release({ x: 340, y: 300 });
+        touch.release({ x: 140, y: 120 });
 
-      expect(placement(rect)).toEqual(atPress);
-      expect(modified).not.toHaveBeenCalled();
-      expect(onCancel).toHaveBeenCalledTimes(1);
-      const [event, pressSeq] = onCancel.mock.calls[0]!;
-      expect(event).toBe(e);
-      expect(pressSeq).toBe(overlay.pressSeqOf(downs[0]!));
-      expect(ups).toHaveLength(1);
-      expect(overlay.isCancelledRelease(ups[0]!)).toBe(true);
-      expect(info.preventGesture).not.toBe(true);
-      expect(downs.map((d) => d.pointerType)).toEqual(['touch', 'pen']);
+        expect(heard).toEqual([
+          'mouse:down touch #1',
+          'mouse:move touch',
+          `cancel #1 by ${pointerType}`,
+          'mouse:up touch (cancelled)',
+          `mouse:down ${pointerType} #2`,
+          `mouse:move ${pointerType}`,
+          `mouse:up ${pointerType}`,
+        ]);
+        expect(modified).not.toHaveBeenCalled();
+      });
 
-      // The rest of the palm is held: its moves carry nothing.
-      palmMove({ x: 160, y: 140 });
-      expect(placement(rect)).toEqual(atPress);
-    });
+      /**
+       * Any press of the pen or mouse takes over, whatever its button or
+       * modifiers: it shows as plainly where the hand is. It then goes on as
+       * that press always has. A right-button press starts nothing, since OSD
+       * reports it to no press handler; a Ctrl press pans.
+       */
+      it(`a ${pointerType}'s right-button press undoes the touch's press too, and starts nothing`, () => {
+        const atPress = placement(rect);
+        const heard = listen();
+        const touch = pointer('touch', PRESSING);
+        touch.press({ x: 100, y: 100 });
+        touch.move({ x: 130, y: 120 });
 
-    it('a mouse is held, and the touch keeps its gesture to its own lift', () => {
+        const e = touchEvent(
+          'pointerdown',
+          { x: 300, y: 300 },
+          { pointerType, pointerId: 3, button: 2, buttons: 2 },
+        );
+        tracker(overlay).preProcessEventHandler({ eventType: 'pointerdown', originalEvent: e });
+
+        expect(placement(rect)).toEqual(atPress);
+        expect(heard).toEqual([
+          'mouse:down touch #1',
+          'mouse:move touch',
+          `cancel #1 by ${pointerType}`,
+          'mouse:up touch (cancelled)',
+        ]);
+        touch.move({ x: 160, y: 140 });
+        expect(placement(rect)).toEqual(atPress);
+      });
+
+      it(`a ${pointerType}'s Ctrl press undoes the touch's press too, and pans`, () => {
+        const atPress = placement(rect);
+        const heard = listen();
+        const touch = pointer('touch', PRESSING);
+        touch.press({ x: 100, y: 100 });
+        touch.move({ x: 130, y: 120 });
+
+        const e = touchEvent(
+          'pointerdown',
+          { x: 300, y: 300 },
+          { pointerType, pointerId: 3, ctrlKey: true },
+        );
+        const info: ProcessInfo = { eventType: 'pointerdown', originalEvent: e };
+        tracker(overlay).preProcessEventHandler(info);
+        tracker(overlay).pressHandler({ originalEvent: e });
+
+        expect(placement(rect)).toEqual(atPress);
+        expect(heard).toEqual([
+          'mouse:down touch #1',
+          'mouse:move touch',
+          `cancel #1 by ${pointerType}`,
+          'mouse:up touch (cancelled)',
+        ]);
+        // Passed on to OSD, with its navigation turned on for the pan.
+        expect(info.stopPropagation).not.toBe(true);
+        expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+      });
+    }
+
+    /**
+     * The rule runs one way. A touch beside a pen or mouse press, and a pen
+     * and a mouse beside each other's, are second pointers: held, with
+     * nothing cancelled, while the first press keeps its gesture to its own
+     * lift.
+     */
+    it.each([
+      ['touch', 'pen'],
+      ['touch', 'mouse'],
+      ['pen', 'mouse'],
+      ['mouse', 'pen'],
+    ] as const)('a %s beside a %s press is held, and cancels nothing', (secondType, firstType) => {
       const onCancel = vi.fn<PointerCancelCallback>();
       overlay.onPointerCancel(onCancel);
+      const first = pointer(firstType, 3);
+      const second = pointer(secondType, PRESSING);
 
-      press({ x: 100, y: 100 });
-      move({ x: 130, y: 120 });
-      const { info } = otherPress('mouse', { x: 300, y: 300 });
+      first.press({ x: 100, y: 100 });
+      first.move({ x: 130, y: 120 });
+      const { info } = second.press({ x: 300, y: 300 });
 
       expect(info.preventGesture).toBe(true);
       expect(info.stopPropagation).toBe(true);
       expect(onCancel).not.toHaveBeenCalled();
       expect(transformOpen()).toBe(true);
 
-      move({ x: 160, y: 140 });
-      release({ x: 160, y: 140 });
+      second.move({ x: 320, y: 310 });
+      second.release({ x: 320, y: 310 });
+      first.move({ x: 160, y: 140 });
+      first.release({ x: 160, y: 140 });
       expect(rect.left).toBe(160);
       expect(modified).toHaveBeenCalledTimes(1);
+      expect(onCancel).not.toHaveBeenCalled();
     });
   });
 

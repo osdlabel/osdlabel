@@ -174,24 +174,27 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
     expect(contacts('touch')).toBe(0);
   });
 
-  it('lets a palm rest beside a pen without touching the stroke', () => {
-    setup('paint');
-    const pen: Pointer = { id: 5, type: 'pen' };
-    const palm: Pointer = { id: 7, type: 'touch' };
-    fire(POINTER_DOWN, pen);
-    fire(POINTER_DOWN, palm);
-    fire(POINTER_MOVE, pen, { clientX: 20 });
-    fire(POINTER_MOVE, palm, { clientX: 30 });
-    fire(POINTER_UP, pen);
-    fire(POINTER_UP, palm);
-    expect(summary()).toEqual([
-      [POINTER_DOWN, 5, true],
-      [POINTER_MOVE, 5, true],
-      [POINTER_UP, 5, true],
-    ]);
-    expect(contacts('pen')).toBe(0);
-    expect(contacts('touch')).toBe(0);
-  });
+  it.each(['pen', 'mouse'] as const)(
+    'lets a palm rest beside a %s press without touching the stroke',
+    (type) => {
+      setup('paint');
+      const stroking: Pointer = { id: 5, type };
+      const palm: Pointer = { id: 7, type: 'touch' };
+      fire(POINTER_DOWN, stroking);
+      fire(POINTER_DOWN, palm);
+      fire(POINTER_MOVE, stroking, { clientX: 20 });
+      fire(POINTER_MOVE, palm, { clientX: 30 });
+      fire(POINTER_UP, stroking);
+      fire(POINTER_UP, palm);
+      expect(summary()).toEqual([
+        [POINTER_DOWN, 5, true],
+        [POINTER_MOVE, 5, true],
+        [POINTER_UP, 5, true],
+      ]);
+      expect(contacts(type)).toBe(0);
+      expect(contacts('touch')).toBe(0);
+    },
+  );
 
   it('marks a cancelled press so a tool can discard it', () => {
     setup('paint');
@@ -247,6 +250,32 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
     expect(overlay.isCancelledRelease(forwarded[1]!)).toBe(true);
     expect(overlay.isCancelledRelease(forwarded[4]!)).toBe(false);
     expect(contacts('pen')).toBe(0);
+    expect(contacts('touch')).toBe(0);
+  });
+
+  it('lets the mouse through while a finger rests, and holds the finger to its lift', () => {
+    // A touch never wins over a mouse either: a finger left on a touchscreen
+    // while the other hand takes the mouse. Nothing cancels that finger, so
+    // it lifts after the mouse's stroke, and its lift must end nothing.
+    setup('paint');
+    const finger: Pointer = { id: 7, type: 'touch' };
+    const mouse: Pointer = { id: 1, type: 'mouse' };
+    fire(POINTER_DOWN, finger);
+    fire(POINTER_DOWN, mouse);
+    fire(POINTER_MOVE, mouse, { clientX: 20 });
+    fire(POINTER_MOVE, finger, { clientX: 30 });
+    fire(POINTER_UP, mouse);
+    fire(POINTER_UP, finger);
+    expect(summary()).toEqual([
+      [POINTER_DOWN, 7, true],
+      [POINTER_UP, 7, true],
+      [POINTER_DOWN, 1, true],
+      [POINTER_MOVE, 1, true],
+      [POINTER_UP, 1, true],
+    ]);
+    expect(overlay.isCancelledRelease(forwarded[1]!)).toBe(true);
+    expect(overlay.isCancelledRelease(forwarded[4]!)).toBe(false);
+    expect(contacts('mouse')).toBe(0);
     expect(contacts('touch')).toBe(0);
   });
 });

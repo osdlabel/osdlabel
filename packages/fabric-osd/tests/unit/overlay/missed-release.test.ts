@@ -368,52 +368,56 @@ describe('releases OSD never reports', () => {
     expect(ordinary.o.isCancelledRelease(ordinary.dispatched[1]!)).toBe(false);
   });
 
-  it('lets a pen through while a touch press is held, discarding the touch as the palm', () => {
-    // On an iPad the hand often lands before the pencil and is cancelled a
-    // moment later. When the pencil wins that race, treating it as the palm
-    // swallowed its whole stroke; the touch is the palm.
-    const { o, dispatched, tracker, pending } = overlayInMode('paint');
-    const palm = (type: string) =>
-      event(type, 7, {
-        pointerType: 'touch',
-        isPrimary: true,
-        buttons: type === POINTER_DOWN || type === POINTER_MOVE ? 1 : 0,
-      });
-    const pen = (type: string) =>
-      event(type, 5, { pointerType: 'pen', isPrimary: true, buttons: type === POINTER_UP ? 0 : 1 });
-    press(tracker, palm(POINTER_DOWN));
+  // A touch never wins over a pen or a mouse. On an iPad the hand often lands
+  // before the pencil and is cancelled a moment later; a finger left on a
+  // touchscreen beside the mouse is not cancelled at all. Holding the pen or
+  // mouse swallowed its whole stroke; the touch is the hand at rest.
+  it.each(['pen', 'mouse'] as const)(
+    'lets a %s through while a touch press is held, discarding the touch',
+    (pointerType) => {
+      const { o, dispatched, tracker, pending } = overlayInMode('paint');
+      const palm = (type: string) =>
+        event(type, 7, {
+          pointerType: 'touch',
+          isPrimary: true,
+          buttons: type === POINTER_DOWN || type === POINTER_MOVE ? 1 : 0,
+        });
+      const other = (type: string) =>
+        event(type, 5, { pointerType, isPrimary: true, buttons: type === POINTER_UP ? 0 : 1 });
+      press(tracker, palm(POINTER_DOWN));
 
-    const penDown = info(POINTER_DOWN, pen(POINTER_DOWN));
-    tracker.preProcessEventHandler(penDown);
-    expect(penDown.preventGesture).toBe(false);
-    tracker.pressHandler({ originalEvent: pen(POINTER_DOWN) });
-    expect(dispatched.map((e) => [e.type, e.pointerId, e.pointerType])).toEqual([
-      [POINTER_DOWN, 7, 'touch'],
-      [POINTER_UP, 7, 'touch'],
-      [POINTER_DOWN, 5, 'pen'],
-    ]);
-    expect(o.isCancelledRelease(dispatched[1]!)).toBe(true);
-    expect(pending()?.pointerId).toBe(5);
+      const otherDown = info(POINTER_DOWN, other(POINTER_DOWN));
+      tracker.preProcessEventHandler(otherDown);
+      expect(otherDown.preventGesture).toBe(false);
+      tracker.pressHandler({ originalEvent: other(POINTER_DOWN) });
+      expect(dispatched.map((e) => [e.type, e.pointerId, e.pointerType])).toEqual([
+        [POINTER_DOWN, 7, 'touch'],
+        [POINTER_UP, 7, 'touch'],
+        [POINTER_DOWN, 5, pointerType],
+      ]);
+      expect(o.isCancelledRelease(dispatched[1]!)).toBe(true);
+      expect(pending()?.pointerId).toBe(5);
 
-    // The rest of the palm is swallowed; its cancel forwards nothing.
-    const palmMove = info(POINTER_MOVE, palm(POINTER_MOVE));
-    tracker.preProcessEventHandler(palmMove);
-    expect(palmMove.preventGesture).toBe(true);
-    const palmCancel = info(POINTER_CANCEL, palm(POINTER_CANCEL));
-    tracker.preProcessEventHandler(palmCancel);
-    expect(palmCancel.preventGesture).toBe(true);
-    expect(dispatched).toHaveLength(3);
+      // The rest of the touch is swallowed; its cancel forwards nothing.
+      const palmMove = info(POINTER_MOVE, palm(POINTER_MOVE));
+      tracker.preProcessEventHandler(palmMove);
+      expect(palmMove.preventGesture).toBe(true);
+      const palmCancel = info(POINTER_CANCEL, palm(POINTER_CANCEL));
+      tracker.preProcessEventHandler(palmCancel);
+      expect(palmCancel.preventGesture).toBe(true);
+      expect(dispatched).toHaveLength(3);
 
-    // The pencil's own release is an ordinary lift.
-    const penUp = pen(POINTER_UP);
-    tracker.preProcessEventHandler(info(POINTER_UP, penUp));
-    tracker.releaseHandler({ originalEvent: penUp });
-    expect(dispatched.map((e) => [e.type, e.pointerId])).toEqual([
-      [POINTER_DOWN, 7],
-      [POINTER_UP, 7],
-      [POINTER_DOWN, 5],
-      [POINTER_UP, 5],
-    ]);
-    expect(o.isCancelledRelease(dispatched[3]!)).toBe(false);
-  });
+      // Its own release is an ordinary lift.
+      const otherUp = other(POINTER_UP);
+      tracker.preProcessEventHandler(info(POINTER_UP, otherUp));
+      tracker.releaseHandler({ originalEvent: otherUp });
+      expect(dispatched.map((e) => [e.type, e.pointerId])).toEqual([
+        [POINTER_DOWN, 7],
+        [POINTER_UP, 7],
+        [POINTER_DOWN, 5],
+        [POINTER_UP, 5],
+      ]);
+      expect(o.isCancelledRelease(dispatched[3]!)).toBe(false);
+    },
+  );
 });

@@ -15,7 +15,9 @@
  * Cancel means revert, the platform's meaning for `pointercancel`: the shape
  * goes back to where it was at the press, nothing is committed, a drawing
  * tool drops its preview (and a polyline the vertex that press placed), and
- * the gesture is over, so later input starts afresh.
+ * the gesture is over, so later input starts afresh. The overlay undoes a
+ * finger's gesture the same way when a pen or a mouse presses beside it (the
+ * last describe): a touch never wins over either.
  *
  * CDP's `touchCancel` produces a genuine `pointercancel` (trusted,
  * `isPrimary`, `button` -1), the path a real interruption takes, which a
@@ -81,6 +83,24 @@ async function touchEnd(cdp: CDPSession): Promise<void> {
 async function touchTap(cdp: CDPSession, at: Point): Promise<void> {
   await touchPressAndMove(cdp, [at]);
   await touchEnd(cdp);
+}
+
+/** A pen or mouse press, or its release, at `at`, with the primary button. */
+async function buttonEvent(
+  cdp: CDPSession,
+  pointerType: 'pen' | 'mouse',
+  type: 'mousePressed' | 'mouseReleased',
+  at: Point,
+): Promise<void> {
+  await cdp.send('Input.dispatchMouseEvent', {
+    type,
+    x: at.x,
+    y: at.y,
+    button: 'left',
+    buttons: type === 'mousePressed' ? 1 : 0,
+    clickCount: 1,
+    pointerType,
+  });
 }
 
 /** `steps` points from `from`, each `step` further on, `from` included. */
@@ -558,4 +578,68 @@ test.describe('A touch gesture the platform cancels is undone', () => {
     ).toBeGreaterThan(10);
     expect(pageErrors).toEqual([]);
   });
+});
+
+/**
+ * A touch never wins over a pen or a mouse. A finger's gesture still in
+ * progress when either presses was a hand at rest (a palm the platform had
+ * not yet rejected when the pencil landed, a finger left on a touchscreen
+ * while the other hand took the mouse), so the overlay undoes it exactly as a
+ * cancelled one, and ignores the finger until it lifts.
+ */
+test.describe('A pen or mouse press beside a finger undoes its gesture', () => {
+  test.use({ hasTouch: true });
+
+  for (const pointerType of ['mouse', 'pen'] as const) {
+    test(`a ${pointerType} press elsewhere puts a dragged rectangle back, and the finger's lift stores nothing`, async ({
+      page,
+    }) => {
+      const view = await openAnnotator(page);
+      const drawn = await drawAndSelect(page, view);
+      const before = await annotationsText(page);
+      const atPress = await onlyLiveObject(page);
+      const cdp = await page.context().newCDPSession(page);
+
+      const path = straightPath(bodyPoint(view, drawn.geometry), { x: 11, y: 6 }, 6);
+      await touchPressAndMove(cdp, path);
+      await nextFrames(page);
+      // The drag reached Fabric: without this, a test whose touches never
+      // landed would pass on an untouched rectangle.
+      const mid = await onlyLiveObject(page);
+      expect(
+        Math.hypot(mid.left - atPress.left, mid.top - atPress.top),
+        `the drag never reached the shape: ${JSON.stringify(mid)}`,
+      ).toBeGreaterThan(30);
+
+      // The other pointer presses and releases on empty canvas, while the
+      // finger stays down.
+      const empty = emptyCanvasPoint(view);
+      await buttonEvent(cdp, pointerType, 'mousePressed', empty);
+      await buttonEvent(cdp, pointerType, 'mouseReleased', empty);
+      await settle(page);
+      expect(await annotationsText(page), `the ${pointerType} press committed the drag`).toBe(
+        before,
+      );
+      expectSamePlacement(await onlyLiveObject(page), atPress, `after the ${pointerType} press`);
+
+      // The finger moves on, then lifts. Before, a mouse was held instead:
+      // the finger kept its gesture, and this lift committed the drag.
+      const last = path[path.length - 1]!;
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: last.x + 40, y: last.y + 20, id: 1 }],
+      });
+      await touchEnd(cdp);
+      await settle(page);
+
+      expect(await annotationsText(page), "the finger's lift committed something").toBe(before);
+      const after = await liveCanvas(page);
+      expect(after.transformOpen, "Fabric's transform is still open").toBe(false);
+      expect(after.objects).toHaveLength(1);
+      expectSamePlacement(after.objects[0]!, atPress, "after the finger's lift");
+      await deselect(page);
+      expect(await annotationsText(page)).toBe(before);
+      await expectPaintedAs(page, drawn.geometry, `after the ${pointerType} press`);
+    });
+  }
 });
