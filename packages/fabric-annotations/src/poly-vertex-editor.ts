@@ -68,6 +68,12 @@ export class PolyVertexEditor {
    * the time a key is pressed the hovered-corner state is already gone.
    */
   private activeVertexKey: string | null = null;
+  /**
+   * `activeVertexKey` as it was before the press in progress on the edited
+   * shape changed it, or `undefined` while there is no such press. A
+   * cancelled press puts it back (see {@link onPointerCancel}).
+   */
+  private keyBeforePress: string | null | undefined = undefined;
 
   /** Long-press bookkeeping. */
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -80,7 +86,7 @@ export class PolyVertexEditor {
 
   private readonly onMouseDown = (e: TPointerEventInfo<TPointerEvent>) => this.handleMouseDown(e);
   private readonly onMouseMove = (e: TPointerEventInfo<TPointerEvent>) => this.handleMouseMove(e);
-  private readonly onMouseUp = () => this.clearPress();
+  private readonly onMouseUp = () => this.handleMouseUp();
   private readonly onObjectAdded = (e: { target: FabricObject }) =>
     this.handleObjectAdded(e.target);
 
@@ -149,15 +155,23 @@ export class PolyVertexEditor {
    * back, points included.
    *
    * A long press it interrupted must not enter edit mode when its timer
-   * fires. And in edit mode the handles are rebuilt for the points the shape
-   * now has: the insert handle adds a vertex on the press and rebuilds the
-   * handles for it, and once that vertex is gone the extra handles would
-   * point past the end of `points`.
+   * fires. In edit mode the Delete target goes back to the one before the
+   * press: a press on the shape chooses the target, and an insert handle's
+   * press chooses the vertex it inserted, which the overlay has just taken
+   * back. Left in place, that key names the vertex that slid back into its
+   * index, which the next Delete would remove. The earlier key indexes the
+   * points the overlay restored, so it still names the vertex it did. And the
+   * handles are rebuilt for the points the shape now has: the insert handle
+   * rebuilds them for its new vertex, and once that vertex is gone the extra
+   * handles would point past the end of `points`.
    */
   onPointerCancel(): void {
     this.clearPress();
+    const keyBeforePress = this.keyBeforePress;
+    this.keyBeforePress = undefined;
     const poly = this.editingObject;
     if (!poly) return;
+    if (keyBeforePress !== undefined) this.activeVertexKey = keyBeforePress;
     poly.controls = buildEditControls(poly);
     poly.setCoords();
     poly.set('dirty', true);
@@ -168,6 +182,7 @@ export class PolyVertexEditor {
 
   private handleMouseDown(e: TPointerEventInfo<TPointerEvent>): void {
     this.clearPress();
+    this.keyBeforePress = undefined;
     const target = e.target;
 
     if (this.editingObject) {
@@ -176,7 +191,9 @@ export class PolyVertexEditor {
         // pressing an insert handle records the vertex it inserted (its
         // mouseDownHandler has already pointed `__corner` at it); pressing the
         // body clears it. Fabric has already set `__corner` for this mouse:down
-        // (cleared again on the matching mouse:up).
+        // (cleared again on the matching mouse:up). The previous target is
+        // kept until the release, for a cancel to put back.
+        this.keyBeforePress = this.activeVertexKey;
         const corner = this.editingObject.__corner;
         this.activeVertexKey = corner && corner.startsWith('p') ? corner : null;
         return; // let Fabric's control pipeline handle the interaction
@@ -206,6 +223,11 @@ export class PolyVertexEditor {
     }
   }
 
+  private handleMouseUp(): void {
+    this.clearPress();
+    this.keyBeforePress = undefined;
+  }
+
   private clearPress(): void {
     if (this.pressTimer) {
       clearTimeout(this.pressTimer);
@@ -230,6 +252,7 @@ export class PolyVertexEditor {
     this.editingObject = null;
     this.editingId = null;
     this.activeVertexKey = null;
+    this.keyBeforePress = undefined;
     if (!poly) return;
     poly.controls = controlsUtils.createObjectDefaultControls();
     // Refresh oCoords so hit-testing matches the restored default control keys.

@@ -1,5 +1,6 @@
-import { ActiveSelection, Control, controlsUtils } from 'fabric';
-import type { Canvas, FabricObject, TransformActionHandler } from 'fabric';
+import { ActiveSelection } from 'fabric';
+import type { Canvas, FabricObject } from 'fabric';
+import { uniformScaleControls } from './shape-controls.js';
 
 /**
  * Multi-selections: what this library lets a Fabric `ActiveSelection` do, and
@@ -20,33 +21,21 @@ export function isGroupSelection(object: FabricObject): object is ActiveSelectio
   return object instanceof ActiveSelection;
 }
 
-/**
- * Scale from a corner, uniformly whatever modifier is held. Fabric's corner
- * handler scales freely while the canvas's `uniScaleKey` (Shift) is held, so
- * the canvas's two settings are pinned for the length of the call and then
- * restored: a single object keeps scaling as the canvas says.
- */
-const scaleUniformly: TransformActionHandler = (eventData, transform, x, y) => {
-  const canvas = transform.target.canvas;
-  if (!canvas) return controlsUtils.scalingEqually(eventData, transform, x, y);
-  const { uniformScaling, uniScaleKey } = canvas;
-  canvas.uniformScaling = true;
-  canvas.uniScaleKey = null;
-  try {
-    return controlsUtils.scalingEqually(eventData, transform, x, y);
-  } finally {
-    canvas.uniformScaling = uniformScaling;
-    canvas.uniScaleKey = uniScaleKey;
-  }
-};
-
 /** Selections already given their controls, so a repeat is a no-op. */
 const configured = new WeakSet<ActiveSelection>();
 
 /**
- * Make `selection` movable, rotatable and uniformly scalable only: its four
- * corner handles scale it proportionally whatever the modifier, its rotation
- * handle turns it, and it has no side handles and cannot be skewed. Idempotent.
+ * Make `selection` movable, rotatable and uniformly scalable only: its corner
+ * handles scale it proportionally whatever the modifier (Fabric's own scale
+ * freely while Shift, its `uniScaleKey`, is held), it has no side handles,
+ * and it cannot be skewed. Idempotent.
+ *
+ * It builds on the selection's own controls, which are the ones its class's
+ * `createControls` gave it, as `applyShapeControls` does for a circle: the
+ * rotation handle turns the selection if the host left it there, and a
+ * host's renderers, sizes, cursors and extra controls are kept. A control is
+ * copied before it is changed, so a set shared among objects is left as it
+ * is.
  *
  * The select tool applies this to every selection Fabric makes; whoever
  * selects several objects programmatically should too.
@@ -54,21 +43,7 @@ const configured = new WeakSet<ActiveSelection>();
 export function configureGroupSelection(selection: ActiveSelection): void {
   if (configured.has(selection)) return;
   configured.add(selection);
-  const defaults = controlsUtils.createObjectDefaultControls();
-  const corner = (x: number, y: number): Control =>
-    new Control({
-      x,
-      y,
-      cursorStyleHandler: controlsUtils.scaleCursorStyleHandler,
-      actionHandler: scaleUniformly,
-    });
-  selection.controls = {
-    tl: corner(-0.5, -0.5),
-    tr: corner(0.5, -0.5),
-    bl: corner(-0.5, 0.5),
-    br: corner(0.5, 0.5),
-    mtr: defaults.mtr,
-  };
+  selection.controls = uniformScaleControls(selection.controls);
   selection.lockSkewingX = true;
   selection.lockSkewingY = true;
   selection.setCoords();

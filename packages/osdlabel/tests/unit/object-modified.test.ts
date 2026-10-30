@@ -44,10 +44,19 @@ import {
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createFabricObjectFromRawData, initFabricModule } from '@osdlabel/fabric-annotations';
 import { createImageId, type AnnotationState } from '@osdlabel/viewer-api';
-import { applyAnnotationAction } from '../../src/actions.js';
+import {
+  applyAnnotationAction,
+  type AnnotationPatch,
+  type AnnotationUpdate,
+} from '../../src/actions.js';
 import { createAnnotationFromGeometry } from '../../src/create-annotation.js';
 import { createInitialAnnotationState } from '../../src/initial-state.js';
-import { enableObjectModifiedCommits, processGroupModified } from '../../src/object-modified.js';
+import {
+  enableObjectModifiedCommits,
+  processGroupModified,
+  type ObjectModifiedPatch,
+  type ObjectModifiedUpdate,
+} from '../../src/object-modified.js';
 import type { OsdAnnotation, OsdFields } from '../../src/types.js';
 import {
   cornerSetDeviation,
@@ -543,5 +552,37 @@ describe('processGroupModified', () => {
     expect(updates.map((u) => u.id)).toEqual(['circle', 'point']);
     expect(updates[0]!.patch.geometry).toEqual(viewer.stored('circle'));
     expect(updates[0]!.patch.rawAnnotationData.format).toBe('fabric');
+  });
+});
+
+/**
+ * The patch types an edit is committed with are the action types, narrowed:
+ * an `ObjectModifiedPatch` is an `AnnotationPatch` with both its geometry and
+ * its Fabric data required, and an `ObjectModifiedUpdate` an
+ * `AnnotationUpdate` carrying one. Checked by `tsc` (the package's
+ * `typecheck`), which compiles the test tree: each constant below is typed
+ * `true` only when the relation it names holds.
+ */
+describe('ObjectModifiedPatch and ObjectModifiedUpdate', () => {
+  /** `true` when `A` is assignable to `B`, else `false`. */
+  type Extends<A, B> = [A] extends [B] ? true : false;
+
+  it('narrow AnnotationPatch and AnnotationUpdate', () => {
+    const patchIsAnnotationPatch: Extends<ObjectModifiedPatch, AnnotationPatch> = true;
+    const patchNamesEveryField: Extends<keyof AnnotationPatch, keyof ObjectModifiedPatch> = true;
+    const bothFieldsRequired: Extends<
+      Pick<AnnotationPatch, 'geometry' | 'rawAnnotationData'>,
+      Pick<ObjectModifiedPatch, 'geometry' | 'rawAnnotationData'>
+    > = false;
+    const updateIsAnnotationUpdate: Extends<ObjectModifiedUpdate, AnnotationUpdate> = true;
+    const updateCarriesNarrowPatch: Extends<ObjectModifiedUpdate['patch'], ObjectModifiedPatch> =
+      true;
+    expect([
+      patchIsAnnotationPatch,
+      patchNamesEveryField,
+      bothFieldsRequired,
+      updateIsAnnotationUpdate,
+      updateCarriesNarrowPatch,
+    ]).toEqual([true, true, false, true, true]);
   });
 });

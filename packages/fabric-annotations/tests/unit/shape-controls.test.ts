@@ -58,6 +58,12 @@ import {
   createTestKeyboardShortcuts,
   expectFabricInstance,
 } from './test-helpers.js';
+import {
+  expectHostHandles,
+  hostControlSet,
+  overrideCreateControls,
+  snapshotControls,
+} from './host-controls.js';
 
 initFabricModule();
 
@@ -282,6 +288,15 @@ function pressOn(object: FabricObject, key: string): Point {
   const coord = object.oCoords[key];
   expect(coord, `control ${key}`).toBeDefined();
   return { x: coord!.x + 0.31, y: coord!.y + 0.17 };
+}
+
+/** The `action` of every `object:modified`, which hosts and Fabric's own centring read. */
+function reportedActions(canvas: Canvas): (string | undefined)[] {
+  const actions: (string | undefined)[] = [];
+  canvas.on('object:modified', ({ action }) => {
+    actions.push(action);
+  });
+  return actions;
 }
 
 function onlyModified(modified: readonly FabricObject[]): FabricObject {
@@ -578,6 +593,27 @@ describe('applyShapeControls', () => {
     expect(object.controls).toBe(before);
   });
 
+  it.each([
+    ['mr', 'scaleX'],
+    ['mb', 'scaleY'],
+  ] as const)("reports Shift + a rectangle's %s handle as %s, not a skew", (key, expected) => {
+    const rect = expectFabricInstance(
+      buildFabricObjectFromGeometry(
+        { type: 'rectangle', origin: { x: 200, y: 100 }, width: 100, height: 50, rotation: 0 },
+        LIBRARY_OPTIONS,
+      ),
+      Rect,
+    );
+    const { canvas, modified } = openInEditor(rect);
+    const actions = reportedActions(canvas);
+    const press = pressOn(rect, key);
+    gesture(canvas, press, add(press, { x: 30, y: 30 }), true);
+    expect(onlyModified(modified)).toBe(rect);
+    expect(actions).toEqual([expected]);
+    expect(rect.skewX).toBe(0);
+    expect(rect.skewY).toBe(0);
+  });
+
   it("leaves the canvas's Shift settings as they were: a rectangle's corner still scales freely with Shift after a circle's", async () => {
     const circle = await circleThatWas('built from geometry');
     const { canvas } = openInEditor(circle);
@@ -598,5 +634,173 @@ describe('applyShapeControls', () => {
     gesture(canvas, rectPress, add(rectPress, { x: 40, y: -15 }), true);
     expect(rect.scaleX).toBeGreaterThan(1.3);
     expect(rect.scaleY).toBeLessThan(0.8);
+  });
+});
+
+// ── Controls a host customised ───────────────────────────────────────────────
+
+/**
+ * A host customises handles the way Fabric documents, by overriding
+ * `createControls`, and the library constrains only the handlers it must.
+ * Until the fix it replaced a rectangle's or circle's whole set with Fabric's
+ * defaults, on every rebuild: a rotation handle the host had removed came
+ * back, and its renderers were lost.
+ */
+describe('applyShapeControls on controls a host customised', () => {
+  let restore: (() => void) | undefined;
+  afterEach(() => {
+    restore?.();
+    restore = undefined;
+  });
+
+  const RECTANGLE: Geometry = {
+    type: 'rectangle',
+    origin: { x: 200, y: 150 },
+    width: 160,
+    height: 90,
+    rotation: 0,
+  };
+
+  /** A rectangle as the viewer revives one, from data saved off a plain `Rect`. */
+  async function revivedRectangle(): Promise<Rect> {
+    if (RECTANGLE.type !== 'rectangle') throw new Error('not a rectangle');
+    const plain = new Rect({
+      ...LIBRARY_OPTIONS,
+      left: RECTANGLE.origin.x + RECTANGLE.width / 2,
+      top: RECTANGLE.origin.y + RECTANGLE.height / 2,
+      width: RECTANGLE.width,
+      height: RECTANGLE.height,
+    });
+    const revived = await createFabricObjectFromRawData({
+      id,
+      geometry: RECTANGLE,
+      toolType: 'rectangle',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      rawAnnotationData: JSON.parse(
+        JSON.stringify(serializeFabricObject(plain)),
+      ) as FabricRawAnnotationData,
+    });
+    expect(revived).not.toBeNull();
+    return expectFabricInstance(revived!, Rect);
+  }
+
+  const RECTANGLE_WAYS = ['built from geometry', 'revived from saved data'] as const;
+
+  async function rectangleThatWas(how: (typeof RECTANGLE_WAYS)[number]): Promise<Rect> {
+    return how === 'built from geometry'
+      ? expectFabricInstance(buildFabricObjectFromGeometry(RECTANGLE, LIBRARY_OPTIONS), Rect)
+      : revivedRectangle();
+  }
+
+  it.each(RECTANGLE_WAYS)(
+    "a rectangle %s keeps the host's handles; Shift + a side handle still only scales it",
+    async (how) => {
+      restore = overrideCreateControls(hostControlSet);
+      const rect = await rectangleThatWas(how);
+
+      expect(Object.keys(rect.controls).sort(), 'the removed rotation handle came back').toEqual([
+        'bl',
+        'br',
+        'mb',
+        'ml',
+        'mr',
+        'mt',
+        'tl',
+        'tr',
+      ]);
+      expectHostHandles(rect, how);
+      for (const key of ['ml', 'mr'] as const) {
+        expect(rect.controls[key]!.actionHandler, key).toBe(controlsUtils.scalingX);
+      }
+      for (const key of ['mt', 'mb'] as const) {
+        expect(rect.controls[key]!.actionHandler, key).toBe(controlsUtils.scalingY);
+      }
+
+      const { canvas, modified } = openInEditor(rect);
+      const actions = reportedActions(canvas);
+      const press = pressOn(rect, 'mr');
+      gesture(canvas, press, add(press, { x: 40, y: 30 }), true);
+      expect(onlyModified(modified)).toBe(rect);
+      // A side handle copied from Fabric's defaults keeps its skew-aware
+      // getActionName, which would report the scale as a skew with Shift held.
+      expect(actions, 'the action Fabric reports').toEqual(['scaleX']);
+      expect(rect.skewX).toBe(0);
+      expect(rect.skewY).toBe(0);
+      expect(rect.scaleX, 'the drag scaled it').toBeGreaterThan(1.2);
+      expect(rect.scaleY).toBe(1);
+    },
+  );
+
+  it.each(HOW)(
+    "a circle %s keeps the host's handles; Shift + a corner handle still scales it uniformly",
+    async (how) => {
+      restore = overrideCreateControls(hostControlSet);
+      const circle = await circleThatWas(how);
+
+      expect(Object.keys(circle.controls).sort(), 'the removed rotation handle came back').toEqual([
+        'bl',
+        'br',
+        'tl',
+        'tr',
+      ]);
+      expectHostHandles(circle, how);
+
+      const { canvas, modified } = openInEditor(circle);
+      const press = pressOn(circle, 'br');
+      gesture(canvas, press, add(press, { x: 40, y: -15 }), true);
+      expect(onlyModified(modified)).toBe(circle);
+      expect(circle.scaleX, 'scaled uniformly').toBe(circle.scaleY);
+      expect(circle.scaleX, 'the drag grew it').toBeGreaterThan(1.05);
+      expect(circle.skewX).toBe(0);
+      expect(circle.skewY).toBe(0);
+    },
+  );
+
+  it('leaves a set the host shares among all objects as it was', async () => {
+    const shared = hostControlSet();
+    const before = snapshotControls(shared);
+    restore = overrideCreateControls(() => shared);
+
+    const rect = await rectangleThatWas('revived from saved data');
+    const circle = await circleThatWas('revived from saved data');
+    const line = buildFabricObjectFromGeometry(
+      { type: 'line', start: { x: 10, y: 10 }, end: { x: 90, y: 40 } },
+      LIBRARY_OPTIONS,
+    );
+
+    expect(snapshotControls(shared), 'a shared control was changed').toEqual(before);
+    // The constrained objects have sets of their own; the line, which keeps
+    // what Fabric gave it, still has the shared one, skewing side handles and all.
+    expect(rect.controls).not.toBe(shared);
+    expect(circle.controls).not.toBe(shared);
+    expect(line.controls).toBe(shared);
+    expect(line.controls['mr']!.actionHandler).toBe(controlsUtils.scalingXOrSkewingY);
+    // The controls the shapes did not need to change are still the shared instances.
+    expect(rect.controls['tl']).toBe(shared['tl']);
+    expect(rect.controls['mr']).not.toBe(shared['mr']);
+    expect(circle.controls['br']).not.toBe(shared['br']);
+  });
+
+  it.each([
+    ["Fabric's own handles", undefined],
+    ["the host's handles", hostControlSet],
+  ] as const)('applying it again changes nothing, on %s', async (_name, make) => {
+    if (make) restore = overrideCreateControls(make);
+    const rect = await rectangleThatWas('built from geometry');
+    const circle = await circleThatWas('built from geometry');
+    for (const [object, type] of [
+      [rect, 'rectangle'],
+      [circle, 'circle'],
+    ] as const) {
+      const controls = object.controls;
+      const each = { ...controls };
+      applyShapeControls(object, type);
+      expect(object.controls, type).toBe(controls);
+      expect(object.controls, type).toEqual(each);
+      for (const key of Object.keys(each)) {
+        expect(object.controls[key], `${type}: ${key}`).toBe(each[key]);
+      }
+    }
   });
 });

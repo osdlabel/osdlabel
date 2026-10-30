@@ -533,6 +533,107 @@ describe('PolyVertexEditor through Fabric pointer events', () => {
   });
 
   /**
+   * A press the platform cancels (`pointercancel`) is undone, and with it the
+   * Delete target the press chose. An insert press records the vertex it
+   * inserted as the target; the cancel takes that vertex back, and the key
+   * then names the original vertex that slid back into its index. Until the
+   * fix, the next Delete removed that vertex, which no press had chosen, and
+   * committed it.
+   */
+  describe('a cancelled press', () => {
+    /**
+     * The platform cancels the press in progress, and `FabricOverlay` undoes
+     * it as its `_cancelPress` does, in the same order: the object goes back
+     * as the press found it, points included, with the transform marked as
+     * having done nothing; the tool hears of the cancel and passes it to the
+     * editor; the handles are placed; and a release at the press point, with
+     * drag-box selection off, ends Fabric's gesture. The overlay's half runs
+     * against a real overlay in fabric-osd's
+     * `tests/unit/overlay/pointer-cancel.test.ts`, the whole gesture in the
+     * dev apps' `vertex-delete-after-cancel.spec.ts`.
+     */
+    function cancelPress(
+      canvas: Canvas,
+      editor: PolyVertexEditor,
+      pressedAt: Pt,
+      pointsAtPress: readonly Pt[],
+    ): void {
+      const transform = canvas._currentTransform;
+      expect(transform, 'no press in progress to cancel').not.toBeNull();
+      const { target, original } = transform!;
+      if (target instanceof Polyline) {
+        target.set({ points: pointsAtPress.map(({ x, y }) => new Point(x, y)) });
+        target.setDimensions();
+      }
+      target.set({
+        left: original.left,
+        top: original.top,
+        scaleX: original.scaleX,
+        scaleY: original.scaleY,
+        skewX: original.skewX,
+        skewY: original.skewY,
+        angle: original.angle,
+        flipX: original.flipX,
+        flipY: original.flipY,
+      });
+      transform!.actionPerformed = false;
+      editor.onPointerCancel();
+      target.setCoords();
+      const selection = canvas.selection;
+      canvas.selection = false;
+      forward(canvas, 'pointerup', pressedAt);
+      canvas.selection = selection;
+    }
+
+    /** Press insert handle `key` and have the platform cancel the press. */
+    function cancelledInsert(
+      canvas: Canvas,
+      editor: PolyVertexEditor,
+      poly: Polyline,
+      key: string,
+    ): void {
+      const pointsAtPress = poly.points.map(({ x, y }) => ({ x, y }));
+      const pressedAt = offCentre(poly, key);
+      forward(canvas, 'pointerdown', pressedAt);
+      // The press inserted its vertex, so the cancel has something to undo.
+      expect(poly.points, 'the insert press inserted nothing').toHaveLength(
+        pointsAtPress.length + 1,
+      );
+      cancelPress(canvas, editor, pressedAt, pointsAtPress);
+      expect(canvas._currentTransform, "Fabric's gesture is still open").toBeNull();
+      expectPointsClose(storedPoints(poly), pointsAtPress, 'after the cancel');
+    }
+
+    it('after a cancelled insert press, Delete deletes nothing', () => {
+      const poly = square();
+      const { canvas, editor, commits } = openInEditMode(poly, { x: 130, y: 170 });
+
+      cancelledInsert(canvas, editor, poly, 'ins0');
+      expect(commits, 'the cancelled press committed something').toEqual([]);
+      expect(editor.onKeyDown({ key: 'Delete' } as KeyboardEvent)).toBe(true);
+
+      expect(commits, 'the Delete removed a vertex no press chose').toEqual([]);
+      expectPointsClose(storedPoints(poly), SQUARE, 'on the canvas after the Delete');
+      expect(editor.isEditing()).toBe(true);
+    });
+
+    it('leaves the vertex pressed before it as the Delete target', () => {
+      const poly = square();
+      const { canvas, editor, commits } = openInEditMode(poly, { x: 130, y: 170 });
+
+      click(canvas, offCentre(poly, 'p3'));
+      cancelledInsert(canvas, editor, poly, 'ins0');
+      expect(commits, 'the cancelled press committed something').toEqual([]);
+      expect(editor.onKeyDown({ key: 'Delete' } as KeyboardEvent)).toBe(true);
+
+      expect(commits, 'the Delete was never committed').toHaveLength(1);
+      const expected = [SQUARE[0]!, SQUARE[1]!, SQUARE[2]!];
+      expectPointsClose(commits[0]!, expected, 'committed by the delete');
+      expectPointsClose(storedPoints(poly), expected, 'on the canvas after the delete');
+    });
+  });
+
+  /**
    * Fabric draws a poly's points about `pathOffset`, the centre of their
    * bounding box, which `setDimensions()` recomputes from the points while
    * `left` / `top` stay put. Until the fix, deleting a vertex that alone held

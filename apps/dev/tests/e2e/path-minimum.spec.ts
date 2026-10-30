@@ -308,11 +308,16 @@ test.describe('A free-hand stroke that stays in one spot draws nothing', () => {
     await page.mouse.down();
     await page.mouse.move(at.x + 12, at.y, { steps: 4 });
     await page.mouse.move(at.x + 6, at.y + 10, { steps: 4 });
+    expect(await paintedBounds(page), 'the stroke preview is painted').not.toBeNull();
     await page.keyboard.down('Control');
     for (let i = 0; i < 11; i++) await page.mouse.wheel(0, 100);
     await page.keyboard.up('Control');
     const zoomedOut = await waitForStableView(page);
     expect(scaleOf(zoomedOut), 'the wheel zoomed out').toBeLessThan(4.6 / 6);
+    // So the empty result after the release means something: the stroke
+    // reached the tool, and the zoom left it in progress, so it is the release
+    // that discards it.
+    expect(await paintedBounds(page), 'the zoom left the stroke in progress').not.toBeNull();
     await page.mouse.up();
 
     await expectNothingDrawn(page, 'a stroke zoomed out under 3 px before its release');

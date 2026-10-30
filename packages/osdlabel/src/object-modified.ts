@@ -7,17 +7,31 @@ import {
   type FabricRawAnnotationData,
 } from '@osdlabel/fabric-annotations';
 import type { ActiveSelection, Canvas, FabricObject, Transform } from 'fabric';
+import type { AnnotationPatch, AnnotationUpdate } from './actions.js';
 import { processObjectModified } from './tool-factory.js';
 import type { OsdFields } from './types.js';
 
-/** What an edit changes on one annotation: where it is, and the Fabric data that paints it. */
-export interface ObjectModifiedPatch {
+/**
+ * What an edit made through Fabric's handles changes on one annotation: an
+ * {@link AnnotationPatch} that always carries both the geometry (where the
+ * annotation is) and the Fabric data that paints it. The patches
+ * {@link processGroupModified} and {@link enableObjectModifiedCommits} make
+ * carry those two fields only. Being an `AnnotationPatch`, it can be passed
+ * wherever one is taken, such as `actions.updateAnnotation`.
+ */
+export interface ObjectModifiedPatch extends AnnotationPatch {
   readonly geometry: Geometry;
   readonly rawAnnotationData: FabricRawAnnotationData;
 }
 
-/** One annotation's part of a multi-selection edit. */
-export interface ObjectModifiedUpdate {
+/**
+ * One annotation's part of a multi-selection edit: an {@link AnnotationUpdate}
+ * whose patch is an {@link ObjectModifiedPatch}, so it always carries both
+ * the geometry and the Fabric data. Being an `AnnotationUpdate`, a list of
+ * them can be passed wherever those are taken, such as
+ * `actions.updateAnnotations`.
+ */
+export interface ObjectModifiedUpdate extends AnnotationUpdate {
   readonly id: AnnotationId;
   readonly patch: ObjectModifiedPatch;
 }

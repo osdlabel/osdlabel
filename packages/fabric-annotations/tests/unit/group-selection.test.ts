@@ -5,7 +5,14 @@
  * again once the viewer has rebuilt their objects from state.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { ActiveSelection, Circle, util, type Canvas, type FabricObject } from 'fabric';
+import {
+  ActiveSelection,
+  Circle,
+  controlsUtils,
+  util,
+  type Canvas,
+  type FabricObject,
+} from 'fabric';
 import { DEFAULT_ANNOTATION_STYLE, type Geometry, type Point } from '@osdlabel/annotation';
 import { buildFabricObjectFromGeometry } from '../../src/build-fabric-object.js';
 import { getFabricOptions } from '../../src/fabric-utils.js';
@@ -23,6 +30,12 @@ import {
   gesture,
   openCanvas,
 } from './canvas-harness.js';
+import {
+  expectHostHandles,
+  hostControlSet,
+  overrideCreateControls,
+  snapshotControls,
+} from './host-controls.js';
 
 afterEach(disposeCanvases);
 
@@ -106,6 +119,60 @@ describe('configureGroupSelection', () => {
     // From the handle, round to the right of the centre: a quarter turn.
     gesture(canvas, controlPoint(selection, 'mtr'), { x: centre.x + 200, y: centre.y });
     expect(selection.angle).toBeCloseTo(90, 0);
+  });
+
+  /**
+   * A host customises handles the way Fabric documents, by overriding
+   * `createControls`, which a selection's constructor reads too. Until the
+   * fix the selection got Fabric's corner and rotation handles whatever the
+   * host had: a rotation handle it had removed came back, and its renderers
+   * were lost.
+   */
+  describe('on controls a host customised', () => {
+    let restore: (() => void) | undefined;
+    afterEach(() => {
+      restore?.();
+      restore = undefined;
+    });
+
+    it.each([false, true])(
+      "keeps the host's corner handles, and no rotation handle; they scale uniformly (Shift held: %s)",
+      (shiftKey) => {
+        restore = overrideCreateControls(hostControlSet);
+        const { canvas, selection } = selectBoth();
+        configureGroupSelection(selection);
+
+        expect(controlNames(selection), 'the removed rotation handle came back').toEqual([
+          'bl',
+          'br',
+          'tl',
+          'tr',
+        ]);
+        expectHostHandles(selection, 'the selection');
+        expect(selection.lockSkewingX).toBe(true);
+        expect(selection.lockSkewingY).toBe(true);
+
+        const from = controlPoint(selection, 'br');
+        gesture(canvas, from, { x: from.x + 120, y: from.y + 10 }, { shiftKey });
+        expect(selection.scaleX).toBeGreaterThan(1.05);
+        expect(selection.scaleY).toBeCloseTo(selection.scaleX, 9);
+      },
+    );
+
+    it('leaves a set the host shares among all objects as it was', () => {
+      const shared = hostControlSet();
+      const before = snapshotControls(shared);
+      restore = overrideCreateControls(() => shared);
+      const { selection } = selectBoth();
+      expect(selection.controls, 'the premise: the selection has the shared set').toBe(shared);
+
+      configureGroupSelection(selection);
+
+      expect(snapshotControls(shared), 'a shared control was changed').toEqual(before);
+      expect(selection.controls).not.toBe(shared);
+      expect(shared['br']!.actionHandler).toBe(controlsUtils.scalingEqually);
+      expect(shared['mr']).toBeDefined();
+    });
   });
 });
 
