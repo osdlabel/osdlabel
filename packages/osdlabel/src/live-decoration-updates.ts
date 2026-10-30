@@ -48,12 +48,12 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<never, ne
  * already re-runs the providers from state — no override is needed and
  * none is applied here.
  *
- * A press the platform cancels (`pointercancel`, see
- * `FabricOverlay.onPointerCancel`) commits nothing, so state does not change
- * and the host's effect does not re-run; the overlay puts the shape back
- * instead. The helper then re-derives the decorations from state on the next
- * frame, so the last live frame (a label where the finger was, reading the
- * dragged shape's measurements) does not outlive the gesture.
+ * A cancelled press (`pointercancel`, or a touch press a pen or a mouse took
+ * over; see `FabricOverlay.onPointerCancel`) commits nothing, so state does
+ * not change and the host's effect does not re-run; the overlay puts the
+ * shape back instead. The helper then re-derives the decorations from state
+ * on the next frame, so the last live frame (a label where the finger was,
+ * reading the dragged shape's measurements) does not outlive the gesture.
  *
  * Returns a teardown function that unsubscribes and cancels any pending
  * scheduled tick.

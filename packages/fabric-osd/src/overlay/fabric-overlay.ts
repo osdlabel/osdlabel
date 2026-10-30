@@ -89,9 +89,11 @@ export type DoubleClickCallback = (
  * pressed, sent when the OS or the browser takes a touch or pen contact away
  * mid-gesture (an edge swipe, palm rejection, a system dialog, an orientation
  * change). The overlay also cancels a touch press itself when a pen or a mouse
- * presses while it is held, since a touch never wins over either: the touch
- * was a hand at rest, and the event is then that pointer's `pointerdown`. It
- * receives that raw DOM event and the sequence of the press it took away (see
+ * presses while it is in progress, since a touch never wins over either: the
+ * touch was a hand at rest, and the event is then that pointer's
+ * `pointerdown`, whose type, `pointerId` and `pointerType` are not the
+ * cancelled press's (`pressSeq` identifies the press). It receives that raw
+ * DOM event and the sequence of the press it took away (see
  * {@link FabricOverlay.pressSeqOf}).
  *
  * The overlay has already put the object Fabric was transforming back as the
@@ -233,11 +235,12 @@ export function screenToImageFlipAware(viewer: OpenSeadragon.Viewer, screenPoint
  *   active. A host driving the overlay without the library's tools sets it
  *   itself after each `setMode('annotation')`. A gesture belongs to the
  *   pointer that pressed: its lift ends it, though another finger is still
- *   down, and a pointer that goes down meanwhile starts nothing until it lifts
- *   and presses again. There is no two-finger gesture. The one exception: a
- *   touch never wins over a pen or a mouse. When either presses while a touch
- *   press is held, the touch is taken for a hand at rest, so its press is
- *   cancelled and the new one goes through.
+ *   down, and a pointer that goes down meanwhile (a Ctrl/Cmd pan's included)
+ *   starts nothing until it lifts and presses again. There is no two-finger
+ *   gesture. The one exception: a touch never wins over a pen or a mouse.
+ *   When either presses while a touch press is in progress, the touch is
+ *   taken for a hand at rest, so its press is cancelled (or its pan ended)
+ *   and the new one goes through.
  * - **paint**: as annotation, but every object is inert and group selection
  *   stays off, for a tool that paints into an annotation (the segmentation
  *   brush). A second finger landing mid-stroke ends the stroke there.
@@ -267,10 +270,12 @@ export class FabricOverlay {
   private _forwarding = false;
 
   /**
-   * When true, the current gesture is a pan-passthrough (defined by
-   * _isPanTrigger) and events should NOT be forwarded to Fabric.
+   * The pointer whose press started the pan in progress, a pass-through to
+   * OSD (see `_isPanTrigger`) whose events are NOT forwarded to Fabric; null
+   * when no pan is in progress. To the second-pointer rules a pan is its
+   * pointer's press: see `_isSecondPointer`.
    */
-  private _panGestureActive = false;
+  private _panPointer: { readonly pointerId: number; readonly pointerType: string } | null = null;
 
   /** Callbacks fired at the end of every `sync()`. */
   private readonly _syncSubscribers = new Set<() => void>();
@@ -301,10 +306,11 @@ export class FabricOverlay {
   /**
    * Pointers that went down on the overlay as a second pointer (see
    * `_isSecondPointer`): a second finger, a finger (a resting palm) next to a
-   * pen or mouse, or a pen and a mouse next to each other. A touch press that
-   * a pen's or mouse's press then takes over joins them too. Nothing a held
-   * pointer does reaches Fabric, its lift included, so it starts nothing until
-   * it lifts and presses again; nor OSD's gesture handling (`preventGesture`).
+   * pen or mouse, or a pen and a mouse next to each other. A touch press (or a
+   * touch's pan) that a pen's or mouse's press then takes over joins them
+   * too. Nothing a held pointer does reaches Fabric, its lift included, so it
+   * starts nothing until it lifts and presses again; nor OSD's gesture
+   * handling (`preventGesture`).
    *
    * An entry leaves on the pointer's `pointerup` or `pointercancel`, and, in
    * case that went unseen, on its next press or on a move with no button
@@ -571,8 +577,10 @@ export class FabricOverlay {
    * `onPointerCancel`); this marks that release, so a tool can also tell the
    * two apart on the release itself. The browser cancels a pointer when it
    * decides the input was not meant for the page — palm rejection above all,
-   * and system gestures — so a tool that commits on release should discard
-   * instead. Keyed on the synthetic event, as {@link pressSeqOf} is.
+   * and system gestures — and the overlay cancels a touch press itself when a
+   * pen or a mouse presses during it (a touch never wins over either: the
+   * touch was a hand at rest), so a tool that commits on release should
+   * discard instead. Keyed on the synthetic event, as {@link pressSeqOf} is.
    */
   isCancelledRelease(event: PointerEvent): boolean {
     return this._cancelledReleases.has(event);
@@ -726,7 +734,7 @@ export class FabricOverlay {
     if (mode === this._mode) return;
 
     this._mode = mode;
-    this._panGestureActive = false;
+    this._panPointer = null;
     // A click from the previous mode must not pair with one from the next.
     this._pendingPress = null;
     this._lastClick = null;
@@ -999,19 +1007,26 @@ export class FabricOverlay {
    *   resting palm, say) next to a pen or mouse, or a pen and a mouse next to
    *   each other. OSD counts each type's contacts apart, so it reports that
    *   press, and the platform calls it primary, so Fabric would take it for
-   *   the gesture's own pointer.
+   *   the gesture's own pointer. A Ctrl/Cmd pan is its pointer's press here:
+   *   a finger landing while the mouse pans is held as well, rather than
+   *   taking Fabric's gesture and ending the pan.
    *
    * A pen or mouse pressing beside a touch press is not one: a touch never
    * wins over a pen or a mouse, so `preProcessEventHandler` has cancelled the
-   * touch's press before asking. A pointer of the press's own type that the
-   * platform calls primary is not held either: it can only be pressing
-   * because the press's pointer has lifted, so it starts a gesture of its own,
-   * as it always has.
+   * touch's press (or ended its pan) before asking. A pointer of the press's
+   * own type that the platform calls primary is not held either: it can only
+   * be pressing because the press's pointer has lifted, so it starts a
+   * gesture of its own, as it always has (ending a pan whose lift went
+   * unseen).
+   *
+   * A right or middle press is no press in progress: OSD reports it to no
+   * handler the overlay registers, so it starts nothing and records nothing,
+   * and a pointer pressing beside it is routed as if alone.
    */
   private _isSecondPointer(event: PointerEvent): boolean {
     if (event.isPrimary === false) return true;
-    const press = this._pendingPress;
-    return press !== null && event.pointerType !== press.event.pointerType;
+    const gesture = this._panPointer ?? this._pendingPress;
+    return gesture !== null && event.pointerType !== gesture.pointerType;
   }
 
   /**
@@ -1084,9 +1099,9 @@ export class FabricOverlay {
    *
    * Only a cancel of the pointer that pressed counts, with one exception:
    * a touch never wins over a pen or a mouse, so when either presses while a
-   * touch press is held, `preProcessEventHandler` cancels the touch's press
-   * with that `pointerdown` as `cancelEvent` (`revealedByOtherPointer`). The
-   * platform usually cancels a palm itself, but not always before the pen
+   * touch press is in progress, `preProcessEventHandler` cancels the touch's
+   * press with that `pointerdown` as `cancelEvent` (`revealedByOtherPointer`).
+   * The platform usually cancels a palm itself, but not always before the pen
    * lands, and has no cause to cancel a finger left on a touchscreen beside
    * the mouse.
    * `lostpointercapture` is not handled separately: the browser sends it
@@ -1235,7 +1250,7 @@ export class FabricOverlay {
     this._pendingPress = null;
 
     // The pan pass-through trigger, not a click. Tested directly because
-    // `preProcessEventHandler` has already cleared `_panGestureActive` by now.
+    // `preProcessEventHandler` has already cleared `_panPointer` by now.
     if (originalEvent.ctrlKey || originalEvent.metaKey) {
       this._lastClick = null;
       return;
@@ -1294,6 +1309,15 @@ export class FabricOverlay {
     // Ctrl+left-click (or Cmd on macOS)
     if ((event.ctrlKey || event.metaKey) && event.button === 0) return true;
     return false;
+  }
+
+  /**
+   * End the pan in progress: OSD's navigation goes off again, which also
+   * makes OSD's trackers forget the pan's pointer.
+   */
+  private _endPan(): void {
+    this._panPointer = null;
+    this._viewer.setMouseNavEnabled(false);
   }
 
   /**
@@ -1395,46 +1419,52 @@ export class FabricOverlay {
         if (eventType === POINTER_DOWN) {
           // A pointer pressing has lifted, whatever the overlay saw of it.
           this._heldPointers.delete(domEvent.pointerId);
+          const pan = this._panPointer;
           const press = this._pendingPress;
-          if (press !== null && !this._panGestureActive) {
-            if (
-              press.pointerType === 'touch' &&
-              (domEvent.pointerType === 'pen' || domEvent.pointerType === 'mouse')
-            ) {
-              // A touch never wins over a pen or a mouse. A touch press still
-              // held when one of them presses is a hand at rest: the palm the
-              // pencil landed after, which the platform had not yet
-              // cancelled, or a finger left on a touchscreen while the other
-              // hand took the mouse. So undo its press as a cancel would
-              // (`_cancelPress`: revert, tell the tool, end Fabric's gesture
-              // with a release that commits nothing), hold the rest of it,
-              // and let this press through as the real one. Holding this
-              // pointer instead swallowed the whole of its stroke, and the
-              // finger's lift then committed what the finger had done.
-              //
-              // Any press of the pen or mouse counts, whatever its button or
-              // modifiers: a right-button or a Ctrl/Cmd press shows as
-              // plainly where the hand is. What the press then does is
-              // decided below, as for any press: a pan trigger pans, and a
-              // press of a button other than the primary one starts nothing
-              // (OSD reports it only to a `nonPrimaryPressHandler`, which
-              // this tracker does not register). The reverse, a touch beside
-              // a pen or mouse press, is a second pointer, held below.
-              this._heldPointers.add(press.pointerId);
-              this._cancelPress(domEvent, true);
-            } else if (
-              this._mode === 'paint' &&
-              domEvent.pointerType === press.pointerType &&
-              domEvent.pointerId !== press.pointerId
-            ) {
-              // A second contact of the same kind while a stroke is being
-              // painted: the start of a pinch, or a palm. End the stroke here,
-              // as it stands, rather than let it paint on until the first
-              // finger lifts; the newcomer is then held below. Paint mode
-              // only: in annotation mode the first finger keeps its gesture
-              // until its own lift.
-              this._endPendingPress(domEvent);
-            }
+          // The gesture in progress: a pan, or the press Fabric has (never
+          // both: a pan drops the press record when it starts).
+          const gesture = pan ?? press;
+          if (
+            gesture !== null &&
+            gesture.pointerType === 'touch' &&
+            (domEvent.pointerType === 'pen' || domEvent.pointerType === 'mouse')
+          ) {
+            // A touch never wins over a pen or a mouse. A touch press still
+            // in progress when one of them presses is a hand at rest: the
+            // palm the pencil landed after, which the platform had not yet
+            // cancelled, or a finger left on a touchscreen while the other
+            // hand took the mouse. So undo its press as a cancel would
+            // (`_cancelPress`: revert, tell the tool, end Fabric's gesture
+            // with a release that commits nothing), hold the rest of it, and
+            // let this press through as the real one. Holding this pointer
+            // instead swallowed the whole of its stroke, and the finger's
+            // lift then committed what the finger had done. A touch's pan is
+            // ended rather than undone: the view stays where it went.
+            //
+            // Any press of the pen or mouse counts, whatever its button or
+            // modifiers: a right-button or a Ctrl/Cmd press shows as plainly
+            // where the hand is. What the press then does is decided below,
+            // as for any press: a pan trigger pans, and a press of a button
+            // other than the primary one starts nothing (OSD reports it only
+            // to a `nonPrimaryPressHandler`, which this tracker does not
+            // register). The reverse, a touch beside a pen or mouse press (a
+            // pan included), is a second pointer, held below.
+            this._heldPointers.add(gesture.pointerId);
+            if (pan !== null) this._endPan();
+            else this._cancelPress(domEvent, true);
+          } else if (
+            press !== null &&
+            this._mode === 'paint' &&
+            domEvent.pointerType === press.pointerType &&
+            domEvent.pointerId !== press.pointerId
+          ) {
+            // A second contact of the same kind while a stroke is being
+            // painted: the start of a pinch, or a palm. End the stroke here,
+            // as it stands, rather than let it paint on until the first
+            // finger lifts; the newcomer is then held below. Paint mode
+            // only: in annotation mode the first finger keeps its gesture
+            // until its own lift.
+            this._endPendingPress(domEvent);
           }
           if (this._isSecondPointer(domEvent)) {
             // Held: it starts nothing, not even a pan, until it lifts and
@@ -1447,15 +1477,20 @@ export class FabricOverlay {
 
           // Check for pan passthrough triggers
           if (this._isPanTrigger(domEvent)) {
-            this._panGestureActive = true;
+            this._panPointer = { pointerId: domEvent.pointerId, pointerType: domEvent.pointerType };
+            // A press still recorded is of this pointer's type, so its
+            // pointer has lifted unseen: the pan is the gesture now.
+            this._pendingPress = null;
             // Let event propagate to OSD.
             // Temporarily enable OSD nav for this gesture.
             this._viewer.setMouseNavEnabled(true);
             return;
           }
 
-          // Normal annotation/selection click — Fabric owns it
-          this._panGestureActive = false;
+          // Normal annotation/selection click — Fabric owns it. A pan still
+          // recorded is one whose pointer lifted unseen (only a pointer of its
+          // own type gets this far): end it, navigation included.
+          if (this._panPointer !== null) this._endPan();
           eventInfo.stopPropagation = true;
           eventInfo.preventDefault = true;
           return;
@@ -1470,7 +1505,7 @@ export class FabricOverlay {
             eventInfo.preventDefault = true;
             return;
           }
-          if (this._panGestureActive) {
+          if (this._panPointer !== null) {
             // Part of an OSD pan gesture — let it through
             return;
           }
@@ -1502,10 +1537,9 @@ export class FabricOverlay {
             eventInfo.preventDefault = true;
             return;
           }
-          if (this._panGestureActive) {
+          if (this._panPointer !== null) {
             // End of OSD pan gesture
-            this._panGestureActive = false;
-            this._viewer.setMouseNavEnabled(false);
+            this._endPan();
             return;
           }
           eventInfo.stopPropagation = true;
@@ -1537,7 +1571,7 @@ export class FabricOverlay {
           return;
         }
 
-        if (this._panGestureActive) return;
+        if (this._panPointer !== null) return;
         // `preProcessEventHandler` silences OSD's press handler for a held
         // pointer; this is the belt to that, should a tracker ever call it.
         if (this._heldPointers.has(originalEvent.pointerId)) return;
@@ -1554,7 +1588,7 @@ export class FabricOverlay {
           return;
         }
 
-        if (this._panGestureActive) return;
+        if (this._panPointer !== null) return;
         if (!this._movesFabric(originalEvent)) return;
         this._forwardToFabric(POINTER_MOVE, originalEvent);
       },
@@ -1568,7 +1602,7 @@ export class FabricOverlay {
           return;
         }
 
-        if (this._panGestureActive) return;
+        if (this._panPointer !== null) return;
         // Ended, or dropped, in `preProcessEventHandler` already.
         if (this._handledReleases.has(originalEvent)) return;
         // While a press is in progress, only its own pointer's lift ends it

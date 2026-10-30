@@ -184,10 +184,12 @@ describe('FabricOverlay mode switching', () => {
       // Ctrl/Cmd+drag panning sets this mid-gesture; switching mode must not
       // leave the overlay believing a drag is still in progress.
       overlay.setMode('annotation');
-      const priv = overlay as unknown as { _panGestureActive: boolean };
-      priv._panGestureActive = true;
+      const priv = overlay as unknown as {
+        _panPointer: { pointerId: number; pointerType: string } | null;
+      };
+      priv._panPointer = { pointerId: 1, pointerType: 'mouse' };
       overlay.setMode('navigation');
-      expect(priv._panGestureActive).toBe(false);
+      expect(priv._panPointer).toBeNull();
     });
 
     it('renders after a real mode change', () => {

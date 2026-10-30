@@ -8,9 +8,9 @@ import { createTestViewer, installPointerEventPolyfill, type TestViewer } from '
 /**
  * A second pointer on the overlay while a press is in progress: a second
  * finger, a finger next to a pen or mouse, or a pen and a mouse next to each
- * other. (A pen or mouse pressing next to a finger is not held: a touch never
- * wins over either, so it takes the gesture over. That is a cancel, in
- * `pointer-cancel.test.ts`.)
+ * other. A Ctrl/Cmd pan is its pointer's press here too. (A pen or mouse
+ * pressing next to a finger is not held: a touch never wins over either, so
+ * it takes the gesture over. That is a cancel, in `pointer-cancel.test.ts`.)
  *
  * OSD's MouseTracker counts contacts per pointer type and calls
  * `releaseHandler` only when the last contact of a type lifts. So when the
@@ -43,6 +43,7 @@ interface EventProcessInfo {
   readonly originalEvent: PointerEvent;
   stopPropagation?: boolean;
   preventDefault?: boolean;
+  preventGesture?: boolean;
 }
 interface OverlayInternals {
   _overlayTracker: {
@@ -173,6 +174,14 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
   /** A `pointerup` OSD does not report: another contact of its type is still down. */
   const upUnreported = (pointer: PointerSpec, at: At, time = 0): EventProcessInfo =>
     pre('pointerup', event('pointerup', pointer, at, time));
+  /** A Ctrl press, the pan pass-through, which OSD reports as a press. */
+  const panPress = (pointer: PointerSpec, at: At): EventProcessInfo => {
+    const e = event('pointerdown', pointer, at);
+    Object.defineProperty(e, 'ctrlKey', { value: true });
+    const info = pre('pointerdown', e);
+    tracker(overlay).pressHandler({ originalEvent: e });
+    return info;
+  };
 
   const transformOpen = (): boolean => overlay.canvas._currentTransform !== null;
   const firedBy = (name: string, pointer: PointerSpec): number =>
@@ -388,6 +397,71 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
     const [, , pressSeqs] = onDoubleClick.mock.calls[0]!;
     expect(pressSeqs).toBeDefined();
     expect(pressSeqs![1]).toBe(pressSeqs![0] + 1);
+  });
+
+  /**
+   * A Ctrl/Cmd pan is its pointer's press. A pointer of another type landing
+   * while one pans took Fabric's gesture over instead: a finger painted, or
+   * moved the shape it landed on, the pan stopped, and OSD's navigation was
+   * left on in annotation mode, since only the pan's lift turned it off.
+   */
+  it.each<[string, PointerSpec, PointerSpec]>([
+    ['a finger during a mouse pan', MOUSE, FINGER_A],
+    ['a pen during a mouse pan', MOUSE, PEN],
+    ['a finger during a pen pan', PEN, FINGER_A],
+    ['a mouse during a pen pan', PEN, MOUSE],
+  ])('holds %s, and the pan goes on to its own lift', (_name, panning, second) => {
+    const pan = panPress(panning, { x: 300, y: 300 });
+    expect(pan.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // Lands on the shape: had it reached Fabric, its move would drag it.
+    const e = event('pointerdown', second, { x: 100, y: 100 });
+    const info = pre('pointerdown', e);
+    tracker(overlay).pressHandler({ originalEvent: e });
+    expect(info.preventGesture).toBe(true);
+    expect(info.stopPropagation).toBe(true);
+    move(second, { x: 130, y: 120 });
+    release(second, { x: 130, y: 120 });
+
+    expect(firedAny('mouse:down')).toBe(0);
+    expect(rect.left).toBe(100);
+    // The pan's moves still go to OSD, and its navigation stays on until the
+    // pan's own lift turns it off.
+    const panMove = pre('pointermove', event('pointermove', panning, { x: 340, y: 320 }));
+    expect(panMove.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+    pre('pointerup', event('pointerup', panning, { x: 340, y: 320 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(modified).not.toHaveBeenCalled();
+  });
+
+  it("ends a pan whose lift went unseen at its pointer's next press, navigation included", () => {
+    panPress(MOUSE, { x: 300, y: 300 });
+    // The mouse's release never reached the overlay. Its next press is a
+    // gesture of its own, as after a lost release of any press.
+    press(MOUSE, { x: 100, y: 100 });
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    move(MOUSE, { x: 160, y: 130 });
+    release(MOUSE, { x: 160, y: 130 });
+
+    expect(firedBy('mouse:down', MOUSE)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 160, top: 130 });
+  });
+
+  it('forgets a press whose lift went unseen once its pointer pans', () => {
+    press(MOUSE, { x: 500, y: 400 });
+    // The mouse's release never reached the overlay. It presses again, with
+    // Ctrl, so it has lifted: the pan is the gesture now, and once it ends
+    // none is in progress, so a finger's press is its own.
+    panPress(MOUSE, { x: 300, y: 300 });
+    pre('pointerup', event('pointerup', MOUSE, { x: 340, y: 320 }));
+
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 150, y: 130 });
+    release(FINGER_A, { x: 150, y: 130 });
+    expect(firedBy('mouse:down', FINGER_A)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
   });
 
   it('lets a held pointer go when it presses again, should its lift have gone unseen', () => {

@@ -150,7 +150,8 @@ export class PolyVertexEditor {
   }
 
   /**
-   * The platform cancelled the press in progress (`pointercancel`). Called by
+   * The press in progress was cancelled (`pointercancel`, or a touch press a
+   * pen or a mouse took over; see `AnnotationTool.onPointerCancel`). Called by
    * the tool that owns the editor, after `FabricOverlay` has put the shape
    * back, points included.
    *

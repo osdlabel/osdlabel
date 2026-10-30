@@ -680,6 +680,70 @@ test.describe('Segmentation brush', () => {
     expect(await onMask(finger)).toBe(false);
   });
 
+  test('a finger landing while the mouse pans paints nothing, and the pan goes on', async ({
+    page,
+  }) => {
+    // A Ctrl/Cmd pan is the mouse's press, so a finger landing during it is
+    // held, as beside any mouse press. It used to take the brush over: it
+    // painted, the pan stopped, and OpenSeadragon's mouse navigation stayed
+    // on after the mouse's lift.
+    const box = await page.locator('canvas.upper-canvas').boundingBox();
+    if (!box) throw new Error('canvas not found');
+    const { touch } = await tabletInput(page);
+    await page.getByTestId('tool-segmentationBrush').click();
+    const viewer = () =>
+      page.evaluate(() => {
+        const el = document.querySelector('.openseadragon-canvas') as
+          | (Element & {
+              __osdViewer?: {
+                viewport: { getCenter(current?: boolean): { x: number; y: number } };
+                isMouseNavEnabled(): boolean;
+              };
+            })
+          | null;
+        const v = el?.__osdViewer;
+        if (!v) throw new Error('test hooks not installed');
+        const c = v.viewport.getCenter(false);
+        return { x: c.x, y: c.y, nav: v.isMouseNavEnabled() };
+      });
+    const finger = { x: box.x + 380, y: box.y + 280, id: 7 };
+    const fingerStroke = async () => {
+      await touch('touchStart', [finger]);
+      for (let k = 1; k <= 4; k++) await touch('touchMove', [{ ...finger, x: finger.x + 15 * k }]);
+      await touch('touchEnd', []);
+    };
+    const from = { x: box.x + 150, y: box.y + 200 };
+
+    // Ctrl matters only at the press: released before the finger lands, so
+    // the finger's own press cannot be a pan trigger.
+    await page.keyboard.down('Control');
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.keyboard.up('Control');
+    await page.mouse.move(from.x + 30, from.y + 10, { steps: 3 });
+    await touch('touchStart', [finger]);
+    for (let k = 1; k <= 4; k++) await touch('touchMove', [{ ...finger, x: finger.x + 15 * k }]);
+    const landed = await viewer();
+    expect(landed.nav).toBe(true);
+    await page.mouse.move(from.x + 90, from.y + 40, { steps: 6 });
+    const panned = await viewer();
+    await page.mouse.up();
+    await touch('touchEnd', []);
+    await page.waitForTimeout(200);
+
+    // The pan went on after the finger landed...
+    expect(Math.hypot(panned.x - landed.x, panned.y - landed.y)).toBeGreaterThan(1e-3);
+    // ...the finger painted nothing...
+    expect(await readAnnotations(page)).toHaveLength(0);
+    // ...and navigation is off again, as after any pan.
+    expect((await viewer()).nav).toBe(false);
+
+    // The same finger stroke, alone, does paint: touch reaches the brush.
+    await fingerStroke();
+    await page.waitForTimeout(200);
+    expect(await readAnnotations(page)).toHaveLength(1);
+  });
+
   test.describe('a mask at downsample 4', () => {
     const inside = { x: 300, y: 200 };
     // Inside the last cell column (356..359), and just past it.

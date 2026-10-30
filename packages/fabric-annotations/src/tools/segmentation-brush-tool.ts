@@ -430,10 +430,12 @@ export class SegmentationBrushTool extends BaseTool {
 
   onPointerUp(event: PointerEvent, _imagePoint: Point): void {
     if (this.painting && !this.isStrokePointer(event)) return;
-    // The platform cancelled the press: a palm it rejected, or a system
-    // gesture. That input was never meant for the page, so its pixels are
-    // discarded rather than committed; on an iPad the palm landing before the
-    // pencil otherwise left a dot in the mask.
+    // The press was cancelled: by the platform (a palm it rejected, or a
+    // system gesture), or by the overlay, for a touch a pen or a mouse
+    // pressed beside (a palm it had not yet rejected, a finger left resting).
+    // That input was never meant for the page, so its pixels are discarded
+    // rather than committed; on an iPad the palm landing before the pencil
+    // otherwise left a dot in the mask.
     if (this.overlay?.isCancelledRelease?.(event) === true) this.cancel();
     else this.finishStroke();
     // A finger has nowhere to hover: a ring left at the lift point is an

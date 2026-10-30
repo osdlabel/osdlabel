@@ -381,11 +381,12 @@ describe('FabricOverlay: a cancelled press is undone', () => {
    * before the pencil lands, and the platform has not always cancelled it by
    * then; a finger left on a touchscreen while the other hand takes the mouse
    * is not cancelled at all. Either way the touch was a hand at rest: when a
-   * pen or a mouse presses while a touch press is held, the touch's press is
-   * undone as a cancel would undo it, in annotation and paint mode alike, the
-   * rest of the touch is held to its lift, and the new press goes through.
+   * pen or a mouse presses while a touch press is in progress, the touch's
+   * press is undone as a cancel would undo it, in annotation and paint mode
+   * alike, the rest of the touch is held to its lift, and the new press goes
+   * through.
    */
-  describe('a pen or a mouse pressing while a touch press is held', () => {
+  describe('a pen or a mouse pressing while a touch press is in progress', () => {
     interface ProcessInfo extends EventProcessInfo {
       preventGesture?: boolean;
     }
@@ -467,9 +468,9 @@ describe('FabricOverlay: a cancelled press is undone', () => {
         expect(info.preventGesture).not.toBe(true);
 
         // The rest of the touch is held to its lift: neither its moves nor
-        // its lift reach Fabric.
-        touch.move({ x: 160, y: 140 });
-        touch.release({ x: 160, y: 140 });
+        // its lift reach Fabric, or OSD's gesture handling.
+        expect(touch.move({ x: 160, y: 140 }).info.preventGesture).toBe(true);
+        expect(touch.release({ x: 160, y: 140 }).info.preventGesture).toBe(true);
         expect(placement(rect)).toEqual(atPress);
 
         // The new press's gesture is an ordinary one, to its own lift.
@@ -504,9 +505,9 @@ describe('FabricOverlay: a cancelled press is undone', () => {
         const { info } = other.press({ x: 300, y: 300 });
         expect(info.preventGesture).not.toBe(true);
         other.move({ x: 340, y: 300 });
-        touch.move({ x: 140, y: 120 });
+        expect(touch.move({ x: 140, y: 120 }).info.preventGesture).toBe(true);
         other.release({ x: 340, y: 300 });
-        touch.release({ x: 140, y: 120 });
+        expect(touch.release({ x: 140, y: 120 }).info.preventGesture).toBe(true);
 
         expect(heard).toEqual([
           'mouse:down touch #1',
@@ -577,6 +578,51 @@ describe('FabricOverlay: a cancelled press is undone', () => {
         // Passed on to OSD, with its navigation turned on for the pan.
         expect(info.stopPropagation).not.toBe(true);
         expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+      });
+
+      /**
+       * A Ctrl/Cmd pan is its pointer's press, so a touch's pan gives way
+       * too. It is ended rather than undone (the view stays where it went),
+       * and no subscriber hears of it: no tool saw the pan. Before, the press
+       * went through but left the pan recorded, with OSD's navigation on, and
+       * the touch's moves free.
+       */
+      it(`a ${pointerType} ends a touch's pan, holds the touch to its lift, and goes through`, () => {
+        const onCancel = vi.fn<PointerCancelCallback>();
+        overlay.onPointerCancel(onCancel);
+        const heard = listen();
+        const touch = pointer('touch', PRESSING);
+        const other = pointer(pointerType, 3);
+
+        const down = touchEvent('pointerdown', { x: 300, y: 300 }, { ctrlKey: true });
+        const panInfo: ProcessInfo = { eventType: 'pointerdown', originalEvent: down };
+        tracker(overlay).preProcessEventHandler(panInfo);
+        tracker(overlay).pressHandler({ originalEvent: down });
+        expect(panInfo.stopPropagation).not.toBe(true);
+        expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+        touch.move({ x: 320, y: 310 });
+
+        const { info } = other.press({ x: 100, y: 100 });
+        expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+        expect(info.preventGesture).not.toBe(true);
+        expect(onCancel).not.toHaveBeenCalled();
+
+        // The touch is held: OSD's gesture handling sees none of it either.
+        const { info: touchMove } = touch.move({ x: 340, y: 320 });
+        expect(touchMove.preventGesture).toBe(true);
+        other.move({ x: 130, y: 120 });
+        other.release({ x: 130, y: 120 });
+        const { info: touchLift } = touch.release({ x: 340, y: 320 });
+        expect(touchLift.preventGesture).toBe(true);
+
+        expect(heard).toEqual([
+          `mouse:down ${pointerType} #1`,
+          `mouse:move ${pointerType}`,
+          `mouse:up ${pointerType}`,
+        ]);
+        expect(rect.left).toBe(130);
+        expect(modified).toHaveBeenCalledTimes(1);
+        expect(onCancel).not.toHaveBeenCalled();
       });
     }
 

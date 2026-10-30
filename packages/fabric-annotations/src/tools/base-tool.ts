@@ -81,6 +81,11 @@ export interface AnnotationTool {
   /**
    * The platform cancelled the press in progress (`pointercancel`: an OS
    * gesture, palm rejection, a system dialog), so undo what that press began.
+   * `FabricOverlay` also cancels a touch press itself when a pen or a mouse
+   * presses during it (a touch never wins over either: the touch was a hand
+   * at rest), and `event` is then that pointer's `pointerdown`: its type,
+   * `pointerId` and `pointerType` are not the cancelled press's, so identify
+   * the press by `pressSeq`.
    * Optional — {@link BaseTool} supplies a default that calls {@link cancel},
    * which is right for a tool whose drawing lasts from press to release.
    *

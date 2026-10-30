@@ -16,11 +16,13 @@ export interface ToolOverlay {
    */
   pressSeqOf(event: PointerEvent): number | undefined;
   /**
-   * Whether a `pointerup` ends a press the platform cancelled (palm
-   * rejection, a system gesture) rather than one the user lifted. Fabric has
-   * no `pointercancel`, so a cancel reaches a tool as a release; a tool that
-   * commits on release should discard on one of these instead. Optional, so
-   * an overlay that cannot tell reports every release as a lift.
+   * Whether a `pointerup` ends a press that was cancelled rather than one the
+   * user lifted: by the platform (palm rejection, a system gesture), or by
+   * `FabricOverlay` itself, for a touch press a pen or a mouse pressed during
+   * (a touch never wins over either). Fabric has no `pointercancel`, so a
+   * cancel reaches a tool as a release; a tool that commits on release should
+   * discard on one of these instead. Optional, so an overlay that cannot tell
+   * reports every release as a lift.
    */
   isCancelledRelease?(event: PointerEvent): boolean;
 }

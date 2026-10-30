@@ -123,7 +123,7 @@ function overlayInMode(mode: OverlayMode) {
   fields['_pointerCancelSubscribers'] = new Set();
   fields['_transformPoints'] = null;
   fields['_lastClick'] = null;
-  fields['_panGestureActive'] = false;
+  fields['_panPointer'] = null;
   fields['_pressSeq'] = 0;
   fields['_pressSeqByEvent'] = new Map();
   fields['_cancelledReleases'] = new WeakSet();

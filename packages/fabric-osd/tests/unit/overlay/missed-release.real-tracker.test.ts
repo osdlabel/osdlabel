@@ -175,17 +175,17 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
   });
 
   it.each(['pen', 'mouse'] as const)(
-    'lets a palm rest beside a %s press without touching the stroke',
+    'lets a touch rest beside a %s press without touching the stroke',
     (type) => {
       setup('paint');
       const stroking: Pointer = { id: 5, type };
-      const palm: Pointer = { id: 7, type: 'touch' };
+      const resting: Pointer = { id: 7, type: 'touch' };
       fire(POINTER_DOWN, stroking);
-      fire(POINTER_DOWN, palm);
+      fire(POINTER_DOWN, resting);
       fire(POINTER_MOVE, stroking, { clientX: 20 });
-      fire(POINTER_MOVE, palm, { clientX: 30 });
+      fire(POINTER_MOVE, resting, { clientX: 30 });
       fire(POINTER_UP, stroking);
-      fire(POINTER_UP, palm);
+      fire(POINTER_UP, resting);
       expect(summary()).toEqual([
         [POINTER_DOWN, 5, true],
         [POINTER_MOVE, 5, true],
@@ -193,6 +193,33 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
       ]);
       expect(contacts(type)).toBe(0);
       expect(contacts('touch')).toBe(0);
+    },
+  );
+
+  it.each(['touch', 'pen'] as const)(
+    "holds a %s that lands while the mouse pans, and ends the pan at the mouse's lift",
+    (type) => {
+      // A Ctrl/Cmd pan is the mouse's press. The newcomer used to take
+      // Fabric's gesture over, which stopped the pan and left OSD's
+      // navigation on in annotation mode.
+      setup('paint');
+      const mouse: Pointer = { id: 1, type: 'mouse' };
+      const other: Pointer = { id: 7, type };
+      fire(POINTER_DOWN, mouse, { ctrlKey: true });
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+      fire(POINTER_DOWN, other, { clientX: 40 });
+      fire(POINTER_MOVE, other, { clientX: 60 });
+      fire(POINTER_MOVE, mouse, { clientX: 20 });
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+      fire(POINTER_UP, mouse, { clientX: 20 });
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+      fire(POINTER_UP, other, { clientX: 60 });
+
+      // Nothing of the newcomer's reached Fabric, and no press at all did.
+      expect(summary().filter(([, id]) => id === other.id)).toEqual([]);
+      expect(summary().filter(([t]) => t === POINTER_DOWN)).toEqual([]);
+      expect(contacts('mouse')).toBe(0);
+      expect(contacts(type)).toBe(0);
     },
   );
 
