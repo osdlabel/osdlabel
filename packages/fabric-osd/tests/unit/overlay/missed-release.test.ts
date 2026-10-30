@@ -12,7 +12,8 @@ import {
  * and never for a `pointercancel`, so a lift while a second finger rests, a
  * second finger landing mid-stroke, and a cancel all left a Fabric gesture —
  * and a brush stroke — open with no release. `preProcessEventHandler` now
- * forwards the release itself in those cases.
+ * forwards the release itself in those cases (`second-pointer.test.ts` and
+ * `pointer-cancel.test.ts` cover the lift and the cancel in annotation mode).
  *
  * Exercises the real `_createMouseTracker` handlers: the overlay is built
  * from its prototype with only the fields those handlers read, and
@@ -117,7 +118,10 @@ function overlayInMode(mode: OverlayMode) {
   fields['_mode'] = mode;
   fields['_forwarding'] = false;
   fields['_pendingPress'] = null;
-  fields['_palmPointers'] = new Set();
+  fields['_heldPointers'] = new Set();
+  fields['_handledReleases'] = new WeakSet();
+  fields['_pointerCancelSubscribers'] = new Set();
+  fields['_transformPoints'] = null;
   fields['_lastClick'] = null;
   fields['_panGestureActive'] = false;
   fields['_pressSeq'] = 0;
@@ -125,7 +129,12 @@ function overlayInMode(mode: OverlayMode) {
   fields['_cancelledReleases'] = new WeakSet();
   fields['_doubleClickSubscribers'] = new Set();
   fields['_fabricContainer'] = container;
-  fields['_fabricCanvas'] = { upperCanvasEl: upperCanvas };
+  // A cancel ends Fabric's gesture with `selection` off, then repaints.
+  fields['_fabricCanvas'] = {
+    upperCanvasEl: upperCanvas,
+    selection: false,
+    requestRenderAll: () => {},
+  };
   fields['_viewer'] = { setMouseNavEnabled: vi.fn(), canvas: parent };
   const tracker = (o as unknown as { _createMouseTracker(): unknown })._createMouseTracker();
   fields['_overlayTracker'] = tracker;
@@ -172,11 +181,11 @@ describe('releases OSD never reports', () => {
   it('does not double the ordinary last-contact release', () => {
     const { dispatched, tracker } = overlayInMode('paint');
     press(tracker, event(POINTER_DOWN, 1));
-    // The only contact lifts: OSD's releaseHandler will fire, so pre-process
-    // must leave it alone.
+    // The only contact lifts. Pre-process ends the gesture for the pointer
+    // that pressed, whatever OSD counts, and marks the event handled, so
+    // OSD's own report of it to releaseHandler forwards nothing more.
     const up = event(POINTER_UP, 1);
     tracker.preProcessEventHandler(info(POINTER_UP, up));
-    expect(dispatched.map((e) => e.type)).toEqual([POINTER_DOWN]);
     tracker.releaseHandler({ originalEvent: up });
     expect(dispatched.map((e) => e.type)).toEqual([POINTER_DOWN, POINTER_UP]);
   });

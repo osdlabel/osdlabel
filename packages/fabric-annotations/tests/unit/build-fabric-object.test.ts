@@ -8,7 +8,7 @@ import type { Geometry, VectorGeometry } from '@osdlabel/annotation';
 import { buildFabricObjectFromGeometry } from '../../src/build-fabric-object.js';
 import { getFabricOptions, getGeometryFromFabricObject } from '../../src/fabric-utils.js';
 import { initFabricModule } from '../../src/fabric-module.js';
-import type { Circle } from 'fabric';
+import { Rect, type Circle } from 'fabric';
 
 // Register custom Fabric properties so toObject() includes `id`.
 initFabricModule();
@@ -148,5 +148,68 @@ describe('buildFabricObjectFromGeometry', () => {
   it('sets the id on the built object so it serializes', () => {
     const obj = buildFabricObjectFromGeometry({ type: 'point', position: { x: 1, y: 2 } }, options);
     expect((obj.toObject() as { id?: string }).id).toBe(id);
+  });
+});
+
+describe('rectangle placement', () => {
+  const rectangle = (rotation: number): VectorGeometry => ({
+    type: 'rectangle',
+    origin: { x: 10, y: 20 },
+    width: 100,
+    height: 50,
+    rotation,
+  });
+
+  it('paints a rectangle centred on its geometry, not on its origin corner', () => {
+    const obj = buildFabricObjectFromGeometry(rectangle(0), options);
+    const center = obj.getCenterPoint();
+    expect(center.x).toBeCloseTo(60);
+    expect(center.y).toBeCloseTo(45);
+  });
+
+  it('rotates a rectangle about its centre, as centroid() assumes', () => {
+    const obj = buildFabricObjectFromGeometry(rectangle(30), options);
+    const center = obj.getCenterPoint();
+    expect(center.x).toBeCloseTo(60);
+    expect(center.y).toBeCloseTo(45);
+    expect(obj.angle).toBe(30);
+  });
+
+  it('reads the true corner of a rectangle saved with Fabric 7’s default centre origin', () => {
+    // What earlier releases saved for a drag from (10, 20): left/top at the
+    // drag start, under Fabric's default centre origin.
+    const saved = new Rect({ ...options, left: 10, top: 20, width: 100, height: 50 });
+    expect(getGeometryFromFabricObject(saved, 'rectangle')).toMatchObject({
+      origin: { x: -40, y: -5 },
+      width: 100,
+      height: 50,
+    });
+  });
+
+  it('reads the corner the same way whatever the object’s origin', () => {
+    const topLeft = new Rect({
+      left: 10,
+      top: 20,
+      width: 100,
+      height: 50,
+      angle: 30,
+      strokeWidth: 0,
+      originX: 'left',
+      originY: 'top',
+    });
+    // left/top place the rotated top-left corner; the centre is half the
+    // size from it along the rotated edges, and origin half the size from
+    // the centre along the image axes.
+    const theta = (30 * Math.PI) / 180;
+    const centre = {
+      x: 10 + 50 * Math.cos(theta) - 25 * Math.sin(theta),
+      y: 20 + 50 * Math.sin(theta) + 25 * Math.cos(theta),
+    };
+    const back = getGeometryFromFabricObject(topLeft, 'rectangle');
+    expect(back?.type).toBe('rectangle');
+    if (back?.type !== 'rectangle') return;
+    expect(back.origin.x).toBeCloseTo(centre.x - 50);
+    expect(back.origin.y).toBeCloseTo(centre.y - 25);
+    expect(back.rotation).toBe(30);
   });
 });

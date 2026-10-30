@@ -200,6 +200,36 @@ describe('State Management', () => {
     expect(h.current.contextState.contexts[0]).toEqual(context);
   });
 
+  it('updateAnnotations updates several annotations as one change, skipping unknown ids', () => {
+    const h = createTestStore();
+    const secondId = createAnnotationId('ann2');
+    h.run((a) => {
+      a.addAnnotation(dummyAnnotation);
+      a.addAnnotation(rect('ann2'));
+    });
+    const before = h.current.annotationState.changeCounter;
+    // One store write: a listener on the store hears it once.
+    let writes = 0;
+    const unsubscribe = h.current.store.subscribe(() => (writes += 1));
+
+    h.run((a) =>
+      a.updateAnnotations(imageId, [
+        { id: annId, patch: { label: 'first' } },
+        { id: createAnnotationId('missing'), patch: { label: 'nobody' } },
+        { id: secondId, patch: { label: 'second' } },
+      ]),
+    );
+    unsubscribe();
+
+    const bucket = h.current.annotationState.byImage[imageId];
+    expect(bucket).toBeDefined();
+    expect(bucket![annId]!.label).toBe('first');
+    expect(bucket![secondId]!.label).toBe('second');
+    expect(bucket![createAnnotationId('missing')]).toBeUndefined();
+    expect(h.current.annotationState.changeCounter).toBe(before + 1);
+    expect(writes).toBe(1);
+  });
+
   it('updateAnnotation handles non-existent annotation gracefully', () => {
     const h = createTestStore();
     h.run((a) => a.updateAnnotation(annId, imageId, { label: 'New Label' }));

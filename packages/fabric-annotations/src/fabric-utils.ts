@@ -13,6 +13,8 @@ import type { Annotation, AnnotationStyle, GeometryType } from '@osdlabel/annota
 import { MASK_RAW_FORMAT, type VectorGeometry } from '@osdlabel/annotation';
 import type { FabricFields, FabricRawAnnotationData } from './types.js';
 import { buildMaskFabricObject } from './mask-fabric-object.js';
+import { rectangleOrigin } from './rectangle-anchor.js';
+import { applyShapeControls } from './shape-controls.js';
 
 export function getFabricOptions(style: AnnotationStyle, id: string) {
   const fill = new Color(style.fillColor);
@@ -81,10 +83,19 @@ export interface CreateFabricObjectOptions {
 
 /**
  * Create a Fabric object from an Annotation's rawAnnotationData.
- * Sets selectable/evented to true for committed annotations.
+ * Sets selectable/evented to true for committed annotations, and gives it the
+ * handles its geometry type gets ({@link applyShapeControls}; a point gets
+ * none), which Fabric does not serialize.
+ *
+ * The saved data is revived as saved: a rectangle or circle saved skewed or
+ * stretched, as handles could leave one before they were constrained, still
+ * paints that way. The next edit committed through osdlabel's
+ * `processObjectModified` replaces its data with data that paints its
+ * geometry.
  *
  * Masks take a different path: their payload is pixels rather than a
- * serialized Fabric object, so they are rasterized into a Fabric `Image`.
+ * serialized Fabric object, so they are rasterized into a Fabric `Image`,
+ * locked against transforms and without handles.
  */
 export async function createFabricObjectFromRawData(
   annotation: Annotation<FabricFields>,
@@ -107,6 +118,7 @@ export async function createFabricObjectFromRawData(
     evented: true,
     ...(annotation.geometry.type === 'point' ? { hasControls: false } : {}),
   });
+  applyShapeControls(obj, annotation.geometry.type);
 
   return obj;
 }
@@ -123,12 +135,14 @@ export function getGeometryFromFabricObject(
   if (type === 'rectangle' && obj instanceof Rect) {
     const width = obj.width * obj.scaleX;
     const height = obj.height * obj.scaleY;
-    const left = obj.left;
-    const top = obj.top;
+    // Read from the centre rather than left/top, which name whatever origin
+    // the object has. Fabric 7's default origin is the centre, and rectangles
+    // saved by earlier releases carry it at their drag start.
+    const center = obj.getCenterPoint();
 
     return {
       type: 'rectangle',
-      origin: { x: left, y: top },
+      origin: rectangleOrigin(center, width, height),
       width: width,
       height: height,
       rotation: obj.angle,

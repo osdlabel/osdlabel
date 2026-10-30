@@ -201,6 +201,30 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
     expect(overlay.isCancelledRelease(forwarded[1]!)).toBe(true);
   });
 
+  // The lift of the pressing finger is ended, and qualified as a click, by
+  // the overlay itself, whatever OSD counts. A path that waited for OSD's
+  // count to drop missed the click whenever another finger was down, so a
+  // double tap whose first tap overlapped a brief second touch never paired:
+  // tests that drive the tracker's handlers directly keep the count at zero
+  // and cannot see that.
+  it('pairs a double tap whose first tap overlapped a brief second touch', () => {
+    setup('annotation');
+    const onDouble = vi.fn();
+    overlay.onDoubleClick(onDouble);
+    const a: Pointer = { id: 1, type: 'touch' };
+    const b: Pointer = { id: 2, type: 'touch', primary: false };
+    const a2: Pointer = { id: 3, type: 'touch' };
+    fire(POINTER_DOWN, a, { clientX: 300, clientY: 300 });
+    fire(POINTER_DOWN, b, { clientX: 500, clientY: 400 });
+    fire(POINTER_UP, a, { clientX: 300, clientY: 300 });
+    fire(POINTER_UP, b, { clientX: 500, clientY: 400 });
+    expect(contacts('touch')).toBe(0);
+    fire(POINTER_DOWN, a2, { clientX: 300, clientY: 300 });
+    fire(POINTER_UP, a2, { clientX: 300, clientY: 300 });
+    expect(onDouble).toHaveBeenCalledTimes(1);
+    expect(contacts('touch')).toBe(0);
+  });
+
   it('lets the pencil through when the palm landed first and is cancelled after', () => {
     // The iPad order: the hand rests, the pencil lands, then the platform
     // cancels the palm.

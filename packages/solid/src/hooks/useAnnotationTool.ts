@@ -9,11 +9,11 @@ import {
   buildSegmentationBrushConfig,
   createAnnotationTool,
   createDragVectorControl,
+  enableObjectModifiedCommits,
   getScenePointFromEvent,
   getToneValue,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
-  processObjectModified,
   VIEWER_CONTROL_SPECS,
   canAddAnnotation,
 } from 'osdlabel';
@@ -72,27 +72,24 @@ export function useAnnotationTool(
     }
   });
 
-  // Handle object modification (resize, rotate, move) globally
+  // Save every edit Fabric reports (move, resize, rotate), whatever the tool,
+  // of one annotation or of a multi-selection. Shared with React, including
+  // why a commit waits for a microtask: see enableObjectModifiedCommits.
   createEffect(() => {
     const ov = overlay();
     const imgId = imageId();
 
     if (!ov || !imgId) return;
 
-    const handleObjectModified = (e: { target: FabricObject }) => {
-      const result = processObjectModified(e.target, annotationState, imgId);
-      if (result) {
-        actions.updateAnnotation(result.id, imgId, {
-          geometry: result.geometry!,
-          rawAnnotationData: result.rawAnnotationData,
-        });
-      }
-    };
-
-    ov.canvas.on('object:modified', handleObjectModified);
-    onCleanup(() => {
-      ov.canvas.off('object:modified', handleObjectModified);
-    });
+    onCleanup(
+      enableObjectModifiedCommits({
+        overlay: ov,
+        imageId: imgId,
+        getAnnotationState: () => annotationState,
+        updateAnnotation: (id, patch) => actions.updateAnnotation(id, imgId, patch),
+        updateAnnotations: (updates) => actions.updateAnnotations(imgId, updates),
+      }),
+    );
   });
 
   createEffect(() => {
@@ -290,6 +287,15 @@ export function useAnnotationTool(
       tool.onDoubleClick?.(e, p, pressSeqs);
     });
 
+    // Fabric has no pointercancel handling: the overlay hears a cancelled
+    // press, puts back what Fabric was moving, and tells us here, before it
+    // ends Fabric's gesture with a release that reaches handleUp. The tool
+    // drops what the press began (a preview, a polyline's vertex) first, so
+    // that release finds nothing to commit. The sequence names the press.
+    const unsubscribePointerCancel = ov.onPointerCancel((e, pressSeq) => {
+      tool.onPointerCancel?.(e, pressSeq);
+    });
+
     ov.canvas.on('mouse:down', handleDown);
     ov.canvas.on('mouse:move', handleMove);
     ov.canvas.on('mouse:up', handleUp);
@@ -299,6 +305,7 @@ export function useAnnotationTool(
         activeToolKeyHandlerRef.handler = null;
       }
       unsubscribeDoubleClick();
+      unsubscribePointerCancel();
       ov.canvas.off('mouse:down', handleDown);
       ov.canvas.off('mouse:move', handleMove);
       ov.canvas.off('mouse:up', handleUp);

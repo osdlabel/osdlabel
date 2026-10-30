@@ -1504,6 +1504,36 @@ describe('a stroke whose press the platform cancelled', () => {
     up(h.tool, 120, 80);
     expect(h.commits).toHaveLength(1);
   });
+
+  // `FabricOverlay` tells the tool of a cancel first, through `onPointerCancel`
+  // (the brush inherits `BaseTool`'s, which calls `cancel()`), and then ends
+  // Fabric's gesture with a release of its own, which it marks cancelled.
+  // Either signal alone must discard the stroke.
+  it.each([
+    ['marked cancelled', true],
+    ['not marked', false],
+  ] as const)(
+    'is discarded through onPointerCancel, and the release after it, %s, commits nothing',
+    (_name, marked) => {
+      const committed = committedObject('m1');
+      const h = harness({
+        target: { annotationId: createAnnotationId('m1'), snapshot: paintedSnapshot() },
+        existingObjects: [committed],
+      });
+      down(h.tool, 100, 80);
+      move(h.tool, 120, 80);
+      h.tool.onPointerCancel({ pointerType: 'touch' } as PointerEvent, 1);
+      expect(committed.visible).toBe(true);
+      expect(h.objects.filter((o) => o.type === 'image')).toHaveLength(0);
+
+      const release = { pointerType: 'touch' } as PointerEvent;
+      if (marked) h.cancelledReleases.add(release);
+      h.tool.onPointerUp(release, { x: 100, y: 80 });
+      expect(h.commits).toHaveLength(0);
+      expect(committed.visible).toBe(true);
+      expect(h.objects.filter((o) => o.type === 'image')).toHaveLength(0);
+    },
+  );
 });
 
 describe('SegmentationBrushTool: resolution of a new mask', () => {

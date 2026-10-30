@@ -1,6 +1,8 @@
 import { Rect, Circle, Line, Polyline, Polygon, type FabricObject } from 'fabric';
 import { DEFAULT_POINT_RADIUS, type VectorGeometry } from '@osdlabel/annotation';
 import type { FabricShapeOptions } from './fabric-utils.js';
+import { rectangleCenter } from './rectangle-anchor.js';
+import { applyShapeControls } from './shape-controls.js';
 
 /**
  * Construct a Fabric object from image-space {@link VectorGeometry}. This is the
@@ -18,7 +20,8 @@ import type { FabricShapeOptions } from './fabric-utils.js';
  * `LineTool`, `PointTool`, `PolylineTool`, `FreeHandPathTool`) so imported
  * geometry behaves identically to user-drawn geometry. The object is created
  * committed (`selectable`/`evented` true) — callers that need a preview object
- * should adjust those flags afterwards.
+ * should adjust those flags afterwards. Rectangles and circles get the handles
+ * {@link applyShapeControls} gives them.
  *
  * @param pointRadius Radius (image pixels) for `point` geometry, mirroring
  *   `AnnotationStyle.pointRadius`. Defaults to {@link DEFAULT_POINT_RADIUS}.
@@ -29,19 +32,25 @@ export function buildFabricObjectFromGeometry(
   pointRadius: number = DEFAULT_POINT_RADIUS,
 ): FabricObject {
   switch (geometry.type) {
-    case 'rectangle':
-      return new Rect({
+    case 'rectangle': {
+      const center = rectangleCenter(geometry.origin, geometry.width, geometry.height);
+      const rect = new Rect({
         ...options,
-        left: geometry.origin.x,
-        top: geometry.origin.y,
+        left: center.x,
+        top: center.y,
         width: geometry.width,
         height: geometry.height,
         angle: geometry.rotation,
+        originX: 'center',
+        originY: 'center',
         selectable: true,
         evented: true,
       });
-    case 'circle':
-      return new Circle({
+      applyShapeControls(rect, 'rectangle');
+      return rect;
+    }
+    case 'circle': {
+      const circle = new Circle({
         ...options,
         left: geometry.center.x,
         top: geometry.center.y,
@@ -51,6 +60,9 @@ export function buildFabricObjectFromGeometry(
         selectable: true,
         evented: true,
       });
+      applyShapeControls(circle, 'circle');
+      return circle;
+    }
     case 'line':
       return new Line([geometry.start.x, geometry.start.y, geometry.end.x, geometry.end.y], {
         ...options,

@@ -10,6 +10,7 @@ import {
 import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { getFabricOptions } from '../fabric-utils.js';
 import { getPreviewOptions } from '../preview-style.js';
+import { MIN_SHAPE_SCREEN_PX } from './shape-tool.js';
 import type { ToolOverlay } from '../types.js';
 import type { ToolCallbacks } from './base-tool.js';
 import {
@@ -120,7 +121,22 @@ export class FreeHandPathTool extends BaseTool {
       return;
     }
 
+    // Too small to see: discard it rather than store an invisible annotation
+    // that still counts toward maxCount. At the default sampling distance a
+    // stroke that stays in a 3 px spot has too few vertices to get here, but
+    // a finer `minSampleDistancePx`, or a zoom out mid-stroke, gives it more.
+    if (this.isSmallerOnScreenThan(this.vertices, MIN_SHAPE_SCREEN_PX)) {
+      this.cancel();
+      return;
+    }
+
     this.finish(closed);
+  }
+
+  /** Drops the stroke the cancelled press began, and the editor's hold on the press. */
+  onPointerCancel(_event: PointerEvent, _pressSeq: number): void {
+    this.editor.onPointerCancel();
+    this.cancel();
   }
 
   onKeyDown(event: KeyboardEvent): boolean {

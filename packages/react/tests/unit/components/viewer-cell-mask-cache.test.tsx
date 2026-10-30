@@ -91,6 +91,7 @@ vi.mock('@osdlabel/fabric-osd', () => ({
     applyImageFilters = vi.fn();
     applyModeToObject = applyModeToObject;
     onSync = () => () => {};
+    onPointerCancel = () => () => {};
     setMode = vi.fn();
     overlayElement = null;
   },

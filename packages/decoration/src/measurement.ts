@@ -127,7 +127,7 @@ export function measurePerimeter(
   const unit = pixelSpacing.unit;
   switch (geometry.type) {
     case 'rectangle': {
-      // Edge vectors of the rectangle rotated about its origin.
+      // Edge vectors of the rotated rectangle; the pivot does not change them.
       const theta = (geometry.rotation * Math.PI) / 180;
       const cos = Math.cos(theta);
       const sin = Math.sin(theta);

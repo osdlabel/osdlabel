@@ -10,6 +10,7 @@ import {
 import type { ImageId, KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { getFabricOptions } from '../fabric-utils.js';
 import { getPreviewOptions } from '../preview-style.js';
+import { MIN_SHAPE_SCREEN_PX } from './shape-tool.js';
 import { VertexMarkerLayer, type VertexMarkerOptions } from '../vertex-markers.js';
 import type { ToolOverlay } from '../types.js';
 import type { ToolCallbacks } from './base-tool.js';
@@ -161,6 +162,35 @@ export class PolylineTool extends BaseTool {
     this.finish(false);
   }
 
+  /**
+   * Take back the vertex the cancelled press placed, and keep the rest of the
+   * path: a polyline places its vertex on the press, and the earlier vertices
+   * belong to presses that completed. A path whose only vertex goes is
+   * dropped.
+   *
+   * The vertex is the tail, identified by `pressSeq`, as for a double click.
+   * A press that placed none (one the framework hooks suppressed for landing
+   * on an annotation) leaves the path alone, and so does one that closed it:
+   * the polygon was committed on the press, before the cancel.
+   */
+  onPointerCancel(_event: PointerEvent, pressSeq: number): void {
+    this.editor.onPointerCancel();
+    if (this.vertexSeqs[this.vertexSeqs.length - 1] !== pressSeq) return;
+    this.popVertex();
+    const last = this.vertices[this.vertices.length - 1];
+    if (!last) {
+      this.cancel();
+      return;
+    }
+    // The live cursor point rests on the last vertex until the pointer moves.
+    this.preview?.set({
+      points: [...this.vertices.map((p) => ({ x: p.x, y: p.y })), { x: last.x, y: last.y }],
+      dirty: true,
+    });
+    this.syncMarkers(last);
+    this.overlay?.canvas.requestRenderAll();
+  }
+
   onKeyDown(event: KeyboardEvent): boolean {
     if (this.editor.onKeyDown(event)) return true;
     const shortcuts = this.shortcuts;
@@ -246,6 +276,16 @@ export class PolylineTool extends BaseTool {
     return dist < CLOSE_THRESHOLD_SCREEN_PX;
   }
 
+  /**
+   * Commit the path, as a polygon when `closed`. Every way of finishing comes
+   * here: a double click, the finish and close keys, and a click on the first
+   * vertex.
+   *
+   * A path too short to be one, or smaller on screen than
+   * {@link MIN_SHAPE_SCREEN_PX} (clicks at one spot, say), is discarded
+   * instead, preview and markers with it, leaving the tool ready for a new
+   * path.
+   */
   private finish(closed: boolean) {
     if (!this.overlay || !this.imageId || !this.callbacks) {
       this.cancel();
@@ -255,6 +295,15 @@ export class PolylineTool extends BaseTool {
     // Need at least 2 points for an open path, 3 for a closed polygon
     const minPoints = closed ? 3 : 2;
     if (this.vertices.length < minPoints) {
+      this.cancel();
+      return;
+    }
+
+    // Too small to see, such as two clicks at one spot and Enter: discard it
+    // rather than store an invisible annotation that still counts toward
+    // maxCount. Measured across the whole path, so a path that reaches the
+    // minimum in any direction is kept.
+    if (this.isSmallerOnScreenThan(this.vertices, MIN_SHAPE_SCREEN_PX)) {
       this.cancel();
       return;
     }

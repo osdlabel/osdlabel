@@ -1,4 +1,4 @@
-import type { Geometry, Point } from '@osdlabel/annotation';
+import type { Geometry, Point, RectangleGeometry } from '@osdlabel/annotation';
 
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -84,22 +84,16 @@ export function radius(geometry: Geometry): number | undefined {
 }
 
 /**
- * Geometric centroid in image-px. For rectangles, accounts for the
- * `rotation` field rotating the rect about its `origin` (top-left).
+ * Geometric centroid in image-px. A rectangle rotates about its centre, so
+ * its centroid is the centre of its unrotated box, whatever its `rotation`.
  */
 export function centroid(geometry: Geometry): Point {
   switch (geometry.type) {
-    case 'rectangle': {
-      const localCx = geometry.width / 2;
-      const localCy = geometry.height / 2;
-      const theta = geometry.rotation * DEG_TO_RAD;
-      const cos = Math.cos(theta);
-      const sin = Math.sin(theta);
+    case 'rectangle':
       return {
-        x: geometry.origin.x + localCx * cos - localCy * sin,
-        y: geometry.origin.y + localCx * sin + localCy * cos,
+        x: geometry.origin.x + geometry.width / 2,
+        y: geometry.origin.y + geometry.height / 2,
       };
-    }
     case 'circle':
       return geometry.center;
     case 'line':
@@ -123,12 +117,7 @@ export function centroid(geometry: Geometry): Point {
 export function boundingBox(geometry: Geometry): { readonly min: Point; readonly max: Point } {
   switch (geometry.type) {
     case 'rectangle':
-      return rectangleBoundingBox(
-        geometry.origin,
-        geometry.width,
-        geometry.height,
-        geometry.rotation,
-      );
+      return pointsBoundingBox(rectangleCorners(geometry));
     case 'circle':
       return {
         min: { x: geometry.center.x - geometry.radius, y: geometry.center.y - geometry.radius },
@@ -220,23 +209,26 @@ function pointsBoundingBox(points: readonly Point[]): { readonly min: Point; rea
   return { min: { x: minX, y: minY }, max: { x: maxX, y: maxY } };
 }
 
-function rectangleBoundingBox(
-  origin: Point,
-  width: number,
-  height: number,
-  rotationDeg: number,
-): { readonly min: Point; readonly max: Point } {
-  const theta = rotationDeg * DEG_TO_RAD;
+/**
+ * The four corners of a rectangle in image-px: its unrotated box, `origin` to
+ * `origin + (width, height)`, turned `rotation` degrees clockwise about its
+ * centre. They are in the order top-left, top-right, bottom-right,
+ * bottom-left of the unrotated box.
+ */
+export function rectangleCorners(
+  rectangle: RectangleGeometry,
+): readonly [Point, Point, Point, Point] {
+  const { origin, width, height, rotation } = rectangle;
+  const cx = origin.x + width / 2;
+  const cy = origin.y + height / 2;
+  const theta = rotation * DEG_TO_RAD;
   const cos = Math.cos(theta);
   const sin = Math.sin(theta);
-  const corners: Point[] = [
-    { x: 0, y: 0 },
-    { x: width, y: 0 },
-    { x: width, y: height },
-    { x: 0, y: height },
-  ].map((c) => ({
-    x: origin.x + c.x * cos - c.y * sin,
-    y: origin.y + c.x * sin + c.y * cos,
-  }));
-  return pointsBoundingBox(corners);
+  const corner = (dx: number, dy: number): Point => ({
+    x: cx + dx * cos - dy * sin,
+    y: cy + dx * sin + dy * cos,
+  });
+  const hw = width / 2;
+  const hh = height / 2;
+  return [corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)];
 }

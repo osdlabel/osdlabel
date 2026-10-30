@@ -247,7 +247,18 @@ describe('processObjectModified with a mask annotation', () => {
       { type: 'rectangle', origin: { x: 0, y: 0 }, width: 10, height: 10, rotation: 0 },
       { id: createAnnotationId('rect-1'), imageId, contextId, toolType: 'rectangle' },
     );
-    const moved = new Rect({ left: 40, top: 50, width: 10, height: 10 });
+    // Placed by its top-left corner, unstroked: a rectangle's geometry is read
+    // from the centre it is painted at, and Fabric 7's default origin is the
+    // centre, while a stroke widens the painted box.
+    const moved = new Rect({
+      left: 40,
+      top: 50,
+      width: 10,
+      height: 10,
+      strokeWidth: 0,
+      originX: 'left',
+      originY: 'top',
+    });
     moved.id = rect.id;
 
     const result = processObjectModified(moved, stateWith(rect), imageId);

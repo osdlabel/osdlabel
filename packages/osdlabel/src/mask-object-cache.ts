@@ -13,12 +13,38 @@ interface Entry {
   /** The tint it was rasterized in: the override, or `undefined` for its own. */
   readonly fill: string | undefined;
   readonly object: FabricObject;
+  /** Where `object` was placed when it was stored; see `MaskObjectCache.get`. */
+  readonly placement: Placement;
   /**
    * Seeded from the brush's commit rather than built from state: the store
    * may hand back a different object for the same payload (Solid's are
    * proxies), so the first lookup matches by content, then by identity.
    */
   seeded: boolean;
+}
+
+/** The fields that place a Fabric object on the canvas. */
+const PLACEMENT_FIELDS = [
+  'left',
+  'top',
+  'scaleX',
+  'scaleY',
+  'angle',
+  'skewX',
+  'skewY',
+  'flipX',
+  'flipY',
+] as const;
+
+type Placement = Readonly<Pick<FabricObject, (typeof PLACEMENT_FIELDS)[number]>>;
+
+function placementOf(object: FabricObject): Placement {
+  const { left, top, scaleX, scaleY, angle, skewX, skewY, flipX, flipY } = object;
+  return { left, top, scaleX, scaleY, angle, skewX, skewY, flipX, flipY };
+}
+
+function isPlaced(object: FabricObject, placement: Placement): boolean {
+  return PLACEMENT_FIELDS.every((field) => object[field] === placement[field]);
 }
 
 /** The fields of a canonical mask payload that decide its pixels and tint. */
@@ -57,6 +83,13 @@ function samePayload(a: unknown, b: unknown): boolean {
  * the tint it was drawn in is an exact key: a hit is pixel-identical to what
  * a rebuild would produce.
  *
+ * A hit must also still sit where it was built. A mask object is locked
+ * against transforms, but a transform of a multi-selection holding it would
+ * still move it (the select tool keeps masks out of those), and handing such
+ * an object back would keep the mask drawn away from its pixels until the
+ * payload changed. An entry whose object has moved is dropped, so the next
+ * rebuild rasterizes it afresh.
+ *
  * What the cache does not own, the rebuild still does on every run: clearing
  * the canvas and re-adding, `applyModeToObject` and `_readOnly` (the mode or
  * context may have changed while the pixels did not), and opacity. Entries
@@ -70,6 +103,10 @@ export class MaskObjectCache {
   get(annotation: Annotation<FabricFields>, fill: string | undefined): FabricObject | undefined {
     const entry = this.entries.get(annotation.id);
     if (!entry || entry.fill !== fill) return undefined;
+    if (!isPlaced(entry.object, entry.placement)) {
+      this.entries.delete(annotation.id);
+      return undefined;
+    }
     if (entry.raw === annotation.rawAnnotationData) return entry.object;
     if (entry.seeded && samePayload(entry.raw, annotation.rawAnnotationData)) {
       entry.raw = annotation.rawAnnotationData;
@@ -84,6 +121,7 @@ export class MaskObjectCache {
       raw: annotation.rawAnnotationData,
       fill,
       object,
+      placement: placementOf(object),
       seeded: false,
     });
   }
@@ -111,6 +149,7 @@ export class MaskObjectCache {
       raw: seed.rawAnnotationData,
       fill: seed.fill,
       object,
+      placement: placementOf(object),
       seeded: true,
     });
   }

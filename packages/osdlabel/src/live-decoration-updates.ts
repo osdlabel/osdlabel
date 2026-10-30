@@ -28,11 +28,18 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<never, ne
 }
 
 /**
- * Subscribe to Fabric `object:moving` / `object:scaling` / `object:rotating`
- * on the overlay's canvas. While the user drags, the moving annotation's
- * geometry in state is stale (state only updates on `object:modified`); this
- * helper overlays the *live* Fabric geometry on top of the state-derived
- * annotations, re-runs the decoration providers, and calls `onDecorations`.
+ * Subscribe to Fabric `object:moving` / `object:scaling` / `object:rotating` /
+ * `object:skewing` on the overlay's canvas. While the user drags, the moving
+ * annotation's geometry in state is stale (state only updates on
+ * `object:modified`); this helper overlays the *live* Fabric geometry on top
+ * of the state-derived annotations, re-runs the decoration providers, and
+ * calls `onDecorations`.
+ *
+ * `object:skewing` is how Fabric reports Shift + a side handle (its
+ * `altActionKey`), which shears a line, polyline or polygon: their stored
+ * points follow the shear exactly, so their labels follow it too, instead of
+ * jumping on release. Rectangles, circles and points have no handle that
+ * skews them.
  *
  * Recomputation is throttled to one call per `requestAnimationFrame` so the
  * cost is bounded at 60fps regardless of how often Fabric fires the event.
@@ -40,6 +47,13 @@ export interface LiveDecorationUpdateOptions<E extends object = Record<never, ne
  * On `object:modified` (commit), the host framework's reactive effect
  * already re-runs the providers from state — no override is needed and
  * none is applied here.
+ *
+ * A press the platform cancels (`pointercancel`, see
+ * `FabricOverlay.onPointerCancel`) commits nothing, so state does not change
+ * and the host's effect does not re-run; the overlay puts the shape back
+ * instead. The helper then re-derives the decorations from state on the next
+ * frame, so the last live frame (a label where the finger was, reading the
+ * dragged shape's measurements) does not outlive the gesture.
  *
  * Returns a teardown function that unsubscribes and cancels any pending
  * scheduled tick.
@@ -94,15 +108,30 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
     rafHandle = requestAnimationFrame(flush);
   };
 
+  // A cancelled press leaves state as it was: the next frame drops any live
+  // override, pending or emitted, and runs the providers over state alone.
+  const onPointerCancel = (): void => {
+    if (disposed) return;
+    if (getProviders().length === 0) return;
+    pendingTarget = undefined;
+    if (scheduled) return;
+    scheduled = true;
+    rafHandle = requestAnimationFrame(flush);
+  };
+
   canvas.on('object:moving', handler);
   canvas.on('object:scaling', handler);
   canvas.on('object:rotating', handler);
+  canvas.on('object:skewing', handler);
+  const unsubscribePointerCancel = overlay.onPointerCancel(onPointerCancel);
 
   return () => {
     disposed = true;
     canvas.off('object:moving', handler);
     canvas.off('object:scaling', handler);
     canvas.off('object:rotating', handler);
+    canvas.off('object:skewing', handler);
+    unsubscribePointerCancel();
     if (rafHandle !== 0) {
       cancelAnimationFrame(rafHandle);
       rafHandle = 0;
@@ -124,11 +153,15 @@ export function enableLiveDecorationUpdates<E extends object = Record<never, nev
  *
  * Caveat for `ActiveSelection`: child objects' `left/top` are reported
  * relative to the parent group, not the canvas. `getGeometryFromFabricObject`
- * is matrix-based for line/polyline/polygon (exact under groups) but reads
- * `left/top` / `getCenterPoint()` directly for rectangle/circle/point — those
- * may be slightly off during a multi-select drag. The commit on mouse-up
- * (via `object:modified`) is always correct because Fabric dissolves the
- * ActiveSelection before firing it.
+ * is matrix-based for line/polyline/polygon (exact under groups). For
+ * rectangle/circle/point it takes the centre from `getCenterPoint()`, which
+ * includes the group's transform, but reads size and rotation from the child,
+ * relative to the group — those may be off while a multi-selection is scaled
+ * or rotated. That is a live preview only. Fabric does not dissolve the
+ * selection before reporting the edit: its `object:modified` targets the
+ * selection, members still inside it. The commit, `enableObjectModifiedCommits`,
+ * dissolves it first, which bakes each member's absolute transform, and then
+ * reads each member on its own, so what is stored is exact.
  */
 function applyLiveOverride<E extends object>(
   annotations: readonly Annotation<E>[],

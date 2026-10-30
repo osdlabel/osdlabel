@@ -9,11 +9,11 @@ import {
   buildSegmentationBrushConfig,
   createAnnotationTool,
   createDragVectorControl,
+  enableObjectModifiedCommits,
   getScenePointFromEvent,
   getToneValue,
   processToolAddAnnotation,
   processToolUpdateAnnotation,
-  processObjectModified,
   VIEWER_CONTROL_SPECS,
   canAddAnnotation,
 } from 'osdlabel';
@@ -78,24 +78,19 @@ export function useAnnotationTool(
   // store, which already holds every write, not the last rendered state (#217).
   // `store` is stable, so depending on it never rebuilds the tool.
 
-  // Handle object:modified events
+  // Save every edit Fabric reports (move, resize, rotate), whatever the tool,
+  // of one annotation or of a multi-selection. Shared with Solid, including
+  // why a commit waits for a microtask: see enableObjectModifiedCommits.
   useEffect(() => {
     if (!overlay || !imageId) return;
 
-    const handleObjectModified = (e: { target: FabricObject }) => {
-      const result = processObjectModified(e.target, store.getSnapshot().annotationState, imageId);
-      if (result) {
-        actions.updateAnnotation(result.id, imageId, {
-          geometry: result.geometry!,
-          rawAnnotationData: result.rawAnnotationData,
-        });
-      }
-    };
-
-    overlay.canvas.on('object:modified', handleObjectModified);
-    return () => {
-      overlay.canvas.off('object:modified', handleObjectModified);
-    };
+    return enableObjectModifiedCommits({
+      overlay,
+      imageId,
+      getAnnotationState: () => store.getSnapshot().annotationState,
+      updateAnnotation: (id, patch) => actions.updateAnnotation(id, imageId, patch),
+      updateAnnotations: (updates) => actions.updateAnnotations(imageId, updates),
+    });
   }, [overlay, imageId, actions, store]);
 
   // Main tool lifecycle effect
@@ -276,6 +271,15 @@ export function useAnnotationTool(
       tool.onDoubleClick?.(e, p, pressSeqs);
     });
 
+    // Fabric has no pointercancel handling: the overlay hears a cancelled
+    // press, puts back what Fabric was moving, and tells us here, before it
+    // ends Fabric's gesture with a release that reaches handleUp. The tool
+    // drops what the press began (a preview, a polyline's vertex) first, so
+    // that release finds nothing to commit. The sequence names the press.
+    const unsubscribePointerCancel = overlay.onPointerCancel((e, pressSeq) => {
+      tool.onPointerCancel?.(e, pressSeq);
+    });
+
     overlay.canvas.on('mouse:down', handleDown);
     overlay.canvas.on('mouse:move', handleMove);
     overlay.canvas.on('mouse:up', handleUp);
@@ -285,6 +289,7 @@ export function useAnnotationTool(
         activeToolKeyHandlerRef.handler = null;
       }
       unsubscribeDoubleClick();
+      unsubscribePointerCancel();
       overlay.canvas.off('mouse:down', handleDown);
       overlay.canvas.off('mouse:move', handleMove);
       overlay.canvas.off('mouse:up', handleUp);

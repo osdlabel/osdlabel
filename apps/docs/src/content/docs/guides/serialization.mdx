@@ -178,7 +178,7 @@ const { byImage } = deserialize(parsed);
 actions.loadAnnotations(byImage);
 ```
 
-`deserialize()` validates the basic structure of the array and throws `SerializationError` on invalid input. For deep validation, the library integrates with Valibot in `@osdlabel/validation`.
+`deserialize()` checks every annotation with `OsdAnnotationSchema` from `@osdlabel/validation` (see [Validation](#validation)). If any annotation is invalid it throws `SerializationError`, whose message names the first problem, and returns nothing, so a bad document is never half loaded. A mask whose pixels cannot be decoded is the one exception: it is dropped alone and listed in the result's `skipped` (see [Importing](/osdlabel/guides/segmentation-brush/#importing) in the Segmentation Brush guide).
 
 ### Flat out, keyed in
 
@@ -188,6 +188,77 @@ The two directions are intentionally **asymmetric**, and it trips people up:
 - **`deserialize(doc)` returns a keyed `{ byImage }` map** — `Record<ImageId, Record<AnnotationId, Annotation>>` — which is the exact shape `loadAnnotations` expects for the store.
 
 So: persist the **flat** array, load it back through `deserialize` to get the **keyed** map. If you keep your own annotation list (e.g. a flat `Annotation[]` from `onAnnotationsChange`), you still pass it through `deserialize` to seed the store.
+
+### Geometry and the saved Fabric object
+
+Every vector annotation stores its shape twice, and each copy is authoritative for something different:
+
+| Field               | Authoritative for                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `rawAnnotationData` | What is painted on the canvas, and what the user selects, drags, resizes and rotates                           |
+| `geometry`          | What is measured and labelled, what `boundingBox` and `centroid` read, and the shape hosts read from an export |
+
+When the user draws or edits a shape, both fields are written together from the same Fabric object: an edit recomputes `geometry` from the edited object. So the two agree in everything the annotator saves, except in data saved by releases up to 0.21.0: their rectangles ([below](#rectangles-saved-by-earlier-releases)), and the rectangles and circles they let the user skew or stretch ([below](#rectangles-and-circles-saved-skewed-or-stretched)).
+
+A document edited by hand or written by another tool can pair them wrongly. `deserialize` rejects an annotation whose saved Fabric object is not the class that paints its geometry's type:
+
+| `geometry.type`   | Fabric class in `rawAnnotationData.data.type` |
+| ----------------- | --------------------------------------------- |
+| `rectangle`       | `Rect`                                        |
+| `circle`, `point` | `Circle`                                      |
+| `line`            | `Line`                                        |
+| `polyline`        | `Polyline`                                    |
+| `polygon`         | `Polygon`                                     |
+
+A mask is the exception. Its `rawAnnotationData` is an `osdlabel-mask` pixel payload, not a Fabric object ([Mask annotations](#mask-annotations)), and the pixels are authoritative for both: `deserialize` recomputes a mask's `geometry` from them. A mask geometry with a Fabric payload, or a vector geometry with a mask payload, is rejected:
+
+```text
+Validation failed: Annotation "m1" has mask geometry, but its rawAnnotationData is a "fabric" payload, not "osdlabel-mask"
+```
+
+Fabric saves the class name capitalised, as above; the lowercase name, which Fabric also loads, is accepted too. The error names the annotation and both types:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData is a Fabric Circle, not a Rect
+```
+
+`deserialize` cannot tell whether the saved object sits where the geometry says: that needs Fabric to rebuild the object, and `deserialize` is synchronous. An annotation whose two fields describe the same kind of shape in different places loads as saved. It is painted from `rawAnnotationData`, measured from `geometry`, and its geometry moves to the painted shape the first time the user edits it.
+
+So don't pair the two fields by hand. Build annotations with [`createAnnotationFromGeometry`](#seeding-from-external-geometry), which writes both from one geometry. If you change an annotation's geometry outside the annotator, rebuild it the same way, with its `id`, `toolType`, `label` and style, rather than editing `geometry` alone. `loadAnnotations` and `initialAnnotations` check neither field, so pass data from outside your app through `deserialize` first.
+
+### Rectangles saved by earlier releases
+
+Up to 0.21.0, a rectangle was painted centred on the corner its geometry records, half its size up and to the left of where it was drawn. Fabric 7 places an object by its centre unless told otherwise, and the rectangle tool never told it. Rectangles are now painted where their geometry says.
+
+A rectangle's `origin`, `width` and `height` are its box before rotation, and `rotation` turns that box about its centre, so the centre is always `origin + (width / 2, height / 2)`. Those releases read `origin` back from the shape as the centre it was painted at, so that is what a rectangle saved by them holds. On a rectangle never edited, that point is also the top-left corner of the drag; after a move, resize or rotation it is only the centre.
+
+A rectangle saved by an earlier release still paints where users saw it, because its saved Fabric data is what is drawn. Its geometry is loaded as saved, though, so its measurements, labels and exports sit half its size from the shape on screen. The geometry is corrected the first time the rectangle is edited, because it is read back from the shape's centre.
+
+`deserialize` does not change it. To correct such rectangles when you load them, pass each annotation through `migrateLegacyRectangle`, which recomputes the geometry of an earlier release's rectangle from where it is painted and returns any other annotation unchanged:
+
+```ts
+import { deserialize, migrateLegacyRectangle } from '@osdlabel/solid'; // or '@osdlabel/react'
+
+const { byImage } = deserialize(JSON.parse(jsonString));
+for (const annotations of Object.values(byImage)) {
+  for (const annotation of Object.values(annotations)) {
+    annotations[annotation.id] = migrateLegacyRectangle(annotation);
+  }
+}
+actions.loadAnnotations(byImage);
+```
+
+It is a separate module that nothing else imports, so a bundle that does not use it does not include it. It is also importable on its own as `@osdlabel/fabric-annotations/legacy-rectangle`. It recognises an earlier release's rectangle by Fabric data with a centre origin whose `left` / `top` match the geometry's `origin`, to within the rounding Fabric applies when it saves.
+
+### Rectangles and circles saved skewed or stretched
+
+Up to 0.21.0, the select tool's handles could make a shape its geometry cannot describe. **Shift** with a side handle sheared a rectangle into a parallelogram, or a circle into a slanted ellipse, and a circle's side handles, or **Shift** with a corner, stretched it into an ellipse. The geometry kept the rectangle about the same centre, unsheared, or a circle of the larger radius, while the saved Fabric data kept the shape on screen. The handles no longer do either.
+
+Such an annotation loads as saved: it still paints the sheared or stretched shape, and its geometry is what it was. The first time it is edited (moved, resized or rotated), its Fabric data is replaced with data that paints its geometry, in the same style, and the shape on screen snaps to what its measurements, labels and exports already described. Nothing changes it on load, and there is no migration helper for it.
+
+### Points saved with a scaled or slanted dot
+
+A point's dot is always drawn at its style's radius, the `radius` its Fabric `Circle` was saved with. A point saved with a scale or a skew on that `Circle` loads as saved, like the shapes above: it still paints the dot it saved, larger, smaller or slanted, until its next edit redraws it at that radius. Its geometry is only its position, which the saved `Circle` agrees with, so its measurements, labels and exports are unaffected.
 
 ## Exporting masks in another format
 
@@ -228,22 +299,31 @@ const annotation = createAnnotationFromGeometry(
 actions.addAnnotation(annotation);
 ```
 
-It accepts any `VectorGeometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
+It accepts any `VectorGeometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so, given a `toolType` that draws the geometry ([below](#choosing-a-tooltype)), the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
 
 ### Choosing a `toolType`
 
-`toolType` is recorded independently of `geometry.type`. For most shapes they match (`'rectangle'` ↔ `rectangle`, `'circle'` ↔ `circle`, …). The exception is freehand:
+`toolType` records which tool drew the annotation, and constraints count annotations by it: a context's limit on rectangles counts the annotations whose `toolType` is `'rectangle'`. Pass a tool that draws your geometry's type. For most shapes that is the tool of the same name. A path has two, because the polyline and freehand tools each draw an open path or close one:
 
-| `toolType`     | Resulting `geometry.type`                         |
-| -------------- | ------------------------------------------------- |
-| `rectangle`    | `rectangle`                                       |
-| `circle`       | `circle`                                          |
-| `line`         | `line`                                            |
-| `point`        | `point`                                           |
-| `polyline`     | `polyline`                                        |
-| `freeHandPath` | `polygon` (closed path) or `polyline` (open path) |
+| `toolType`          | Resulting `geometry.type`                         |
+| ------------------- | ------------------------------------------------- |
+| `rectangle`         | `rectangle`                                       |
+| `circle`            | `circle`                                          |
+| `line`              | `line`                                            |
+| `point`             | `point`                                           |
+| `polyline`          | `polyline` (open path) or `polygon` (closed path) |
+| `freeHandPath`      | `polygon` (closed path) or `polyline` (open path) |
+| `segmentationBrush` | `mask` ([Seeding a mask](#seeding-a-mask))        |
 
-The static `toolTypeToGeometryType('freeHandPath')` helper returns `polyline`, but the freehand **tool** produces a closed `polygon` by default at runtime (open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
+`deserialize` rejects any other pairing. Loaded, an annotation recorded under another tool would count against that tool's limit and free a place in its own: a rectangle recorded as `'line'` would use up one of the context's lines. The error names the annotation, its geometry type, its `toolType` and the tool types that draw it:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its toolType is "line", not "rectangle"
+```
+
+`createAnnotationFromGeometry` does not check the pairing, so an annotation built with another one is stored and counted as given, and its document is then refused when it is loaded.
+
+The static `toolTypeToGeometryType` helper returns one type per tool, `polyline` for both `'polyline'` and `'freeHandPath'`, but at runtime the polyline tool draws a closed `polygon` when the path is closed, and the freehand **tool** draws a closed `polygon` by default (an open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
 
 Multi-point shapes import the same way: pass `{ type: 'polyline', points }` (open) or `{ type: 'polygon', points }` (closed), where `points` is an array of image-space `{ x, y }` coordinates. Annotations drawn with the built-in freehand tool are already plain `polygon` / `polyline` geometry, so there is nothing special to handle when importing them either.
 
@@ -304,7 +384,7 @@ const geometry = getGeometryFromFabricObject(obj, 'polygon'); // image-space geo
 const fabricObject = buildFabricObjectFromGeometry(geometry, getFabricOptions(style, id));
 ```
 
-These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
+These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). `buildFabricObjectFromGeometry` and `createFabricObjectFromRawData` also give a rectangle or circle the handles the library gives them (side handles that only scale on a rectangle, uniform corners only on a circle), which Fabric does not save; if you revive an annotation's object some other way, such as `deserializeFabricObject`, and put it on a canvas, call `applyShapeControls(obj, geometry.type)` first. The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
 
 ## Validation
 
@@ -325,6 +405,9 @@ Validation checks include:
 - Geometry type and shape validation
 - Numeric bounds checking (coordinates, dimensions)
 - Extension fields (when composed into a custom schema)
+- That a mask geometry has a mask payload, and a vector geometry a Fabric one (`OsdAnnotationSchema`, which is what `deserialize` uses)
+- That the saved Fabric object is the class that paints the geometry's type (also `OsdAnnotationSchema`; see [above](#geometry-and-the-saved-fabric-object))
+- That the `toolType` is a tool that draws the geometry's type (also `OsdAnnotationSchema`; see [Choosing a `toolType`](#choosing-a-tooltype))
 
 ## Listening to changes
 
@@ -344,7 +427,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 
 ## Annotations that cannot be rendered
 
-`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type and that type's key fields, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
+`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type, that type's key fields and that the type matches the geometry's, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
 
 Such an annotation is skipped on the canvas and stays in state, and every other annotation on the image still renders. Its decorations, such as labels and measurements, are derived from its geometry rather than from the canvas object, so they still appear where the shape would be. By default it is reported with a `console.warn` naming the annotation and its image. Pass `onAnnotationRenderError` to handle it yourself:
 

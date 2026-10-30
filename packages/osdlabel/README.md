@@ -38,6 +38,8 @@ npm install osdlabel fabric openseadragon valibot
 - `VIEWER_CONTROL_SPECS` / `getToneValue` — the framework-agnostic registry of
   drag-driven viewer controls, so the Solid and React hooks configure the
   exposure/contrast gesture identically
+- `enableObjectModifiedCommits` / `processGroupModified` — the `object:modified`
+  commit both bindings run, multi-selections included
 - `enableLiveDecorationUpdates` — rAF-throttled live label-follows-shape updates
   during Fabric drags
 - Re-exports the full `@osdlabel/decoration`, `@osdlabel/fabric-annotations`,

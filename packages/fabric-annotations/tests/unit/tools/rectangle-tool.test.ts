@@ -6,6 +6,7 @@ import { createImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { Rect } from 'fabric';
+import { getGeometryFromFabricObject } from '../../../src/fabric-utils.js';
 import {
   createTestKeyboardShortcuts,
   createMockCanvas,
@@ -120,8 +121,34 @@ describe('RectangleTool', () => {
 
     expect(preview.width).toBe(20);
     expect(preview.height).toBe(30);
-    expect(preview.left).toBe(10);
-    expect(preview.top).toBe(10);
+    expect(preview.getCenterPoint()).toMatchObject({ x: 20, y: 25 });
+    expect(getGeometryFromFabricObject(preview, 'rectangle')).toEqual({
+      type: 'rectangle',
+      origin: { x: 10, y: 10 },
+      width: 20,
+      height: 30,
+      rotation: 0,
+    });
+  });
+
+  it('paints the preview over the dragged box, not centred on its first corner', () => {
+    tool = new RectangleTool();
+    tool.activate(mockOverlay, imageId, mockCallbacks, mockShortcuts);
+
+    tool.onPointerDown({ type: 'pointerdown' } as PointerEvent, { x: 10, y: 10 });
+    const preview = mockCanvas.add.mock.calls[0]![0];
+    tool.onPointerMove({ type: 'pointermove' } as PointerEvent, { x: 30, y: 40 });
+
+    // Fabric 7 positions objects by their centre unless told otherwise, so a
+    // rectangle placed by its first corner is painted half its size up and left.
+    expect(preview.getCenterPoint()).toMatchObject({ x: 20, y: 25 });
+    expect(getGeometryFromFabricObject(preview, 'rectangle')).toEqual({
+      type: 'rectangle',
+      origin: { x: 10, y: 10 },
+      width: 20,
+      height: 30,
+      rotation: 0,
+    });
   });
 
   it('should set id on preview object', () => {

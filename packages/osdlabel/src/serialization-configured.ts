@@ -202,7 +202,52 @@ export function serialize(
   });
 }
 
-/** Deserialize with OSD field validation (contextId + rawAnnotationData) */
+/**
+ * Validate a document (a flat annotation array, as {@link serialize} returns
+ * it) and group it by image, the shape `loadAnnotations` takes.
+ *
+ * Mask payloads are converted first: one written in a downstream format is
+ * converted back to the canonical encoding by `options.maskCodecs`, and every
+ * mask is decoded, within the budgets in {@link DeserializeOptions}, and its
+ * `geometry` recomputed from its pixels. A mask whose pixels cannot be decoded
+ * is dropped and listed in {@link DeserializeResult.skipped}.
+ *
+ * Each annotation is then checked with `OsdAnnotationSchema` from
+ * `@osdlabel/validation`: its base fields, `imageId`, `contextId`, and its
+ * `rawAnnotationData` — a saved Fabric object for vector geometry, a mask
+ * payload for mask geometry, and never the other way round. A saved Fabric
+ * object must be the Fabric class that paints its geometry's type (`Rect` for
+ * a rectangle, `Circle` for a circle or a point, `Line`, `Polyline`,
+ * `Polygon`), and the `toolType` must be a tool that draws that type (the tool
+ * of the same name for a rectangle, circle, line or point, `polyline` or
+ * `freeHandPath` for a polyline or a polygon, `segmentationBrush` for a mask).
+ * Constraints count annotations by `toolType`, so an annotation recorded under
+ * another tool would count against that tool's limit. If any annotation fails
+ * the schema, nothing is returned: it throws a {@link SerializationError}
+ * whose message names the first problem. For a payload of the wrong class,
+ * that is the annotation's id, its geometry type, the class it holds and the
+ * class it needs; for a `toolType` that does not draw its geometry, the
+ * annotation's id, its geometry type, its `toolType` and the tool types that
+ * draw it.
+ *
+ * A vector annotation stores its shape twice, and each field is authoritative
+ * for something different:
+ *
+ * - `rawAnnotationData` is what is painted, and what the user drags.
+ * - `geometry` is what is measured, labelled and exported.
+ * - Editing the shape recomputes `geometry` from the edited Fabric object.
+ *
+ * Only their kind is compared here. Whether the payload sits where the
+ * geometry says needs Fabric to answer, so it is not checked, and an
+ * annotation whose two fields disagree in place loads as saved: it is painted
+ * from its payload and measured from its geometry until its first edit.
+ * Build annotations with `createAnnotationFromGeometry`, which writes both
+ * from one geometry, rather than pairing them by hand. A mask's pixels are
+ * authoritative for both, which is why its geometry is recomputed on load.
+ *
+ * @throws {SerializationError} when `doc` is not a valid document, or a mask
+ * budget is exceeded.
+ */
 export function deserialize(
   doc: unknown,
   options?: DeserializeOptions,

@@ -68,8 +68,10 @@ describe('createFabricObjectFromRawData dispatch', () => {
     const object = await createFabricObjectFromRawData(annotation);
     expect(object).toBeInstanceOf(Rect);
     expect(object).not.toBeInstanceOf(FabricImage);
-    expect(object?.left).toBeCloseTo(10);
-    expect(object?.top).toBeCloseTo(20);
+    // Painted where its geometry says: the box from (10, 20), 40 by 30, is
+    // centred on (30, 35), whatever origin the object is placed by.
+    expect(object!.getCenterPoint().x).toBeCloseTo(30);
+    expect(object!.getCenterPoint().y).toBeCloseTo(35);
     expect(object?.selectable).toBe(true);
   });
 
