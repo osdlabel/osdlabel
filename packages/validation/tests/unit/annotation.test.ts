@@ -246,7 +246,7 @@ describe('OsdAnnotationSchema: a mask needs a mask payload, and a vector geometr
     expect(result.success).toBe(false);
     expect(result.issues).toBeDefined();
     expect(result.issues!.map((issue) => issue.message)).toEqual([
-      `Annotation "ann-${g}" has ${g} geometry, but its rawAnnotationData is a "osdlabel-mask" payload, not a Fabric object`,
+      `Annotation "ann-${g}" has ${g} geometry, but its rawAnnotationData's format is "osdlabel-mask", not "fabric"`,
     ]);
   });
 });
@@ -439,7 +439,7 @@ describe("OsdAnnotationCrossFieldSchema: every payload but Fabric is a mask's", 
       rawAnnotationData: COCO_RAW,
     };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
-      `Annotation "ann-${g}" has ${g} geometry, but its rawAnnotationData is a "coco-rle" payload, not a Fabric object`,
+      `Annotation "ann-${g}" has ${g} geometry, but its rawAnnotationData's format is "coco-rle", not "fabric"`,
     ]);
   });
 
@@ -450,10 +450,28 @@ describe("OsdAnnotationCrossFieldSchema: every payload but Fabric is a mask's", 
       rawAnnotationData: COCO_RAW,
     };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
-      'Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData is a "coco-rle" payload, not a Fabric object',
+      'Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData\'s format is "coco-rle", not "fabric"',
       'Annotation "ann-rectangle" has rectangle geometry, but its toolType is "segmentationBrush", not "rectangle"',
     ]);
   });
+
+  /**
+   * Before decoding, a format that is not `'fabric'` may as well be a
+   * misspelling of it as a mask's, so the issue names the format and the one
+   * the geometry needs, rather than calling the payload a mask.
+   */
+  it.each(['Fabric', 'fabric ', 'fabricjs'])(
+    'names a misspelled Fabric format, %j, against the one it needs',
+    (format) => {
+      const input = {
+        ...(annotation('rectangle', PAYLOADS.Rect) as Record<string, unknown>),
+        rawAnnotationData: { format, fabricVersion: '7.4.0', data: PAYLOADS.Rect },
+      };
+      expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
+        `Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData's format is "${format}", not "fabric"`,
+      ]);
+    },
+  );
 
   it('refuses a mask recorded under another tool, whatever its format', () => {
     const input = { ...maskAnnotation(), toolType: 'polyline', rawAnnotationData: COCO_RAW };
@@ -473,7 +491,6 @@ describe('OsdAnnotationCrossFieldSchema: it checks only what it can read', () =>
     ['a number', 42],
     ['an array', [rect]],
     ['an object with no prototype', Object.create(null)],
-    ['no id', { ...rect, id: 7, toolType: 'line' }],
     ['no geometry', { ...rect, geometry: undefined, rawAnnotationData: MASK_RAW }],
     ['a null geometry', { ...rect, geometry: null, rawAnnotationData: MASK_RAW }],
     ['a geometry type no geometry has', { ...rect, geometry: { type: 'blob' }, toolType: 'line' }],
@@ -501,6 +518,23 @@ describe('OsdAnnotationCrossFieldSchema: it checks only what it can read', () =>
     expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
   });
 
+  /**
+   * Only the message reads the `id`. Gating the checks on it let an entry
+   * with a mismatch it could read through to decoding, which skipped it when
+   * its pixels were corrupt, and the document loaded.
+   */
+  it.each([
+    ['a number', 7],
+    ['missing', undefined],
+  ])('checks an entry whose id is %s, naming it as having no string id', (_name, id) => {
+    const input = { ...rect, id, toolType: 'segmentationBrush', rawAnnotationData: MASK_RAW };
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
+      'An annotation with no string id has rectangle geometry, but its rawAnnotationData\'s format is "osdlabel-mask", not "fabric"',
+      'An annotation with no string id has rectangle geometry, but its toolType is "segmentationBrush", not "rectangle"',
+    ]);
+    expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
+  });
+
   it("does not compare a mask geometry's numbers, which decoding replaces", () => {
     const input = { ...maskAnnotation(), geometry: { type: 'mask', width: 'wide' } };
     expect(v.safeParse(OsdAnnotationCrossFieldSchema, input).success).toBe(true);
@@ -516,7 +550,7 @@ describe('OsdAnnotationCrossFieldSchema: it checks only what it can read', () =>
         }),
       ),
     ).toEqual([
-      'Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData is a "osdlabel-mask" payload, not a Fabric object',
+      'Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData\'s format is "osdlabel-mask", not "fabric"',
     ]);
     expect(
       messages(

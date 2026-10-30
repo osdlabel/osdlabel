@@ -270,7 +270,7 @@ test.describe('Import JSON: a mask payload needs mask geometry', () => {
       await submitImport(page, JSON.stringify(edited, null, 2));
       expected.push(
         `Import failed: Validation failed: Annotation "${rectangle.id}" has rectangle geometry, ` +
-          `but its rawAnnotationData is a "${payload.format}" payload, not a Fabric object`,
+          `but its rawAnnotationData's format is "${payload.format}", not "fabric"`,
       );
       await expect
         .poll(() => dialogs, { message: 'no import error was shown', timeout: 5000 })

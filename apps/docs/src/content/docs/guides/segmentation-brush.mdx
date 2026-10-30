@@ -355,7 +355,7 @@ would be wrong for consumers whose tooling reads it correctly.
 ## Importing
 
 Give `deserialize` a registry of codecs and it converts recognised foreign
-formats back to canonical before validating:
+formats back to canonical before the full schema checks them:
 
 ```ts
 import { deserialize, createMaskCodecRegistry, cocoRleCodec } from 'osdlabel';
@@ -373,9 +373,12 @@ Decoding then replaces the geometry with one read off the pixels, so this is
 the only point at which a rectangle declared over a mask payload can be told
 from a mask. A document that fails it is refused before any mask costs a
 decode, and that refusal wins over what decoding would have reported: an
-annotation whose declared fields disagree refuses the document even when its
-pixels are corrupt too, and a document over the decode budget is refused for
-the disagreement.
+annotation whose declared geometry disagrees with its payload or its tool
+refuses the document even when its pixels are corrupt too, and a document
+over the decode budget is refused for the disagreement. A mask that declares
+no geometry, or one whose `type` is no geometry type, has nothing to compare
+yet: its `toolType` is checked once decoding has given it a geometry, and if
+its pixels do not decode it is skipped.
 
 Every mask in the document is decoded on import — canonical ones included, not
 just the foreign formats a codec handles. That does three things: it converts

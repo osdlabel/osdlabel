@@ -37,10 +37,11 @@ Three behaviour changes: two on the import path, and one for older readers:
   annotation does not cost you the rest of the document. Check `skipped` if
   partial data is not acceptable for your use — it is empty on a clean load.
   Schema violations and a blown decode budget still throw, and so does an
-  annotation whose declared fields disagree (a mask payload under vector
-  geometry, say, or a mask recorded under another tool) even when its own
-  pixels could not be decoded either: those are checked before any mask is
-  decoded.
+  annotation whose declared geometry disagrees with its payload or its tool
+  (a mask payload under vector geometry, say, or mask geometry recorded under
+  another tool) even when its own pixels could not be decoded either: those
+  are checked before any mask is decoded. A mask that declares no geometry is
+  checked against its tool only once decoded, and skipped if it cannot be.
 - **Earlier releases cannot read a document that holds a mask.** Their schema
   rejects `geometry.type: 'mask'` and `toolType: 'segmentationBrush'`, and a
   schema failure costs the whole document, vector annotations included. Export
@@ -377,11 +378,16 @@ degrades alone instead of blanking its whole grid cell.
   as the document writes them, with `OsdAnnotationCrossFieldSchema`, counting
   every payload that is not Fabric as a mask payload. A rectangle declared
   over a mask payload, canonical or a codec's, is refused with a message
-  naming its geometry and the payload's format, rather than loaded as a mask;
-  a document refused for a wrong `toolType` or Fabric class costs no decode;
-  and such a refusal wins over a skipped mask and over a blown budget. A field
-  that is missing or of the wrong type is left to `OsdAnnotationSchema`, which
-  checks every annotation whole once the masks are decoded.
+  naming its geometry and the payload's format against `"fabric"`, rather
+  than loaded as a mask; a document refused for a Fabric class, or a
+  `toolType`, that does not match the declared geometry costs no decode; and
+  such a refusal wins over a skipped mask, over a blown budget, and over a
+  missing field in an earlier annotation. An entry without a string `id` is
+  checked too, and named as having none. A field that is missing or of the
+  wrong type is left to `OsdAnnotationSchema`, which checks every annotation
+  whole once the masks are decoded; for a mask that declares no geometry,
+  that is when its `toolType` is checked. Invalid `maxMaskPixels` or
+  `maxTotalMaskPixels` options are reported before any of this.
 - **The run lengths are bounded by the box before they are decoded.** A
   payload for a one-pixel mask could carry tens of megabytes of varints and
   buy seconds of work under a cap of 1; it is now refused in constant time.

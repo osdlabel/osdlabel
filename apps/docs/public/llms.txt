@@ -1368,7 +1368,7 @@ actions.loadAnnotations(byImage);
 2. It converts mask payloads written in another format and decodes every mask (see [Importing](/osdlabel/guides/segmentation-brush/#importing) in the Segmentation Brush guide).
 3. It checks every annotation whole with `OsdAnnotationSchema` (see [Validation](#validation)).
 
-If any annotation fails step 1 or step 3 it throws `SerializationError`, whose message names the first problem, and returns nothing, so a bad document is never half loaded. A mask whose pixels cannot be decoded is the one exception: it is dropped alone and listed in the result's `skipped`. Because step 1 comes first, an annotation whose declared fields disagree refuses the document even when its own pixels could not be decoded either, and a document that is refused there costs no decode at all.
+If any annotation fails step 1 or step 3 it throws `SerializationError`, whose message names the first problem that step found, and returns nothing, so a bad document is never half loaded. A mask whose pixels cannot be decoded is the one exception: it is dropped alone and listed in the result's `skipped`. Because step 1 comes first, an annotation whose declared geometry disagrees with its payload or its `toolType` refuses the document even when its own pixels could not be decoded either, a document that is refused there costs no decode at all, and the refusal names that disagreement even when an earlier annotation is missing a field, which step 3 would have reported. Step 1 needs a geometry it can read, though. A mask's geometry is recomputed from its pixels in step 2, so a mask that declares none, or a `geometry.type` that is no geometry type, is checked against its `toolType` only in step 3, and if its pixels do not decode it is skipped. The decode bounds `maxMaskPixels` and `maxTotalMaskPixels` (see [Importing](/osdlabel/guides/segmentation-brush/#importing)) are checked before step 1: an invalid one, `NaN` say, throws whatever the document holds.
 
 ### Flat out, keyed in
 
@@ -1406,10 +1406,10 @@ A mask is the exception. Its `rawAnnotationData` is an `osdlabel-mask` pixel pay
 Validation failed: Annotation "m1" has mask geometry, but its rawAnnotationData is a "fabric" payload, not "osdlabel-mask"
 ```
 
-This is checked on the fields as the document writes them, before the mask is decoded and its geometry recomputed, and every payload that is not Fabric counts as a mask payload: a mask exported through a codec ([below](#exporting-masks-in-another-format)) may not declare a vector geometry either. The message quotes the payload's format:
+This is checked on the fields as the document writes them, before the mask is decoded and its geometry recomputed, and every payload that is not Fabric counts as a mask payload: a mask exported through a codec ([below](#exporting-masks-in-another-format)) may not declare a vector geometry either. Under a vector geometry the message names the payload's format and the one the geometry needs, since a format that is not `"fabric"` may as well be a misspelling of it (`"Fabric"`) as a mask's:
 
 ```text
-Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData is a "coco-rle" payload, not a Fabric object
+Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData's format is "coco-rle", not "fabric"
 ```
 
 Fabric saves the class name capitalised, as above; the lowercase name, which Fabric also loads, is accepted too. The error names the annotation and both types:
@@ -1998,7 +1998,7 @@ would be wrong for consumers whose tooling reads it correctly.
 ## Importing
 
 Give `deserialize` a registry of codecs and it converts recognised foreign
-formats back to canonical before validating:
+formats back to canonical before the full schema checks them:
 
 ```ts
 
@@ -2015,9 +2015,12 @@ Decoding then replaces the geometry with one read off the pixels, so this is
 the only point at which a rectangle declared over a mask payload can be told
 from a mask. A document that fails it is refused before any mask costs a
 decode, and that refusal wins over what decoding would have reported: an
-annotation whose declared fields disagree refuses the document even when its
-pixels are corrupt too, and a document over the decode budget is refused for
-the disagreement.
+annotation whose declared geometry disagrees with its payload or its tool
+refuses the document even when its pixels are corrupt too, and a document
+over the decode budget is refused for the disagreement. A mask that declares
+no geometry, or one whose `type` is no geometry type, has nothing to compare
+yet: its `toolType` is checked once decoding has given it a geometry, and if
+its pixels do not decode it is skipped.
 
 Every mask in the document is decoded on import — canonical ones included, not
 just the foreign formats a codec handles. That does three things: it converts

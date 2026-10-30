@@ -57,13 +57,14 @@ function cellArea(width: number, height: number, downsample: number | undefined)
  * parsed here — decoding is the codec's job. The codecs guard their own
  * allocations (see `assertDecodableArea` in `@osdlabel/mask`), because a
  * payload can reach a decoder before it reaches this schema: `deserialize`
- * converts foreign mask formats to canonical *first*, then validates.
+ * checks only an entry's cross fields before it converts foreign mask formats
+ * to canonical and decodes them, and runs the full schema after.
  *
  * The box is bounded by {@link MAX_MASK_PIXELS} **cells**: a downsampled mask
  * allocates its cell grid, not its image-pixel box. Moving this bound out of
  * the schema waits for the cap to be raised (#155); until then osdlabel's own
- * reader skips an over-cap mask before validation, so it costs that mask and
- * never the document.
+ * reader skips an over-cap mask before the full schema runs, so it costs that
+ * mask and never the document.
  */
 export const MaskRawAnnotationDataSchema = v.object({
   format: v.literal(MASK_RAW_FORMAT),

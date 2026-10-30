@@ -106,6 +106,23 @@ function countingCoco(): { readonly options: DeserializeOptions; readonly decode
   return { options: { maskCodecs: createMaskCodecRegistry(codec) }, decodes: () => decodes };
 }
 
+/**
+ * `entry` with its payload's `data` behind a proxy that counts reads of it:
+ * a canonical mask is decoded with no codec to spy on, and nothing reads its
+ * `data` but the decode.
+ */
+function countingReads(entry: Entry): { readonly entry: Entry; readonly reads: () => number } {
+  let reads = 0;
+  const raw = entry.rawAnnotationData as { format: string; data: Record<string, unknown> };
+  const data = new Proxy(raw.data, {
+    get(target, key, receiver) {
+      reads++;
+      return Reflect.get(target, key, receiver) as unknown;
+    },
+  });
+  return { entry: edited(entry, { rawAnnotationData: { ...raw, data } }), reads: () => reads };
+}
+
 function rejection(doc: unknown, options?: DeserializeOptions): SerializationError {
   let caught: unknown;
   try {
@@ -148,8 +165,8 @@ describe('deserialize: a mask payload under vector geometry is refused as declar
 
       const err = rejection(doc, coco.options);
       const pairing =
-        `Annotation "r1" has rectangle geometry, but its rawAnnotationData is a ` +
-        `"${format}" payload, not a Fabric object`;
+        `Annotation "r1" has rectangle geometry, but its rawAnnotationData's format is ` +
+        `"${format}", not "fabric"`;
       expect(err.message).toBe(`Validation failed: ${pairing}`);
       // Recorded under the brush, the toolType is wrong for a rectangle too,
       // and is reported after the pairing, as the full schema orders them.
@@ -260,15 +277,120 @@ describe('deserialize: a wrong Fabric class or toolType costs no decode', () => 
         expect(loaded.skipped.map((s) => s.id)).toEqual(['m2']);
         expect(Object.keys(loaded.byImage[imageId]!)).toEqual(['m1']);
 
+        // Every payload's reads are counted, the codec's and the canonical
+        // one's alike: had step 2 run, it would have read them.
         const after = countingCoco();
-        const tampered = [good!, edited(corrupt(bad!), { toolType: 'circle' })];
-        expect(rejection(tampered, after.options).message).toBe(
+        const first = countingReads(good!);
+        const second = countingReads(edited(corrupt(bad!), { toolType: 'circle' }));
+        expect(rejection([first.entry, second.entry], after.options).message).toBe(
           'Validation failed: Annotation "m2" has mask geometry, but its toolType is ' +
             '"circle", not "segmentationBrush"',
         );
         expect(after.decodes()).toBe(0);
+        expect(first.reads() + second.reads(), 'a mask payload was read').toBe(0);
       },
     );
+
+    it.each([COCO, CANONICAL])(
+      'a skipped %s mask does not save a document whose other annotation disagrees',
+      (format) => {
+        const codec = format === COCO ? cocoRleCodec : undefined;
+        const [good, bad] = saved([mask('m1'), mask('m2')], codec);
+        const [rect] = saved([rectangle('r1')]);
+        const [disc] = saved([circle('c1')]);
+        const coco = countingCoco();
+        const masks = [countingReads(good!), countingReads(corrupt(bad!))];
+        // In either order: the disagreement is found before any mask is read.
+        const wrong = edited(rect!, { rawAnnotationData: disc!.rawAnnotationData });
+        for (const doc of [
+          [masks[0]!.entry, masks[1]!.entry, wrong],
+          [wrong, masks[1]!.entry, masks[0]!.entry],
+        ]) {
+          expect(rejection(doc, coco.options).message).toBe(
+            'Validation failed: Annotation "r1" has rectangle geometry, but its ' +
+              'rawAnnotationData is a Fabric Circle, not a Rect',
+          );
+        }
+        expect(coco.decodes()).toBe(0);
+        expect(masks[0]!.reads() + masks[1]!.reads()).toBe(0);
+      },
+    );
+
+    it('refuses the document for an entry with no string id whose fields disagree', () => {
+      // Only the message reads the id. Gated on it, the checks let this entry
+      // through to decoding, which skipped it, and the document loaded.
+      const [good, bad] = saved([mask('m1'), mask('m2')]);
+      const [rect] = saved([rectangle('r1')]);
+      const idless = edited(corrupt(bad!), { id: 7, geometry: rect!.geometry });
+      expect(rejection([good!, idless]).message).toBe(
+        'Validation failed: An annotation with no string id has rectangle geometry, but its ' +
+          'rawAnnotationData\'s format is "osdlabel-mask", not "fabric"',
+      );
+    });
+  });
+});
+
+describe('deserialize: what step 1 cannot check is checked once the masks are decoded', () => {
+  // A mask's geometry is replaced by the one its pixels give, so one that
+  // declares none has nothing for step 1 to compare its toolType with. The
+  // full schema compares it, after the decode; if the pixels do not decode,
+  // the mask is skipped like any other.
+  const withoutGeometry = (entry: Entry, changes: Record<string, unknown>): Entry => {
+    const out: Record<string, unknown> = { ...entry, ...changes };
+    delete out['geometry'];
+    return out as Entry;
+  };
+
+  it('refuses a mask with no geometry under another tool, after decoding it', () => {
+    const coco = countingCoco();
+    const [entry] = saved([mask('m1')], cocoRleCodec);
+    const err = rejection([withoutGeometry(entry!, { toolType: 'rectangle' })], coco.options);
+    expect(err.message).toBe(
+      'Validation failed: Annotation "m1" has mask geometry, but its toolType is ' +
+        '"rectangle", not "segmentationBrush"',
+    );
+    expect(coco.decodes()).toBe(1);
+  });
+
+  it('skips one whose pixels do not decode either, and loads the rest', () => {
+    const [good, bad] = saved([mask('m1'), mask('m2')]);
+    const raw = bad!.rawAnnotationData as { format: string; data: Record<string, unknown> };
+    const corrupt = withoutGeometry(bad!, {
+      toolType: 'rectangle',
+      rawAnnotationData: { ...raw, data: { ...raw.data, counts: '' } },
+    });
+    const { byImage, skipped } = deserialize([good!, corrupt]);
+    expect(skipped.map((s) => s.id)).toEqual(['m2']);
+    expect(Object.keys(byImage[imageId]!)).toEqual(['m1']);
+  });
+});
+
+describe('deserialize: what is reported first', () => {
+  it("reports an invalid decode bound ahead of the document's own faults", () => {
+    // A fault in the call, whatever the document holds: a refusal of the
+    // document must not hide it.
+    const [m] = saved([mask('m1')]);
+    const doc = [m!, edited(m!, { id: 'm2', toolType: 'point' })];
+    expect(rejection(doc).message).toMatch(/^Validation failed: Annotation "m2" has mask/);
+    for (const options of [{ maxTotalMaskPixels: Number.NaN }, { maxMaskPixels: -1 }]) {
+      expect(rejection(doc, options).message).toMatch(
+        /^Failed to decode mask payload: max(Total)?MaskPixels must be a non-negative number/,
+      );
+    }
+  });
+
+  it("reports a later annotation's disagreement ahead of an earlier one's missing field", () => {
+    // Step 1 runs over the whole document before the full schema runs at all.
+    const [rect, other] = saved([rectangle('r1'), rectangle('r2')]);
+    const [disc] = saved([circle('c1')]);
+    const missing: Record<string, unknown> = { ...rect! };
+    delete missing['createdAt'];
+    const doc = [missing, edited(other!, { rawAnnotationData: disc!.rawAnnotationData })];
+    expect(rejection(doc).message).toBe(
+      'Validation failed: Annotation "r2" has rectangle geometry, but its rawAnnotationData ' +
+        'is a Fabric Circle, not a Rect',
+    );
+    expect(rejection([missing]).message).toMatch(/^Validation failed: Invalid key/);
   });
 });
 
@@ -348,8 +470,8 @@ describe('deserialize: an entry of the wrong shape is left to the full schema', 
     const [m] = saved([mask('m1')]);
     const doc = [edited(rect!, { toolType: 'brush', rawAnnotationData: m!.rawAnnotationData })];
     expect(rejection(doc).message).toBe(
-      'Validation failed: Annotation "r1" has rectangle geometry, but its rawAnnotationData ' +
-        'is a "osdlabel-mask" payload, not a Fabric object',
+      'Validation failed: Annotation "r1" has rectangle geometry, but its rawAnnotationData\'s ' +
+        'format is "osdlabel-mask", not "fabric"',
     );
   });
 });
