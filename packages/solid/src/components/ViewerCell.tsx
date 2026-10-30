@@ -213,7 +213,7 @@ const ViewerCell: Component<ViewerCellProps> = (props) => {
     layer.setDecorations(decorations);
   });
 
-  // Live-update decorations during Fabric drag (object:moving/scaling/rotating).
+  // Live-update decorations during Fabric drag (object:moving/scaling/rotating/skewing).
   // The accessors close over reactive state so each rAF tick sees the latest
   // visible annotations, providers, and pixel spacing.
   createEffect(() => {

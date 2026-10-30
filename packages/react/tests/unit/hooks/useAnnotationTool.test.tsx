@@ -91,10 +91,13 @@ type DoubleClickListener = (
   pressSeqs?: readonly [number, number],
 ) => void;
 
+type PointerCancelListener = (event: PointerEvent, pressSeq: number) => void;
+
 /** Structural stand-in for the overlay: only what the hook and the real tools touch. */
 function createMockOverlay() {
   const listeners = new Map<string, Set<Listener>>();
   let doubleClickListeners: DoubleClickListener[] = [];
+  let pointerCancelListeners: PointerCancelListener[] = [];
   const canvas = {
     on: vi.fn((event: string, cb: Listener) => {
       const set = listeners.get(event) ?? new Set<Listener>();
@@ -123,6 +126,12 @@ function createMockOverlay() {
         doubleClickListeners = doubleClickListeners.filter((l) => l !== cb);
       };
     }),
+    onPointerCancel: vi.fn((cb: PointerCancelListener) => {
+      pointerCancelListeners.push(cb);
+      return () => {
+        pointerCancelListeners = pointerCancelListeners.filter((l) => l !== cb);
+      };
+    }),
   };
   /** Fires every listener registered for `event`, in the caller's `act`. */
   const emit = (event: string, payload: unknown): void => {
@@ -137,9 +146,21 @@ function createMockOverlay() {
         emit(event, payload);
       });
     },
+    /**
+     * Fires `event` and lets the commit it causes land: `object:modified` is
+     * committed a microtask later, once Fabric has finished the release (see
+     * `enableObjectModifiedCommits`).
+     */
+    async fireAndCommit(event: string, payload: unknown): Promise<void> {
+      await act(async () => {
+        emit(event, payload);
+        await Promise.resolve();
+      });
+    },
     emit,
     listenerCount: (event: string) => listeners.get(event)?.size ?? 0,
     doubleClickListeners: () => doubleClickListeners,
+    pointerCancelListeners: () => pointerCancelListeners,
   };
 }
 
@@ -189,24 +210,24 @@ describe('useAnnotationTool', () => {
     return h;
   }
 
-  it('should register object:modified handler and update annotation', () => {
+  it('should register object:modified handler and update annotation', async () => {
     const h = setup('rectangle', { initialAnnotations: byImage(rect('ann-1')) });
     expect(mo.overlay.canvas.on).toHaveBeenCalledWith('object:modified', expect.any(Function));
 
-    mo.fire('object:modified', { target: { id: 'ann-1' } });
+    await mo.fireAndCommit('object:modified', { target: { id: 'ann-1' } });
 
     const ann = h.current.annotationState.byImage[imageId]?.[createAnnotationId('ann-1')];
     expect(ann).toBeDefined();
     expect(ann!.geometry).toEqual(movedGeometry);
   });
 
-  it('object:modified sees an annotation added after the handler was registered', () => {
+  it('object:modified sees an annotation added after the handler was registered', async () => {
     // The handler is registered once per overlay/image and reads the store;
     // a value captured at registration would find nothing to update.
     const h = setup('select');
     h.run((a) => a.addAnnotation(rect('late')));
 
-    mo.fire('object:modified', { target: { id: 'late' } });
+    await mo.fireAndCommit('object:modified', { target: { id: 'late' } });
 
     expect(
       h.current.annotationState.byImage[imageId]![createAnnotationId('late')]!.geometry,
@@ -239,6 +260,33 @@ describe('useAnnotationTool', () => {
 
     h.unmount();
     expect(mo.doubleClickListeners()).toHaveLength(0);
+  });
+
+  /**
+   * The hook is the only thing joining `FabricOverlay.onPointerCancel` to the
+   * active tool. Fabric has no `pointercancel` handling of its own, so without
+   * this wiring a drawing tool never hears that its press was taken away, and
+   * the release the overlay forwards next commits the preview it left.
+   */
+  it('routes a cancelled press to the active tool, with its sequence, and unsubscribes on cleanup', () => {
+    const h = setup('polyline');
+    expect(mo.overlay.onPointerCancel).toHaveBeenCalledWith(expect.any(Function));
+    expect(mo.pointerCancelListeners()).toHaveLength(1);
+
+    const entry = built.at(-1);
+    expect(entry).toBeDefined();
+    expect(entry!.tool.type).toBe('polyline');
+    const spy = vi.spyOn(entry!.tool, 'onPointerCancel');
+
+    const event = { type: 'pointercancel' } as PointerEvent;
+    // The sequence is relayed too: a polyline takes back only the vertex the
+    // cancelled press placed, which it finds by it.
+    mo.pointerCancelListeners()[0]!(event, 9);
+
+    expect(spy).toHaveBeenCalledWith(event, 9);
+
+    h.unmount();
+    expect(mo.pointerCancelListeners()).toHaveLength(0);
   });
 
   describe('is not rebuilt when the host merely re-renders', () => {
@@ -464,12 +512,14 @@ describe('useAnnotationTool', () => {
       expect(activeContextId).toBe(otherContext);
     });
 
-    it('object:modified, for an annotation added earlier in the task', () => {
+    it('object:modified, for an annotation added earlier in the task', async () => {
       const h = setup('select');
 
-      act(() => {
+      await act(async () => {
         h.current.actions.addAnnotation(rect('late'));
         mo.emit('object:modified', { target: { id: 'late' } });
+        // The commit waits for Fabric to finish the release (a microtask).
+        await Promise.resolve();
       });
 
       expect(

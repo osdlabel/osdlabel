@@ -24,9 +24,13 @@ export interface CreateAnnotationFromGeometryOptions {
   /** Annotation context (scope) the annotation belongs to. */
   readonly contextId: AnnotationContextId;
   /**
-   * Tool type recorded on the annotation. Note this is independent of
-   * `geometry.type`: e.g. a freehand path is `toolType: 'freeHandPath'` with
-   * `geometry.type: 'polygon'` (closed) or `'polyline'` (open).
+   * The tool recorded as having drawn the annotation, which constraints count
+   * it under. It must be a tool that draws `geometry.type`: the tool of the
+   * same name for a rectangle, circle, line or point, and `'polyline'` or
+   * `'freeHandPath'` for a polyline or a polygon, since either tool draws an
+   * open path or closes one (a freehand path is `toolType: 'freeHandPath'`
+   * with `geometry.type: 'polygon'` when closed, `'polyline'` when open). It
+   * is not checked here, but `deserialize` rejects any other pairing.
    */
   readonly toolType: ToolType;
   /** Visual style. Defaults to {@link DEFAULT_ANNOTATION_STYLE}. */
@@ -48,8 +52,19 @@ export interface CreateAnnotationFromGeometryOptions {
  *
  * The `id` is guaranteed to be present in the serialized envelope regardless of
  * whether {@link initFabricModule} has registered it as a custom property, so
- * the result always round-trips through `deserialize` →
- * `createFabricObjectFromRawData`.
+ * the result round-trips through `deserialize` →
+ * `createFabricObjectFromRawData`, given a `toolType` that draws the geometry
+ * (see {@link CreateAnnotationFromGeometryOptions.toolType}).
+ *
+ * Both halves come from the one `geometry`, so they agree, and that is the
+ * reason to build annotations here rather than by hand. An annotation stores
+ * its shape twice: `rawAnnotationData` is what is painted and what the user
+ * drags, `geometry` is what is measured, labelled and exported, and an edit
+ * recomputes `geometry` from the edited Fabric object. A hand-built pair that
+ * disagrees is drawn in one place and measured in another until its first
+ * edit. `deserialize` rejects a pair of different kinds, such as rectangle
+ * geometry with a `Circle` payload, but cannot see one that differs only in
+ * position, and `loadAnnotations` / `addAnnotation` check neither.
  *
  * @example
  * ```ts

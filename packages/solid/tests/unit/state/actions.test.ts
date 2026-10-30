@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { version as FABRIC_VERSION } from 'fabric';
-import { batch, createRoot } from 'solid-js';
+import { batch, createEffect, createRoot, on } from 'solid-js';
 import { createAnnotationStore } from '../../../src/state/annotation-store';
 import { createUIStore } from '../../../src/state/ui-store';
 import { createContextStore, createConstraintStatus } from '../../../src/state/context-store';
@@ -242,6 +242,42 @@ describe('State Management', () => {
     actions.setContexts([context]);
     expect(contextState.contexts).toHaveLength(1);
     expect(contextState.contexts[0]).toEqual(context);
+    dispose();
+  });
+
+  it('updateAnnotations updates several annotations as one change, skipping unknown ids', () => {
+    const { annotationState, actions, dispose } = createTestStore();
+    const secondId = createAnnotationId('ann2');
+    actions.addAnnotation(dummyAnnotation);
+    actions.addAnnotation({ ...dummyAnnotation, id: secondId });
+    const before = annotationState.changeCounter;
+    // One store write: an effect on the counter runs once, as the rebuild does.
+    let runs = 0;
+    const stop = createRoot((d) => {
+      createEffect(
+        on(
+          () => annotationState.changeCounter,
+          () => (runs += 1),
+          { defer: true },
+        ),
+      );
+      return d;
+    });
+
+    actions.updateAnnotations(dummyImageId, [
+      { id: dummyAnnotationId, patch: { label: 'first' } },
+      { id: createAnnotationId('missing'), patch: { label: 'nobody' } },
+      { id: secondId, patch: { label: 'second' } },
+    ]);
+
+    const bucket = annotationState.byImage[dummyImageId];
+    expect(bucket).toBeDefined();
+    expect(bucket![dummyAnnotationId]!.label).toBe('first');
+    expect(bucket![secondId]!.label).toBe('second');
+    expect(bucket![createAnnotationId('missing')]).toBeUndefined();
+    expect(annotationState.changeCounter).toBe(before + 1);
+    expect(runs).toBe(1);
+    stop();
     dispose();
   });
 

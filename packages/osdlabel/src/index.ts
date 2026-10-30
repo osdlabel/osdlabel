@@ -55,6 +55,7 @@ export {
   initFabricModule,
   BaseTool,
   ShapeTool,
+  MIN_SHAPE_SCREEN_PX,
   RectangleTool,
   CircleTool,
   LineTool,
@@ -62,12 +63,17 @@ export {
   PolylineTool,
   FreeHandPathTool,
   SelectTool,
+  isGroupSelection,
+  configureGroupSelection,
+  dissolveGroupSelection,
+  reselectWhenAdded,
   getFabricOptions,
   serializeFabricObject,
   deserializeFabricObject,
   createFabricObjectFromRawData,
   getGeometryFromFabricObject,
   buildFabricObjectFromGeometry,
+  applyShapeControls,
   migrateLegacyRectangle,
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -107,6 +113,7 @@ export type {
   CustomControlEvent,
   CustomControlHandler,
   DoubleClickCallback,
+  PointerCancelCallback,
   DragValueControlConfig,
   DragVectorControlConfig,
   DragAxisBehavior,
@@ -197,7 +204,13 @@ export {
   applyContextAction,
   validateAddAnnotation,
 } from './actions.js';
-export type { AnnotationAction, UIAction, ContextAction } from './actions.js';
+export type {
+  AnnotationAction,
+  AnnotationPatch,
+  AnnotationUpdate,
+  UIAction,
+  ContextAction,
+} from './actions.js';
 
 // Initial state factories
 export {
@@ -247,6 +260,14 @@ export {
   processConvertCircleToRectangle,
 } from './tool-factory.js';
 export type { CreateAnnotationToolOptions } from './tool-factory.js';
+
+// Saving what Fabric reports as edited, multi-selections included
+export { enableObjectModifiedCommits, processGroupModified } from './object-modified.js';
+export type {
+  ObjectModifiedCommitOptions,
+  ObjectModifiedPatch,
+  ObjectModifiedUpdate,
+} from './object-modified.js';
 
 // Live decoration update wiring
 export { enableLiveDecorationUpdates } from './live-decoration-updates.js';

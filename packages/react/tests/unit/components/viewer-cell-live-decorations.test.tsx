@@ -63,6 +63,7 @@ vi.mock('@osdlabel/fabric-osd', () => ({
     };
     applyViewTransform = vi.fn();
     applyImageFilters = vi.fn();
+    onPointerCancel = () => () => {};
   },
   DecorationLayer: class {
     destroy = vi.fn();

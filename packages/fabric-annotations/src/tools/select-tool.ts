@@ -4,28 +4,35 @@ import type { AnnotationId, Point } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
 import type { KeyboardShortcutMap } from '@osdlabel/viewer-api';
 import type { ToolOverlay } from '../types.js';
+import { configureGroupSelection, isGroupSelection } from '../group-selection.js';
 import {
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
   DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX,
   type VertexEditConfig,
 } from '../poly-vertex-editor.js';
-interface SelectionEvent {
-  readonly selected: FabricObject[];
-  readonly e?: Event;
-}
-
 interface SelectionClearedEvent {
   readonly deselected: FabricObject[];
   readonly e?: Event;
 }
 
+/**
+ * Selects, moves, resizes and rotates annotations, one at a time or several
+ * together.
+ *
+ * Group selection — a drag-box from empty canvas, or Shift+click — is this
+ * tool's alone: it turns the canvas's `selection` flag on while active and off
+ * when deactivated, so a drag with a drawing tool never selects the shapes it
+ * crosses. Every multi-selection Fabric makes is passed through
+ * {@link configureGroupSelection}, so it can be moved, rotated and scaled
+ * uniformly but never stretched or skewed.
+ */
 export class SelectTool extends BaseTool {
   readonly type = 'select' as const;
 
   private readonly editor: PolyVertexEditor;
 
-  private readonly handleSelectionCreated = (e: SelectionEvent) => this.onSelectionCreated(e);
+  private readonly handleSelectionChanged = () => this.onSelectionChanged();
   private readonly handleSelectionCleared = (e: SelectionClearedEvent) =>
     this.onSelectionCleared(e);
 
@@ -48,8 +55,9 @@ export class SelectTool extends BaseTool {
     super.activate(overlay, imageId, callbacks, shortcuts);
     if (!this.overlay) return;
 
-    this.overlay.canvas.on('selection:created', this.handleSelectionCreated);
-    this.overlay.canvas.on('selection:updated', this.handleSelectionCreated);
+    this.overlay.canvas.selection = true;
+    this.overlay.canvas.on('selection:created', this.handleSelectionChanged);
+    this.overlay.canvas.on('selection:updated', this.handleSelectionChanged);
     this.overlay.canvas.on('selection:cleared', this.handleSelectionCleared);
     this.editor.activate(this.overlay);
   }
@@ -57,11 +65,12 @@ export class SelectTool extends BaseTool {
   deactivate(): void {
     this.editor.deactivate();
     if (this.overlay) {
-      this.overlay.canvas.off('selection:created', this.handleSelectionCreated);
-      this.overlay.canvas.off('selection:updated', this.handleSelectionCreated);
+      this.overlay.canvas.off('selection:created', this.handleSelectionChanged);
+      this.overlay.canvas.off('selection:updated', this.handleSelectionChanged);
       this.overlay.canvas.off('selection:cleared', this.handleSelectionCleared);
 
       this.overlay.canvas.discardActiveObject();
+      this.overlay.canvas.selection = false;
       this.overlay.canvas.requestRenderAll();
     }
     super.deactivate();
@@ -81,12 +90,32 @@ export class SelectTool extends BaseTool {
     this.overlay?.canvas.requestRenderAll();
   }
 
-  private onSelectionCreated(e: SelectionEvent) {
-    if (!this.callbacks) return;
-    const selected = e.selected || [];
-    if (selected.length === 1) {
-      const obj = selected[0]!;
-      const annotationId = obj.id as AnnotationId | undefined;
+  /**
+   * Nothing of the select tool's own to undo: `FabricOverlay` has already put
+   * back the object the press was moving, and an object the press selected
+   * stays selected. Not {@link cancel}, which discards the selection. The
+   * vertex editor still holds the press, in a long-press timer or handles
+   * built for points the overlay has just restored.
+   */
+  onPointerCancel(_event: PointerEvent, _pressSeq: number): void {
+    this.editor.onPointerCancel();
+  }
+
+  /**
+   * On `selection:created` and `selection:updated`. Read from the canvas, not
+   * the event: `selection:updated` lists only what was just added, so a
+   * Shift+click that made a pair would otherwise name the second shape as the
+   * selected annotation. Several selected annotations name none.
+   */
+  private onSelectionChanged() {
+    const canvas = this.overlay?.canvas;
+    if (!this.callbacks || !canvas) return;
+    const active = canvas.getActiveObject();
+    if (active && isGroupSelection(active)) configureGroupSelection(active);
+    const selected = canvas.getActiveObjects();
+    const only = selected.length === 1 ? selected[0] : undefined;
+    if (only) {
+      const annotationId = only.id as AnnotationId | undefined;
       if (annotationId) {
         this.callbacks.setSelectedAnnotation(annotationId);
       }

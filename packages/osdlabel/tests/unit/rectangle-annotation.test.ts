@@ -20,6 +20,8 @@
  *   a rotation changes only `rotation`, a move only `origin` (by the move), a
  *   resize keeps the side opposite the handle where it was, and the stored
  *   corners are the painted ones, also once the committed data is reloaded;
+ *   and once it is skewed, which no rectangle geometry describes, the commit
+ *   stores the box about the same centre and data that paints exactly it;
  * - `enableLiveDecorationUpdates`: at each step of such an edit, the geometry
  *   handed to the decoration providers has the painted corners, its centroid
  *   (where labels and measurements are anchored) is the painted centre, and
@@ -50,6 +52,7 @@ import {
   RectangleTool,
   createFabricObjectFromRawData,
   initFabricModule,
+  serializeFabricObject,
   type AddAnnotationParams,
   type ToolCallbacks,
   type ToolOverlay,
@@ -782,7 +785,123 @@ describe('processObjectModified after an edit', () => {
     },
   );
 
-  // Skew: see the it.todo in fabric-annotations' rectangle-fabric.test.ts.
+  /**
+   * A skew makes a parallelogram, which no `RectangleGeometry` describes. A
+   * rectangle's handles can no longer skew it (fabric-annotations'
+   * `rectangle-fabric.test.ts`), but data saved skewed by an earlier release
+   * loads as saved, and a host's own Fabric code can skew one. The geometry
+   * read back is the box about the same centre (its corners are not the
+   * painted ones), so the commit writes data that paints exactly that box:
+   * the canvas, rebuilt from it, snaps to what is stored.
+   */
+  describe('of a skewed rectangle', () => {
+    const STYLE: AnnotationStyle = {
+      strokeColor: '#1a2b3c',
+      strokeWidth: 3,
+      strokeDashArray: [6, 2],
+      fillColor: '#00ff88',
+      fillOpacity: 0.35,
+      opacity: 0.8,
+    };
+
+    it('the worked example with skewX 20 is committed as the worked example, unskewed', async () => {
+      const stored = createRectangle(workedExample(0), { style: STYLE });
+      const obj = await load(stored);
+      obj.set({ skewX: 20 });
+      obj.setCoords();
+      // Painted: the top edge 25 · tan 20° to the left, the bottom edge as far right.
+      const shift = 25 * Math.tan((20 * Math.PI) / 180);
+      expectCorners(
+        paintedCorners(obj),
+        [
+          { x: 200 - shift, y: 100 },
+          { x: 300 - shift, y: 100 },
+          { x: 300 + shift, y: 150 },
+          { x: 200 + shift, y: 150 },
+        ],
+        1e-9,
+        'skewed before the commit',
+      );
+
+      const committed = commit(obj, stored);
+      expect(asRectangle(committed.geometry)).toStrictEqual(workedExample(0));
+      expect(committed.rawAnnotationData.data).toMatchObject({ type: 'Rect', skewX: 0, skewY: 0 });
+      expectCorners(
+        paintedCorners(await reloadCommitted(committed, stored)),
+        WORKED_0,
+        SAVED_TOLERANCE,
+        'reloaded after the commit',
+      );
+    });
+
+    const CASES = [
+      { name: 'skewX 20', props: { skewX: 20 }, rotation: 0 },
+      { name: 'skewY -15, turned 30°', props: { skewY: -15 }, rotation: 30 },
+      {
+        name: 'skewX 12 and skewY 7, scaled, turned 135°',
+        props: { skewX: 12, skewY: 7, scaleX: 1.25, scaleY: 0.8 },
+        rotation: 135,
+      },
+      {
+        name: 'skewX -25, positioned by its top-left corner',
+        props: { skewX: -25, originX: 'left', originY: 'top' },
+        rotation: -40,
+      },
+    ] as const;
+
+    it.each(CASES)(
+      '$name: commits the box about the painted centre, and data that paints exactly that box in the same style',
+      async ({ props, rotation }) => {
+        const geometry = rectangle({ x: 311.25, y: 187.5 }, 140.5, 60.25, rotation);
+        const stored = createRectangle(geometry, { style: STYLE });
+        const obj = await load(stored);
+        obj.set(props);
+        obj.setCoords();
+        const centre = obj.getCenterPoint();
+
+        const committed = commit(obj, stored);
+        const after = asRectangle(committed.geometry);
+        expect(after.width).toBeCloseTo(geometry.width * obj.scaleX, 9);
+        expect(after.height).toBeCloseTo(geometry.height * obj.scaleY, 9);
+        expect(after.rotation).toBe(rotation);
+        expectPointNear(
+          { x: after.origin.x + after.width / 2, y: after.origin.y + after.height / 2 },
+          centre,
+          LIVE_TOLERANCE,
+          'the stored centre is the painted one',
+        );
+
+        const data = committed.rawAnnotationData.data;
+        expect(data).toMatchObject({ type: 'Rect', skewX: 0, skewY: 0, id: stored.id });
+        const before = stored.rawAnnotationData.data;
+        for (const key of [
+          'fill',
+          'stroke',
+          'strokeWidth',
+          'strokeDashArray',
+          'opacity',
+          'strokeUniform',
+        ]) {
+          expect(data[key], `style: ${key}`).toStrictEqual(before[key]);
+        }
+        const reloaded = await reloadCommitted(committed, stored);
+        expectCorners(
+          paintedCorners(reloaded),
+          referenceCorners(after),
+          reloadTolerance(reloaded),
+          'reloaded after the commit',
+        );
+      },
+    );
+
+    it('an edit that leaves no skew is committed as Fabric serialized it', async () => {
+      const stored = createRectangle(rectangle({ x: 311.25, y: 187.5 }, 140.5, 60.25, 30));
+      const obj = await load(stored);
+      obj.set({ scaleX: 1.5, scaleY: 0.5, flipX: true });
+      rotateTo(obj, 75);
+      expect(commit(obj, stored).rawAnnotationData).toStrictEqual(serializeFabricObject(obj));
+    });
+  });
 });
 
 // ── Live decorations during a drag ─────────────────────────────────────────
@@ -836,7 +955,8 @@ describe('enableLiveDecorationUpdates during a drag', () => {
     }
 
     asOverlay(): FabricOverlay {
-      return { canvas: this } as unknown as FabricOverlay;
+      // No press is ever cancelled here, so the cancel subscription is inert.
+      return { canvas: this, onPointerCancel: () => () => {} } as unknown as FabricOverlay;
     }
   }
 

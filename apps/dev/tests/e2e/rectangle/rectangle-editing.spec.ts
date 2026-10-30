@@ -13,9 +13,9 @@
  *
  * and after every edit the painted pixels are the stored geometry's corners.
  *
- * Every gesture is made without modifier keys. With Shift, a side handle
- * skews the rectangle instead, which its stored geometry cannot express: a
- * known limitation, tracked separately, and not pinned here.
+ * Every gesture is made without modifier keys. Shift is pinned in
+ * `rectangle-shift.spec.ts`: on a side handle it changes nothing, on a corner
+ * it resizes freely.
  */
 import type { Page } from '@playwright/test';
 import { test, expect } from '../helpers/fixtures.js';

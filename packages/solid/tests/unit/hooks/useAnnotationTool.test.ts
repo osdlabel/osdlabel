@@ -105,11 +105,14 @@ type DoubleClickListener = (
   pressSeqs?: readonly [number, number],
 ) => void;
 
+type PointerCancelListener = (event: PointerEvent, pressSeq: number) => void;
+
 interface MockOverlay {
   canvas: MockCanvas;
   setMode: ReturnType<typeof vi.fn>;
   screenToImage: ReturnType<typeof vi.fn>;
   onDoubleClick: ReturnType<typeof vi.fn>;
+  onPointerCancel: ReturnType<typeof vi.fn>;
 }
 
 describe('useAnnotationTool', () => {
@@ -119,6 +122,7 @@ describe('useAnnotationTool', () => {
   let mockCanvas: MockCanvas;
   let listeners: Record<string, (...args: unknown[]) => unknown> = {};
   let doubleClickListeners: DoubleClickListener[] = [];
+  let pointerCancelListeners: PointerCancelListener[] = [];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -139,6 +143,7 @@ describe('useAnnotationTool', () => {
       add: vi.fn(),
     };
     doubleClickListeners = [];
+    pointerCancelListeners = [];
     mockOverlay = {
       canvas: mockCanvas,
       setMode: vi.fn(),
@@ -148,6 +153,13 @@ describe('useAnnotationTool', () => {
         doubleClickListeners.push(cb);
         return () => {
           doubleClickListeners = doubleClickListeners.filter((l) => l !== cb);
+        };
+      }),
+      // Mirrors FabricOverlay.onPointerCancel: registers and returns unsubscribe.
+      onPointerCancel: vi.fn((cb: PointerCancelListener) => {
+        pointerCancelListeners.push(cb);
+        return () => {
+          pointerCancelListeners = pointerCancelListeners.filter((l) => l !== cb);
         };
       }),
     };
@@ -169,7 +181,7 @@ describe('useAnnotationTool', () => {
         // Wait for effect to run. Reject rather than let an assertion escape
         // the timer callback, where it would surface as a 5s test timeout
         // naming nothing instead of a failed expectation.
-        setTimeout(() => {
+        setTimeout(async () => {
           try {
             // Verify listener is registered
             expect(mockCanvas.on).toHaveBeenCalledWith('object:modified', expect.any(Function));
@@ -181,6 +193,10 @@ describe('useAnnotationTool', () => {
             if (handler) {
               handler({ target: mockObj });
             }
+            // Committed once Fabric is done with the release, a microtask
+            // later (see enableObjectModifiedCommits).
+            expect(mockActions.updateAnnotation).not.toHaveBeenCalled();
+            await Promise.resolve();
 
             // Verify action called
             expect(mockActions.updateAnnotation).toHaveBeenCalledWith(
@@ -255,6 +271,55 @@ describe('useAnnotationTool', () => {
           }
           // `mockState` is module-level; leaving it mutated would couple this
           // test to whatever runs after it.
+          mockState.uiState.activeTool = previousTool;
+          resolve();
+        }, 0);
+      });
+    });
+  });
+
+  /**
+   * The hook is the only thing joining `FabricOverlay.onPointerCancel` to the
+   * active tool. Fabric has no `pointercancel` handling of its own, so without
+   * this wiring a drawing tool never hears that its press was taken away, and
+   * the release the overlay forwards next commits the preview it left.
+   */
+  it('routes a cancelled press to the active tool, with its sequence, and unsubscribes on cleanup', () => {
+    return new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        const [overlay] = createSignal(mockOverlay as unknown as FabricOverlay);
+        const [imageId] = createSignal(createImageId('img-1'));
+        const [isActive] = createSignal(true);
+
+        useAnnotationTool(overlay, imageId, isActive);
+        const previousTool = mockState.uiState.activeTool;
+        mockState.uiState.activeTool = 'polyline';
+
+        setTimeout(() => {
+          try {
+            expect(mockOverlay.onPointerCancel).toHaveBeenCalledWith(expect.any(Function));
+            expect(pointerCancelListeners).toHaveLength(1);
+
+            const tool = createdTools.at(-1);
+            expect(tool).toBeDefined();
+            const spy = vi.spyOn(tool!, 'onPointerCancel');
+
+            const event = { type: 'pointercancel' } as PointerEvent;
+            // The sequence is relayed too: a polyline takes back only the
+            // vertex the cancelled press placed, which it finds by it.
+            pointerCancelListeners[0]!(event, 9);
+
+            expect(spy).toHaveBeenCalledWith(event, 9);
+
+            dispose();
+            // Released with the effect, so a later cancel cannot reach a
+            // deactivated tool.
+            expect(pointerCancelListeners).toHaveLength(0);
+          } catch (error) {
+            mockState.uiState.activeTool = previousTool;
+            reject(error instanceof Error ? error : new Error(String(error)));
+            return;
+          }
           mockState.uiState.activeTool = previousTool;
           resolve();
         }, 0);

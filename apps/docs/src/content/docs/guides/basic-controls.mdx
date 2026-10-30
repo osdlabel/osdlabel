@@ -20,6 +20,10 @@ osdlabel provides six geometric annotation tools:
 | **Path**           | `d`      | Array of points, open/closed    | Click to add vertices, double click or `Enter` to finish, `c` to close |
 | **Free Hand Path** | `f`      | Array of sampled points         | Click and drag to draw; release to commit                              |
 
+A click without a drag draws nothing with the rectangle, circle or line tool. On release, a shape smaller than 3 screen pixels ([`MIN_SHAPE_SCREEN_PX`](/osdlabel/api/reference/osdlabel/fabric-annotations/variables/min_shape_screen_px/)) is discarded rather than stored, measured as a rectangle's shorter side, a circle's diameter or a line's length. A stray click therefore leaves no invisible annotation behind, and does not count toward a context's `maxCount`. The minimum is in screen pixels, so it is the same at every zoom: to draw a shape smaller than that, zoom in. The point tool is exempt, since a click is how a point is placed.
+
+Paths use the same 3 px minimum when they are finished, measured across the whole path rather than by a shorter side. A path or free-hand stroke whose points all lie within 3 screen pixels of one another is discarded rather than stored, however it was finished: clicks at one spot ended with a double click, `Enter` or `c`, or with a click back on the first point, or a free-hand tap or scribble that never leaves one spot. The tool is then ready to start a new path. A path that reaches 3 pixels in any direction is kept, however small its area: a path is a line through its points, so it has no shorter side to measure. As for shapes, the size is judged in the view when the path is finished.
+
 ## Drawing workflow
 
 1. Select a drawing tool (toolbar click or keyboard shortcut)
@@ -34,10 +38,16 @@ Press `v` (or click the select tool) to enter selection mode:
 
 - **Click** an annotation to select it — shows resize handles and rotation control
 - **Drag** a selected annotation to move it
-- **Drag handles** to resize
+- **Drag handles** to resize. What each shape's handles can do keeps it a shape its geometry describes:
+  - a **rectangle**'s corner handles keep its proportions, or resize it freely while **Shift** is held; its side handles move one side, with or without Shift;
+  - a **circle** has corner handles only, and they always keep it a circle;
+  - a **line**, **polyline** or **polygon** has the full set, and **Shift** turns a side handle into a shear, which its stored points follow;
+  - a **point** has none: drag it to move it.
 - **Drag rotation control** (circle above the annotation) to rotate
 - **Escape** deselects the current annotation
 - **Delete** / **Backspace** deletes the selected annotation
+
+To edit several annotations together, drag a box from empty canvas over them, or **Shift+click** to add or remove one at a time. A multi-selection can be moved, rotated with its rotation control, and resized from its corners only. It always keeps its proportions, even with Shift held: stretching it would skew a rotated rectangle or turn a circle into an ellipse, which their geometry cannot record. Resizing it moves the point annotations in it apart or together, but each one's dot keeps its size: a point is a position, and its dot is always drawn at its style's radius. The edit saves every annotation in the selection as one change, and the selection stays selected. Only the select tool selects by drag-box, so dragging a drawing tool across existing annotations selects none of them.
 
 ## Pan and zoom in annotation mode
 

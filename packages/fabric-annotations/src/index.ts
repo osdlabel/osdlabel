@@ -1,7 +1,14 @@
 export * from './fabric-module.js';
 export * from './fabric-utils.js';
 export { buildFabricObjectFromGeometry } from './build-fabric-object.js';
+export { applyShapeControls } from './shape-controls.js';
 export { migrateLegacyRectangle } from './legacy-rectangle.js';
+export {
+  isGroupSelection,
+  configureGroupSelection,
+  dissolveGroupSelection,
+  reselectWhenAdded,
+} from './group-selection.js';
 export { getPreviewOptions, DEFAULT_PREVIEW_DASH_SCREEN_PX } from './preview-style.js';
 export type { PreviewOptions } from './preview-style.js';
 export {
@@ -13,7 +20,7 @@ export type { VertexMarkerOptions } from './vertex-markers.js';
 export type { ToolOverlay, FabricFields, FabricRawAnnotationData } from './types.js';
 export type { AnnotationTool, ToolCallbacks, AddAnnotationParams } from './tools/base-tool.js';
 export { BaseTool } from './tools/base-tool.js';
-export { ShapeTool } from './tools/shape-tool.js';
+export { ShapeTool, MIN_SHAPE_SCREEN_PX } from './tools/shape-tool.js';
 export { RectangleTool } from './tools/rectangle-tool.js';
 export { CircleTool } from './tools/circle-tool.js';
 export { LineTool } from './tools/line-tool.js';

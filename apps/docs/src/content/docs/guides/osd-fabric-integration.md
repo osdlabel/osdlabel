@@ -264,16 +264,26 @@ The MouseTracker intercepts events in `preProcessEventHandler`:
 
 ```
 pointerdown:
-  ├── Ctrl/Cmd held? → Pan passthrough: enable OSD nav, let event propagate
-  └── Normal click?  → Stop propagation, forward to Fabric
+  ├── A second pointer? → Stop propagation, hold it (see "A second pointer")
+  ├── Ctrl/Cmd held?    → Pan passthrough: enable OSD nav, let event propagate
+  └── Normal click?     → Stop propagation, forward to Fabric
 
 pointermove:
   ├── Pan gesture active? → Let OSD handle it
-  └── Otherwise?          → Stop propagation, forward to Fabric
+  └── Otherwise?          → Stop propagation; forward to Fabric if it is the
+                            pressing pointer's, or, with no press in progress,
+                            any but a held pointer's
 
 pointerup:
+  ├── A held pointer's?   → Stop propagation, nothing else
   ├── Pan gesture active? → End gesture, re-disable OSD nav
-  └── Otherwise?          → Stop propagation, forward to Fabric
+  └── Otherwise?          → Stop propagation; the pressing pointer's is
+                            forwarded to Fabric at once, ending the gesture
+
+pointercancel:
+  ├── A held pointer's?   → Stop propagation, nothing else
+  ├── Pan gesture active? → End gesture, re-disable OSD nav
+  └── Otherwise?          → Stop propagation, undo the press (see "Cancelled presses")
 
 scroll:
   └── Ctrl/Cmd held? → Manual viewport.zoomBy() (OSD scroll-zoom is disabled)
@@ -334,7 +344,7 @@ Neither of the two obvious sources works here, and both are worth ruling out exp
 
 **The container's native `dblclick`** does fire — that is where the browser's own event lands, and it carries the platform's timing and movement thresholds, which is genuinely attractive. It is rejected for a different reason: it is a bare notification. It does not say which two presses produced it, and its thresholds are not inspectable, so a tool that accumulated points on those presses cannot work out which of its vertices belong to the gesture. That correlation is the hard part of this problem (see below), and it is the one thing the platform event cannot give.
 
-So `FabricOverlay` pairs releases itself, in `_detectDoubleClick`, called from the `releaseHandler` — where the `_forwarding` guard has already excluded the synthetic copies, leaving exactly the real stream. Subscribe with `overlay.onDoubleClick(cb)`; the framework hooks route it to the active tool's optional `onDoubleClick`.
+So `FabricOverlay` pairs releases itself, in `_detectDoubleClick`, called when the pointer that pressed lifts (from `preProcessEventHandler`; see "A second pointer") — where the `_forwarding` guard has already excluded the synthetic copies, leaving exactly the real stream. Subscribe with `overlay.onDoubleClick(cb)`; the framework hooks route it to the active tool's optional `onDoubleClick`.
 
 #### The gates
 
@@ -372,7 +382,57 @@ Two details carry the guarantee. `pressSeqOf` is keyed on the **synthetic** even
 
 #### Touch
 
-Touch reaches this layer as of [#175](https://github.com/osdlabel/osdlabel/issues/175). It previously did not: the synthetic `pointerdown` bubbled back to the container, OSD counted the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returned to zero contacts and `releaseHandler`, which this detection runs from, was never called. The press is now dispatched non-bubbling, so the count is correct and a double tap pairs like a double click. That was a property of the forwarding design rather than of this pairing.
+Touch reaches this layer as of [#175](https://github.com/osdlabel/osdlabel/issues/175). It previously did not: the synthetic `pointerdown` bubbled back to the container, OSD counted the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returned to zero contacts and `releaseHandler`, which this detection then ran from, was never called. The press is now dispatched non-bubbling, so the count is correct and a double tap pairs like a double click. That was a property of the forwarding design rather than of this pairing.
+
+### Cancelled presses
+
+When the OS or the browser takes a touch or pen contact away mid-gesture (an edge swipe, palm rejection, a system dialog, an orientation change), the browser sends `pointercancel` for it and no `pointerup`. The viewer's elements are `touch-action: none`, so the browser never cancels a touch to scroll the page: a cancel always comes from outside it.
+
+Nothing downstream handles the event on its own. OSD's `MouseTracker` answers a cancel with `stopTrackingPointer` and never calls `releaseHandler`, and Fabric has no `pointercancel` handling. Before the overlay handled it, Fabric's transform stayed open. The shape stayed where the finger had left it while the stored geometry kept the old one, so labels, measurements and exports disagreed with the screen. The `pointermove` and `pointerup` listeners Fabric adds to the document on a press stayed attached, so the next movement of any pointer (a hover, a drag on empty canvas) carried the shape on, and the next release anywhere committed it there. A drawing tool's preview stayed painted, and a tap on the toolbar committed it.
+
+**Cancel means revert**, the platform's meaning for the event. `_cancelPress` runs from `preProcessEventHandler`, which is where OSD hands the overlay a `pointercancel`. It acts only for the pointer that pressed, in three steps:
+
+1. **Put the object back.** Fabric's `transform.original` holds the transformed object's placement at the press (position, scale, skew, angle, flip); its `originX` / `originY` are the transform's anchor, not the object's origin, so they are left alone. A polyline or polygon's points are not in it, so the overlay copies them on Fabric's `before:transform`, which fires before a control's `mouseDownHandler` and so also before the vertex the editor's insert handle adds on the press. Clearing `actionPerformed` keeps Fabric from firing `object:modified`.
+2. **Tell subscribers**, through `overlay.onPointerCancel(cb)`, with the event and the press's sequence. The framework hooks route it to the active tool's optional `onPointerCancel`. A shape tool or the free-hand tool drops its preview (`BaseTool`'s default calls `cancel()`). A polyline drops the vertex that press placed, found by its sequence as for a double click, and keeps the rest. The select tool passes it to the vertex editor, which drops a pending long press, rebuilds its handles for the restored points, and puts back the vertex `Delete` targeted before the press: an insert handle's press targets the vertex it inserted, and once the revert has taken that vertex out, the key would name the one that slid back into its index. `enableLiveDecorationUpdates` subscribes too: state never changed, so nothing else would re-run the providers, and the last live frame (a label where the finger was) would outlive the gesture. It re-derives the decorations from state on the next frame.
+3. **End Fabric's gesture** with a forwarded `pointerup`, after placing the object's controls. A release is the only way to run Fabric's own cleanup of the transform, its document listeners and its rubber band. It is built from the press rather than copied from the cancel, because Chrome's `pointercancel` carries `button` -1, which `__onMouseUp` takes for a right or middle button and returns on. It lands at the press's position, on what the press landed on, and `selection` is off while it runs, so it applies no rubber-band selection. With `actionPerformed` cleared it commits nothing.
+
+The order is load-bearing twice over. The release fires Fabric's `mouse:up`, on which a shape tool commits its preview, so the tool must have dropped the preview before it. And the controls are placed only after the subscribers: the editor's handles may still be the ones built for the vertex the revert has just taken away, and placing them would read past the end of `points`.
+
+The release runs while OSD still tracks the pointer, since `preProcessEventHandler` runs before OSD's own `updatePointerCancel`. OSD therefore counts it as that pointer's release, and the contact count returns to zero as it does after any release. The `_forwarding` guard keeps it out of `releaseHandler`, so it is no click.
+
+What the press did outside the gesture stands, as focus does after a cancelled press: an object it selected stays selected, and a polyline press that closed the path committed the polygon on the press, before the cancel. The press's pairing state is dropped, so the clicks either side of a cancelled press cannot pair into a double click.
+
+`lostpointercapture` is not treated as a cancel. The browser sends it after the `pointerup` or `pointercancel` that ends a press, and nothing in the overlay releases capture mid-press. Custom-control mode is untouched: its handlers hear no cancel, and the drag controls disarm on the next move with no button held.
+
+`apps/dev/tests/e2e/touch-cancel.spec.ts` drives all of this through CDP's `touchCancel`, which produces a genuine `pointercancel`.
+
+### A second pointer
+
+OSD's `MouseTracker` counts contacts per pointer type. It calls `pressHandler` only for the first contact of a type to go down, and `releaseHandler` only for the last to lift. So when the finger that pressed lifts while a second finger is still down, OSD calls no `releaseHandler`. The second finger's lift, later, is the one it reports, and the platform marks that finger non-primary (`isPrimary: false`), which Fabric ignores (`_isMainEvent`). When the overlay forwarded releases only from `releaseHandler`, neither lift reached Fabric as a release, and its transform stayed open. The result was the drift of an unhandled cancel. The canvas showed the edit while the stored geometry kept the old shape. The next movement of any pointer (a mouse hover, a later touch) carried the shape on, and the next release committed it there. A drawing tool's preview stayed uncommitted until a tap on the toolbar committed it, stretched to the button.
+
+**The lift of the pointer that pressed is a release.** `preProcessEventHandler` sees every `pointerup` before OSD's own bookkeeping, so `_releasePress` ends the gesture there for the pointer that pressed. It forwards the release, which commits through `object:modified` or a drawing tool's `mouse:up` as a mouse release would, and qualifies it as a click. It does so for every such release, not only when another pointer is down, so there is one path. When OSD then reports the same `pointerup` to `releaseHandler`, as it does for a lone contact, the event is marked handled and skipped. Forwarding it twice would cost Fabric nothing, since it unbinds its release listener after the first. Qualifying it twice would not be harmless: the second finds no press and clears the click the first recorded, so no two taps would pair.
+
+**Any other pointer that goes down meanwhile is held.** `_isSecondPointer` decides on `pointerdown`. A pointer is held if the platform does not call it primary (a finger put down while another touches the screen), or if it is of another type while a press is in progress (a mouse or pen beside a finger, a palm beside a pen). OSD counts each type apart, so it reports that second press, and the platform calls it primary, so Fabric would take it for the gesture's own pointer. Nothing a held pointer does reaches Fabric, OSD or the page: not its press, its moves or its lift. It starts nothing until it lifts and presses again. Two related rules hold while a press is in progress. Only the pressing pointer's moves reach Fabric, so a mouse hovering beside a finger's drag does not pull the shape after it. And a release OSD reports for a pointer the overlay never saw press (pressed outside the viewer, released over it) does not end the press.
+
+Annotation mode defines no two-finger gesture. The overlay's tracker registers no `pinchHandler`, OSD's own navigation is off, and a held finger's events stop at the overlay, so a second finger does not pinch-zoom.
+
+A missed lift cannot leave the overlay refusing input. A held pointer is let go on its `pointerup` or `pointercancel`, and, should that go unseen, on its next `pointerdown` or on a move with no button down, either of which means it has lifted. `setMode` forgets them all. A pointer of the press's own type that the platform calls primary is never held: it can only be pressing because the press's pointer has lifted unseen, so it starts a gesture of its own, as it always has.
+
+One consequence shows only in OSD's state. The release forwarded for the first finger bubbles through the tracker's element while OSD still tracks that pointer, so OSD counts it as that pointer's release. The finger's own `pointerup` then removes a second contact, and OSD's count reads zero while the second finger is still down. Nothing reads it: the overlay goes by its own record of the press and the held pointers, and the count is right again once every finger has lifted, since `removeContact()` floors at zero.
+
+Custom-control mode is untouched: its handler hears what OSD reports.
+
+`apps/dev/tests/e2e/touch-second-finger.spec.ts` drives this with two CDP touch points. One finger moves, resizes or draws; a second goes down and moves; the first lifts; then the second moves and lifts. A CDP `touchEnd` that lists touch points lifts only those, which the spec checks the page saw.
+
+## Saving edits
+
+Fabric reports a finished move, resize or rotation with `object:modified`. Both bindings save it through `enableObjectModifiedCommits` (from `osdlabel`). Three properties of that event decide how:
+
+- **It fires while the transform is still current.** Fabric ends the transform only after its listeners return. A commit that rebuilds the canvas at once removes the edited object mid-transform; Solid's store runs the rebuild synchronously, so it did. Fabric's discard then ended the transform itself and reported the same edit again, and every Solid drag was committed twice. So every commit waits for a microtask, by which time Fabric has finished the pointer release.
+- **A multi-selection is reported as one event about the selection.** The target is the `ActiveSelection` itself, which has no annotation id. Every member is still inside it, its `left`/`top`/scale/angle relative to the group. Fabric does not dissolve the selection first. It bakes the group's transform into each member only when the selection is discarded, and fires nothing then. So the commit dissolves it (`dissolveGroupSelection`) and reads each member on its own. It saves them all with one `UPDATE_ANNOTATIONS`, so the canvas is rebuilt once. Then it selects the same annotations again once the rebuild has added their new objects (`reselectWhenAdded`). A selection discarded before the event, say by a tool switch mid-drag, commits the members it held when the transform began (`before:transform`).
+- **A stretch baked into a rotated member skews it.** A rectangle would become a parallelogram and a circle an ellipse, which their geometry cannot record. So every selection is uniform-only (`configureGroupSelection`): four corner handles that keep proportions whatever the modifier, the rotation handle, no side handles, and skew locked. Uniform scale commutes with rotation, so each baked member is still the shape it was. A point's dot does take the scale, though a point has no size: `processObjectModified` redraws any point whose object is scaled or skewed at its style's radius, the `radius` its `Circle` was saved with.
+
+Group selection itself, by drag-box or Shift+click, belongs to the select tool. `setMode('annotation')` turns Fabric's `canvas.selection` off each time it enters annotation mode, and `SelectTool` turns it on while active. A host driving the overlay without the library's tools, and wanting drag-box selection, sets it after each `setMode('annotation')`. When it was on for every tool, a drawing drag across existing shapes also ran Fabric's drag-box. It left them selected, and, once the canvas was rebuilt, the selection held objects no longer on it.
 
 ## How annotations stay correct under rotation/flip
 
