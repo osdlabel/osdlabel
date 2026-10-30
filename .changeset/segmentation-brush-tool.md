@@ -398,8 +398,9 @@ degrades alone instead of blanking its whole grid cell.
   it a moment later, which left a dot in the mask. When the pencil lands
   before that cancel, the touch is taken as the palm and the pencil's stroke
   paints alone; so does the mouse's, beside a finger left on a touchscreen.
-  `FabricOverlay.isCancelledRelease(event)` (optional on `ToolOverlay`) is how
-  a tool tells a cancelled press from a lift. A chord —
+  A tool hears of a cancelled press through `AnnotationTool.onPointerCancel`,
+  before the release that ends it; the brush discards the stroke there, so
+  that release commits nothing. A chord —
   the primary button released while another is held — ends the press, since
   no release would otherwise be reported for it. And a release the overlay
   forwards on OpenSeadragon's behalf no longer passes through the tracker's

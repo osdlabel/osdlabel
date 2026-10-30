@@ -85,16 +85,22 @@ export interface AnnotationTool {
    * presses during it (a touch never wins over either: the touch was a hand
    * at rest), and `event` is then that pointer's `pointerdown`: its type,
    * `pointerId` and `pointerType` are not the cancelled press's, so identify
-   * the press by `pressSeq`.
+   * the press by `pressSeq`, never by the event's pointer.
    * Optional — {@link BaseTool} supplies a default that calls {@link cancel},
    * which is right for a tool whose drawing lasts from press to release.
+   *
+   * Either way the input was not meant for the page, so a tool that commits
+   * on release discards instead: on an iPad a palm is an ordinary touch until
+   * the platform rejects it, and committing it left a dot in a mask.
    *
    * `FabricOverlay` has already put back any object Fabric was moving,
    * scaling or rotating. It then ends Fabric's gesture with a release that
    * commits nothing, and that release arrives at {@link onPointerUp} *after*
-   * this call — so a tool that commits on the release must have dropped its
-   * preview here. A tool whose drawing spans several presses undoes only the
-   * cancelled press's part, which `pressSeq` identifies: it is the sequence
+   * this call. This call is the tool's only notice of the cancel: the release
+   * is an ordinary `pointerup`, built from the cancelled press, so a tool that
+   * commits on the release must have dropped its preview here. A tool whose
+   * drawing spans several presses undoes only the cancelled press's part,
+   * which `pressSeq` identifies: it is the sequence
    * {@link ToolOverlay.pressSeqOf} gave that press.
    */
   onPointerCancel?(event: PointerEvent, pressSeq: number): void;

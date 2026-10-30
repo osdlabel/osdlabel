@@ -92,18 +92,23 @@ export type DoubleClickCallback = (
  * presses while it is in progress, since a touch never wins over either: the
  * touch was a hand at rest, and the event is then that pointer's
  * `pointerdown`, whose type, `pointerId` and `pointerType` are not the
- * cancelled press's (`pressSeq` identifies the press). It receives that raw
- * DOM event and the sequence of the press it took away (see
- * {@link FabricOverlay.pressSeqOf}).
+ * cancelled press's, so identify the press by `pressSeq`, never by the
+ * event's pointer. It receives that raw DOM event and the sequence of the
+ * press it took away (see {@link FabricOverlay.pressSeqOf}).
  *
  * The overlay has already put the object Fabric was transforming back as the
  * press found it. What the press began elsewhere is the subscriber's to undo:
- * a tool drops its preview, a polyline the vertex that press placed. The
- * overlay then ends Fabric's gesture with a forwarded release that commits
- * nothing, and that release reaches the tool's `onPointerUp`, so the tool must
- * have dropped its preview by then; subscribers are called first for that
- * reason. That release is also marked: {@link FabricOverlay.isCancelledRelease}
- * is true for it.
+ * a tool drops its preview, a polyline the vertex that press placed. Either
+ * way the input was not meant for the page (the platform cancels a pointer
+ * when it decides so: palm rejection above all), so a tool that commits on
+ * release discards instead.
+ *
+ * This call is the only notice of the cancel. Fabric has no `pointercancel`,
+ * so the overlay then ends Fabric's gesture with a release of its own, built
+ * from the press. That release commits nothing on Fabric's side and reaches
+ * the tool's `onPointerUp` as an ordinary `pointerup` would, so the tool must
+ * have dropped what the press began by then; subscribers are called first for
+ * that reason.
  */
 export type PointerCancelCallback = (event: PointerEvent, pressSeq: number) => void;
 
@@ -360,8 +365,6 @@ export class FabricOverlay {
    */
   private _pressSeq = 0;
   private readonly _pressSeqByEvent = new WeakMap<PointerEvent, number>();
-  /** Releases forwarded on behalf of a cancelled pointer; see `isCancelledRelease`. */
-  private readonly _cancelledReleases = new WeakSet<PointerEvent>();
 
   /** Tears down the device-pixel-ratio media-query observer. */
   private _disposeDevicePixelRatioObserver: (() => void) | null = null;
@@ -568,25 +571,6 @@ export class FabricOverlay {
   }
 
   /**
-   * Whether a forwarded `pointerup` ends a press that was cancelled, rather
-   * than one the user lifted.
-   *
-   * Fabric has no `pointercancel`, so the overlay ends a cancelled press with
-   * a release of its own, after it has told {@link onPointerCancel}
-   * subscribers (which is where the framework hooks call the active tool's
-   * `onPointerCancel`); this marks that release, so a tool can also tell the
-   * two apart on the release itself. The browser cancels a pointer when it
-   * decides the input was not meant for the page — palm rejection above all,
-   * and system gestures — and the overlay cancels a touch press itself when a
-   * pen or a mouse presses during it (a touch never wins over either: the
-   * touch was a hand at rest), so a tool that commits on release should
-   * discard instead. Keyed on the synthetic event, as {@link pressSeqOf} is.
-   */
-  isCancelledRelease(event: PointerEvent): boolean {
-    return this._cancelledReleases.has(event);
-  }
-
-  /**
    * Register a callback fired when a double click lands on the overlay in
    * annotation mode. Returns an unsubscribe function.
    *
@@ -610,9 +594,12 @@ export class FabricOverlay {
    * paint mode is cancelled (`pointercancel`, or a touch press that a pen's or
    * mouse's press took over). Returns an unsubscribe function.
    *
-   * See {@link PointerCancelCallback} for what the overlay has already undone
-   * when it is called, and what is left to the subscriber. The framework hooks
-   * route it to the active tool's optional `onPointerCancel`.
+   * It is the only way to tell a cancelled press from a lifted one: the
+   * release the overlay forwards to end Fabric's gesture afterwards is an
+   * ordinary `pointerup`. See {@link PointerCancelCallback} for what the
+   * overlay has already undone when it is called, and what is left to the
+   * subscriber. The framework hooks route it to the active tool's optional
+   * `onPointerCancel`.
    */
   onPointerCancel(callback: PointerCancelCallback): () => void {
     this._pointerCancelSubscribers.add(callback);
@@ -892,8 +879,6 @@ export class FabricOverlay {
       readonly pointerType: string;
       readonly isPrimary: boolean;
     },
-    /** Marks the release as ending a cancelled press; see `isCancelledRelease`. */
-    cancelled = false,
   ): void {
     if (this._forwarding) return;
     this._forwarding = true;
@@ -931,7 +916,6 @@ export class FabricOverlay {
       if (pressSeq !== undefined) {
         this._pressSeqByEvent.set(syntheticEvent, pressSeq);
       }
-      if (cancelled) this._cancelledReleases.add(syntheticEvent);
       target.dispatchEvent(syntheticEvent);
     } finally {
       this._forwarding = false;
@@ -1192,36 +1176,30 @@ export class FabricOverlay {
    * Fabric applies a rubber-band selection on release unless `selection` is
    * off, so it is off for the duration.
    *
-   * The release is marked cancelled (`isCancelledRelease`), for a tool that
-   * tells a cancel from a lift on the release rather than through
-   * `onPointerCancel`.
+   * Nothing marks the release: to Fabric and to a tool's `onPointerUp` it is
+   * an ordinary one. A tool hears of the cancel through `onPointerCancel`,
+   * which `_cancelPress` has called by now.
    */
   private _endCancelledGesture(press: PointerEvent): void {
     const canvas = this._fabricCanvas;
     const selection = canvas.selection;
     canvas.selection = false;
     try {
-      this._forwardToFabric(
-        POINTER_UP,
-        {
-          clientX: press.clientX,
-          clientY: press.clientY,
-          screenX: press.screenX,
-          screenY: press.screenY,
-          button: 0,
-          buttons: 0,
-          pointerId: press.pointerId,
-          pointerType: press.pointerType,
-          isPrimary: press.isPrimary,
-          ctrlKey: press.ctrlKey,
-          shiftKey: press.shiftKey,
-          altKey: press.altKey,
-          metaKey: press.metaKey,
-        },
-        undefined,
-        undefined,
-        true,
-      );
+      this._forwardToFabric(POINTER_UP, {
+        clientX: press.clientX,
+        clientY: press.clientY,
+        screenX: press.screenX,
+        screenY: press.screenY,
+        button: 0,
+        buttons: 0,
+        pointerId: press.pointerId,
+        pointerType: press.pointerType,
+        isPrimary: press.isPrimary,
+        ctrlKey: press.ctrlKey,
+        shiftKey: press.shiftKey,
+        altKey: press.altKey,
+        metaKey: press.metaKey,
+      });
     } finally {
       canvas.selection = selection;
     }

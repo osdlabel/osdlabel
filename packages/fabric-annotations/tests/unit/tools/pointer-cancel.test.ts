@@ -32,11 +32,14 @@ initFabricModule();
  *
  * `FabricOverlay` reports the cancel, with the press's sequence, *before* it
  * ends Fabric's gesture, and ending it fires Fabric's `mouse:up` — which the
- * framework hooks hand to `onPointerUp`. So each case below follows the cancel
+ * framework hooks hand to `onPointerUp`. That release is an ordinary one: the
+ * cancel is the tool's only notice. So each case below follows the cancel
  * with the `onPointerUp` the tool will receive next, and asserts that it
  * commits nothing: a shape tool commits its preview on the release, so a
  * cancel that left the preview in place would turn into exactly the commit
- * it exists to prevent.
+ * it exists to prevent. (The segmentation brush's are in
+ * `segmentation-brush-tool.test.ts`, the vertex editor's in
+ * `poly-vertex-editor.test.ts`.)
  *
  * The overlay's half (putting a transformed object back, ending the gesture)
  * is in `packages/fabric-osd/tests/unit/overlay/pointer-cancel.test.ts`, the
@@ -280,13 +283,17 @@ describe('onPointerCancel', () => {
      * does after a cancelled press. `cancel()` is the tool's deactivation path
      * and discards the selection, so it is not what a cancel may call.
      */
-    it('keeps the selection', () => {
+    it('keeps the selection, and the release that follows commits nothing', () => {
       const tool = activate(new SelectTool());
       const down = press();
 
       tool.onPointerCancel!(cancelEvent, overlay.seqOf(down)!);
+      tool.onPointerUp(release, { x: 10, y: 10 });
 
       expect(selectCanvas.discardActiveObject).not.toHaveBeenCalled();
+      expect(callbacks.updateAnnotation).not.toHaveBeenCalled();
+      expect(callbacks.deleteAnnotation).not.toHaveBeenCalled();
+      expect(callbacks.setSelectedAnnotation).not.toHaveBeenCalled();
     });
 
     it('does not enter vertex-edit mode from a long press the cancel interrupted', () => {

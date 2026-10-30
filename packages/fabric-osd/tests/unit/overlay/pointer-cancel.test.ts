@@ -351,10 +351,11 @@ describe('FabricOverlay: a cancelled press is undone', () => {
     expect(info.stopPropagation).toBe(true);
   });
 
-  it('in paint mode too: subscribers first, then a release marked cancelled that commits nothing', () => {
+  it('in paint mode too: subscribers first, then a release that commits nothing', () => {
     // The brush paints in paint mode, where every object is inert: there is
     // no transform to revert, but the tool must hear of the cancel before the
-    // release, which it would otherwise commit, and the release is marked.
+    // release, which it would otherwise commit. The release is an ordinary
+    // one, of the press's pointer: the cancel is the only notice.
     overlay.setMode('paint');
     const order: string[] = [];
     overlay.onPointerCancel(() => {
@@ -372,7 +373,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
 
     expect(order).toEqual(['cancel', 'mouse:up']);
     expect(releases).toHaveLength(1);
-    expect(overlay.isCancelledRelease(releases[0]!)).toBe(true);
+    expect(releases[0]!.pointerId).toBe(PRESSING);
     expect(modified).not.toHaveBeenCalled();
   });
 
@@ -420,7 +421,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
     /**
      * What the cancel subscribers and Fabric heard, in order: each press with
      * its sequence, each cancel with the press it took away and the pointer
-     * whose event it carries, and each release marked if it ends a cancel.
+     * whose event it carries, and each release with its pointer.
      */
     const listen = (): string[] => {
       const heard: string[] = [];
@@ -435,10 +436,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
         heard.push(`mouse:move ${(opt.e as PointerEvent).pointerType}`);
       });
       overlay.canvas.on('mouse:up', (opt) => {
-        const e = opt.e as PointerEvent;
-        heard.push(
-          `mouse:up ${e.pointerType}${overlay.isCancelledRelease(e) ? ' (cancelled)' : ''}`,
-        );
+        heard.push(`mouse:up ${(opt.e as PointerEvent).pointerType}`);
       });
       return heard;
     };
@@ -481,7 +479,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
           'mouse:down touch #1',
           'mouse:move touch',
           `cancel #1 by ${pointerType}`,
-          'mouse:up touch (cancelled)',
+          'mouse:up touch',
           `mouse:down ${pointerType} #2`,
           `mouse:move ${pointerType}`,
           `mouse:up ${pointerType}`,
@@ -494,7 +492,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
         // Every object is inert in paint mode, so there is no transform to
         // revert; what matters is that the brush hears of the cancel before
         // the release, which it would otherwise commit as the dot a resting
-        // finger left, and that the release is marked.
+        // finger left.
         overlay.setMode('paint');
         const heard = listen();
         const touch = pointer('touch', PRESSING);
@@ -513,7 +511,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
           'mouse:down touch #1',
           'mouse:move touch',
           `cancel #1 by ${pointerType}`,
-          'mouse:up touch (cancelled)',
+          'mouse:up touch',
           `mouse:down ${pointerType} #2`,
           `mouse:move ${pointerType}`,
           `mouse:up ${pointerType}`,
@@ -546,7 +544,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
           'mouse:down touch #1',
           'mouse:move touch',
           `cancel #1 by ${pointerType}`,
-          'mouse:up touch (cancelled)',
+          'mouse:up touch',
         ]);
         touch.move({ x: 160, y: 140 });
         expect(placement(rect)).toEqual(atPress);
@@ -573,7 +571,7 @@ describe('FabricOverlay: a cancelled press is undone', () => {
           'mouse:down touch #1',
           'mouse:move touch',
           `cancel #1 by ${pointerType}`,
-          'mouse:up touch (cancelled)',
+          'mouse:up touch',
         ]);
         // Passed on to OSD, with its navigation turned on for the pan.
         expect(info.stopPropagation).not.toBe(true);

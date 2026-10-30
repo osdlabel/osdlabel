@@ -34,7 +34,11 @@ vi.hoisted(() => {
   proto['releasePointerCapture'] = () => {};
 });
 
-import { FabricOverlay, type OverlayMode } from '../../../src/overlay/fabric-overlay.js';
+import {
+  FabricOverlay,
+  type OverlayMode,
+  type PointerCancelCallback,
+} from '../../../src/overlay/fabric-overlay.js';
 import {
   POINTER_CANCEL,
   POINTER_DOWN,
@@ -102,6 +106,19 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
   }
 
   const summary = () => forwarded.map((e) => [e.type, e.pointerId, e.isPrimary]);
+
+  /**
+   * Every cancel reported to subscribers: the press it took away, the pointer
+   * type of the event that revealed it, and how many events the overlay had
+   * forwarded by then (a cancel must come before the release that ends it).
+   */
+  function listenForCancels(): { pressSeq: number; by: string; afterForwarded: number }[] {
+    const cancels: { pressSeq: number; by: string; afterForwarded: number }[] = [];
+    overlay.onPointerCancel(((event, pressSeq) => {
+      cancels.push({ pressSeq, by: event.pointerType, afterForwarded: forwarded.length });
+    }) satisfies PointerCancelCallback);
+    return cancels;
+  }
 
   beforeEach(() => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -223,12 +240,19 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
     },
   );
 
-  it('marks a cancelled press so a tool can discard it', () => {
+  it('tells subscribers of a cancelled press, before its release, so a tool can discard it', () => {
     setup('paint');
+    const cancels = listenForCancels();
     const finger: Pointer = { id: 1, type: 'touch' };
     fire(POINTER_DOWN, finger);
     fire(POINTER_CANCEL, finger);
-    expect(overlay.isCancelledRelease(forwarded[1]!)).toBe(true);
+    expect(summary()).toEqual([
+      [POINTER_DOWN, 1, true],
+      [POINTER_UP, 1, true],
+    ]);
+    expect(cancels).toEqual([
+      { pressSeq: overlay.pressSeqOf(forwarded[0]!), by: 'touch', afterForwarded: 1 },
+    ]);
   });
 
   // The lift of the pressing finger is ended, and qualified as a click, by
@@ -259,6 +283,7 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
     // The iPad order: the hand rests, the pencil lands, then the platform
     // cancels the palm.
     setup('paint');
+    const cancels = listenForCancels();
     const palm: Pointer = { id: 7, type: 'touch' };
     const pen: Pointer = { id: 5, type: 'pen' };
     fire(POINTER_DOWN, palm);
@@ -274,8 +299,12 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
       [POINTER_MOVE, 5, true],
       [POINTER_UP, 5, true],
     ]);
-    expect(overlay.isCancelledRelease(forwarded[1]!)).toBe(true);
-    expect(overlay.isCancelledRelease(forwarded[4]!)).toBe(false);
+    // The palm's press is cancelled once, by the pencil's, before the release
+    // that ends it; the platform's later cancel of the palm, and the pencil's
+    // lift, are no others.
+    expect(cancels).toEqual([
+      { pressSeq: overlay.pressSeqOf(forwarded[0]!), by: 'pen', afterForwarded: 1 },
+    ]);
     expect(contacts('pen')).toBe(0);
     expect(contacts('touch')).toBe(0);
   });
@@ -285,6 +314,7 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
     // while the other hand takes the mouse. Nothing cancels that finger, so
     // it lifts after the mouse's stroke, and its lift must end nothing.
     setup('paint');
+    const cancels = listenForCancels();
     const finger: Pointer = { id: 7, type: 'touch' };
     const mouse: Pointer = { id: 1, type: 'mouse' };
     fire(POINTER_DOWN, finger);
@@ -300,8 +330,11 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
       [POINTER_MOVE, 1, true],
       [POINTER_UP, 1, true],
     ]);
-    expect(overlay.isCancelledRelease(forwarded[1]!)).toBe(true);
-    expect(overlay.isCancelledRelease(forwarded[4]!)).toBe(false);
+    // The finger's press is cancelled once, by the mouse's, before the
+    // release that ends it; the finger's lift and the mouse's are no others.
+    expect(cancels).toEqual([
+      { pressSeq: overlay.pressSeqOf(forwarded[0]!), by: 'mouse', afterForwarded: 1 },
+    ]);
     expect(contacts('mouse')).toBe(0);
     expect(contacts('touch')).toBe(0);
   });
