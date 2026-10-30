@@ -365,20 +365,19 @@ const { byImage } = deserialize(json, { maskCodecs: registry });
 ```
 
 Before it decodes anything, `deserialize` checks what each annotation declares
-against itself: a mask payload, in any format, may not sit under a vector
-geometry, a mask geometry needs a mask payload, and a mask geometry needs
+against itself: a mask payload, in any format, must declare a mask geometry or
+none, a mask geometry needs a mask payload, and a mask geometry needs
 `toolType: 'segmentationBrush'` (the rest of these checks are in the
 [Serialization guide](/osdlabel/guides/serialization/#importing-annotations)).
 Decoding then replaces the geometry with one read off the pixels, so this is
 the only point at which a rectangle declared over a mask payload can be told
-from a mask. A document that fails it is refused before any mask costs a
-decode, and that refusal wins over what decoding would have reported: an
-annotation whose declared geometry disagrees with its payload or its tool
-refuses the document even when its pixels are corrupt too, and a document
-over the decode budget is refused for the disagreement. A mask that declares
-no geometry, or one whose `type` is no geometry type, has nothing to compare
-yet: its `toolType` is checked once decoding has given it a geometry, and if
-its pixels do not decode it is skipped.
+from a mask. A mask that declares no geometry is given one by decoding, and is
+checked here as mask geometry, so it too needs the brush. A geometry that is
+present but is no geometry at all (`null`, a string, `{ "type": "Rectangle" }`)
+is refused. A document that fails these checks is refused before any mask
+costs a decode, and that refusal wins over what decoding would have reported:
+such an annotation refuses the document even when its pixels are corrupt too,
+and a document over the decode budget is refused for what was declared.
 
 Every mask in the document is decoded on import — canonical ones included, not
 just the foreign formats a codec handles. That does three things: it converts

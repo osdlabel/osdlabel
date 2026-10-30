@@ -40,8 +40,11 @@ Three behaviour changes: two on the import path, and one for older readers:
   annotation whose declared geometry disagrees with its payload or its tool
   (a mask payload under vector geometry, say, or mask geometry recorded under
   another tool) even when its own pixels could not be decoded either: those
-  are checked before any mask is decoded. A mask that declares no geometry is
-  checked against its tool only once decoded, and skipped if it cannot be.
+  are checked before any mask is decoded. A mask payload must declare a mask
+  geometry or none, and one that declares none is checked as mask geometry,
+  so it too is refused under another tool, and one whose geometry is present
+  but is no geometry (`null`, `{ type: 'Rectangle' }`) is refused whatever
+  its tool, rather than skipped when its pixels are corrupt.
 - **Earlier releases cannot read a document that holds a mask.** Their schema
   rejects `geometry.type: 'mask'` and `toolType: 'segmentationBrush'`, and a
   schema failure costs the whole document, vector annotations included. Export
@@ -383,11 +386,16 @@ degrades alone instead of blanking its whole grid cell.
   `toolType`, that does not match the declared geometry costs no decode; and
   such a refusal wins over a skipped mask, over a blown budget, and over a
   missing field in an earlier annotation. An entry without a string `id` is
-  checked too, and named as having none. A field that is missing or of the
-  wrong type is left to `OsdAnnotationSchema`, which checks every annotation
-  whole once the masks are decoded; for a mask that declares no geometry,
-  that is when its `toolType` is checked. Invalid `maxMaskPixels` or
-  `maxTotalMaskPixels` options are reported before any of this.
+  checked too, and named as having none. A mask payload's geometry, which
+  decoding replaces, must be a mask geometry or be omitted: omitted, it
+  counts as mask geometry, so its `toolType` must still draw a mask, and one
+  that is present but is no geometry (`null`, a string,
+  `{ type: 'Rectangle' }`) is refused with a message naming the payload's
+  format and what the geometry is, rather than loaded as a mask under the
+  brush. Any other field that is missing or of the wrong type is left to
+  `OsdAnnotationSchema`, which checks every annotation whole once the masks
+  are decoded. Invalid `maxMaskPixels` or `maxTotalMaskPixels` options are
+  reported before any of this.
 - **The run lengths are bounded by the box before they are decoded.** A
   payload for a one-pixel mask could carry tens of megabytes of varints and
   buy seconds of work under a cap of 1; it is now refused in constant time.

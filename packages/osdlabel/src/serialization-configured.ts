@@ -58,12 +58,13 @@ export interface DeserializeResult<E extends object = Record<never, never>> {
    * than of one annotation in it. That includes an annotation whose declared
    * geometry disagrees with its payload or its `toolType` (a mask payload under
    * vector geometry, or mask geometry under a `toolType` other than
-   * `segmentationBrush`, say): those are checked before any mask is decoded,
-   * so such an annotation refuses the document even when its pixels could not
-   * have been decoded either. A mask that declares no geometry, or one whose
-   * `type` is not a geometry type, has nothing to check until decoding gives
-   * it a geometry, so when its pixels do not decode it is skipped here like
-   * any other.
+   * `segmentationBrush`, say), and a mask payload whose geometry is present
+   * but is no geometry (`null`, `{ type: 'Rectangle' }`): those are checked
+   * before any mask is decoded, so such an annotation refuses the document
+   * even when its pixels could not have been decoded either. A mask that
+   * declares no geometry is checked as mask geometry, so under another tool it
+   * refuses the document too, whatever its pixels. Only a mask whose declared
+   * fields pass those checks can be skipped here.
    */
   readonly skipped: readonly DeserializeSkip[];
 }
@@ -230,12 +231,13 @@ export function serialize(
  *    `freeHandPath` for a polyline or a polygon, `segmentationBrush` for a
  *    mask). Constraints count annotations by `toolType`, so an annotation
  *    recorded under another tool would count against that tool's limit.
- *    Fields missing or of the wrong type are left to step 3. A mask entry's
- *    geometry is replaced in step 2, though, so a mask that declares none, or
- *    one whose `type` is not a geometry type, is checked against its
- *    `toolType` only in step 3, with the geometry its pixels give, and is
- *    skipped if they do not decode. An entry whose `id` is not a string is
- *    checked all the same, and named as having none.
+ *    Fields missing or of the wrong type are left to step 3, but for the
+ *    geometry under a mask payload: step 2 replaces it, so what the entry
+ *    declared is checked here or never. It must be a mask geometry, or be
+ *    omitted, and then counts as one, so the `toolType` must still be a tool
+ *    that draws a mask. One that is present but is no geometry (`null`, a
+ *    string, `{ type: 'Rectangle' }`) is refused. An entry whose `id` is not a
+ *    string is checked all the same, and named as having none.
  * 2. **Mask payloads are converted.** One written in a downstream format is
  *    converted back to the canonical encoding by `options.maskCodecs`, and
  *    every mask is decoded, within the budgets in {@link DeserializeOptions},
@@ -252,16 +254,18 @@ export function serialize(
  * {@link SerializationError} whose message, `Validation failed: ` and the
  * first problem that step found, is worded the same in both. For a payload of
  * the wrong kind, that is the annotation's id, its geometry type and the
- * payload's `format`; for a Fabric payload of the wrong class, its id, its
+ * payload's `format`; for a mask payload whose geometry is no geometry, its
+ * id, the payload's `format` and what the geometry is (only a string `type`
+ * is quoted, cut short); for a Fabric payload of the wrong class, its id, its
  * geometry type, the class it holds and the class it needs; for a `toolType`
  * that does not draw its geometry, its id, its geometry type, its `toolType`
  * and the tool types that draw it. Since step 1 comes first, its refusal wins
- * over everything step 2 would have done: an annotation whose declared fields
- * disagree refuses the document even when its own mask would have been
- * skipped, a document over the decode budget is refused for the disagreement
- * rather than for the budget, and no mask is decoded at all. It also wins over
- * step 3, over the whole document: a disagreement in a later annotation is
- * reported ahead of a missing field in an earlier one.
+ * over everything step 2 would have done: an annotation it refuses refuses
+ * the document even when its own mask would have been skipped, a document
+ * over the decode budget is refused for what step 1 found rather than for the
+ * budget, and no mask is decoded at all. It also wins over step 3, over the
+ * whole document: a disagreement in a later annotation is reported ahead of a
+ * missing field in an earlier one.
  *
  * Before any of that, `options`' decode bounds are checked, since an invalid
  * one is a fault in the call rather than in the document: `maxMaskPixels` or
@@ -434,13 +438,12 @@ function decodeBounds(options: DeserializeOptions): DecodeBounds {
  *
  * It runs after the cross-field checks on what each entry declares (step 1 of
  * {@link deserialize}) and before the full schema (step 3). Every format but
- * `'fabric'` counted as a mask payload in step 1, so an entry reaching here
- * declared mask geometry, or a geometry those checks could not read (none,
- * or one whose `type` is not a geometry type). Replacing a declared mask
- * geometry below hides no mismatch. Replacing an unreadable one means it is
- * never reported, and the entry's `toolType` is checked only in step 3,
- * against the geometry rebuilt here. What it does not decode — a format with
- * no codec to read it — is left for step 3 to refuse.
+ * `'fabric'` counted as a mask payload in step 1, which held such an entry's
+ * geometry to a mask geometry or none, and a `toolType` that is a tool type
+ * to one that draws a mask. So a mask entry reaching here declared mask
+ * geometry or none, and replacing it below hides nothing step 1 has not
+ * checked. What it does not decode — a format with no codec to read it — is
+ * left for step 3 to refuse.
  *
  * Three things happen here, and they are the same operation:
  *
@@ -459,8 +462,8 @@ function decodeBounds(options: DeserializeOptions): DecodeBounds {
  *    or from a tool that never had them — would otherwise reach state and show
  *    up as a wrong area or a selection box in the wrong place. Where the
  *    entry declared mask geometry only the numbers change, since that it
- *    declared a mask was settled in step 1; a geometry step 1 could not read
- *    is replaced whole.
+ *    declared a mask was settled in step 1; where it declared none, the
+ *    geometry is supplied whole.
  *
  * A tint recorded at paint time survives on the canonical path and is lost on
  * the foreign one: export formats carry pixels, not styling.

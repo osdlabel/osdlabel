@@ -13,9 +13,10 @@
  * both, and the dev app reports the rejection the way it reports any import
  * error, with an alert, leaving the panel open so the text can be fixed.
  *
- * A mask payload under a rectangle's geometry is refused the same way. It
- * has to be caught on the fields as written, before the mask is decoded:
- * decoding replaces the geometry with the mask's own.
+ * A mask payload under a rectangle's geometry is refused the same way, and so
+ * is one under a geometry that is no geometry at all. Each has to be caught on
+ * the fields as written, before the mask is decoded: decoding replaces the
+ * geometry with the mask's own.
  */
 import type { Page } from '@playwright/test';
 import { test, expect } from './helpers/fixtures.js';
@@ -260,18 +261,33 @@ test.describe('Import JSON: a mask payload needs mask geometry', () => {
       },
       { format: 'coco-rle-uncompressed', data: { size: [4, 4], counts: [0, 2, 2, 2, 10] } },
     ];
+    // And a rectangle whose geometry's type is miscased, which is no geometry:
+    // it was not checked until decoding had replaced it, so it loaded as a mask.
+    const variants = [
+      ...payloads.map((payload) => ({
+        payload,
+        geometry: rectangle.geometry,
+        refusal:
+          `has rectangle geometry, but its rawAnnotationData's format is ` +
+          `"${payload.format}", not "fabric"`,
+      })),
+      {
+        payload: payloads[0]!,
+        geometry: { ...rectangle.geometry, type: 'Rectangle' },
+        refusal:
+          `has a mask payload (format "osdlabel-mask"), but its geometry is an object ` +
+          `whose type is "Rectangle", not a mask geometry`,
+      },
+    ];
     const expected: string[] = [];
-    for (const payload of payloads) {
+    for (const { payload, geometry, refusal } of variants) {
       const edited = exported.map((a) =>
         a.id === rectangle.id
-          ? { ...a, toolType: 'segmentationBrush', rawAnnotationData: payload }
+          ? { ...a, geometry, toolType: 'segmentationBrush', rawAnnotationData: payload }
           : a,
       );
       await submitImport(page, JSON.stringify(edited, null, 2));
-      expected.push(
-        `Import failed: Validation failed: Annotation "${rectangle.id}" has rectangle geometry, ` +
-          `but its rawAnnotationData's format is "${payload.format}", not "fabric"`,
-      );
+      expected.push(`Import failed: Validation failed: Annotation "${rectangle.id}" ${refusal}`);
       await expect
         .poll(() => dialogs, { message: 'no import error was shown', timeout: 5000 })
         .toEqual(expected);

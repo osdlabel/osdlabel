@@ -11,7 +11,10 @@
  * So these pin three things: a declared mismatch is refused in the words the
  * full schema uses, naming what was declared; no mask is decoded when it is,
  * which makes the refusal win over a skipped mask and over a blown budget;
- * and every document that loaded before still loads.
+ * and every document that loaded before still loads, but for a mask payload
+ * whose geometry, as written, is neither a mask geometry nor omitted, or
+ * whose `toolType` does not draw a mask: those are refused now, like the
+ * rest, before any decode.
  */
 import { describe, expect, it } from 'vitest';
 import * as v from 'valibot';
@@ -330,38 +333,141 @@ describe('deserialize: a wrong Fabric class or toolType costs no decode', () => 
   });
 });
 
-describe('deserialize: what step 1 cannot check is checked once the masks are decoded', () => {
-  // A mask's geometry is replaced by the one its pixels give, so one that
-  // declares none has nothing for step 1 to compare its toolType with. The
-  // full schema compares it, after the decode; if the pixels do not decode,
-  // the mask is skipped like any other.
+describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
+  // Decoding replaces a mask's geometry with the one its pixels give, so what
+  // the entry declared is checked before that or never. A mask payload whose
+  // geometry is no geometry loaded as a mask when recorded under the brush;
+  // under another tool it was refused only once decoded, and skipped when its
+  // pixels did not decode.
   const withoutGeometry = (entry: Entry, changes: Record<string, unknown>): Entry => {
     const out: Record<string, unknown> = { ...entry, ...changes };
     delete out['geometry'];
     return out as Entry;
   };
+  const corrupt = (entry: Entry): Entry => {
+    const raw = entry.rawAnnotationData as { format: string; data: Record<string, unknown> };
+    return edited(entry, { rawAnnotationData: { ...raw, data: { ...raw.data, counts: '' } } });
+  };
 
-  it('refuses a mask with no geometry under another tool, after decoding it', () => {
+  const malformed: readonly (readonly [string, unknown, string])[] = [
+    ['null', null, 'null'],
+    ['an array', [], 'an array'],
+    ['a string', 'rectangle', 'a string'],
+    ['an object with no type', {}, 'an object with no type'],
+    [
+      'a miscased rectangle',
+      { type: 'Rectangle', origin: { x: 5, y: 5 }, width: 20, height: 10, rotation: 0 },
+      'an object whose type is "Rectangle"',
+    ],
+  ];
+  const cases = [CANONICAL, COCO].flatMap((format) =>
+    (['segmentationBrush', 'rectangle'] as const).flatMap((toolType) =>
+      malformed.map(
+        ([name, geometry, found]) => [format, name, toolType, geometry, found] as const,
+      ),
+    ),
+  );
+  const geometryMessage = (format: string, found: string): string =>
+    `Validation failed: Annotation "m2" has a mask payload (format "${format}"), but its ` +
+    `geometry is ${found}, not a mask geometry`;
+
+  it.each(cases)(
+    'a %s mask whose geometry is %s, under the %s tool, is refused before any decode',
+    (format, _name, toolType, geometry, found) => {
+      const codec = format === COCO ? cocoRleCodec : undefined;
+      const [good, bad] = saved([mask('m1'), mask('m2')], codec);
+      const coco = countingCoco();
+      const first = countingReads(good!);
+      const second = countingReads(edited(bad!, { toolType, geometry }));
+      const err = rejection([first.entry, second.entry], coco.options);
+      expect(err.message).toBe(geometryMessage(format, found));
+      // The geometry alone: there is no geometry for the tool to be wrong about.
+      expect(issuesOf(err)).toHaveLength(1);
+      expect(coco.decodes(), 'a mask was decoded before the refusal').toBe(0);
+      expect(first.reads() + second.reads(), 'a mask payload was read').toBe(0);
+    },
+  );
+
+  it.each([CANONICAL, COCO])(
+    'a %s mask whose geometry is malformed and whose pixels are corrupt is refused, not skipped',
+    (format) => {
+      const codec = format === COCO ? cocoRleCodec : undefined;
+      const [good, bad] = saved([mask('m1'), mask('m2')], codec);
+      // As declared, the corrupt mask is skipped and the rest loads.
+      const loaded = deserialize([good!, corrupt(bad!)], countingCoco().options);
+      expect(loaded.skipped.map((s) => s.id)).toEqual(['m2']);
+
+      for (const toolType of ['segmentationBrush', 'rectangle']) {
+        for (const [, geometry, found] of malformed) {
+          const coco = countingCoco();
+          const masks = [countingReads(good!), countingReads(edited(corrupt(bad!), { toolType }))];
+          const doc = [masks[0]!.entry, edited(masks[1]!.entry, { geometry })];
+          expect(rejection(doc, coco.options).message).toBe(geometryMessage(format, found));
+          expect(coco.decodes()).toBe(0);
+          expect(masks[0]!.reads() + masks[1]!.reads()).toBe(0);
+        }
+      }
+    },
+  );
+
+  it('a document over the decode budget is refused for a malformed geometry instead', () => {
+    // As in the budget tests above: about 500 cells and runs a disc, 600 in all.
+    const budget = { maxTotalMaskPixels: 600 };
+    const masks = saved(['m1', 'm2', 'm3', 'm4'].map(mask), cocoRleCodec);
     const coco = countingCoco();
-    const [entry] = saved([mask('m1')], cocoRleCodec);
-    const err = rejection([withoutGeometry(entry!, { toolType: 'rectangle' })], coco.options);
-    expect(err.message).toBe(
-      'Validation failed: Annotation "m1" has mask geometry, but its toolType is ' +
-        '"rectangle", not "segmentationBrush"',
+    expect(rejection(masks, { ...coco.options, ...budget }).message).toMatch(
+      /^Failed to decode mask payload: Document's masks decode to more than 600/,
     );
-    expect(coco.decodes()).toBe(1);
+    const after = countingCoco();
+    const doc = masks.map((e) => (e.id === 'm4' ? edited(e, { geometry: 'mask' }) : e));
+    expect(rejection(doc, { ...after.options, ...budget }).message).toBe(
+      'Validation failed: Annotation "m4" has a mask payload (format "coco-rle"), but its ' +
+        'geometry is a string, not a mask geometry',
+    );
+    expect(after.decodes()).toBe(0);
   });
 
-  it('skips one whose pixels do not decode either, and loads the rest', () => {
-    const [good, bad] = saved([mask('m1'), mask('m2')]);
-    const raw = bad!.rawAnnotationData as { format: string; data: Record<string, unknown> };
-    const corrupt = withoutGeometry(bad!, {
-      toolType: 'rectangle',
-      rawAnnotationData: { ...raw, data: { ...raw.data, counts: '' } },
+  describe('one that declares no geometry is checked as mask geometry', () => {
+    it.each([CANONICAL, COCO])(
+      'a %s mask with none under another tool is refused before any decode',
+      (format) => {
+        const codec = format === COCO ? cocoRleCodec : undefined;
+        const coco = countingCoco();
+        const [entry] = saved([mask('m1')], codec);
+        const counted = countingReads(withoutGeometry(entry!, { toolType: 'rectangle' }));
+        const err = rejection([counted.entry], coco.options);
+        expect(err.message).toBe(
+          'Validation failed: Annotation "m1" has mask geometry, but its toolType is ' +
+            '"rectangle", not "segmentationBrush"',
+        );
+        expect(coco.decodes()).toBe(0);
+        expect(counted.reads()).toBe(0);
+      },
+    );
+
+    it.each([CANONICAL, COCO])(
+      'a %s mask with none under another tool is refused even when its pixels are corrupt',
+      (format) => {
+        const codec = format === COCO ? cocoRleCodec : undefined;
+        const [good, bad] = saved([mask('m1'), mask('m2')], codec);
+        const doc = [good!, withoutGeometry(corrupt(bad!), { toolType: 'rectangle' })];
+        expect(rejection(doc, countingCoco().options).message).toBe(
+          'Validation failed: Annotation "m2" has mask geometry, but its toolType is ' +
+            '"rectangle", not "segmentationBrush"',
+        );
+        // Under the brush it is only a corrupt mask, and is skipped.
+        const brushed = [good!, withoutGeometry(corrupt(bad!), {})];
+        const { byImage, skipped } = deserialize(brushed, countingCoco().options);
+        expect(skipped.map((s) => s.id)).toEqual(['m2']);
+        expect(Object.keys(byImage[imageId]!)).toEqual(['m1']);
+      },
+    );
+
+    it('one with none under a toolType no tool has is left to the full schema', () => {
+      const [entry] = saved([mask('m1')]);
+      const doc = [withoutGeometry(entry!, { toolType: 'brush' })];
+      expect(rejection(doc).message).toMatch(/^Validation failed: Invalid type: .*"brush"$/);
     });
-    const { byImage, skipped } = deserialize([good!, corrupt]);
-    expect(skipped.map((s) => s.id)).toEqual(['m2']);
-    expect(Object.keys(byImage[imageId]!)).toEqual(['m1']);
   });
 });
 
