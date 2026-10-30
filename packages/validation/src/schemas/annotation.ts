@@ -69,6 +69,31 @@ const DRAWS = {
 
 const TOOL_TYPES = Object.keys(DRAWS) as readonly ToolType[];
 
+const GEOMETRY_TYPES: readonly GeometryType[] = [
+  ...(Object.keys(PAINTED_BY) as readonly VectorGeometry['type'][]),
+  'mask',
+];
+
+/**
+ * What the cross-field checks compare, read off one annotation.
+ *
+ * Read off a structurally valid annotation for `OsdAnnotationSchema`, where
+ * every field is present, or off a document entry as declared, before
+ * anything has been validated or decoded, for `OsdAnnotationCrossFieldSchema`.
+ * There a field that is missing or of the wrong type is `undefined`, and each
+ * check that needs it passes: what shape the entry has is the full schema's
+ * question, not these checks'.
+ */
+interface CrossFields {
+  readonly id: string;
+  readonly geometryType: GeometryType;
+  readonly toolType: ToolType | undefined;
+  /** `rawAnnotationData.format`. Every format but `'fabric'` is a mask payload. */
+  readonly format: string | undefined;
+  /** `rawAnnotationData.data.type`, the saved Fabric class, for a Fabric payload. */
+  readonly fabricClass: string | undefined;
+}
+
 /** The part of a structurally valid annotation the cross-field checks read. */
 interface PaintedAnnotation {
   readonly id: string;
@@ -79,21 +104,68 @@ interface PaintedAnnotation {
     | { readonly format: typeof MASK_RAW_FORMAT };
 }
 
-/** Whether the payload is the kind its geometry needs: pixels for a mask, Fabric otherwise. */
-function pairsItsPayload(annotation: PaintedAnnotation): boolean {
-  return (
-    (annotation.geometry.type === 'mask') ===
-    (annotation.rawAnnotationData.format === MASK_RAW_FORMAT)
-  );
+function crossFieldsOf(annotation: PaintedAnnotation): CrossFields {
+  const raw = annotation.rawAnnotationData;
+  return {
+    id: annotation.id,
+    geometryType: annotation.geometry.type,
+    toolType: annotation.toolType,
+    format: raw.format,
+    fabricClass: raw.format === 'fabric' ? raw.data.type : undefined,
+  };
 }
 
-function pairMismatchMessage(annotation: PaintedAnnotation): string {
-  const { id, geometry, rawAnnotationData } = annotation;
-  return geometry.type === 'mask'
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isGeometryType(value: unknown): value is GeometryType {
+  return typeof value === 'string' && (GEOMETRY_TYPES as readonly string[]).includes(value);
+}
+
+function isToolType(value: unknown): value is ToolType {
+  return typeof value === 'string' && (TOOL_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * The cross fields an entry declares, or `undefined` when it names no
+ * annotation id or no known geometry type, which every check needs.
+ */
+function declaredCrossFields(entry: unknown): CrossFields | undefined {
+  if (!isRecord(entry)) return undefined;
+  const { id, geometry, toolType, rawAnnotationData: raw } = entry;
+  if (typeof id !== 'string' || !isRecord(geometry)) return undefined;
+  const geometryType = geometry['type'];
+  if (!isGeometryType(geometryType)) return undefined;
+  const format = isRecord(raw) && typeof raw['format'] === 'string' ? raw['format'] : undefined;
+  const data = format === 'fabric' && isRecord(raw) ? raw['data'] : undefined;
+  return {
+    id,
+    geometryType,
+    toolType: isToolType(toolType) ? toolType : undefined,
+    format,
+    fabricClass: isRecord(data) && typeof data['type'] === 'string' ? data['type'] : undefined,
+  };
+}
+
+/**
+ * Whether the payload is the kind its geometry needs: pixels for a mask,
+ * Fabric otherwise. Every payload that is not Fabric counts as pixels, so a
+ * mask payload in a format a codec converts is held to the same rule as a
+ * canonical one.
+ */
+function pairsItsPayload(fields: CrossFields): boolean {
+  if (fields.format === undefined) return true;
+  return (fields.geometryType === 'mask') === (fields.format !== 'fabric');
+}
+
+function pairMismatchMessage(fields: CrossFields): string {
+  const { id, geometryType, format } = fields;
+  return geometryType === 'mask'
     ? `Annotation "${id}" has mask geometry, but its rawAnnotationData is a ` +
-        `"${rawAnnotationData.format}" payload, not "${MASK_RAW_FORMAT}"`
-    : `Annotation "${id}" has ${geometry.type} geometry, but its rawAnnotationData is a ` +
-        `"${MASK_RAW_FORMAT}" payload, not a Fabric object`;
+        `"${String(format)}" payload, not "${MASK_RAW_FORMAT}"`
+    : `Annotation "${id}" has ${geometryType} geometry, but its rawAnnotationData is a ` +
+        `"${String(format)}" payload, not a Fabric object`;
 }
 
 /**
@@ -101,19 +173,19 @@ function pairMismatchMessage(annotation: PaintedAnnotation): string {
  * mask, or a payload of the wrong kind, passes here: `pairsItsPayload` owns
  * that case, and a mask payload has no class to compare.
  */
-function paintsItsGeometry(annotation: PaintedAnnotation): boolean {
-  const { geometry, rawAnnotationData: raw } = annotation;
-  if (geometry.type === 'mask' || raw.format !== 'fabric') return true;
-  return raw.data.type.toLowerCase() === PAINTED_BY[geometry.type].toLowerCase();
+function paintsItsGeometry(fields: CrossFields): boolean {
+  const { geometryType, format, fabricClass } = fields;
+  if (geometryType === 'mask' || format !== 'fabric' || fabricClass === undefined) return true;
+  return fabricClass.toLowerCase() === PAINTED_BY[geometryType].toLowerCase();
 }
 
-function paintMismatchMessage(annotation: PaintedAnnotation): string {
-  const { id, geometry, rawAnnotationData: raw } = annotation;
+function paintMismatchMessage(fields: CrossFields): string {
+  const { id, geometryType, fabricClass } = fields;
   // Unreachable: `paintsItsGeometry` passes every such annotation.
-  if (geometry.type === 'mask' || raw.format !== 'fabric') return '';
+  if (geometryType === 'mask') return '';
   return (
-    `Annotation "${id}" has ${geometry.type} geometry, but its rawAnnotationData ` +
-    `is a Fabric ${raw.data.type}, not a ${PAINTED_BY[geometry.type]}`
+    `Annotation "${id}" has ${geometryType} geometry, but its rawAnnotationData ` +
+    `is a Fabric ${String(fabricClass)}, not a ${PAINTED_BY[geometryType]}`
   );
 }
 
@@ -122,16 +194,33 @@ function draws(toolType: ToolType, geometryType: GeometryType): boolean {
   return drawn.includes(geometryType);
 }
 
-function drawsItsGeometry(annotation: PaintedAnnotation): boolean {
-  return draws(annotation.toolType, annotation.geometry.type);
+function drawsItsGeometry(fields: CrossFields): boolean {
+  return fields.toolType === undefined || draws(fields.toolType, fields.geometryType);
 }
 
-function toolMismatchMessage(annotation: PaintedAnnotation): string {
-  const { id, geometry, toolType } = annotation;
-  const tools = TOOL_TYPES.filter((t) => draws(t, geometry.type));
+function toolMismatchMessage(fields: CrossFields): string {
+  const { id, geometryType, toolType } = fields;
+  const tools = TOOL_TYPES.filter((t) => draws(t, geometryType));
   return (
-    `Annotation "${id}" has ${geometry.type} geometry, but its toolType is "${toolType}", ` +
+    `Annotation "${id}" has ${geometryType} geometry, but its toolType is "${String(toolType)}", ` +
     `not ${tools.map((t) => `"${t}"`).join(' or ')}`
+  );
+}
+
+/** One cross-field check over a document entry's declared fields. */
+function declaredCheck(
+  passes: (fields: CrossFields) => boolean,
+  message: (fields: CrossFields) => string,
+) {
+  return v.check(
+    (entry: unknown) => {
+      const fields = declaredCrossFields(entry);
+      return fields === undefined || passes(fields);
+    },
+    (issue) => {
+      const fields = declaredCrossFields(issue.input);
+      return fields === undefined ? '' : message(fields);
+    },
   );
 }
 
@@ -171,19 +260,61 @@ function toolMismatchMessage(annotation: PaintedAnnotation): string {
  * annotation, its geometry type, its `toolType` and the tool types that draw
  * it; for a mask that is `segmentationBrush`. When both checks fail, the
  * payload's issue comes first.
+ *
+ * {@link OsdAnnotationCrossFieldSchema} runs these three checks on an entry as
+ * written, before its shape is validated or its mask decoded.
  */
 export const OsdAnnotationSchema = v.pipe(
   v.intersect([BaseAnnotationSchema, OsdFieldsSchema]),
   v.check(
-    (annotation) => pairsItsPayload(annotation),
-    (issue) => pairMismatchMessage(issue.input),
+    (annotation) => pairsItsPayload(crossFieldsOf(annotation)),
+    (issue) => pairMismatchMessage(crossFieldsOf(issue.input)),
   ),
   v.check(
-    (annotation) => paintsItsGeometry(annotation),
-    (issue) => paintMismatchMessage(issue.input),
+    (annotation) => paintsItsGeometry(crossFieldsOf(annotation)),
+    (issue) => paintMismatchMessage(crossFieldsOf(issue.input)),
   ),
   v.check(
-    (annotation) => drawsItsGeometry(annotation),
-    (issue) => toolMismatchMessage(issue.input),
+    (annotation) => drawsItsGeometry(crossFieldsOf(annotation)),
+    (issue) => toolMismatchMessage(crossFieldsOf(issue.input)),
   ),
+);
+
+/**
+ * The cross-field checks of {@link OsdAnnotationSchema}, run on a document
+ * entry as it was written, before anything else about it is validated: that a
+ * mask geometry has a mask payload and a vector geometry a Fabric one, that a
+ * Fabric payload is the class that paints its geometry, and that the
+ * `toolType` is a tool that draws the geometry. Each issue is worded as
+ * `OsdAnnotationSchema` words it, and its output is its input, unchanged.
+ *
+ * `deserialize` runs it over a whole document before it decodes any mask, and
+ * `OsdAnnotationSchema` once the masks are decoded. Decoding rewrites a mask
+ * entry's geometry from its pixels, so without this a mismatch in what the
+ * entry declared would never be seen: rectangle geometry over a mask payload
+ * would load as a mask. It also means a document refused for a wrong
+ * `toolType` is refused before any of its masks costs a decode.
+ *
+ * It differs from those checks in two ways:
+ *
+ * - Every payload whose `format` is not `'fabric'` counts as a mask payload,
+ *   since a mask exported through a codec (`'coco-rle'`, say) is converted to
+ *   the canonical `osdlabel-mask` only after this runs. The pairing issue
+ *   quotes the `format` as written.
+ * - It checks only the fields it can read. An entry with no string `id`, or
+ *   no `geometry` whose `type` is a geometry type, passes, and so does each
+ *   check whose own fields are missing or of the wrong type: the `toolType`
+ *   check when the `toolType` is not a tool type, the pairing and class
+ *   checks when there is no string `format`, and the class check when a
+ *   Fabric payload's `data.type` is not a string. Those are faults in the
+ *   entry's shape, which `OsdAnnotationSchema` reports.
+ *
+ * So it never refuses an entry `OsdAnnotationSchema` accepts, and it is no
+ * substitute for it.
+ */
+export const OsdAnnotationCrossFieldSchema = v.pipe(
+  v.unknown(),
+  declaredCheck(pairsItsPayload, pairMismatchMessage),
+  declaredCheck(paintsItsGeometry, paintMismatchMessage),
+  declaredCheck(drawsItsGeometry, toolMismatchMessage),
 );

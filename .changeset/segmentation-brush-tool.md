@@ -36,7 +36,11 @@ Three behaviour changes: two on the import path, and one for older readers:
   dropped and reported in the new `DeserializeResult.skipped`, so one corrupt
   annotation does not cost you the rest of the document. Check `skipped` if
   partial data is not acceptable for your use — it is empty on a clean load.
-  Schema violations and a blown decode budget still throw.
+  Schema violations and a blown decode budget still throw, and so does an
+  annotation whose declared fields disagree (a mask payload under vector
+  geometry, say, or a mask recorded under another tool) even when its own
+  pixels could not be decoded either: those are checked before any mask is
+  decoded.
 - **Earlier releases cannot read a document that holds a mask.** Their schema
   rejects `geometry.type: 'mask'` and `toolType: 'segmentationBrush'`, and a
   schema failure costs the whole document, vector annotations included. Export
@@ -233,8 +237,11 @@ host's `maxCanvasPixels`.
   an object's interaction flags and needed by any host with a custom cell
   renderer; and `FabricOverlay.getImageSize()`.
 - **`@osdlabel/validation`**: `MaskGeometrySchema`,
-  `MaskRawAnnotationDataSchema`, and the bounds `MAX_MASK_PIXELS`,
-  `MAX_MASK_COUNTS_LENGTH`, `MAX_IMAGE_DIMENSION`, `MAX_MASK_DOWNSAMPLE`.
+  `MaskRawAnnotationDataSchema`, the bounds `MAX_MASK_PIXELS`,
+  `MAX_MASK_COUNTS_LENGTH`, `MAX_IMAGE_DIMENSION`, `MAX_MASK_DOWNSAMPLE`, and
+  `OsdAnnotationCrossFieldSchema`, the cross-field checks of
+  `OsdAnnotationSchema` run alone on an entry as written, which `deserialize`
+  runs before it decodes any mask.
 - **`@osdlabel/geometry` and `@osdlabel/decoration`** learn masks: `area` is the
   exact `pixelCount`, `perimeter` and `length` are `0`, `centroid` and
   `boundingBox` come from the bounding box, and `createMeasurementProvider`
@@ -362,6 +369,19 @@ behaviour that predates this change.
 Rendering also isolates each annotation, so a mask that cannot be rebuilt
 degrades alone instead of blanking its whole grid cell.
 
+- **What each annotation declares is checked before any mask is decoded.**
+  Decoding replaces a mask's geometry with one read off its pixels, so
+  `deserialize` first runs the cross-field checks (a mask geometry has a mask
+  payload and a vector geometry a Fabric one, a Fabric payload is the class
+  that paints its geometry, the `toolType` draws the geometry) on the fields
+  as the document writes them, with `OsdAnnotationCrossFieldSchema`, counting
+  every payload that is not Fabric as a mask payload. A rectangle declared
+  over a mask payload, canonical or a codec's, is refused with a message
+  naming its geometry and the payload's format, rather than loaded as a mask;
+  a document refused for a wrong `toolType` or Fabric class costs no decode;
+  and such a refusal wins over a skipped mask and over a blown budget. A field
+  that is missing or of the wrong type is left to `OsdAnnotationSchema`, which
+  checks every annotation whole once the masks are decoded.
 - **The run lengths are bounded by the box before they are decoded.** A
   payload for a one-pixel mask could carry tens of megabytes of varints and
   buy seconds of work under a cap of 1; it is now refused in constant time.

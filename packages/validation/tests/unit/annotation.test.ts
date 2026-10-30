@@ -12,12 +12,17 @@
  * It also checks that the annotation's `toolType` names a tool that draws its
  * geometry's type. Constraints count annotations by `toolType`, so a rectangle
  * recorded as drawn by the line tool would use up a line and free a rectangle.
+ *
+ * `OsdAnnotationCrossFieldSchema` runs those three checks alone, on an entry as
+ * written, for `deserialize` to run before it decodes any mask: every payload
+ * that is not Fabric counts as a mask payload there, and a field it cannot
+ * read is left to `OsdAnnotationSchema`.
  */
 import { describe, expect, it } from 'vitest';
 import * as v from 'valibot';
 import { Circle, Line, Polygon, Polyline, Rect, type FabricObject } from 'fabric';
 import { toolTypeToGeometryType, type ToolType } from '@osdlabel/annotation';
-import { OsdAnnotationSchema } from '../../src/index.js';
+import { OsdAnnotationCrossFieldSchema, OsdAnnotationSchema } from '../../src/index.js';
 
 /** One geometry of each type. */
 const GEOMETRIES = {
@@ -354,5 +359,175 @@ describe('OsdAnnotationSchema: the toolType must draw the geometry', () => {
     expect(result.issues![0]!.message).toMatch(
       /^Invalid type: Expected .* but received "polygon"$/,
     );
+  });
+});
+
+/** The messages of the issues a parse reported, in order; none for a success. */
+function messages(result: {
+  readonly issues?: readonly { readonly message: string }[] | undefined;
+}): string[] {
+  return (result.issues ?? []).map((issue) => issue.message);
+}
+
+/** A mask payload in a codec's format, as `serialize` writes it with `{ maskCodec }`. */
+const COCO_RAW = { format: 'coco-rle', data: { size: [600, 800], counts: 'PQ5' } } as const;
+
+describe('OsdAnnotationCrossFieldSchema: the same checks, on an entry as written', () => {
+  // Every well-formed annotation the tests above parse: each pairing of a
+  // geometry and a payload, of a tool and a geometry, and the two together.
+  const wellFormed: readonly (readonly [string, unknown])[] = [
+    ...pairings.map(
+      ([g, f]) => [`${g} geometry with a ${f} payload`, annotation(g, PAYLOADS[f])] as const,
+    ),
+    ...toolPairings.map(([t, g]) => [`toolType ${t} with ${g} geometry`, drawnBy(g, t)] as const),
+    ...fabricClasses.map(
+      (cls) =>
+        [
+          `mask geometry with a ${cls} payload`,
+          {
+            ...maskAnnotation(),
+            rawAnnotationData: { format: 'fabric', fabricVersion: '7.4.0', data: PAYLOADS[cls] },
+          },
+        ] as const,
+    ),
+    ...geometryNames.map(
+      (g) =>
+        [
+          `${g} geometry with a mask payload`,
+          {
+            ...(annotation(g, PAYLOADS[PAINTED_BY[g]]) as Record<string, unknown>),
+            rawAnnotationData: MASK_RAW,
+          },
+        ] as const,
+    ),
+    [
+      'a wrong payload and a wrong toolType',
+      {
+        ...(annotation('rectangle', PAYLOADS.Circle) as Record<string, unknown>),
+        toolType: 'point',
+      },
+    ],
+  ];
+
+  it('covers every pairing tried above', () => {
+    expect(wellFormed).toHaveLength(30 + 49 + 5 + 6 + 1);
+  });
+
+  it.each(wellFormed)('%s: reported as OsdAnnotationSchema reports it', (_name, input) => {
+    const full = v.safeParse(OsdAnnotationSchema, input);
+    const cross = v.safeParse(OsdAnnotationCrossFieldSchema, input);
+    expect(cross.success).toBe(full.success);
+    expect(messages(cross)).toEqual(messages(full));
+  });
+
+  it('passes its input through unchanged', () => {
+    const input = annotation('rectangle', PAYLOADS.Rect);
+    expect(v.parse(OsdAnnotationCrossFieldSchema, input)).toBe(input);
+  });
+});
+
+describe("OsdAnnotationCrossFieldSchema: every payload but Fabric is a mask's", () => {
+  it('accepts a mask exported through a codec, which OsdAnnotationSchema cannot read', () => {
+    const input = { ...maskAnnotation(), rawAnnotationData: COCO_RAW };
+    expect(v.safeParse(OsdAnnotationCrossFieldSchema, input).success).toBe(true);
+    expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
+  });
+
+  it.each(geometryNames)('refuses %s geometry over it, quoting its format', (g) => {
+    const input = {
+      ...(annotation(g, PAYLOADS[PAINTED_BY[g]]) as Record<string, unknown>),
+      rawAnnotationData: COCO_RAW,
+    };
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
+      `Annotation "ann-${g}" has ${g} geometry, but its rawAnnotationData is a "coco-rle" payload, not a Fabric object`,
+    ]);
+  });
+
+  it('reports the brush drawing that geometry as well, after the payload', () => {
+    const input = {
+      ...(annotation('rectangle', PAYLOADS.Rect) as Record<string, unknown>),
+      toolType: 'segmentationBrush',
+      rawAnnotationData: COCO_RAW,
+    };
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
+      'Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData is a "coco-rle" payload, not a Fabric object',
+      'Annotation "ann-rectangle" has rectangle geometry, but its toolType is "segmentationBrush", not "rectangle"',
+    ]);
+  });
+
+  it('refuses a mask recorded under another tool, whatever its format', () => {
+    const input = { ...maskAnnotation(), toolType: 'polyline', rawAnnotationData: COCO_RAW };
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
+      'Annotation "ann-mask" has mask geometry, but its toolType is "polyline", not "segmentationBrush"',
+    ]);
+  });
+});
+
+describe('OsdAnnotationCrossFieldSchema: it checks only what it can read', () => {
+  const rect = annotation('rectangle', PAYLOADS.Rect) as Record<string, unknown>;
+  const fabric = { format: 'fabric', fabricVersion: '7.4.0' };
+  // Each of these is malformed, and each would be a mismatch if the field
+  // that is missing or of the wrong type were read as anything.
+  const unreadable: readonly (readonly [string, unknown])[] = [
+    ['null', null],
+    ['a number', 42],
+    ['an array', [rect]],
+    ['an object with no prototype', Object.create(null)],
+    ['no id', { ...rect, id: 7, toolType: 'line' }],
+    ['no geometry', { ...rect, geometry: undefined, rawAnnotationData: MASK_RAW }],
+    ['a null geometry', { ...rect, geometry: null, rawAnnotationData: MASK_RAW }],
+    ['a geometry type no geometry has', { ...rect, geometry: { type: 'blob' }, toolType: 'line' }],
+    ['a toolType no tool has', { ...maskAnnotation(), toolType: 'brush' }],
+    ['a payload that is a string', { ...maskAnnotation(), rawAnnotationData: 'osdlabel-mask' }],
+    ['a payload with no format', { ...rect, rawAnnotationData: { data: MASK_RAW.data } }],
+    ['a format that is not a string', { ...rect, rawAnnotationData: { format: 1, data: {} } }],
+    [
+      'a Fabric payload with no class',
+      { ...rect, geometry: GEOMETRIES.circle, toolType: 'circle', rawAnnotationData: fabric },
+    ],
+    [
+      'a Fabric payload whose class is not a string',
+      {
+        ...rect,
+        geometry: GEOMETRIES.circle,
+        toolType: 'circle',
+        rawAnnotationData: { ...fabric, data: { type: 7 } },
+      },
+    ],
+  ];
+
+  it.each(unreadable)('passes %s, for OsdAnnotationSchema to refuse', (_name, input) => {
+    expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([]);
+    expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
+  });
+
+  it("does not compare a mask geometry's numbers, which decoding replaces", () => {
+    const input = { ...maskAnnotation(), geometry: { type: 'mask', width: 'wide' } };
+    expect(v.safeParse(OsdAnnotationCrossFieldSchema, input).success).toBe(true);
+  });
+
+  it('still reports a mismatch it can read beside a field it cannot', () => {
+    expect(
+      messages(
+        v.safeParse(OsdAnnotationCrossFieldSchema, {
+          ...rect,
+          toolType: 'brush',
+          rawAnnotationData: MASK_RAW,
+        }),
+      ),
+    ).toEqual([
+      'Annotation "ann-rectangle" has rectangle geometry, but its rawAnnotationData is a "osdlabel-mask" payload, not a Fabric object',
+    ]);
+    expect(
+      messages(
+        v.safeParse(OsdAnnotationCrossFieldSchema, {
+          ...rect,
+          toolType: 'line',
+          rawAnnotationData: fabric,
+        }),
+      ),
+    ).toEqual([
+      'Annotation "ann-rectangle" has rectangle geometry, but its toolType is "line", not "rectangle"',
+    ]);
   });
 });

@@ -12,6 +12,10 @@
  * context's lines and free one of its rectangles. `deserialize` now rejects
  * both, and the dev app reports the rejection the way it reports any import
  * error, with an alert, leaving the panel open so the text can be fixed.
+ *
+ * A mask payload under a rectangle's geometry is refused the same way. It
+ * has to be caught on the fields as written, before the mask is decoded:
+ * decoding replaces the geometry with the mask's own.
  */
 import type { Page } from '@playwright/test';
 import { test, expect } from './helpers/fixtures.js';
@@ -223,5 +227,60 @@ test.describe('Import JSON: the toolType must draw the geometry', () => {
     expect(await paintedBounds(page)).toEqual(paintedBefore);
     await expect(rectTool).toContainText('Rect 1/2');
     await expect(lineTool).toContainText('Line 1/3');
+  });
+});
+
+test.describe('Import JSON: a mask payload needs mask geometry', () => {
+  test('a rectangle carrying a mask payload is refused rather than loaded as a mask', async ({
+    page,
+  }) => {
+    const dialogs: string[] = [];
+    page.on('dialog', (dialog) => {
+      dialogs.push(dialog.message());
+      void dialog.accept();
+    });
+
+    const view = await openAnnotator(page);
+    const rectangle = await drawRectangle(page, view, { x: 200, y: 200 }, { x: 400, y: 320 });
+    await deselect(page);
+    const exported = await exportDocument(page);
+    const storedBefore = await annotationsText(page);
+    const paintedBefore = await paintedBounds(page);
+    expect(paintedBefore, 'the rectangle is painted before the import').not.toBeNull();
+
+    // A 2x2 mask at the image origin, in the canonical encoding and in a codec
+    // format the panel reads. Recorded under the brush, the rectangle would
+    // pass every check made after the mask is decoded, because decoding
+    // replaces its geometry with the mask's: only its declared geometry says
+    // it is not a mask.
+    const payloads = [
+      {
+        format: 'osdlabel-mask',
+        data: { x: 0, y: 0, width: 2, height: 2, imageWidth: 4, imageHeight: 4, counts: 'AAQ=' },
+      },
+      { format: 'coco-rle-uncompressed', data: { size: [4, 4], counts: [0, 2, 2, 2, 10] } },
+    ];
+    const expected: string[] = [];
+    for (const payload of payloads) {
+      const edited = exported.map((a) =>
+        a.id === rectangle.id
+          ? { ...a, toolType: 'segmentationBrush', rawAnnotationData: payload }
+          : a,
+      );
+      await submitImport(page, JSON.stringify(edited, null, 2));
+      expected.push(
+        `Import failed: Validation failed: Annotation "${rectangle.id}" has rectangle geometry, ` +
+          `but its rawAnnotationData is a "${payload.format}" payload, not a Fabric object`,
+      );
+      await expect
+        .poll(() => dialogs, { message: 'no import error was shown', timeout: 5000 })
+        .toEqual(expected);
+      await expect(page.getByPlaceholder('Paste exported JSON here...')).toBeVisible();
+
+      // Nothing was loaded: the rectangle is stored and painted as it was.
+      await settle(page);
+      expect(await annotationsText(page)).toBe(storedBefore);
+      expect(await paintedBounds(page)).toEqual(paintedBefore);
+    }
   });
 });

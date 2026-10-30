@@ -364,6 +364,19 @@ const registry = createMaskCodecRegistry(cocoRleCodec);
 const { byImage } = deserialize(json, { maskCodecs: registry });
 ```
 
+Before it decodes anything, `deserialize` checks what each annotation declares
+against itself: a mask payload, in any format, may not sit under a vector
+geometry, a mask geometry needs a mask payload, and a mask geometry needs
+`toolType: 'segmentationBrush'` (the rest of these checks are in the
+[Serialization guide](/osdlabel/guides/serialization/#importing-annotations)).
+Decoding then replaces the geometry with one read off the pixels, so this is
+the only point at which a rectangle declared over a mask payload can be told
+from a mask. A document that fails it is refused before any mask costs a
+decode, and that refusal wins over what decoding would have reported: an
+annotation whose declared fields disagree refuses the document even when its
+pixels are corrupt too, and a document over the decode budget is refused for
+the disagreement.
+
 Every mask in the document is decoded on import — canonical ones included, not
 just the foreign formats a codec handles. That does three things: it converts
 what needs converting, it proves the payload is actually decodable rather than
@@ -421,7 +434,9 @@ tight bounds and save afterwards.
 
 Everything else still throws: a schema violation, or a document that blows the
 decode budget, is a property of the file rather than of one annotation in it,
-and loading part of it silently would be worse than refusing.
+and loading part of it silently would be worse than refusing. Once the masks are
+decoded, every annotation is checked whole against `OsdAnnotationSchema`, which
+has the final word on what loads.
 
 Round-tripping through a codec is lossless for pixels but not for styling: the
 render tint is an osdlabel field that COCO has nowhere to put, so re-imported

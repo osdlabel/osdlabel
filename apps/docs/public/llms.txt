@@ -1362,7 +1362,13 @@ const { byImage } = deserialize(parsed);
 actions.loadAnnotations(byImage);
 ```
 
-`deserialize()` checks every annotation with `OsdAnnotationSchema` from `@osdlabel/validation` (see [Validation](#validation)). If any annotation is invalid it throws `SerializationError`, whose message names the first problem, and returns nothing, so a bad document is never half loaded. A mask whose pixels cannot be decoded is the one exception: it is dropped alone and listed in the result's `skipped` (see [Importing](/osdlabel/guides/segmentation-brush/#importing) in the Segmentation Brush guide).
+`deserialize()` checks a document in three steps, the cheap one first:
+
+1. Before it decodes any mask, it checks what each annotation declares against itself, with `OsdAnnotationCrossFieldSchema` from `@osdlabel/validation`: that its `geometry.type` and the kind of its `rawAnnotationData` agree ([below](#geometry-and-the-saved-fabric-object)), and that its `toolType` draws that geometry ([Choosing a `toolType`](#choosing-a-tooltype)).
+2. It converts mask payloads written in another format and decodes every mask (see [Importing](/osdlabel/guides/segmentation-brush/#importing) in the Segmentation Brush guide).
+3. It checks every annotation whole with `OsdAnnotationSchema` (see [Validation](#validation)).
+
+If any annotation fails step 1 or step 3 it throws `SerializationError`, whose message names the first problem, and returns nothing, so a bad document is never half loaded. A mask whose pixels cannot be decoded is the one exception: it is dropped alone and listed in the result's `skipped`. Because step 1 comes first, an annotation whose declared fields disagree refuses the document even when its own pixels could not be decoded either, and a document that is refused there costs no decode at all.
 
 ### Flat out, keyed in
 
@@ -1398,6 +1404,12 @@ A mask is the exception. Its `rawAnnotationData` is an `osdlabel-mask` pixel pay
 
 ```text
 Validation failed: Annotation "m1" has mask geometry, but its rawAnnotationData is a "fabric" payload, not "osdlabel-mask"
+```
+
+This is checked on the fields as the document writes them, before the mask is decoded and its geometry recomputed, and every payload that is not Fabric counts as a mask payload: a mask exported through a codec ([below](#exporting-masks-in-another-format)) may not declare a vector geometry either. The message quotes the payload's format:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData is a "coco-rle" payload, not a Fabric object
 ```
 
 Fabric saves the class name capitalised, as above; the lowercase name, which Fabric also loads, is accepted too. The error names the annotation and both types:
@@ -1585,6 +1597,8 @@ Validation checks include:
 - That a mask geometry has a mask payload, and a vector geometry a Fabric one (`OsdAnnotationSchema`, which is what `deserialize` uses)
 - That the saved Fabric object is the class that paints the geometry's type (also `OsdAnnotationSchema`; see [above](#geometry-and-the-saved-fabric-object))
 - That the `toolType` is a tool that draws the geometry's type (also `OsdAnnotationSchema`; see [Choosing a `toolType`](#choosing-a-tooltype))
+
+`OsdAnnotationCrossFieldSchema` runs the last three checks alone, on an entry as written: it is what `deserialize` runs before it decodes any mask ([Importing annotations](#importing-annotations)). It counts every payload that is not Fabric as a mask payload, and leaves a field that is missing or of the wrong type to `OsdAnnotationSchema`, so it never refuses an entry that `OsdAnnotationSchema` accepts, and does not replace it.
 
 ## Listening to changes
 
@@ -1992,6 +2006,19 @@ const registry = createMaskCodecRegistry(cocoRleCodec);
 const { byImage } = deserialize(json, { maskCodecs: registry });
 ```
 
+Before it decodes anything, `deserialize` checks what each annotation declares
+against itself: a mask payload, in any format, may not sit under a vector
+geometry, a mask geometry needs a mask payload, and a mask geometry needs
+`toolType: 'segmentationBrush'` (the rest of these checks are in the
+[Serialization guide](/osdlabel/guides/serialization/#importing-annotations)).
+Decoding then replaces the geometry with one read off the pixels, so this is
+the only point at which a rectangle declared over a mask payload can be told
+from a mask. A document that fails it is refused before any mask costs a
+decode, and that refusal wins over what decoding would have reported: an
+annotation whose declared fields disagree refuses the document even when its
+pixels are corrupt too, and a document over the decode budget is refused for
+the disagreement.
+
 Every mask in the document is decoded on import — canonical ones included, not
 just the foreign formats a codec handles. That does three things: it converts
 what needs converting, it proves the payload is actually decodable rather than
@@ -2048,7 +2075,9 @@ tight bounds and save afterwards.
 
 Everything else still throws: a schema violation, or a document that blows the
 decode budget, is a property of the file rather than of one annotation in it,
-and loading part of it silently would be worse than refusing.
+and loading part of it silently would be worse than refusing. Once the masks are
+decoded, every annotation is checked whole against `OsdAnnotationSchema`, which
+has the final word on what loads.
 
 Round-tripping through a codec is lossless for pixels but not for styling: the
 render tint is an osdlabel field that COCO has nowhere to put, so re-imported
