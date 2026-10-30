@@ -94,7 +94,11 @@ interface CrossFields {
    * which the pairing check refuses.
    */
   readonly geometryType: GeometryType | undefined;
-  /** The geometry as written, for that issue to describe. */
+  /**
+   * The geometry as written, for that issue to describe. `undefined` only for
+   * an entry as written whose payload is a mask's and which omits it: that
+   * counts as mask geometry, and the `toolType` issue says it is omitted.
+   */
   readonly geometry: unknown;
   readonly toolType: ToolType | undefined;
   /** `rawAnnotationData.format`. Every format but `'fabric'` is a mask payload. */
@@ -258,14 +262,16 @@ function pairsItsPayload(fields: CrossFields): boolean {
  * A geometry that is no geometry gives no such hint of which was meant. Its
  * issue calls the payload a mask payload, which is how the rule that refuses
  * it counts one, and quotes the `format` beside it, so that a misspelled
- * `'fabric'` shows there.
+ * `'fabric'` shows there. It ends with the two fixes for a mask: a geometry
+ * whose `type` is `'mask'`, or none.
  */
 function pairMismatchMessage(fields: CrossFields): string {
   const { subject, geometryType, format } = fields;
   if (geometryType === undefined) {
     return (
       `${subject} has a mask payload (format "${String(format)}"), but its geometry is ` +
-      `${describeGeometry(fields.geometry)}, not a mask geometry`
+      `${describeGeometry(fields.geometry)}, not a mask geometry; give it type "mask", ` +
+      `or leave geometry out`
     );
   }
   return geometryType === 'mask'
@@ -311,13 +317,23 @@ function drawsItsGeometry(fields: CrossFields): boolean {
   return toolType === undefined || geometryType === undefined || draws(toolType, geometryType);
 }
 
+/**
+ * A mask payload that omits its geometry is checked as mask geometry, but
+ * its issue says what was declared: the payload, with its `format` as
+ * written, and no geometry. Saying it has mask geometry would claim one
+ * nobody declared, and for a misspelled `'fabric'` would hide the fault.
+ */
 function toolMismatchMessage(fields: CrossFields): string {
-  const { subject, geometryType, toolType } = fields;
+  const { subject, geometryType, toolType, format } = fields;
   // Unreachable: `drawsItsGeometry` passes every such annotation.
   if (geometryType === undefined) return '';
   const tools = TOOL_TYPES.filter((t) => draws(t, geometryType));
+  const declared =
+    fields.geometry === undefined
+      ? `a mask payload (format "${String(format)}") and no geometry`
+      : `${geometryType} geometry`;
   return (
-    `${subject} has ${geometryType} geometry, but its toolType is "${String(toolType)}", ` +
+    `${subject} has ${declared}, but its toolType is "${String(toolType)}", ` +
     `not ${tools.map((t) => `"${t}"`).join(' or ')}`
   );
 }
@@ -401,8 +417,8 @@ export const OsdAnnotationSchema = v.pipe(
  * mask geometry has a mask payload and a vector geometry a Fabric one, that a
  * Fabric payload is the class that paints its geometry, and that the
  * `toolType` is a tool that draws the geometry. Each issue is worded as
- * `OsdAnnotationSchema` words it, but for the one only this schema raises (a
- * mask payload's geometry that is no geometry, below), and its output is its
+ * `OsdAnnotationSchema` words it, but for the two about a mask payload's
+ * geometry that only this schema raises (below), and its output is its
  * input, unchanged.
  *
  * `deserialize` runs it over a whole document before it decodes any mask, and
@@ -422,12 +438,15 @@ export const OsdAnnotationSchema = v.pipe(
  *   `'fabric'` it needs, since it may as well be a misspelling.
  * - Under a mask payload the geometry must be a mask geometry, or be omitted,
  *   since decoding gives the entry one. Omitted, it counts as mask geometry,
- *   so the `toolType` must still be a tool that draws a mask. Present but no
+ *   so the `toolType` must still be a tool that draws a mask; the issue when
+ *   it is not says the payload has that `format`, as written, and no
+ *   geometry, rather than mask geometry nobody declared. Present but no
  *   geometry at all (`null`, an array, a string, an object with no `type`,
  *   such as `{ downsample: 4 }`, or with one that is no geometry type), it is
  *   refused with an issue naming the payload's `format` as written and what
  *   the geometry is, quoting nothing of it but a string `type`, as JSON and
- *   cut short. Only its `type` is read: its other fields, which decoding
+ *   cut short, and ending with the fix: give it type `"mask"`, or leave
+ *   geometry out. Only its `type` is read: its other fields, which decoding
  *   replaces, are not compared.
  * - Otherwise it checks only the fields it can read. An entry whose payload
  *   is not a mask's passes when its `geometry` is missing or its `type` is

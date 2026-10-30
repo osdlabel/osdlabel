@@ -259,17 +259,20 @@ export function serialize(
  * first problem that step found, is worded the same in both. For a payload of
  * the wrong kind, that is the annotation's id, its geometry type and the
  * payload's `format`; for a mask payload whose geometry is no geometry, its
- * id, the payload's `format` and what the geometry is (only a string `type`
- * is quoted, cut short); for a Fabric payload of the wrong class, its id, its
- * geometry type, the class it holds and the class it needs; for a `toolType`
- * that does not draw its geometry, its id, its geometry type, its `toolType`
- * and the tool types that draw it. Since step 1 comes first, its refusal wins
- * over everything step 2 would have done: an annotation it refuses refuses
- * the document even when its own mask would have been skipped, a document
- * over the decode budget is refused for what step 1 found rather than for the
- * budget, and no mask is decoded at all. It also wins over step 3, over the
- * whole document: a disagreement in a later annotation is reported ahead of a
- * missing field in an earlier one.
+ * id, the payload's `format`, what the geometry is (only a string `type` is
+ * quoted, cut short) and the fix (give it type `"mask"`, or leave geometry
+ * out); for a Fabric payload of the wrong class, its id, its geometry type,
+ * the class it holds and the class it needs; for a `toolType` that does not
+ * draw its geometry, its id, its geometry type, its `toolType` and the tool
+ * types that draw it. When a mask payload omits its geometry, that issue
+ * names the payload's `format` and says there is no geometry, in place of a
+ * geometry type. Since step 1 comes first, its refusal wins over everything
+ * step 2 would have done: an annotation it refuses refuses the document even
+ * when its own mask would have been skipped, a document over the decode
+ * budget is refused for what step 1 found rather than for the budget, and no
+ * mask is decoded at all. It also wins over step 3, over the whole document:
+ * a disagreement in a later annotation is reported ahead of a missing field
+ * in an earlier one.
  *
  * Before any of that, `options`' decode bounds are checked, since an invalid
  * one is a fault in the call rather than in the document: `maxMaskPixels` or

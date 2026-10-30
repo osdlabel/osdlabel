@@ -1406,10 +1406,10 @@ This is checked on the fields as the document writes them, before the mask is de
 Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData's format is "coco-rle", not "fabric"
 ```
 
-A mask payload may omit its `geometry`, since decoding supplies one, but a geometry it declares must be a geometry. One that is not, such as `null`, a string, `{ "type": "Rectangle" }`, or `{ "downsample": 4 }` (a mask geometry needs its `"type": "mask"`, whatever else it records), is refused with a message saying what it is, which quotes nothing of it but a string `type`, cut short. The message calls the payload a mask payload, since that is how the rule counts it, and quotes its format, so a misspelled `"fabric"` shows there:
+A mask payload may omit its `geometry`, since decoding supplies one, but a geometry it declares must be a geometry. One that is not, such as `null`, a string, `{ "type": "Rectangle" }`, or `{ "downsample": 4 }` (a mask geometry needs its `"type": "mask"`, whatever else it records), is refused with a message saying what it is, which quotes nothing of it but a string `type`, cut short, and how to fix it. The message calls the payload a mask payload, since that is how the rule counts it, and quotes its format, so a misspelled `"fabric"` shows there:
 
 ```text
-Validation failed: Annotation "m1" has a mask payload (format "coco-rle"), but its geometry is an object whose type is "Rectangle", not a mask geometry
+Validation failed: Annotation "m1" has a mask payload (format "coco-rle"), but its geometry is an object whose type is "Rectangle", not a mask geometry; give it type "mask", or leave geometry out
 ```
 
 Fabric saves the class name capitalised, as above; the lowercase name, which Fabric also loads, is accepted too. The error names the annotation and both types:
@@ -1512,6 +1512,12 @@ It accepts any `VectorGeometry` (`rectangle`, `circle`, `line`, `point`, `polyli
 
 ```text
 Validation failed: Annotation "a1" has rectangle geometry, but its toolType is "line", not "rectangle"
+```
+
+A mask payload that omits its `geometry` is checked as mask geometry, since decoding gives it one, so it too needs `'segmentationBrush'`. Its message says what the annotation declares, the payload with its format and no geometry, so a misspelled `"fabric"` shows there too:
+
+```text
+Validation failed: Annotation "m1" has a mask payload (format "coco-rle") and no geometry, but its toolType is "rectangle", not "segmentationBrush"
 ```
 
 `createAnnotationFromGeometry` does not check the pairing, so an annotation built with another one is stored and counted as given, and its document is then refused when it is loaded.

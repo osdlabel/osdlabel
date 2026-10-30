@@ -392,14 +392,16 @@ degrades alone instead of blanking its whole grid cell.
   missing field in an earlier annotation. An entry without a string `id` is
   checked too, and named as having none. A mask payload's geometry, which
   decoding replaces, must be a mask geometry or be omitted: omitted, it
-  counts as mask geometry, so its `toolType` must still draw a mask, and one
-  that is present but is no geometry (`null`, a string,
+  counts as mask geometry, so its `toolType` must still draw a mask (the
+  message then names the payload's format and says there is no geometry),
+  and one that is present but is no geometry (`null`, a string,
   `{ type: 'Rectangle' }`) is refused with a message naming the payload's
-  format and what the geometry is, rather than loaded as a mask under the
-  brush. Any other field that is missing or of the wrong type is left to
-  `OsdAnnotationSchema`, which checks every annotation whole once the masks
-  are decoded. Invalid `maxMaskPixels` or `maxTotalMaskPixels` options are
-  reported before any of this.
+  format, what the geometry is and the fix (give it type `"mask"`, or leave
+  geometry out), rather than loaded as a mask under the brush. Any other
+  field that is missing or of the wrong type is left to `OsdAnnotationSchema`,
+  which checks every annotation whole once the masks are decoded. Invalid
+  `maxMaskPixels` or `maxTotalMaskPixels` options are reported before any of
+  this.
 - **The run lengths are bounded by the box before they are decoded.** A
   payload for a one-pixel mask could carry tens of megabytes of varints and
   buy seconds of work under a cap of 1; it is now refused in constant time.

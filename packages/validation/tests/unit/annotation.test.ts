@@ -533,7 +533,7 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
     (format, _name, raw, geometry, found) => {
       const input = { ...maskAnnotation(), geometry, rawAnnotationData: raw };
       expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
-        `Annotation "ann-mask" has a mask payload (format "${format}"), but its geometry is ${found}, not a mask geometry`,
+        `Annotation "ann-mask" has a mask payload (format "${format}"), but its geometry is ${found}, not a mask geometry; give it type "mask", or leave geometry out`,
       ]);
       // As written, the full schema refuses it too: this refuses nothing it accepts.
       expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
@@ -550,7 +550,7 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
         rawAnnotationData: COCO_RAW,
       };
       expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
-        'Annotation "ann-mask" has a mask payload (format "coco-rle"), but its geometry is an object whose type is "Rectangle", not a mask geometry',
+        'Annotation "ann-mask" has a mask payload (format "coco-rle"), but its geometry is an object whose type is "Rectangle", not a mask geometry; give it type "mask", or leave geometry out',
       ]);
     },
   );
@@ -561,11 +561,11 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
       geometry: { type: `${'x'.repeat(40)}${'y'.repeat(4000)}` },
     };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, long))).toEqual([
-      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(32)}"…, not a mask geometry`,
+      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(32)}"…, not a mask geometry; give it type "mask", or leave geometry out`,
     ]);
     const quoted = { ...maskAnnotation(), geometry: { type: 'Rect"\nangle' } };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, quoted))).toEqual([
-      'Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "Rect\\"\\nangle", not a mask geometry',
+      'Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "Rect\\"\\nangle", not a mask geometry; give it type "mask", or leave geometry out',
     ]);
   });
 
@@ -574,12 +574,12 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
     // the cut at 32 falls between the halves of the first one's pair.
     const input = { ...maskAnnotation(), geometry: { type: `${'x'.repeat(31)}😀😀` } };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
-      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(31)}😀"…, not a mask geometry`,
+      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(31)}😀"…, not a mask geometry; give it type "mask", or leave geometry out`,
     ]);
     // Exactly 32 code points, 34 code units: nothing is cut.
     const whole = { ...maskAnnotation(), geometry: { type: `${'x'.repeat(30)}😀😀` } };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, whole))).toEqual([
-      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(30)}😀😀", not a mask geometry`,
+      `Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "${'x'.repeat(30)}😀😀", not a mask geometry; give it type "mask", or leave geometry out`,
     ]);
   });
 
@@ -589,7 +589,7 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
     const type = 'a\u202Eb\u200Bc\u2028d\u2029e\u{E0001}f';
     const input = { ...maskAnnotation(), geometry: { type } };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
-      'Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "a\\u202eb\\u200bc\\u2028d\\u2029e\\udb40\\udc01f", not a mask geometry',
+      'Annotation "ann-mask" has a mask payload (format "osdlabel-mask"), but its geometry is an object whose type is "a\\u202eb\\u200bc\\u2028d\\u2029e\\udb40\\udc01f", not a mask geometry; give it type "mask", or leave geometry out',
     ]);
     // What is escaped is still the type: the quote is a JSON string of it.
     const [message] = messages(v.safeParse(OsdAnnotationCrossFieldSchema, input));
@@ -599,7 +599,7 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
   it('names an entry with no string id as such', () => {
     const input = { ...maskAnnotation(), id: 7, geometry: null };
     expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, input))).toEqual([
-      'An annotation with no string id has a mask payload (format "osdlabel-mask"), but its geometry is null, not a mask geometry',
+      'An annotation with no string id has a mask payload (format "osdlabel-mask"), but its geometry is null, not a mask geometry; give it type "mask", or leave geometry out',
     ]);
   });
 
@@ -635,18 +635,45 @@ describe("OsdAnnotationCrossFieldSchema: a mask payload's geometry is a mask's, 
     );
 
     it.each(refused)(
-      'refuses format %s with no geometry under the %s tool, as it would a mask geometry',
-      (_format, toolType, raw) => {
-        const expected = [
-          `Annotation "ann-mask" has mask geometry, but its toolType is "${toolType}", not "segmentationBrush"`,
-        ];
-        const omitted = withoutGeometry({ toolType, rawAnnotationData: raw });
-        expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, omitted))).toEqual(expected);
-        expect(v.safeParse(OsdAnnotationSchema, omitted).success).toBe(false);
+      'refuses format %s with no geometry under the %s tool, saying it declared none',
+      (format, toolType, raw) => {
+        // Refused as mask geometry would be, but worded as declared: the
+        // payload and its format, and no geometry.
+        for (const omitted of [
+          withoutGeometry({ toolType, rawAnnotationData: raw }),
+          { ...maskAnnotation(), toolType, geometry: undefined, rawAnnotationData: raw },
+        ]) {
+          expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, omitted))).toEqual([
+            `Annotation "ann-mask" has a mask payload (format "${format}") and no geometry, but its toolType is "${toolType}", not "segmentationBrush"`,
+          ]);
+          expect(v.safeParse(OsdAnnotationSchema, omitted).success).toBe(false);
+        }
+        // A declared mask geometry is named as the full schema names it.
         const declared = { ...maskAnnotation(), toolType, rawAnnotationData: raw };
-        expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, declared))).toEqual(expected);
+        expect(messages(v.safeParse(OsdAnnotationCrossFieldSchema, declared))).toEqual([
+          `Annotation "ann-mask" has mask geometry, but its toolType is "${toolType}", not "segmentationBrush"`,
+        ]);
       },
     );
+
+    it('quotes a misspelled Fabric format with no geometry, where the fault is', () => {
+      // A rectangle whose format is miscased and whose geometry was dropped:
+      // the format counts it as a mask payload, so it is refused under the
+      // rectangle tool. Called mask geometry, it would point away from the
+      // format; the issue quotes it instead.
+      const input = withoutGeometry({
+        id: 'ann-rectangle',
+        toolType: 'rectangle',
+        rawAnnotationData: { format: 'Fabric', fabricVersion: '7.4.0', data: PAYLOADS.Rect },
+      });
+      const found = messages(v.safeParse(OsdAnnotationCrossFieldSchema, input));
+      expect(found).toEqual([
+        'Annotation "ann-rectangle" has a mask payload (format "Fabric") and no geometry, but its toolType is "rectangle", not "segmentationBrush"',
+      ]);
+      expect(found[0]).toContain('(format "Fabric")');
+      expect(found[0]).not.toContain('mask geometry');
+      expect(v.safeParse(OsdAnnotationSchema, input).success).toBe(false);
+    });
 
     it.each(['brush', 7, undefined])(
       'passes one with none under toolType %s, for OsdAnnotationSchema to refuse',

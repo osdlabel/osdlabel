@@ -276,7 +276,8 @@ test.describe('Import JSON: a mask payload needs mask geometry', () => {
         geometry: { ...rectangle.geometry, type: 'Rectangle' },
         refusal:
           `has a mask payload (format "osdlabel-mask"), but its geometry is an object ` +
-          `whose type is "Rectangle", not a mask geometry`,
+          `whose type is "Rectangle", not a mask geometry; give it type "mask", or leave ` +
+          `geometry out`,
       },
     ];
     const expected: string[] = [];

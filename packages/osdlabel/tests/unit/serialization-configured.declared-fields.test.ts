@@ -8,13 +8,16 @@
  * under the brush, loaded as one without a word. And a document refused for a
  * wrong `toolType` first decoded every mask in it, up to the budget.
  *
- * So these pin three things: a declared mismatch is refused in the words the
- * full schema uses, naming what was declared; no mask is decoded when it is,
- * which makes the refusal win over a skipped mask and over a blown budget;
- * and every document that loaded before still loads, but for a mask payload
- * whose geometry, as written, is neither a mask geometry nor omitted, or
- * whose `toolType` does not draw a mask: those are refused now, like the
- * rest, before any decode.
+ * So these pin three things: a declared mismatch is refused, naming what was
+ * declared, in the full schema's words wherever it has words for it; no mask
+ * is decoded when it is, which makes the refusal win over a skipped mask and
+ * over a blown budget; and every document that loaded before still loads,
+ * but for one holding a mask payload recorded under the brush whose
+ * geometry, as written, is neither a mask geometry nor omitted, which loaded
+ * as a mask. That is refused now, like the rest, before any decode. So is a
+ * mask payload whose `toolType` does not draw a mask, whatever its geometry,
+ * but that never loaded: it was refused after a decode, or skipped when its
+ * pixels were corrupt.
  */
 import { describe, expect, it } from 'vitest';
 import * as v from 'valibot';
@@ -369,7 +372,7 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
   );
   const geometryMessage = (format: string, found: string): string =>
     `Validation failed: Annotation "m2" has a mask payload (format "${format}"), but its ` +
-    `geometry is ${found}, not a mask geometry`;
+    `geometry is ${found}, not a mask geometry; give it type "mask", or leave geometry out`;
 
   it.each(cases)(
     'a %s mask whose geometry is %s, under the %s tool, is refused before any decode',
@@ -422,7 +425,7 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
     const doc = masks.map((e) => (e.id === 'm4' ? edited(e, { geometry: 'mask' }) : e));
     expect(rejection(doc, { ...after.options, ...budget }).message).toBe(
       'Validation failed: Annotation "m4" has a mask payload (format "coco-rle"), but its ' +
-        'geometry is a string, not a mask geometry',
+        'geometry is a string, not a mask geometry; give it type "mask", or leave geometry out',
     );
     expect(after.decodes()).toBe(0);
   });
@@ -441,7 +444,8 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
     const bare = edited(entry!, { geometry: { downsample: 4 } });
     expect(rejection([bare], refused.options).message).toBe(
       'Validation failed: Annotation "m1" has a mask payload (format "coco-rle"), but its ' +
-        'geometry is an object with no type, not a mask geometry',
+        'geometry is an object with no type, not a mask geometry; give it type "mask", or ' +
+        'leave geometry out',
     );
     expect(refused.decodes()).toBe(0);
 
@@ -459,6 +463,11 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
   });
 
   describe('one that declares no geometry is checked as mask geometry', () => {
+    // Worded as declared: the payload and its format, and no geometry.
+    const noGeometryMessage = (id: string, format: string): string =>
+      `Validation failed: Annotation "${id}" has a mask payload (format "${format}") and no ` +
+      'geometry, but its toolType is "rectangle", not "segmentationBrush"';
+
     it.each([CANONICAL, COCO])(
       'a %s mask with none under another tool is refused before any decode',
       (format) => {
@@ -467,7 +476,9 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
         const [entry] = saved([mask('m1')], codec);
         const counted = countingReads(withoutGeometry(entry!, { toolType: 'rectangle' }));
         const err = rejection([counted.entry], coco.options);
-        expect(err.message).toBe(
+        expect(err.message).toBe(noGeometryMessage('m1', format));
+        // Declared, the same mask geometry is named as the full schema names it.
+        expect(rejection([edited(entry!, { toolType: 'rectangle' })]).message).toBe(
           'Validation failed: Annotation "m1" has mask geometry, but its toolType is ' +
             '"rectangle", not "segmentationBrush"',
         );
@@ -483,8 +494,7 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
         const [good, bad] = saved([mask('m1'), mask('m2')], codec);
         const doc = [good!, withoutGeometry(corrupt(bad!), { toolType: 'rectangle' })];
         expect(rejection(doc, countingCoco().options).message).toBe(
-          'Validation failed: Annotation "m2" has mask geometry, but its toolType is ' +
-            '"rectangle", not "segmentationBrush"',
+          noGeometryMessage('m2', format),
         );
         // Under the brush it is only a corrupt mask, and is skipped.
         const brushed = [good!, withoutGeometry(corrupt(bad!), {})];
@@ -493,6 +503,18 @@ describe("deserialize: a mask payload's geometry is a mask's, or none", () => {
         expect(Object.keys(byImage[imageId]!)).toEqual(['m1']);
       },
     );
+
+    it('a rectangle with a miscased "Fabric" format and no geometry is refused, quoting it', () => {
+      // Its format counts it as a mask payload, so it is refused under the
+      // rectangle tool; the message quotes the format, where the fault is.
+      const [rect] = saved([rectangle('r1')]);
+      const misspelled = { ...rect!.rawAnnotationData, format: 'Fabric' };
+      const doc = [withoutGeometry(rect!, { rawAnnotationData: misspelled })];
+      expect(rejection(doc).message).toBe(
+        'Validation failed: Annotation "r1" has a mask payload (format "Fabric") and no ' +
+          'geometry, but its toolType is "rectangle", not "segmentationBrush"',
+      );
+    });
 
     it('one with none under a toolType no tool has is left to the full schema', () => {
       const [entry] = saved([mask('m1')]);
