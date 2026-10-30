@@ -703,6 +703,45 @@ describe('FabricOverlay: a cancelled press is undone', () => {
     expect(onDoubleClick).not.toHaveBeenCalled();
   });
 
+  /**
+   * The release that ends a cancelled press reaches a tool's `onPointerUp`
+   * as an ordinary lift. A subscriber that throws (a host's own, say) used to
+   * skip every subscriber after it, so a tool registered later heard no
+   * cancel and committed the press on that release: a palm's brush stroke.
+   */
+  it('tells every subscriber before the release, even when one before it throws', () => {
+    const order: string[] = [];
+    const failure = new Error('a host subscriber failed');
+    overlay.onPointerCancel(() => {
+      order.push('first');
+      throw failure;
+    });
+    const second = vi.fn<PointerCancelCallback>(() => {
+      order.push('second');
+    });
+    overlay.onPointerCancel(second);
+    let syntheticPress: PointerEvent | undefined;
+    overlay.canvas.on('mouse:down', (opt) => {
+      syntheticPress = opt.e as PointerEvent;
+    });
+    overlay.canvas.on('mouse:up', () => {
+      order.push('mouse:up');
+    });
+
+    press({ x: 100, y: 100 });
+    move({ x: 120, y: 110 });
+    // The first error still surfaces, once the gesture has ended.
+    expect(() => cancel({ x: 120, y: 110 })).toThrow(failure);
+
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(syntheticPress).toBeDefined();
+    expect(second.mock.calls[0]![1]).toBe(overlay.pressSeqOf(syntheticPress!));
+    expect(order).toEqual(['first', 'second', 'mouse:up']);
+    expect(transformOpen()).toBe(false);
+    expect(rect.left).toBe(100);
+    expect(modified).not.toHaveBeenCalled();
+  });
+
   it('unsubscribes', () => {
     const kept = vi.fn<PointerCancelCallback>();
     const dropped = vi.fn<PointerCancelCallback>();

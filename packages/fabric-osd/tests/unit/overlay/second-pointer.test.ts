@@ -486,6 +486,79 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
     expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
   });
 
+  /**
+   * Only `buttons` 0 shows a lift. A move with another button still down is
+   * the pan's: a chord (the left button released while the right is held)
+   * pans on until the last button lifts, and so does a pen whose eraser
+   * button is down.
+   */
+  it.each<[string, PointerSpec, number]>([
+    ['a mouse, its right button still down', MOUSE, 2],
+    ['a pen, its eraser button down', PEN, 32],
+  ])('keeps a pan going through a move of %s', (_name, pointer, buttons) => {
+    panPress(pointer, { x: 300, y: 300 });
+    const chord = event('pointermove', pointer, { x: 320, y: 310 });
+    Object.defineProperty(chord, 'buttons', { value: buttons });
+    const info = pre('pointermove', chord);
+    expect(info.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // Still the pan: a finger is held, and the pan ends at its own lift.
+    const finger = downUnreported(FINGER_A, { x: 100, y: 100 });
+    expect(finger.preventGesture).toBe(true);
+    upUnreported(FINGER_A, { x: 100, y: 100 });
+    pre('pointerup', event('pointerup', pointer, { x: 320, y: 310 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(firedAny('mouse:down')).toBe(0);
+  });
+
+  /**
+   * The first move after a swallowed release often lands off the image (on
+   * the toolbar, past the window's edge), where the overlay never sees it, so
+   * a buttonless move cannot be relied on. Chrome takes the pointer's capture
+   * back from the overlay's element on that move, wherever it lands, and
+   * that ends the pan too: otherwise fingers stayed held until the mouse came
+   * back over the image.
+   */
+  it.each<[string, PointerSpec]>([
+    ['mouse', MOUSE],
+    ['pen', PEN],
+  ])(
+    'ends a %s pan whose lift went unseen when the overlay loses its capture',
+    (_name, pointer) => {
+      panPress(pointer, { x: 300, y: 300 });
+      pre('pointermove', event('pointermove', pointer, { x: 320, y: 310 }));
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+      const lost = pre('lostpointercapture', event('lostpointercapture', pointer, { x: 0, y: 0 }));
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+      expect(lost.stopPropagation).not.toBe(true);
+
+      // A finger is no second pointer now: it drags the shape.
+      press(FINGER_A, { x: 100, y: 100 });
+      move(FINGER_A, { x: 150, y: 130 });
+      release(FINGER_A, { x: 150, y: 130 });
+      expect(firedBy('mouse:down', FINGER_A)).toBe(1);
+      expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+    },
+  );
+
+  it("keeps a pan going when another pointer loses capture, and ignores the pan's own after its lift", () => {
+    panPress(MOUSE, { x: 300, y: 300 });
+    pre('lostpointercapture', event('lostpointercapture', PEN, { x: 0, y: 0 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+    expect(downUnreported(FINGER_A, { x: 100, y: 100 }).preventGesture).toBe(true);
+    upUnreported(FINGER_A, { x: 100, y: 100 });
+
+    // An ordinary lift: the browser releases capture after the `pointerup`,
+    // which has ended the pan already.
+    pre('pointerup', event('pointerup', MOUSE, { x: 340, y: 320 }));
+    const calls = tv.setMouseNavEnabled.mock.calls.length;
+    pre('lostpointercapture', event('lostpointercapture', MOUSE, { x: 340, y: 320 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenCalledTimes(calls);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+  });
+
   it("keeps a pan going through another pointer's hover", () => {
     panPress(MOUSE, { x: 300, y: 300 });
     // A pen hovering beside the pan, no button down: not the pan's pointer.

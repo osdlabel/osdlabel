@@ -40,6 +40,7 @@ import {
   type PointerCancelCallback,
 } from '../../../src/overlay/fabric-overlay.js';
 import {
+  LOST_POINTER_CAPTURE,
   POINTER_CANCEL,
   POINTER_DOWN,
   POINTER_MOVE,
@@ -103,6 +104,15 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
         _overlayTracker: { getActivePointersListByType(t: string): { contacts: number } };
       }
     )._overlayTracker.getActivePointersListByType(type).contacts;
+  }
+
+  /** How many of a pointer type's contacts OSD holds as captured. */
+  function captureCount(type: string): number {
+    return (
+      overlay as unknown as {
+        _overlayTracker: { getActivePointersListByType(t: string): { captureCount: number } };
+      }
+    )._overlayTracker.getActivePointersListByType(type).captureCount;
   }
 
   const summary = () => forwarded.map((e) => [e.type, e.pointerId, e.isPrimary]);
@@ -280,6 +290,36 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
       [POINTER_UP, 1, true],
     ]);
     expect(contacts('mouse')).toBe(0);
+  });
+
+  it('ends a mouse pan whose lift went unseen when the overlay loses its capture', () => {
+    // The mouse's first move after the lost release lands off the image (on
+    // the toolbar, say), so no move reaches the tracker. Chrome takes the
+    // pointer's capture back from the overlay's element on that move all
+    // the same, and that is what ends the pan.
+    setup('paint');
+    const mouse: Pointer = { id: 1, type: 'mouse' };
+    const finger: Pointer = { id: 7, type: 'touch' };
+    fire(POINTER_DOWN, mouse, { ctrlKey: true });
+    fire(POINTER_MOVE, mouse, { clientX: 20, ctrlKey: true });
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+    expect(captureCount('mouse')).toBe(1);
+    fire(POINTER_DOWN, finger, { clientX: 40 });
+    fire(POINTER_UP, finger, { clientX: 40 });
+    expect(summary()).toEqual([]);
+
+    fire(LOST_POINTER_CAPTURE, mouse, { buttons: 0 });
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(captureCount('mouse')).toBe(0);
+    expect(summary()).toEqual([]);
+
+    fire(POINTER_DOWN, finger, { clientX: 50 });
+    fire(POINTER_UP, finger, { clientX: 50 });
+    expect(summary()).toEqual([
+      [POINTER_DOWN, 7, true],
+      [POINTER_UP, 7, true],
+    ]);
+    expect(contacts('touch')).toBe(0);
   });
 
   it('tells subscribers of a cancelled press, before its release, so a tool can discard it', () => {

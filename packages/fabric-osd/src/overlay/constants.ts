@@ -4,6 +4,9 @@ export const POINTER_MOVE = 'pointermove' as const;
 export const POINTER_UP = 'pointerup' as const;
 export const POINTER_CANCEL = 'pointercancel' as const;
 
+/** A pointer event type the overlay reads but never forwards to Fabric. */
+export const LOST_POINTER_CAPTURE = 'lostpointercapture' as const;
+
 /** OpenSeadragon viewer event types */
 export const OSD_ANIMATION = 'animation' as const;
 export const OSD_ANIMATION_FINISH = 'animation-finish' as const;

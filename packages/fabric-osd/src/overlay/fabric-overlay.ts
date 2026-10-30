@@ -15,6 +15,7 @@ import {
   POINTER_MOVE,
   POINTER_UP,
   POINTER_CANCEL,
+  LOST_POINTER_CAPTURE,
   OSD_CANVAS_KEY,
   OSD_RESIZE,
   OSD_SYNC_EVENTS,
@@ -108,7 +109,9 @@ export type DoubleClickCallback = (
  * from the press. That release commits nothing on Fabric's side and reaches
  * the tool's `onPointerUp` as an ordinary `pointerup` would, so the tool must
  * have dropped what the press began by then; subscribers are called first for
- * that reason.
+ * that reason. One that throws does not keep the others from hearing of the
+ * cancel: each is called, the release is forwarded, and the first error is
+ * then rethrown.
  */
 export type PointerCancelCallback = (event: PointerEvent, pressSeq: number) => void;
 
@@ -281,8 +284,9 @@ export class FabricOverlay {
    * pointer's press: see `_isSecondPointer`.
    *
    * The pan ends (`_endPan`) on a `pointerup` or `pointercancel`, and, in
-   * case that went unseen, on a move of its pointer with no button down
-   * (`_panLiftedUnseen`) or a press of its pointer's type. A pen's or
+   * case that went unseen, when the overlay's element loses its pointer's
+   * capture, on a move of its pointer over the image with no button down
+   * (`_panLiftedUnseen`), or at a press of its pointer's type. A pen's or
    * mouse's press ends a touch's pan, and `setMode` forgets it.
    */
   private _panPointer: { readonly pointerId: number; readonly pointerType: string } | null = null;
@@ -1093,9 +1097,10 @@ export class FabricOverlay {
    * The platform usually cancels a palm itself, but not always before the pen
    * lands, and has no cause to cancel a finger left on a touchscreen beside
    * the mouse.
-   * `lostpointercapture` is not handled separately: the browser sends it
-   * after the `pointerup` or `pointercancel` that ends a press, and in this
-   * overlay nothing releases capture mid-press.
+   * `lostpointercapture` does not end a press: the browser sends it after
+   * the `pointerup` or `pointercancel` that ends one, and in this overlay
+   * nothing releases capture mid-press. (After a lift that went unseen it
+   * ends a pan; see `_panLostCapture`.)
    *
    * Runs from `preProcessEventHandler`, before OSD's own `updatePointerCancel`
    * stops tracking the pointer and removes its contact. The release
@@ -1112,21 +1117,21 @@ export class FabricOverlay {
     if (transform) this._revertTransform(transform);
     this._transformPoints = null;
 
-    try {
-      // Snapshot + membership check, as for double clicks.
-      for (const callback of [...this._pointerCancelSubscribers]) {
-        if (!this._pointerCancelSubscribers.has(callback)) continue;
-        callback(cancelEvent, press.seq);
-      }
-    } finally {
-      // Place the object's controls for the shape as it now is: after the
-      // subscribers, who may have rebuilt them for the restored points, and
-      // before the release, which hit-tests them.
-      transform?.target.setCoords();
-      // Even if a subscriber throws: left open, the gesture is what moves the
-      // object on the next movement of any pointer.
-      this._endCancelledGesture(press.event);
-    }
+    // Every subscriber hears of the cancel before the release, even when one
+    // before it throws: the release reaches a tool's `onPointerUp` as an
+    // ordinary lift, so a tool that missed the cancel would commit what the
+    // press began (a palm's stroke, say).
+    const failure = notifyEach(this._pointerCancelSubscribers, (callback) => {
+      callback(cancelEvent, press.seq);
+    });
+    // Place the object's controls for the shape as it now is: after the
+    // subscribers, who may have rebuilt them for the restored points, and
+    // before the release, which hit-tests them.
+    transform?.target.setCoords();
+    // Even if a subscriber threw: left open, the gesture is what moves the
+    // object on the next movement of any pointer. The error waits for it.
+    this._endCancelledGesture(press.event);
+    if (failure !== null) throw failure.error;
   }
 
   /**
@@ -1272,16 +1277,16 @@ export class FabricOverlay {
 
     if (this._doubleClickSubscribers.size === 0) return;
     const imagePoint = this.screenToImage({ x, y });
-    // Snapshot + membership check: a callback can subscribe or unsubscribe
-    // synchronously, and neither the additions nor the removals belong to this
-    // gesture. See the integration guide.
+    // Snapshot + membership check (`notifyEach`): a callback can subscribe or
+    // unsubscribe synchronously, and neither the additions nor the removals
+    // belong to this gesture. See the integration guide.
     // The release is neither of the two presses, so a subscriber cannot recover
     // the pair from `originalEvent`; only the overlay knows it.
     const pressSeqs: readonly [number, number] = [previous.seq, press.seq];
-    for (const callback of [...this._doubleClickSubscribers]) {
-      if (!this._doubleClickSubscribers.has(callback)) continue;
+    const failure = notifyEach(this._doubleClickSubscribers, (callback) => {
       callback(originalEvent, imagePoint, pressSeqs);
-    }
+    });
+    if (failure !== null) throw failure.error;
   }
 
   /**
@@ -1303,9 +1308,17 @@ export class FabricOverlay {
    * pointers of other types until its pointer's type pressed again: finger
    * taps did nothing until the mouse clicked.
    *
+   * Only a move over the image reaches the overlay. The first move after a
+   * lost lift often lands elsewhere (on a toolbar, past the window's edge),
+   * which is why the loss of capture ends a pan too (`_panLostCapture`).
+   *
    * Never a touch: a contact reports `buttons` 1 for its whole life and has
    * no hover, so a touch's pan whose lift went unseen ends at a later press
    * instead (`preProcessEventHandler`).
+   *
+   * Only `buttons` 0 counts. A move with any button down is still the pan's:
+   * a chord (the left button released while the right is held, `buttons` 2)
+   * goes on panning until the last button is released.
    */
   private _panLiftedUnseen(event: PointerEvent): boolean {
     const pan = this._panPointer;
@@ -1314,6 +1327,25 @@ export class FabricOverlay {
       event.pointerId === pan.pointerId &&
       event.pointerType !== 'touch' &&
       event.buttons === 0
+    );
+  }
+
+  /**
+   * Whether a `lostpointercapture` ends the pan in progress: the overlay's
+   * element has lost the capture OSD took at the pan's press.
+   *
+   * After the pan's `pointerup` that is routine, and the pan has ended by
+   * then. Before it, the lift went unseen (the OS swallowed it: a context
+   * menu, a window switch mid-drag), and the browser has noticed that no
+   * button is down: Chrome takes capture back on the pointer's first move
+   * with no button down, wherever that move lands. So this ends a stale pan
+   * whose pointer goes on to hover outside the viewer, where
+   * `_panLiftedUnseen` never sees it, and fingers would stay held.
+   */
+  private _panLostCapture(event: PointerEvent): boolean {
+    const pan = this._panPointer;
+    return (
+      pan !== null && event.pointerId === pan.pointerId && event.pointerType === pan.pointerType
     );
   }
 
@@ -1567,6 +1599,13 @@ export class FabricOverlay {
           }
           return;
         }
+
+        if (eventType === LOST_POINTER_CAPTURE) {
+          // The pan's pointer has lifted, unseen, and is not coming back
+          // over the image to show it (see `_panLostCapture`).
+          if (this._panLostCapture(domEvent)) this._endPan();
+          return;
+        }
       },
 
       pressHandler: (event: OpenSeadragon.MouseTrackerEvent) => {
@@ -1661,6 +1700,30 @@ export class FabricOverlay {
       },
     });
   }
+}
+
+/**
+ * Call each of `subscribers`, as the set stands now: one added meanwhile is
+ * not called, and one removed before its turn is skipped. A subscriber that
+ * throws does not keep the rest from being called. Returns the first error,
+ * wrapped so that a thrown `undefined` still reads as one, for the caller to
+ * rethrow once it has finished what the notice is part of; `null` if none
+ * threw.
+ */
+function notifyEach<T>(
+  subscribers: ReadonlySet<T>,
+  call: (callback: T) => void,
+): { readonly error: unknown } | null {
+  let failure: { readonly error: unknown } | null = null;
+  for (const callback of [...subscribers]) {
+    if (!subscribers.has(callback)) continue;
+    try {
+      call(callback);
+    } catch (error) {
+      failure ??= { error };
+    }
+  }
+  return failure;
 }
 
 /** Whether two point lists hold the same coordinates, in order. */

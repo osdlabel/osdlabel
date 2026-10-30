@@ -14,6 +14,6 @@ A cancelled gesture is now reverted. A moved, resized or rotated shape, or a dra
 
 For hosts that build on the lower layers:
 
-- `FabricOverlay.onPointerCancel(callback)` is new, with the `PointerCancelCallback` type (exported by `@osdlabel/fabric-osd`, `osdlabel` and both bindings). It reports a cancelled press, with the press's sequence, after the overlay has put Fabric's side back.
+- `FabricOverlay.onPointerCancel(callback)` is new, with the `PointerCancelCallback` type (exported by `@osdlabel/fabric-osd`, `osdlabel` and both bindings). It reports a cancelled press, with the press's sequence, after the overlay has put Fabric's side back. Every subscriber hears of it before the release that ends Fabric's gesture, even if one before it throws; the first error is rethrown after that release. Double-click subscribers are now notified the same way.
 - `AnnotationTool` gains an optional `onPointerCancel(event, pressSeq)`. `BaseTool` implements it by calling `cancel()`, which suits a tool whose drawing lasts from press to release. `PolyVertexEditor` gains `onPointerCancel()`.
 - Both bindings' `useAnnotationTool` (`@osdlabel/solid/hooks/useAnnotationTool`, `@osdlabel/react/hooks/useAnnotationTool`, and so `ViewerCell`) and `enableLiveDecorationUpdates` now subscribe to `onPointerCancel`, so a test double of `FabricOverlay` given to any of them needs that method, returning an unsubscribe function.

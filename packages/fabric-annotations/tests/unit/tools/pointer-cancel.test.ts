@@ -291,6 +291,11 @@ describe('onPointerCancel', () => {
       tool.onPointerUp(release, { x: 10, y: 10 });
 
       expect(selectCanvas.discardActiveObject).not.toHaveBeenCalled();
+      // The select tool commits no edit itself: a move, scale or rotation is
+      // committed from Fabric's `object:modified`, which the overlay keeps
+      // from firing for a cancelled press (`transform.actionPerformed`
+      // cleared; pinned in `@osdlabel/fabric-osd`'s pointer-cancel tests).
+      // These only rule out the tool's own release committing anything.
       expect(callbacks.updateAnnotation).not.toHaveBeenCalled();
       expect(callbacks.deleteAnnotation).not.toHaveBeenCalled();
       expect(callbacks.setSelectedAnnotation).not.toHaveBeenCalled();
