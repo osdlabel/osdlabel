@@ -2691,18 +2691,24 @@ The MouseTracker intercepts events in `preProcessEventHandler`:
 
 ```
 pointerdown:
-  ├── Ctrl/Cmd held? → Pan passthrough: enable OSD nav, let event propagate
-  └── Normal click?  → Stop propagation, forward to Fabric
+  ├── A second pointer? → Stop propagation, hold it (see "A second pointer")
+  ├── Ctrl/Cmd held?    → Pan passthrough: enable OSD nav, let event propagate
+  └── Normal click?     → Stop propagation, forward to Fabric
 
 pointermove:
   ├── Pan gesture active? → Let OSD handle it
-  └── Otherwise?          → Stop propagation, forward to Fabric
+  └── Otherwise?          → Stop propagation; forward to Fabric if it is the
+                            pressing pointer's, or, with no press in progress,
+                            any but a held pointer's
 
 pointerup:
+  ├── A held pointer's?   → Stop propagation, nothing else
   ├── Pan gesture active? → End gesture, re-disable OSD nav
-  └── Otherwise?          → Stop propagation, forward to Fabric
+  └── Otherwise?          → Stop propagation; the pressing pointer's is
+                            forwarded to Fabric at once, ending the gesture
 
 pointercancel:
+  ├── A held pointer's?   → Stop propagation, nothing else
   ├── Pan gesture active? → End gesture, re-disable OSD nav
   └── Otherwise?          → Stop propagation, undo the press (see "Cancelled presses")
 
@@ -2765,7 +2771,7 @@ Neither of the two obvious sources works here, and both are worth ruling out exp
 
 **The container's native `dblclick`** does fire — that is where the browser's own event lands, and it carries the platform's timing and movement thresholds, which is genuinely attractive. It is rejected for a different reason: it is a bare notification. It does not say which two presses produced it, and its thresholds are not inspectable, so a tool that accumulated points on those presses cannot work out which of its vertices belong to the gesture. That correlation is the hard part of this problem (see below), and it is the one thing the platform event cannot give.
 
-So `FabricOverlay` pairs releases itself, in `_detectDoubleClick`, called from the `releaseHandler` — where the `_forwarding` guard has already excluded the synthetic copies, leaving exactly the real stream. Subscribe with `overlay.onDoubleClick(cb)`; the framework hooks route it to the active tool's optional `onDoubleClick`.
+So `FabricOverlay` pairs releases itself, in `_detectDoubleClick`, called when the pointer that pressed lifts (from `preProcessEventHandler`; see "A second pointer") — where the `_forwarding` guard has already excluded the synthetic copies, leaving exactly the real stream. Subscribe with `overlay.onDoubleClick(cb)`; the framework hooks route it to the active tool's optional `onDoubleClick`.
 
 #### The gates
 
@@ -2803,7 +2809,7 @@ Two details carry the guarantee. `pressSeqOf` is keyed on the **synthetic** even
 
 #### Touch
 
-Touch reaches this layer as of [#175](https://github.com/osdlabel/osdlabel/issues/175). It previously did not: the synthetic `pointerdown` bubbled back to the container, OSD counted the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returned to zero contacts and `releaseHandler`, which this detection runs from, was never called. The press is now dispatched non-bubbling, so the count is correct and a double tap pairs like a double click. That was a property of the forwarding design rather than of this pairing.
+Touch reaches this layer as of [#175](https://github.com/osdlabel/osdlabel/issues/175). It previously did not: the synthetic `pointerdown` bubbled back to the container, OSD counted the contact twice, and `GesturePointList.addContact` clamps that only for mouse and pen — so a touch list never returned to zero contacts and `releaseHandler`, which this detection then ran from, was never called. The press is now dispatched non-bubbling, so the count is correct and a double tap pairs like a double click. That was a property of the forwarding design rather than of this pairing.
 
 ### Cancelled presses
 
@@ -2826,6 +2832,24 @@ What the press did outside the gesture stands, as focus does after a cancelled p
 `lostpointercapture` is not treated as a cancel. The browser sends it after the `pointerup` or `pointercancel` that ends a press, and nothing in the overlay releases capture mid-press. Custom-control mode is untouched: its handlers hear no cancel, and the drag controls disarm on the next move with no button held.
 
 `apps/dev/tests/e2e/touch-cancel.spec.ts` drives all of this through CDP's `touchCancel`, which produces a genuine `pointercancel`.
+
+### A second pointer
+
+OSD's `MouseTracker` counts contacts per pointer type. It calls `pressHandler` only for the first contact of a type to go down, and `releaseHandler` only for the last to lift. So when the finger that pressed lifts while a second finger is still down, OSD calls no `releaseHandler`. The second finger's lift, later, is the one it reports, and the platform marks that finger non-primary (`isPrimary: false`), which Fabric ignores (`_isMainEvent`). When the overlay forwarded releases only from `releaseHandler`, neither lift reached Fabric as a release, and its transform stayed open. The result was the drift of an unhandled cancel. The canvas showed the edit while the stored geometry kept the old shape. The next movement of any pointer (a mouse hover, a later touch) carried the shape on, and the next release committed it there. A drawing tool's preview stayed uncommitted until a tap on the toolbar committed it, stretched to the button.
+
+**The lift of the pointer that pressed is a release.** `preProcessEventHandler` sees every `pointerup` before OSD's own bookkeeping, so `_releasePress` ends the gesture there for the pointer that pressed. It forwards the release, which commits through `object:modified` or a drawing tool's `mouse:up` as a mouse release would, and qualifies it as a click. It does so for every such release, not only when another pointer is down, so there is one path. When OSD then reports the same `pointerup` to `releaseHandler`, as it does for a lone contact, the event is marked handled and skipped. Forwarding it twice would cost Fabric nothing, since it unbinds its release listener after the first. Qualifying it twice would not be harmless: the second finds no press and clears the click the first recorded, so no two taps would pair.
+
+**Any other pointer that goes down meanwhile is held.** `_isSecondPointer` decides on `pointerdown`. A pointer is held if the platform does not call it primary (a finger put down while another touches the screen), or if it is of another type while a press is in progress (a mouse or pen beside a finger, a palm beside a pen). OSD counts each type apart, so it reports that second press, and the platform calls it primary, so Fabric would take it for the gesture's own pointer. Nothing a held pointer does reaches Fabric, OSD or the page: not its press, its moves or its lift. It starts nothing until it lifts and presses again. Two related rules hold while a press is in progress. Only the pressing pointer's moves reach Fabric, so a mouse hovering beside a finger's drag does not pull the shape after it. And a release OSD reports for a pointer the overlay never saw press (pressed outside the viewer, released over it) does not end the press.
+
+Annotation mode defines no two-finger gesture. The overlay's tracker registers no `pinchHandler`, OSD's own navigation is off, and a held finger's events stop at the overlay, so a second finger does not pinch-zoom.
+
+A missed lift cannot leave the overlay refusing input. A held pointer is let go on its `pointerup` or `pointercancel`, and, should that go unseen, on its next `pointerdown` or on a move with no button down, either of which means it has lifted. `setMode` forgets them all. A pointer of the press's own type that the platform calls primary is never held: it can only be pressing because the press's pointer has lifted unseen, so it starts a gesture of its own, as it always has.
+
+One consequence shows only in OSD's state. The release forwarded for the first finger bubbles through the tracker's element while OSD still tracks that pointer, so OSD counts it as that pointer's release. The finger's own `pointerup` then removes a second contact, and OSD's count reads zero while the second finger is still down. Nothing reads it: the overlay goes by its own record of the press and the held pointers, and the count is right again once every finger has lifted, since `removeContact()` floors at zero.
+
+Custom-control mode is untouched: its handler hears what OSD reports.
+
+`apps/dev/tests/e2e/touch-second-finger.spec.ts` drives this with two CDP touch points. One finger moves, resizes or draws; a second goes down and moves; the first lifts; then the second moves and lifts. A CDP `touchEnd` that lists touch points lifts only those, which the spec checks the page saw.
 
 ## Saving edits
 
