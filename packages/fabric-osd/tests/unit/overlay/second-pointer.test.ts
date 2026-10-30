@@ -449,6 +449,70 @@ describe('FabricOverlay: a second pointer while a press is in progress', () => {
     expect({ left: rect.left, top: rect.top }).toEqual({ left: 160, top: 130 });
   });
 
+  /**
+   * A pan whose lift the OS swallowed (a context menu, a window switch
+   * mid-drag) ends on its pointer's first move with no button down, as a held
+   * pointer's hold does. It used to go on holding pointers of other types
+   * until its own type pressed again: after a Ctrl+mouse pan whose release
+   * was lost, finger taps did nothing until the mouse clicked.
+   */
+  it.each<[string, PointerSpec]>([
+    ['mouse', MOUSE],
+    ['pen', PEN],
+  ])('ends a %s pan whose lift went unseen when it moves with no button down', (_name, pointer) => {
+    panPress(pointer, { x: 300, y: 300 });
+    // A pan move, its button down: the pan's, and OSD's.
+    const panMove = pre('pointermove', event('pointermove', pointer, { x: 320, y: 310 }));
+    expect(panMove.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // Its release never reached the overlay; it moves with no button down.
+    const before = fired.length;
+    const hover = event('pointermove', pointer, { x: 330, y: 320 });
+    Object.defineProperty(hover, 'buttons', { value: 0 });
+    const hoverInfo = pre('pointermove', hover);
+    tracker(overlay).moveHandler({ originalEvent: hover });
+
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    // The move is the overlay's, and Fabric's, as any hover is.
+    expect(hoverInfo.stopPropagation).toBe(true);
+    expect(fired.slice(before).map((f) => f.name)).toEqual(['mouse:move:before']);
+
+    // A finger is no second pointer now: it drags the shape.
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 150, y: 130 });
+    release(FINGER_A, { x: 150, y: 130 });
+    expect(firedBy('mouse:down', FINGER_A)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+  });
+
+  it("keeps a pan going through another pointer's hover", () => {
+    panPress(MOUSE, { x: 300, y: 300 });
+    // A pen hovering beside the pan, no button down: not the pan's pointer.
+    move(PEN, { x: 120, y: 110 }, 0);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // So a finger is still held, and the pan goes on to its own lift.
+    const info = downUnreported(FINGER_A, { x: 100, y: 100 });
+    expect(info.preventGesture).toBe(true);
+    pre('pointerup', event('pointerup', MOUSE, { x: 340, y: 320 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(firedAny('mouse:down')).toBe(0);
+  });
+
+  /**
+   * A touch contact reports `buttons` 1 for its whole life and never
+   * hovers, so a touch move with no button down is no evidence of a lift.
+   */
+  it("never ends a touch's pan on a move", () => {
+    panPress(FINGER_A, { x: 300, y: 300 });
+    const touchMove = event('pointermove', FINGER_A, { x: 320, y: 310 });
+    Object.defineProperty(touchMove, 'buttons', { value: 0 });
+    const info = pre('pointermove', touchMove);
+    expect(info.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+  });
+
   it('forgets a press whose lift went unseen once its pointer pans', () => {
     press(MOUSE, { x: 500, y: 400 });
     // The mouse's release never reached the overlay. It presses again, with

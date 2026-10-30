@@ -279,6 +279,11 @@ export class FabricOverlay {
    * OSD (see `_isPanTrigger`) whose events are NOT forwarded to Fabric; null
    * when no pan is in progress. To the second-pointer rules a pan is its
    * pointer's press: see `_isSecondPointer`.
+   *
+   * The pan ends (`_endPan`) on a `pointerup` or `pointercancel`, and, in
+   * case that went unseen, on a move of its pointer with no button down
+   * (`_panLiftedUnseen`) or a press of its pointer's type. A pen's or
+   * mouse's press ends a touch's pan, and `setMode` forgets it.
    */
   private _panPointer: { readonly pointerId: number; readonly pointerType: string } | null = null;
 
@@ -1290,6 +1295,29 @@ export class FabricOverlay {
   }
 
   /**
+   * Whether a move shows that the pan's pointer has lifted although its
+   * release went unseen (the OS swallowed it: a context menu, a window
+   * switch mid-drag): a move of that pointer with no button down. A held
+   * pointer and a pending press are let go the same way (`_movesFabric`, the
+   * chord rule). Without this, a pan whose lift was lost went on holding
+   * pointers of other types until its pointer's type pressed again: finger
+   * taps did nothing until the mouse clicked.
+   *
+   * Never a touch: a contact reports `buttons` 1 for its whole life and has
+   * no hover, so a touch's pan whose lift went unseen ends at a later press
+   * instead (`preProcessEventHandler`).
+   */
+  private _panLiftedUnseen(event: PointerEvent): boolean {
+    const pan = this._panPointer;
+    return (
+      pan !== null &&
+      event.pointerId === pan.pointerId &&
+      event.pointerType !== 'touch' &&
+      event.buttons === 0
+    );
+  }
+
+  /**
    * End the pan in progress: OSD's navigation goes off again, which also
    * makes OSD's trackers forget the pan's pointer.
    */
@@ -1484,8 +1512,13 @@ export class FabricOverlay {
             return;
           }
           if (this._panPointer !== null) {
-            // Part of an OSD pan gesture — let it through
-            return;
+            if (!this._panLiftedUnseen(domEvent)) {
+              // Part of an OSD pan gesture — let it through
+              return;
+            }
+            // The pan's pointer has lifted, unseen: the pan is over, and
+            // this move is a hover like any other (see `_panLiftedUnseen`).
+            this._endPan();
           }
           // A chord: the primary button released while another is still
           // held arrives as a move with the primary bit clear, and the later

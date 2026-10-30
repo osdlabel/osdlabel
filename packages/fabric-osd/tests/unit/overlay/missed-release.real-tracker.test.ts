@@ -240,6 +240,48 @@ describe('releases OSD never reports, through the real MouseTracker', () => {
     },
   );
 
+  it('ends a mouse pan whose lift went unseen once the mouse moves with no button down', () => {
+    // The OS can swallow a release (a context menu, a window switch
+    // mid-drag). The pan then went on holding pointers of other types until
+    // the mouse pressed again: finger taps did nothing until it clicked.
+    setup('paint');
+    const mouse: Pointer = { id: 1, type: 'mouse' };
+    const finger: Pointer = { id: 7, type: 'touch' };
+    fire(POINTER_DOWN, mouse, { ctrlKey: true });
+    fire(POINTER_MOVE, mouse, { clientX: 20, ctrlKey: true });
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+    // The mouse's release never arrives. While the pan lasts, a finger is
+    // held: its tap reaches nothing.
+    fire(POINTER_DOWN, finger, { clientX: 40 });
+    fire(POINTER_UP, finger, { clientX: 40 });
+    expect(summary()).toEqual([]);
+
+    // A move with no button down: the mouse has lifted, so the pan is over,
+    // and the move is a hover.
+    fire(POINTER_MOVE, mouse, { clientX: 30, buttons: 0 });
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(summary()).toEqual([[POINTER_MOVE, 1, true]]);
+
+    fire(POINTER_DOWN, finger, { clientX: 50 });
+    fire(POINTER_UP, finger, { clientX: 50 });
+    expect(summary().slice(1)).toEqual([
+      [POINTER_DOWN, 7, true],
+      [POINTER_UP, 7, true],
+    ]);
+    expect(contacts('touch')).toBe(0);
+
+    // OSD still counts the mouse's lost contact until the mouse presses
+    // again (it holds a mouse to one contact), and that press is an
+    // ordinary one.
+    fire(POINTER_DOWN, mouse, { clientX: 60 });
+    fire(POINTER_UP, mouse, { clientX: 60 });
+    expect(summary().slice(3)).toEqual([
+      [POINTER_DOWN, 1, true],
+      [POINTER_UP, 1, true],
+    ]);
+    expect(contacts('mouse')).toBe(0);
+  });
+
   it('tells subscribers of a cancelled press, before its release, so a tool can discard it', () => {
     setup('paint');
     const cancels = listenForCancels();
