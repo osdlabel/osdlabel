@@ -194,6 +194,13 @@ export function onPixel(p: Point): Point {
  * "General" context, which allows any number of rectangles. With
  * `imageScale`, zoom (about the viewport centre) to that many screen px per
  * image px; a view setting, not an edit.
+ *
+ * The context is chosen before the view is read or zoomed, and the view is
+ * left to settle in between: General shows every tool, and the header can
+ * wrap onto another line for it (it does at 1280 px wide, now that the
+ * displayed-contexts panel lists five contexts). The viewer then moves and
+ * resizes, which OSD answers a frame later by changing the zoom, so a view
+ * read, or a zoom set, before that is stale.
  */
 export async function openAnnotator(
   page: Page,
@@ -202,6 +209,7 @@ export async function openAnnotator(
   await page.goto('/');
   await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 20000 });
   await page.selectOption('select', { index: 2 });
+  await expect(page.getByTestId('status-context')).toContainText('General');
   await page.locator('canvas.upper-canvas').waitFor({ state: 'attached', timeout: 20000 });
   await page.waitForFunction(
     () => {
@@ -213,6 +221,7 @@ export async function openAnnotator(
     undefined,
     { timeout: 20000 },
   );
+  await waitForStableView(page);
   if (options.imageScale !== undefined) {
     await page.evaluate((scale) => {
       const el = document.querySelector('.openseadragon-canvas') as Element & {
