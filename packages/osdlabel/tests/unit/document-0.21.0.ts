@@ -1,5 +1,5 @@
 /**
- * A document exactly as osdlabel 0.21.0 exported it, the release before
+ * A document exactly as osdlabel 0.21.0 exported it, a release before
  * `deserialize` checked that an annotation's Fabric payload is the kind of
  * object its geometry describes. Every document a release has written must
  * still load.

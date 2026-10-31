@@ -1382,7 +1382,7 @@ Every vector annotation stores its shape twice, and each copy is authoritative f
 | `rawAnnotationData` | What is painted on the canvas, and what the user selects, drags, resizes and rotates                           |
 | `geometry`          | What is measured and labelled, what `boundingBox` and `centroid` read, and the shape hosts read from an export |
 
-When the user draws or edits a shape, both fields are written together from the same Fabric object: an edit recomputes `geometry` from the edited object. So the two agree in everything the annotator saves, except in data saved by releases up to 0.21.0: their rectangles ([below](#rectangles-saved-by-earlier-releases)), and the rectangles and circles they let the user skew or stretch ([below](#rectangles-and-circles-saved-skewed-or-stretched)).
+When the user draws or edits a shape, both fields are written together from the same Fabric object: an edit recomputes `geometry` from the edited object. So the two agree in everything the annotator saves, except in data saved by earlier releases: rectangles saved up to 0.21.0 ([below](#rectangles-saved-by-earlier-releases)), and rectangles and circles that releases up to 0.22.0 let the user skew or stretch ([below](#rectangles-and-circles-saved-skewed-or-stretched)).
 
 A document edited by hand or written by another tool can pair them wrongly. `deserialize` rejects an annotation whose saved Fabric object is not the class that paints its geometry's type:
 
@@ -1447,7 +1447,7 @@ It is a separate module that nothing else imports, so a bundle that does not use
 
 ### Rectangles and circles saved skewed or stretched
 
-Up to 0.21.0, the select tool's handles could make a shape its geometry cannot describe. **Shift** with a side handle sheared a rectangle into a parallelogram, or a circle into a slanted ellipse, and a circle's side handles, or **Shift** with a corner, stretched it into an ellipse. The geometry kept the rectangle about the same centre, unsheared, or a circle of the larger radius, while the saved Fabric data kept the shape on screen. The handles no longer do either.
+Up to 0.22.0, the select tool's handles could make a shape its geometry cannot describe. **Shift** with a side handle sheared a rectangle into a parallelogram, or a circle into a slanted ellipse, and a circle's side handles, or **Shift** with a corner, stretched it into an ellipse. The geometry kept the rectangle about the same centre, unsheared, or a circle of the larger radius, while the saved Fabric data kept the shape on screen. The handles no longer do either.
 
 Such an annotation loads as saved: it still paints the sheared or stretched shape, and its geometry is what it was. The first time it is edited (moved, resized or rotated), its Fabric data is replaced with data that paints its geometry, in the same style, and the shape on screen snaps to what its measurements, labels and exports already described. Nothing changes it on load, and there is no migration helper for it.
 
