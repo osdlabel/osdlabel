@@ -92,6 +92,11 @@ export default [
 
       // Defer to the TS-aware version, and honour the leading-underscore
       // convention the codebase already uses for deliberately-unused names.
+      // Core `no-redeclare` reports every TypeScript function overload as a
+      // redeclaration; the TS-aware rule knows an overload list is one function.
+      'no-redeclare': 'off',
+      '@typescript-eslint/no-redeclare': 'error',
+
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',

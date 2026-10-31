@@ -1,7 +1,8 @@
 import { Show, type Component } from 'solid-js';
 import { useAnnotator } from '../state/annotator-context.js';
 import type { ToolType } from '@osdlabel/annotation';
-import { preventButtonFocusSteal } from 'osdlabel';
+import { MAX_BRUSH_RADIUS, MIN_BRUSH_RADIUS } from '@osdlabel/viewer-api';
+import { canAddAnnotation, canRefineSelectedMask, preventButtonFocusSteal } from 'osdlabel';
 
 const TOOL_LABELS: Record<ToolType, string> = {
   rectangle: 'Rect',
@@ -10,11 +11,13 @@ const TOOL_LABELS: Record<ToolType, string> = {
   point: 'Point',
   polyline: 'Polyline',
   freeHandPath: 'Free Draw',
+  segmentationBrush: 'Brush',
 };
 
 const Toolbar: Component = () => {
+  const annotator = useAnnotator();
   const { uiState, contextState, annotationState, constraintStatus, actions, activeImageId } =
-    useAnnotator();
+    annotator;
 
   const activeContext = () => {
     if (!contextState.activeContextId) return undefined;
@@ -33,6 +36,24 @@ const Toolbar: Component = () => {
     if (!imageId) return undefined;
     return annotationState.byImage[imageId]?.[id];
   };
+
+  // The brush's next stroke creates a mask unless a mask it can refine is
+  // selected: the same rule the constraints apply, so the two cannot disagree.
+  const nextStrokeCreates = () => {
+    const imageId = activeImageId();
+    const contextId = contextState.activeContextId;
+    return (
+      !imageId ||
+      !contextId ||
+      !canRefineSelectedMask(annotationState, imageId, contextId, uiState.selectedAnnotationId)
+    );
+  };
+  const canAddMask = () => canAddAnnotation(constraintStatus(), 'segmentationBrush');
+  const newMaskTitle = () =>
+    canAddMask()
+      ? `New mask (${annotator.shortcuts.newMask})`
+      : `This context's limit of ${constraintStatus().segmentationBrush.maxCount} masks is ` +
+        `reached; select a mask to refine it`;
 
   const canConvertSelectedToRect = () =>
     selectedAnnotation()?.geometry.type === 'circle' && constraintStatus().rectangle.enabled;
@@ -125,6 +146,79 @@ const Toolbar: Component = () => {
           </button>
         );
       })}
+
+      {/* Brush options, shown only while the brush is the active tool */}
+      <Show when={uiState.activeTool === 'segmentationBrush'}>
+        <div style={{ display: 'flex', 'align-items': 'center', gap: '4px' }}>
+          <label
+            for="brush-radius"
+            style={{ color: '#bbb', 'font-size': '12px', 'white-space': 'nowrap' }}
+          >
+            Brush
+          </label>
+          <input
+            id="brush-radius"
+            data-testid="brush-radius"
+            type="range"
+            min={MIN_BRUSH_RADIUS}
+            max={MAX_BRUSH_RADIUS}
+            value={uiState.brushRadius}
+            onInput={(e) => actions.setBrushRadius(Number(e.currentTarget.value))}
+            // A focused input suppresses every keyboard shortcut, so after
+            // touching the slider `[`, `]`, `b` and Escape were all dead until
+            // the user clicked elsewhere — including the mid-stroke cancel.
+            // Focus is released on any pointer interaction, click included, so
+            // click-then-arrow-keys does not work; tabbing to it still does,
+            // which is the path where the arrow keys are the point.
+            onPointerUp={(e) => e.currentTarget.blur()}
+            style={{ width: '90px' }}
+          />
+          <span
+            data-testid="brush-radius-value"
+            style={{ color: '#fff', 'font-size': '12px', 'min-width': '34px' }}
+          >
+            {uiState.brushRadius}px
+          </span>
+          <button
+            data-testid="brush-eraser"
+            aria-pressed={uiState.brushErasing}
+            onClick={() => actions.setBrushErasing(!uiState.brushErasing)}
+            style={{
+              padding: '4px 10px',
+              border: 'none',
+              'border-radius': '4px',
+              cursor: 'pointer',
+              background: uiState.brushErasing ? '#2196F3' : '#333',
+              color: '#fff',
+              'font-weight': uiState.brushErasing ? 'bold' : 'normal',
+              'font-size': '13px',
+            }}
+          >
+            Erase
+          </button>
+          <button
+            data-testid="brush-new-mask"
+            aria-pressed={nextStrokeCreates()}
+            disabled={!canAddMask()}
+            title={newMaskTitle()}
+            // Deselect, keeping the brush: the next stroke starts a mask.
+            onClick={() => actions.setSelectedAnnotation(null)}
+            style={{
+              padding: '4px 10px',
+              border: 'none',
+              'border-radius': '4px',
+              cursor: canAddMask() ? 'pointer' : 'not-allowed',
+              opacity: canAddMask() ? '1' : '0.5',
+              background: nextStrokeCreates() && canAddMask() ? '#2196F3' : '#333',
+              color: '#fff',
+              'font-weight': nextStrokeCreates() ? 'bold' : 'normal',
+              'font-size': '13px',
+            }}
+          >
+            New mask
+          </button>
+        </div>
+      </Show>
 
       {/* Contextual action: convert the selected circle to its bounding rectangle */}
       <Show when={selectedAnnotation()?.geometry.type === 'circle'}>

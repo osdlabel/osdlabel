@@ -157,6 +157,35 @@ describe('State Management', () => {
     expect(h.current.uiState.gridRows).toBe(2);
   });
 
+  it('setBrushRadius stores a rounded, clamped radius', () => {
+    const h = createTestStore();
+    h.run((a) => a.setBrushRadius(7.6));
+    expect(h.current.uiState.brushRadius).toBe(8);
+    h.run((a) => a.setBrushRadius(100_000));
+    expect(h.current.uiState.brushRadius).toBe(512);
+  });
+
+  it('adjustBrushRadius steps proportionally from the current radius', () => {
+    // Two steps in one batch: the second must read the first's write (#217).
+    const h = createTestStore();
+    h.run((a) => a.setBrushRadius(12));
+    h.run((a) => {
+      a.adjustBrushRadius(1);
+      a.adjustBrushRadius(1);
+    });
+    expect(h.current.uiState.brushRadius).toBe(19);
+    h.run((a) => a.adjustBrushRadius(-1));
+    expect(h.current.uiState.brushRadius).toBe(14);
+  });
+
+  it('setBrushErasing toggles the eraser', () => {
+    const h = createTestStore();
+    h.run((a) => a.setBrushErasing(true));
+    expect(h.current.uiState.brushErasing).toBe(true);
+    h.run((a) => a.setBrushErasing(false));
+    expect(h.current.uiState.brushErasing).toBe(false);
+  });
+
   it('setSelectedAnnotation updates selected annotation ID', () => {
     const h = createTestStore();
     h.run((a) => a.setSelectedAnnotation(annId));

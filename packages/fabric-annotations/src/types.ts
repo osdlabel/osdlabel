@@ -1,5 +1,5 @@
 import type { Canvas } from 'fabric';
-import type { Point, RawAnnotationData } from '@osdlabel/annotation';
+import type { MaskRawAnnotationData, Point, RawAnnotationData } from '@osdlabel/annotation';
 
 /** Minimal overlay interface that annotation tools require. */
 export interface ToolOverlay {
@@ -15,13 +15,31 @@ export interface ToolOverlay {
    * safe default and the right answer for a hand-built test event.
    */
   pressSeqOf(event: PointerEvent): number | undefined;
+  /**
+   * Whether a `pointerup` ends a press the platform cancelled (palm
+   * rejection, a system gesture) rather than one the user lifted. Fabric has
+   * no `pointercancel`, so a cancel reaches a tool as a release; a tool that
+   * commits on release should discard on one of these instead. Optional, so
+   * an overlay that cannot tell reports every release as a lift.
+   */
+  isCancelledRelease?(event: PointerEvent): boolean;
 }
 
 export interface FabricRawAnnotationData extends RawAnnotationData<'fabric'> {
   fabricVersion: string;
 }
 
+/**
+ * The raw-data envelope an annotation carries.
+ *
+ * Vector annotations round-trip through Fabric's own serialization; masks
+ * carry a pixel payload instead, since there is no meaningful Fabric object to
+ * serialize for them (a `FabricImage` would embed a huge data URL). Narrow on
+ * `format` before reading `data`.
+ */
+export type AnnotationRawData = FabricRawAnnotationData | MaskRawAnnotationData;
+
 /** Extension fields added by the Fabric rendering layer. */
 export interface FabricFields {
-  readonly rawAnnotationData: FabricRawAnnotationData;
+  readonly rawAnnotationData: AnnotationRawData;
 }

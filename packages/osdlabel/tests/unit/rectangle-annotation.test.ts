@@ -38,7 +38,13 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Rect, type FabricObject } from 'fabric';
-import type { AnnotationStyle, Geometry, Point, RectangleGeometry } from '@osdlabel/annotation';
+import type {
+  AnnotationStyle,
+  Geometry,
+  Point,
+  RectangleGeometry,
+  VectorGeometry,
+} from '@osdlabel/annotation';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import {
   createLabelProvider,
@@ -114,7 +120,7 @@ function reloadTolerance(rect: Rect): number {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function createRectangle(
-  geometry: Geometry,
+  geometry: VectorGeometry,
   options: { readonly style?: AnnotationStyle; readonly label?: string } = {},
 ): OsdAnnotation {
   return createAnnotationFromGeometry(geometry, {
