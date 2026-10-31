@@ -118,6 +118,23 @@ export interface MaskBuffer {
    */
   reserve?(region: MaskRegion): void;
   /**
+   * Copies the cells `[x0, x1)` of row `cy` into `into` (one byte per cell, 0
+   * or 1), out-of-range cells as 0 — the same values {@link get} returns, a
+   * row at a time, for a reader that would otherwise call `get` per cell.
+   *
+   * Optional — callers fall back to `get` without it.
+   */
+  copyRow?(cy: number, x0: number, x1: number, into: Uint8Array): void;
+  /**
+   * How many writes have changed a cell's value since the buffer was made: a
+   * write of the value already there does not count. A reader compares two
+   * readings to learn whether anything changed in between — a stroke that
+   * painted over painted cells, or erased clear ones, changed nothing.
+   *
+   * Optional — callers treat its absence as "something may have changed".
+   */
+  readonly changeCount?: number;
+  /**
    * A tightly-cropped, read-only view of the current cells, detached from
    * later writes. Its storage is the implementation's business.
    */
@@ -139,26 +156,36 @@ export class MaskCapacityExceededError extends Error {
   readonly maxCells: number;
   /** Image pixels per cell along each axis. */
   readonly downsample: number;
+  /** What to do about it: the message's last sentences. */
+  readonly advice: string;
+
+  /** The advice given when the caller names none. */
+  static readonly DEFAULT_ADVICE = 'Paint a smaller region, or start a separate mask.';
 
   /**
    * @param advice What to do about it, ending the message. A host that knows
    * its own controls says so: the brush names its New mask shortcut.
+   * @param options `cause`: what made the limit final, such as a coarsening
+   * strategy that threw.
    */
   constructor(
     requestedCells: number,
     maxCells: number,
     downsample = 1,
-    advice = 'Paint a smaller region, or start a separate mask.',
+    advice = MaskCapacityExceededError.DEFAULT_ADVICE,
+    options?: { readonly cause?: unknown },
   ) {
     super(
       `Mask would need ${requestedCells} cells at downsample ${downsample}, more than its ` +
         `limit of ${maxCells} — an image-pixel bounding box of ${maxCells * downsample * downsample} ` +
         `at that downsample. ${advice}`,
+      options,
     );
     this.name = 'MaskCapacityExceededError';
     this.requestedCells = requestedCells;
     this.maxCells = maxCells;
     this.downsample = downsample;
+    this.advice = advice;
   }
 }
 
@@ -184,13 +211,17 @@ export function snapshotPixelCount(input: MaskRasterInput): number {
   return rasterPixelCount(checkedRaster(input));
 }
 
-/** An empty snapshot for an image of the given size, at downsample 1. */
-export function emptySnapshot(imageWidth: number, imageHeight: number): MaskSnapshot {
+/** An empty snapshot for an image of the given size, on the grid of `downsample` (1 by default). */
+export function emptySnapshot(
+  imageWidth: number,
+  imageHeight: number,
+  downsample = 1,
+): MaskSnapshot {
   return {
     cells: { x: 0, y: 0, width: 0, height: 0 },
     data: new Uint8Array(0),
     imageWidth,
     imageHeight,
-    downsample: 1,
+    downsample,
   };
 }

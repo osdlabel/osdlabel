@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createRoot, createComponent } from 'solid-js';
+import { createRoot, createComponent, createSignal } from 'solid-js';
 import { createAnnotationContextId } from '@osdlabel/annotation-context';
 import { createImageId } from '@osdlabel/viewer-api';
 import { createAnnotationId } from '@osdlabel/annotation';
@@ -14,6 +14,8 @@ import {
   decodeCanonicalRaster,
   maskAnnotationFields,
   stampCircle,
+  type BrushOptions,
+  type MaskObjectSeed,
 } from 'osdlabel';
 import { createMockAnnotator } from '../hooks/mock-annotator.js';
 import { createAnnotationStore } from '../../../src/state/annotation-store.js';
@@ -183,6 +185,26 @@ function mask(id: typeof m1, radius = 4) {
   return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
 }
 
+/**
+ * A solid 16 x 16 block at the image's top-left: every halving keeps it, so
+ * at the coarsest grid it is one set cell, which fits even a one-pixel budget.
+ */
+function cornerBlock(id: typeof m1) {
+  const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) buffer.set(x, y, 1);
+  return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
+}
+
+/**
+ * A mask whose box straddles the 2^16 cell boundary in both axes: 2x2 cells
+ * even at the coarsest grid, so no mip fits a one-cell display budget.
+ */
+function straddlingMask(id: typeof m1) {
+  const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100_000, imageHeight: 100_000 });
+  stampCircle(buffer, 65_536, 65_536, 6, 1);
+  return createMaskAnnotation(buffer.snapshot(), { id, imageId, contextId });
+}
+
 const build = vi.mocked(createFabricObjectFromRawData);
 const buildsFor = (id: string) => build.mock.calls.filter(([a]) => a.id === id).length;
 const byId = (id: string) => objects.find((o) => o.id === id)!;
@@ -190,16 +212,39 @@ const byId = (id: string) => objects.find((o) => o.id === id)!;
 // A reactive annotation store, so a state write re-runs the rebuild effect as
 // it would in the real provider.
 const { state: annotationState, setState: setAnnotations } = createAnnotationStore();
+// Getters over the host's options, as the provider's are: reading one tracks
+// the whole host object, so a new object notifies even with every value
+// equal. A store write of an equal value would never notify, and a test of
+// "no change" would pass for the wrong reason.
+const [hostOptions, setHostOptions] = createSignal<BrushOptions>({});
+const brushOptions: BrushOptions = {
+  get maxCanvasPixels() {
+    return hostOptions().maxCanvasPixels;
+  },
+  get maskStyle() {
+    return hostOptions().maskStyle;
+  },
+  get onCoarsen() {
+    return hostOptions().onCoarsen;
+  },
+};
+const setBudget = (maxCanvasPixels: number | undefined) =>
+  setHostOptions({ ...hostOptions(), maxCanvasPixels });
 const mockState = createMockAnnotator({
   annotationState,
+  brushOptions,
   contextState: { activeContextId: contextId, contexts: [], displayedContextIds: [] },
 });
 
 vi.mock('../../../src/state/annotator-context.js', () => ({
   useAnnotator: () => mockState,
 }));
+/** The cell's hooks into a brush commit, as ViewerCell hands them to the tool hook. */
+let toolCell: { seedMaskObject?: (seed: MaskObjectSeed) => void } | undefined;
 vi.mock('../../../src/hooks/useAnnotationTool.js', () => ({
-  useAnnotationTool: () => undefined,
+  useAnnotationTool: (...args: unknown[]) => {
+    toolCell = args[3] as typeof toolCell;
+  },
 }));
 
 const { default: ViewerCell } = await import('../../../src/components/ViewerCell.js');
@@ -212,6 +257,7 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     openHandlers.length = 0;
     buildGate = undefined;
     realRenderer = false;
+    setHostOptions({});
     build.mockClear();
     setAnnotations('byImage', { [imageId]: { [m1]: mask(m1), [m2]: mask(m2) } });
   });
@@ -318,11 +364,8 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
     expect(buildsFor('m2')).toBe(1);
   });
 
-  it('reports a mask too long to draw, and still renders the others', async () => {
-    realRenderer = true;
-    const report = vi.mocked(mockState.reportAnnotationRenderError);
-    report.mockClear();
-    setAnnotations('byImage', { [imageId]: { [m1]: tooLongMask(m1), [m2]: mask(m2) } });
+  /** Mounts the cell over the store's annotations; the caller sets them first. */
+  function mountCell(): void {
     dispose = createRoot((disposeFn) => {
       createComponent(ViewerCell, {
         imageSource: { id: imageId, tileSource: 'x.png' },
@@ -333,11 +376,160 @@ describe('ViewerCell reuses rasterized masks across rebuilds', () => {
       return disposeFn;
     });
     openHandlers[0]!();
+  }
+
+  it('draws a mask too long for one canvas from a display mip', async () => {
+    realRenderer = true;
+    const report = vi.mocked(mockState.reportAnnotationRenderError);
+    report.mockClear();
+    setAnnotations('byImage', { [imageId]: { [m1]: tooLongMask(m1), [m2]: mask(m2) } });
+    mountCell();
+
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    const drawn = byId('m1') as unknown as { width: number; height: number; scaleX: number };
+    expect([drawn.width, drawn.height, drawn.scaleX]).toEqual([20_000, 800, 2]);
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it('reports a mask no display mip fits, and still renders the others', async () => {
+    realRenderer = true;
+    setBudget(1);
+    const report = vi.mocked(mockState.reportAnnotationRenderError);
+    report.mockClear();
+    // m2 is one set cell at its coarsest grid, so it fits even this budget.
+    setAnnotations('byImage', { [imageId]: { [m1]: straddlingMask(m1), [m2]: cornerBlock(m2) } });
+    mountCell();
 
     await vi.waitFor(() => expect(report).toHaveBeenCalled());
     const failure = report.mock.calls[0]![0];
     expect(failure.annotation.id).toBe(m1);
     expect(failure.error).toBeInstanceOf(MaskCanvasTooLargeError);
-    expect(objects.map((o) => o.id)).toEqual(['m2']);
+    await vi.waitFor(() => expect(objects.map((o) => o.id)).toEqual(['m2']));
+  });
+
+  it('redraws every mask when the display budget changes, and only then', async () => {
+    realRenderer = true;
+    setAnnotations('byImage', { [imageId]: { [m1]: mask(m1, 40), [m2]: mask(m2) } });
+    mountCell();
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    expect((byId('m1') as unknown as { scaleX: number }).scaleX).toBe(1);
+
+    // 81x81 cells: a 1,000-cell budget takes it to 21x21 at 4x.
+    setBudget(1_000);
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    expect(buildsFor('m2')).toBe(2);
+    await vi.waitFor(() => expect((byId('m1') as unknown as { scaleX: number }).scaleX).toBe(4));
+
+    // The same value again is no change.
+    setBudget(1_000);
+    setAnnotations('byImage', imageId, m2, mask(m2, 3));
+    await vi.waitFor(() => expect(buildsFor('m2')).toBe(3));
+    expect(buildsFor('m1')).toBe(2);
+  });
+
+  it('rebuilds nothing for a new options object with an equal budget (#243 P6)', async () => {
+    realRenderer = true;
+    setAnnotations('byImage', { [imageId]: { [m1]: mask(m1, 40), [m2]: mask(m2) } });
+    mountCell();
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    setBudget(1_000);
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    await vi.waitFor(() => expect(objects).toHaveLength(2));
+    const removes = fakeCanvas.remove.mock.calls.length;
+    // A new object: the same budget, a new callback and an equal style.
+    setHostOptions({ maxCanvasPixels: 1_000, onCoarsen: () => {}, maskStyle: {} });
+    setHostOptions({ maxCanvasPixels: 1_000, onCoarsen: () => {}, maskStyle: {} });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(buildsFor('m1')).toBe(2);
+    expect(buildsFor('m2')).toBe(2);
+    expect(fakeCanvas.remove.mock.calls.length).toBe(removes);
+  });
+
+  it('keeps the cache under a NaN budget, which never equals itself (#243 minor 12)', async () => {
+    setBudget(Number.NaN);
+    await mountWithMasks();
+    expect(buildsFor('m1')).toBe(1);
+    setAnnotations('byImage', imageId, m2, mask(m2, 3));
+    await vi.waitFor(() => expect(buildsFor('m2')).toBe(2));
+    expect(buildsFor('m1')).toBe(1);
+  });
+
+  /** A refining stroke's commit: the new payload, and the object its preview made. */
+  function brushCommit(fill: string | undefined) {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    stampCircle(buffer, 50.5, 50.5, 9, 1);
+    const fields = maskAnnotationFields(buffer.snapshot());
+    if (fields.rawAnnotationData.format !== MASK_RAW_FORMAT) throw new Error('expected a mask');
+    const object: FakeObject = {
+      id: m1,
+      opacity: 1,
+      set(key, value) {
+        (object as unknown as Record<string, unknown>)[key] = value;
+      },
+    };
+    return { fields, object, rawAnnotationData: fields.rawAnnotationData, fill };
+  }
+
+  it("shows a brush commit's seeded object without rebuilding it (#238)", async () => {
+    await mountWithMasks();
+    expect(toolCell?.seedMaskObject).toBeDefined();
+    const commit = brushCommit(undefined);
+    // What the brush does: seed, then write. The store hands the payload back
+    // as a proxy, so the cache matches it by content.
+    toolCell!.seedMaskObject!({
+      annotationId: m1,
+      rawAnnotationData: commit.rawAnnotationData,
+      fill: undefined,
+      // The 19 x 19 cells of the r=9 disc, and the object its preview builds.
+      width: 19,
+      height: 19,
+      object: (() => commit.object) as unknown as MaskObjectSeed['object'],
+    });
+    setAnnotations('byImage', imageId, m1, (prev) => ({ ...prev!, ...commit.fields }));
+    await vi.waitFor(() => expect(byId('m1')).toBe(commit.object));
+    expect(buildsFor('m1')).toBe(1);
+  });
+
+  it("rebuilds instead when the seed is past the host's display budget (#243 minor 14)", async () => {
+    await mountWithMasks();
+    setBudget(100);
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    const commit = brushCommit(undefined);
+    let built = 0;
+    toolCell!.seedMaskObject!({
+      annotationId: m1,
+      rawAnnotationData: commit.rawAnnotationData,
+      fill: undefined,
+      // 361 cells: past a 100-pixel budget, which a mip would have to draw.
+      width: 19,
+      height: 19,
+      object: (() => {
+        built++;
+        return commit.object;
+      }) as unknown as MaskObjectSeed['object'],
+    });
+    setAnnotations('byImage', imageId, m1, (prev) => ({ ...prev!, ...commit.fields }));
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(3));
+    await vi.waitFor(() => expect(objects.find((o) => o.id === 'm1')).toBeDefined());
+    expect(byId('m1')).not.toBe(commit.object);
+    expect(built).toBe(0);
+  });
+
+  it('rebuilds instead when the seed was drawn in another tint', async () => {
+    await mountWithMasks();
+    const commit = brushCommit('rgba(255, 0, 0, 1)');
+    toolCell!.seedMaskObject!({
+      annotationId: m1,
+      rawAnnotationData: commit.rawAnnotationData,
+      fill: 'rgba(255, 0, 0, 1)',
+      // The 19 x 19 cells of the r=9 disc, and the object its preview builds.
+      width: 19,
+      height: 19,
+      object: (() => commit.object) as unknown as MaskObjectSeed['object'],
+    });
+    setAnnotations('byImage', imageId, m1, (prev) => ({ ...prev!, ...commit.fields }));
+    await vi.waitFor(() => expect(buildsFor('m1')).toBe(2));
+    await vi.waitFor(() => expect(objects.find((o) => o.id === 'm1')).toBeDefined());
+    expect(byId('m1')).not.toBe(commit.object);
   });
 });

@@ -274,7 +274,7 @@ export function decodeCanonicalRaster(
   assertBoxInsideImage(data.x, data.y, data.width, data.height, data.imageWidth, data.imageHeight);
   const area = cellsWide * cellsHigh;
   if (area === 0) {
-    return runRaster(emptySnapshot(data.imageWidth, data.imageHeight), [0]);
+    return runRaster(emptySnapshot(data.imageWidth, data.imageHeight, downsample), [0]);
   }
   if (downsample !== 1) assertCellAligned(data, downsample);
   assertCountsFitBox(data.counts, area);

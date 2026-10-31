@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { batch, createComponent, createRoot, createSignal, untrack, type Setter } from 'solid-js';
+import {
+  batch,
+  createComponent,
+  createRenderEffect,
+  createRoot,
+  createSignal,
+  untrack,
+  type Setter,
+} from 'solid-js';
 import { version as FABRIC_VERSION } from 'fabric';
 import type { FabricOverlay } from '@osdlabel/fabric-osd';
 import {
@@ -11,9 +19,15 @@ import {
 import { createAnnotationId } from '@osdlabel/annotation';
 import {
   BoundedDenseMaskBuffer,
+  DEFAULT_MASK_FILL,
   MaskCapacityExceededError,
   createMaskAnnotation,
+  majorityCoarsen,
+  stampCircle,
   type BrushCapacityError,
+  type BrushOptions,
+  type CoarsenStrategy,
+  type MaskObjectSeed,
 } from 'osdlabel';
 import type { SegmentationBrushToolConfig } from '@osdlabel/fabric-annotations';
 import { createImageId, type KeyboardShortcutMap } from '@osdlabel/viewer-api';
@@ -454,5 +468,174 @@ describe('the brush config names the bound New mask key (m19)', () => {
     // advice stays, without pointing to it.
     expect(reported[0]!.message).not.toMatch(/New mask/);
     expect(reported[0]!.message).toMatch(/Paint a smaller region/);
+  });
+});
+
+describe("the provider's brush options", () => {
+  afterEach(() => {
+    dispose?.();
+    dispose = undefined;
+  });
+
+  it('hand on the display budget, and a change to it is observed', () => {
+    const [budget, setBudget] = createSignal<number | undefined>(1_000);
+    const seen: (number | undefined)[] = [];
+    createRoot((d) => {
+      dispose = d;
+      createComponent(AnnotatorProvider, {
+        get brushOptions() {
+          return { maxCanvasPixels: budget() };
+        },
+        get children() {
+          untrack(() => {
+            const { brushOptions } = useAnnotator();
+            // How `ViewerCell`'s rebuild reads it: tracked, inside an effect.
+            createRenderEffect(() => seen.push(brushOptions.maxCanvasPixels));
+          });
+          return null;
+        },
+      });
+    });
+    expect(seen).toEqual([1_000]);
+    setBudget(2_000);
+    expect(seen).toEqual([1_000, 2_000]);
+  });
+});
+
+describe('coarsening through the provider (step 6)', () => {
+  afterEach(() => {
+    dispose?.();
+    dispose = undefined;
+  });
+
+  /** A brush on one cell, its options and the active context's tools from signals. */
+  function mountBrush(initial: {
+    readonly options: BrushOptions;
+    readonly maxDownsample?: number;
+    readonly cell?: { readonly seedMaskObject?: (seed: MaskObjectSeed) => void };
+  }) {
+    createdTools.length = 0;
+    const [options, setOptions] = createSignal<BrushOptions>(initial.options);
+    let annotator: ReturnType<typeof useAnnotator> | undefined;
+    const overlay = makeOverlay();
+    const contextsWith = (maxDownsample: number | undefined) => [
+      {
+        id: contextId,
+        label: 'Test',
+        tools: [
+          {
+            type: 'segmentationBrush' as const,
+            ...(maxDownsample !== undefined ? { brush: { maxDownsample } } : {}),
+          },
+        ],
+      },
+    ];
+    createRoot((d) => {
+      dispose = d;
+      createComponent(AnnotatorProvider, {
+        get brushOptions() {
+          return options();
+        },
+        get children() {
+          untrack(() => {
+            annotator = useAnnotator();
+            annotator.actions.setContexts(contextsWith(initial.maxDownsample));
+            annotator.actions.setActiveContext(contextId);
+            annotator.actions.assignImageToCell(0, imageId);
+            annotator.actions.setActiveTool('segmentationBrush');
+            useAnnotationTool(
+              () => overlay,
+              () => imageId,
+              () => true,
+              initial.cell,
+            );
+          });
+          return null;
+        },
+      });
+    });
+    const built = createdTools.at(-1);
+    expect(built).toBeDefined();
+    const config = (built!.options as { segmentationBrush: SegmentationBrushToolConfig })
+      .segmentationBrush;
+    return {
+      config,
+      setOptions,
+      setMaxDownsample: (value: number | undefined) =>
+        annotator!.actions.setContexts(contextsWith(value)),
+    };
+  }
+
+  /** A coarsened commit for a new mask: d=2, from d=1. */
+  const coarsenedCommit = () => {
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100, downsample: 2 });
+    buffer.set(10, 10, 1);
+    return {
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: buffer.raster(),
+      startDownsample: 1,
+    };
+  };
+
+  it("uses the provider's strategy, and a changed one without rebuilding the tool", () => {
+    const first: CoarsenStrategy = (source) => majorityCoarsen(source);
+    const second: CoarsenStrategy = (source) => majorityCoarsen(source);
+    const h = mountBrush({ options: { coarsen: first } });
+    expect(h.config.getCoarsenStrategy!()).toBe(first);
+    const builds = createdTools.length;
+    h.setOptions({ coarsen: second });
+    expect(createdTools.length).toBe(builds);
+    expect(h.config.getCoarsenStrategy!()).toBe(second);
+    h.setOptions({});
+    expect(h.config.getCoarsenStrategy!()).toBe(majorityCoarsen);
+    expect(createdTools.length).toBe(builds);
+    // The cap is what the tool is built with: changing it does rebuild.
+    h.setOptions({ maxPixels: 500 });
+    expect(createdTools.length).toBe(builds + 1);
+  });
+
+  it('calls onCoarsen through, and a changed one without rebuilding the tool', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const h = mountBrush({ options: { onCoarsen: first } });
+    h.config.onCommit(coarsenedCommit());
+    expect(first).toHaveBeenCalledWith(expect.objectContaining({ from: 1, to: 2, imageId }));
+    const builds = createdTools.length;
+    h.setOptions({ onCoarsen: second });
+    expect(createdTools.length).toBe(builds);
+    h.config.onCommit(coarsenedCommit());
+    expect(second).toHaveBeenCalledOnce();
+    expect(first).toHaveBeenCalledOnce();
+  });
+
+  it("reads maxDownsample from the active context's brush constraint at each press", () => {
+    const h = mountBrush({ options: {}, maxDownsample: 8 });
+    expect(h.config.getMaxDownsample!()).toBe(8);
+    // Read at each press, so a change never rebuilds the tool (#243 minor 17).
+    const builds = createdTools.length;
+    h.setMaxDownsample(4);
+    expect(h.config.getMaxDownsample!()).toBe(4);
+    h.setMaxDownsample(undefined);
+    expect(h.config.getMaxDownsample!()).toBe(1);
+    expect(createdTools.length).toBe(builds);
+  });
+
+  it("hands a commit's preview to the cell it serves (#243 minor 15)", () => {
+    const seeds: MaskObjectSeed[] = [];
+    const h = mountBrush({ options: {}, cell: { seedMaskObject: (seed) => seeds.push(seed) } });
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 100, imageHeight: 100 });
+    stampCircle(buffer, 50.5, 50.5, 4, 1);
+    h.config.onCommit({
+      annotationId: null,
+      imageId,
+      contextId,
+      snapshot: buffer.raster(),
+      startDownsample: 1,
+      preview: { fill: DEFAULT_MASK_FILL, crop: () => null },
+    });
+    expect(seeds).toHaveLength(1);
+    expect([seeds[0]!.width, seeds[0]!.height]).toEqual([9, 9]);
   });
 });

@@ -37,6 +37,7 @@ import {
   createInitialAnnotationState,
   createInitialUIState,
   createInitialContextState,
+  majorityCoarsen,
   warnAnnotationRenderError,
 } from 'osdlabel';
 import { createActions } from './actions.js';
@@ -314,10 +315,17 @@ export function AnnotatorProvider({
   // that kept invalidating it. The callback goes through a ref instead and only
   // the primitive participates.
   const maxPixels = brushOptionsProp?.maxPixels;
+  const maxCanvasPixels = brushOptionsProp?.maxCanvasPixels;
   const selectedFill = brushOptionsProp?.maskStyle?.selectedFill;
   const unselectedOpacity = brushOptionsProp?.maskStyle?.unselectedOpacity;
   const onCapacityExceededRef = useRef(brushOptionsProp?.onCapacityExceeded);
   onCapacityExceededRef.current = brushOptionsProp?.onCapacityExceeded;
+  // The strategy and the coarsening callback go through refs as well: a host
+  // passing either inline would otherwise bust the value on every render.
+  const coarsenRef = useRef(brushOptionsProp?.coarsen);
+  coarsenRef.current = brushOptionsProp?.coarsen;
+  const onCoarsenRef = useRef(brushOptionsProp?.onCoarsen);
+  onCoarsenRef.current = brushOptionsProp?.onCoarsen;
   // Its own memo, so a `maxPixels` change does not hand `ViewerCell`'s
   // selection effect a new `maskStyle` and make it re-decode the selected mask.
   const maskStyle = useMemo<MaskStyle>(
@@ -328,9 +336,12 @@ export function AnnotatorProvider({
     () => ({
       maxPixels,
       maskStyle,
+      maxCanvasPixels,
       onCapacityExceeded: (error) => onCapacityExceededRef.current?.(error),
+      coarsen: (source) => (coarsenRef.current ?? majorityCoarsen)(source),
+      onCoarsen: (event) => onCoarsenRef.current?.(event),
     }),
-    [maxPixels, maskStyle],
+    [maxPixels, maskStyle, maxCanvasPixels],
   );
 
   // Fire onAnnotationsChange when annotations change (skip initial render)

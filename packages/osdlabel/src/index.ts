@@ -58,6 +58,9 @@ export {
   CANONICAL_MASK_FORMAT,
   COCO_RLE_FORMAT,
   COCO_RLE_UNCOMPRESSED_FORMAT,
+  majorityCoarsen,
+  verifyCoarsenStrategy,
+  refineRaster,
 } from '@osdlabel/mask';
 export type {
   MaskBuffer,
@@ -73,6 +76,7 @@ export type {
   CanonicalMaskData,
   CocoRleSegmentation,
   CocoRleUncompressedSegmentation,
+  CoarsenStrategy,
 } from '@osdlabel/mask';
 
 // Viewer API (re-exported from @osdlabel/viewer-api)
@@ -102,6 +106,7 @@ export type {
   AnnotationContext,
   AnnotationContextId,
   ToolConstraint,
+  BrushContextOptions,
   ConstraintStatus,
   ContextState,
   CountScope,
@@ -134,9 +139,12 @@ export {
   getGeometryFromFabricObject,
   buildFabricObjectFromGeometry,
   buildMaskFabricObject,
+  maskFabricObjectFromCanvas,
   DEFAULT_MASK_FILL,
+  MAX_MASK_CANVAS_PIXELS,
   MAX_MASK_CANVAS_SIDE,
   MaskCanvasTooLargeError,
+  MaskDisplayMipEmptyError,
   migrateLegacyRectangle,
   PolyVertexEditor,
   DEFAULT_VERTEX_EDIT_LONG_PRESS_MS,
@@ -258,7 +266,8 @@ export type { OsdAnnotation, OsdFields } from './types.js';
 export { createAnnotationFromGeometry } from './create-annotation.js';
 export { createMaskAnnotation, maskAnnotationFields } from './create-mask-annotation.js';
 export { buildSegmentationBrushConfig, nextBrushRadius } from './brush-config.js';
-export type { BrushOptions, MaskStyle } from './brush-options.js';
+export type { BrushOptions, CoarsenEvent, MaskStyle } from './brush-options.js';
+export { displayBudget } from './display-budget.js';
 export {
   DEFAULT_UNSELECTED_MASK_OPACITY,
   applyMaskSelectionStyle,
@@ -274,7 +283,11 @@ export {
 } from './mask-style.js';
 export type { MaskSwapOutcome, MaskTintOverride, MaskTintSwapHost } from './mask-style.js';
 export { MaskObjectCache } from './mask-object-cache.js';
-export type { BrushConfigAccessors, BrushConfigDispatchers } from './brush-config.js';
+export type {
+  BrushConfigAccessors,
+  BrushConfigDispatchers,
+  MaskObjectSeed,
+} from './brush-config.js';
 export type {
   CreateMaskAnnotationOptions,
   MaskAnnotationFields,

@@ -319,6 +319,15 @@ export function denseRaster(snapshot: MaskSnapshot): MaskRaster {
   return new DenseMaskRaster(snapshot);
 }
 
+/**
+ * The dense snapshot behind a raster `denseRaster` built, without a copy, or
+ * `null` for any other raster: for a reader in this package with a faster
+ * path over bytes than over spans. Off the barrel.
+ */
+export function denseSnapshotOf(raster: MaskRaster): MaskSnapshot | null {
+  return raster instanceof DenseMaskRaster ? raster.dense : null;
+}
+
 /** A raster as-is, or a dense snapshot wrapped as one. */
 export function asMaskRaster(input: MaskRasterInput): MaskRaster {
   return isMaskRaster(input) ? input : denseRaster(input);
@@ -496,7 +505,7 @@ export function toDenseSnapshot(input: MaskRasterInput, maxCells?: number): Mask
   if (raster instanceof DenseMaskRaster) return raster.dense;
   const box = raster.cells;
   if (box.width === 0 || box.height === 0) {
-    return emptySnapshot(raster.imageWidth, raster.imageHeight);
+    return emptySnapshot(raster.imageWidth, raster.imageHeight, raster.downsample);
   }
   assertDecodableArea(box.width, box.height, maxCells, raster.downsample);
   const data = new Uint8Array(box.width * box.height);

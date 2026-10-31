@@ -993,6 +993,7 @@ Each tool in a context can have:
 | `maxCount`     | `number`                   | unlimited     | Maximum number of annotations of this type                                                                        |
 | `countScope`   | `CountScope`               | `'global'`    | Whether `maxCount` applies per-image or globally across all images                                                |
 | `defaultStyle` | `Partial<AnnotationStyle>` | default style | Override the default stroke/fill for this tool                                                                    |
+| `brush`        | `BrushContextOptions`      | none          | For `segmentationBrush`: `maxDownsample`, how coarse a stroke may make its mask to fit the cap                    |
 
 When a tool's `maxCount` is reached, it is automatically disabled in the toolbar and via keyboard shortcuts.
 
@@ -1010,6 +1011,12 @@ enforce the count at review time. Tracked in
 [#154](https://github.com/osdlabel/osdlabel/issues/154); see also the
 [Segmentation Brush
 guide](/osdlabel/guides/segmentation-brush/#painting-into-an-existing-mask).
+
+`brush.maxDownsample` lets a stroke coarsen its mask instead of being refused
+at the cell cap: a power of two up to 2^16, default 1 (refuse). The strategy
+and the `onCoarsen` callback are the provider's (`brushOptions`), so a context
+stays plain data. See [Coarsening a mask that outgrows the
+cap](/osdlabel/guides/segmentation-brush/#coarsening-a-mask-that-outgrows-the-cap).
 
 ### Styling a tool
 
@@ -1256,9 +1263,11 @@ write one, leaving the colour to the renderer.
 ### Masks at a downsample
 
 A mask may be stored coarser than the image: with `downsample: d`, each stored
-**cell** stands for a `d`×`d` block of image pixels. The brush paints new masks
-at full resolution and refines an existing mask at its own `d`, so a coarse
-mask comes from an import or from code, not from a stroke. Only the run grid
+**cell** stands for a `d`×`d` block of image pixels. The brush starts new
+masks at `d` = 1. A stroke refines an existing mask at its own `d`, or
+re-grids it finer when the view is close enough. In a context whose
+`brush.maxDownsample` is above 1, a stroke that outgrows the cell cap coarsens
+the mask instead of being refused. Only the run grid
 changes; everything a reader uses to place the mask stays in image pixels:
 
 ```json
@@ -1645,9 +1654,9 @@ also deselects, but a second press leaves the brush; New mask never does.
 
 **The cursor says the same thing.** The ring is solid when the next stroke will
 refine the selected mask and dashed when it will create one, its line and dashes
-a fixed size on screen at every zoom. On a mask stored at a downsample above 1,
-the ring is drawn as the cells one dab sets rather than as a circle, since that
-is all the precision the mask has.
+a fixed size on screen at every zoom. When the stroke would paint a mask at a
+downsample above 1, the ring is drawn as the cells one dab sets rather than as a
+circle, since that is all the precision the mask has there.
 
 **To switch which mask you are refining, use the select tool.** While the brush
 is active nothing on the canvas is clickable — the overlay puts it in a `paint`
@@ -1772,8 +1781,18 @@ State always holds osdlabel's own encoding, never a downstream one:
 
 A mask may be stored at a power-of-two **downsample**, each cell standing for a
 `d`×`d` block of image pixels. The brush starts every new mask at full
-resolution, whatever the zoom, and a stroke on an existing mask paints at that
-mask's own downsample, so a coarse mask stays coarse and a fine one stays fine.
+resolution, whatever the zoom. A stroke on an existing mask paints at that
+mask's own downsample, or finer when the view is close enough to show it. At
+the press, the brush picks the finest power of two no finer than an image pixel
+per screen pixel, as long as the mask's box and the first dab fit the cap there,
+and each side fits the 32,767 cells a canvas draws. In a context that does not
+coarsen, the finer box must also leave three quarters of the cap free. If a
+re-gridded stroke still outgrows the cap, or its preview the canvas side, the
+brush coarsens it back toward the grid it started from rather than refusing
+it, so re-gridding never turns a stroke that would have fitted into a refusal;
+that is lossless, and `onCoarsen` is not called for it. Re-gridding replicates
+each cell into the finer cells it covers, so the mask loses nothing. A coarse mask refined zoomed out stays
+coarse, and the cursor's cells show the grid the press will paint on.
 The box stays in image pixels at every downsample; the grid conventions are in
 the [Serialization guide](/osdlabel/guides/serialization/#masks-at-a-downsample).
 
@@ -2089,30 +2108,142 @@ is checked on write: `encodeCanonical`, `createMaskAnnotation` and
 no path through the library produces a payload a reader would refuse.
 
 The cap is on the one-byte pixel buffer. Rendering a mask, and the live preview
-while painting, use a four-byte RGBA raster over the mask's box (the preview
-over up to 2x the box in each axis), so the memory a mask costs on screen is
-four to sixteen times the cap suggests, and an engine can refuse a canvas that
-large before the cap is reached — iOS Safari at about 16 megapixels of area. A
-refused preview is reported through `onCapacityExceeded` and the stroke is
-abandoned with the mask unchanged; a mask too large to render is skipped and
-reported like any other annotation that cannot be revived. On devices with
-such limits, set `maxPixels` below them.
+while painting, use a four-byte RGBA raster, and an engine can refuse a canvas
+long before the cap is reached: iOS Safari draws about 16 megapixels of area.
+So a mask is drawn under a **display budget**, `MAX_MASK_CANVAS_PIXELS` (16 Mi,
+4,096²). A mask with more cells is drawn from a display mip: halved by the
+majority rule (`majorityCoarsen`) until it fits, and placed at `d · 2^k`, so it
+covers the same image region and is only blockier at high zoom. The stored
+mask, and everything exported, are untouched. `brushOptions.maxCanvasPixels`
+moves the budget: raise it where the engine allows, or set `Infinity` to lift
+it. `Infinity` lifts only the area budget: a mask more than 32,767 cells wide or
+tall is still drawn from a mip, since no canvas draws that side. Changing it redraws the cell's masks. A mask past the budget is drawn from that
+coarser copy at every zoom, so a feature thinner than a mip cell, such as a
+one-pixel line or a one-pixel gap, may not show. The majority rule drops thin
+lines and fills thin gaps alike, so the drawing stays unbiased, and the stored
+mask is unchanged. A mask made only of such features, whose mip keeps no cell
+at all, is not drawn blank: it is reported through `onAnnotationRenderError`
+as a `MaskDisplayMipEmptyError`, and the rest of the image renders. Drawing just the visible region at full resolution is the
+proper fix, and belongs with
+[#158](https://github.com/osdlabel/osdlabel/issues/158).
+
+The live preview grows ahead of the stroke, so it is not rebuilt at every step.
+While the stroke's buffer (the mask rounded out to 64-cell growth chunks, which
+the preview always covers) is within 16 Mi cells, the margin keeps the preview
+within 16 Mi too; past that, the margin costs at most the buffer's own area, so
+growth stays geometric. No margin is spent on a side the image edge clips. The
+bound is the constant 16 Mi, not `brushOptions.maxCanvasPixels`: a 4,090² mask
+is under 16 Mi, but its buffer rounds out to 4,160², and its preview is larger
+than that. A preview the engine refuses to allocate is reported through
+`onCapacityExceeded`, and the stroke is abandoned with the mask unchanged.
 
 A canvas also has a longest side: Firefox draws none past 32,767 pixels
 (Chromium's limit is 65,535), and past it a canvas is allocated but drawn
 blank. A mask is one canvas pixel per cell, so a long strip can reach that well
-inside the cell cap — 70,000×900 is 63 million cells, about 60 Mi. Such a mask is not drawn:
-the renderer throws `MaskCanvasTooLargeError` (`MAX_MASK_CANVAS_SIDE`), the
-cell reports it through `onAnnotationRenderError` and renders the rest, and the
-mask itself stays in state and exports as usual. A stroke whose live preview
-would pass the limit is refused the same way, through `onCapacityExceeded`
-(whose argument is now a `BrushCapacityError`: either error); the preview's
-room to grow gives way first, so only a mask that is itself too long is refused.
+inside the cell cap — 70,000×900 is 63 million cells, about 60 Mi. The
+renderer draws such a mask from a mip as well, coarse enough that each side
+fits (`MAX_MASK_CANVAS_SIDE`). The brush's live preview is drawn at the mask's
+own resolution, so a stroke on a mask past that side is refused, through
+`onCapacityExceeded`, whose argument is a `BrushCapacityError` (a
+`MaskCapacityExceededError` or a `MaskCanvasTooLargeError`). The preview's room
+to grow gives way first, so only a mask that is itself too long is refused.
+The renderer throws `MaskCanvasTooLargeError` only when not even its coarsest
+mip fits, which a valid mask reaches only under a budget of a few pixels. The
+cell reports that through `onAnnotationRenderError` and renders the rest.
 
 A stroke that would exceed the cap is **abandoned whole** — the buffer is grown
 before any pixel is written, so the mask is left exactly as it was rather than
 half-painted. `onCapacityExceeded` is your only chance to tell the user why
 nothing happened.
+
+### Coarsening a mask that outgrows the cap
+
+A context can let a stroke **coarsen** its mask instead of being refused. Set
+`brush.maxDownsample` on its `segmentationBrush` constraint:
+
+```ts
+const contexts: AnnotationContext[] = [
+  {
+    id: createAnnotationContextId('tumour'),
+    label: 'Tumour regions',
+    tools: [{ type: 'segmentationBrush', brush: { maxDownsample: 16 } }],
+  },
+];
+```
+
+When a step of a stroke would pass the cap, the brush halves the stroke's mask
+(each coarse cell standing for 2×2 of the old ones), redraws the preview on the
+coarser grid, and paints the step again, as many times as it takes, up to
+`maxDownsample`. Past that the whole stroke is refused, as without it, and the
+message names `maxDownsample`. A coarsened mask covers the same region at a
+coarser grid, so detail finer than its cells is gone. Its edges step at the cell
+size, and a later stroke paints at that grid unless it is made close enough in
+to re-grid finer (above). `maxDownsample` is a power of two up to 2^16; 1, the
+default, and any other value mean "refuse at the cap", as before.
+
+`brushOptions.onCoarsen` is called after a coarsened stroke is written, with
+the annotation, image, context and the downsample before and after
+(`CoarsenEvent`). It is not called when a stroke re-grids a mask finer. Use it
+to tell the user their mask lost resolution:
+
+```tsx
+<Annotator
+  contexts={contexts}
+  brushOptions={{
+    onCoarsen: ({ from, to }) => notify(`Mask coarsened from ${from}x to ${to}x to fit`),
+  }}
+/>
+```
+
+The built-in rule, `majorityCoarsen`, sets a coarse cell when most of its
+children are set and breaks a 2-of-4 tie by the cell's parity. It keeps area
+unbiased and is exact on a block of four equal children. That's why coarsening
+a mask that was just re-gridded finer returns it unchanged, instead of
+eroding it a little on every cycle.
+
+Measured on the 2,079 CAMELYON16 tumour polygons that fit the cap (NCRF's
+conversion of the training and validation annotations), rasterized at full
+resolution and coarsened 2×2 at a time, its pooled Dice against the original
+is 0.99924, 0.99834, 0.99651 and 0.99307 at d = 2, 4, 8 and 16. That's within
+0.0006 of sampling each cell's centre once at the final resolution, and
+ahead of it at d=2. Its median signed area error stays under
+0.06%, and no lesion is lost. "Any of four" (OR) reaches only 0.99288 at d=8,
+with a +8% area bias. A unit test paints random lesions stroke by stroke
+through the brush, coarsening as it overflows, and holds it to its own bounds:
+pooled Dice within 0.001 of one-shot sampling and a median signed area error
+within ±0.1% at every d up to 16, and no lesion lost at d up to 8. A host may supply its own as
+`brushOptions.coarsen` (a `CoarsenStrategy`: a raster in, the raster at twice
+its downsample out). It must meet the contract `verifyCoarsenStrategy` checks:
+
+1. it is deterministic, whatever box holds the cells: it pairs children on the
+   grid, not from the box's origin;
+2. it returns a valid coarsening, at twice the downsample, on the same grid,
+   with nothing set outside the source's box;
+3. it undoes re-gridding: a mask replicated one step finer (`refineRaster`)
+   coarsens back to itself, from an odd box origin too.
+
+```ts
+
+const violations = verifyCoarsenStrategy(myStrategy); // [] when it holds
+```
+
+The strategy runs at most once per overflow, between pointer events, so a
+slower one delays one segment rather than every one. Changing
+`brushOptions.coarsen` or `brushOptions.onCoarsen` never rebuilds the tool or
+drops a stroke in progress. A strategy that throws, or whose result is at the
+wrong downsample, on another image, or outside the source's box rounded out to
+the coarse grid, refuses the stroke once through `onCapacityExceeded`, with its
+error as the refusal's `cause`, and the mask is unchanged. Those are the parts
+of the contract the brush checks as it paints; `verifyCoarsenStrategy` checks
+the rest, so run it on a strategy before shipping it. So does a paint
+stroke whose coarsening would leave the mask empty, every feature being smaller
+than a coarse cell: committed, it would delete the annotation. osdlabel's
+precision bounds are measured for `majorityCoarsen` only: another strategy's
+quality is yours to judge.
+
+On an iPad, also lower `maxPixels` to 16 Mi, the canvas area iOS Safari draws.
+Then a coarsening context coarsens before the preview passes it, instead of
+refusing.
 
 ## Not in this version
 

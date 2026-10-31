@@ -1,4 +1,5 @@
-import { createSignal, createEffect } from 'solid-js';
+import { createSignal, createEffect, Show } from 'solid-js';
+import { BRUSH_MAX_PIXELS, coarsenNotice } from './brush-query.js';
 import { render } from 'solid-js/web';
 import {
   Toolbar,
@@ -119,6 +120,13 @@ const CONTEXTS: AnnotationContext[] = [
     id: 'ctx-4' as AnnotationContextId,
     label: 'Single mask',
     tools: [{ type: 'segmentationBrush', maxCount: 1, countScope: 'per-image' }],
+  },
+  {
+    // A stroke past the cap coarsens the mask, up to 16x, instead of being
+    // refused; the notice below says when it happened.
+    id: 'ctx-5' as AnnotationContextId,
+    label: 'Brush (coarsen)',
+    tools: [{ type: 'segmentationBrush', brush: { maxDownsample: 16 } }],
   },
 ];
 
@@ -532,6 +540,7 @@ const lineRatioHudProvider: DecorationProvider<OsdFields> = ({ annotations, pixe
 };
 
 function App() {
+  const [notice, setNotice] = createSignal<string | null>(null);
   return (
     <AnnotatorProvider
       // The brush's pixel cap and what to do when a stroke exceeds it. The
@@ -539,10 +548,13 @@ function App() {
       // callback is the only chance to say why — a harness that omits it is
       // showing consumers a silent failure.
       brushOptions={{
+        ...(BRUSH_MAX_PIXELS !== undefined ? { maxPixels: BRUSH_MAX_PIXELS } : {}),
         onCapacityExceeded: (error) => {
           console.warn('osdlabel: brush stroke exceeded its pixel cap', error);
           alert(`Stroke too large: ${error.message}`);
         },
+        // A coarsened mask lost resolution: say so, as a host should.
+        onCoarsen: ({ from, to }) => setNotice(coarsenNotice(from, to)),
       }}
       renderDomDecoration={(decoration) => {
         const content = decoration.content as BadgeContent;
@@ -602,6 +614,23 @@ function App() {
       ]}
     >
       <AppContent />
+      <Show when={notice()}>
+        <div
+          data-testid="brush-coarsen-notice"
+          style={{
+            position: 'fixed',
+            bottom: '12px',
+            left: '12px',
+            padding: '6px 10px',
+            background: '#ff9800',
+            color: '#000',
+            'border-radius': '4px',
+            'z-index': 1000,
+          }}
+        >
+          {notice()}
+        </div>
+      </Show>
     </AnnotatorProvider>
   );
 }
