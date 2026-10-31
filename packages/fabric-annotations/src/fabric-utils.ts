@@ -13,6 +13,7 @@ import type { Annotation, AnnotationStyle, GeometryType } from '@osdlabel/annota
 import { MASK_RAW_FORMAT, type VectorGeometry } from '@osdlabel/annotation';
 import type { FabricFields, FabricRawAnnotationData } from './types.js';
 import { buildMaskFabricObject } from './mask-fabric-object.js';
+import { rectangleOrigin } from './rectangle-anchor.js';
 
 export function getFabricOptions(style: AnnotationStyle, id: string) {
   const fill = new Color(style.fillColor);
@@ -123,12 +124,14 @@ export function getGeometryFromFabricObject(
   if (type === 'rectangle' && obj instanceof Rect) {
     const width = obj.width * obj.scaleX;
     const height = obj.height * obj.scaleY;
-    const left = obj.left;
-    const top = obj.top;
+    // Read from the centre rather than left/top, which name whatever origin
+    // the object has. Fabric 7's default origin is the centre, and rectangles
+    // saved by earlier releases carry it at their drag start.
+    const center = obj.getCenterPoint();
 
     return {
       type: 'rectangle',
-      origin: { x: left, y: top },
+      origin: rectangleOrigin(center, width, height),
       width: width,
       height: height,
       rotation: obj.angle,

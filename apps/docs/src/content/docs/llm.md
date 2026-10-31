@@ -1357,6 +1357,29 @@ The two directions are intentionally **asymmetric**, and it trips people up:
 
 So: persist the **flat** array, load it back through `deserialize` to get the **keyed** map. If you keep your own annotation list (e.g. a flat `Annotation[]` from `onAnnotationsChange`), you still pass it through `deserialize` to seed the store.
 
+### Rectangles saved by earlier releases
+
+Up to 0.21.0, a rectangle was painted centred on the corner its geometry records, half its size up and to the left of where it was drawn. Fabric 7 places an object by its centre unless told otherwise, and the rectangle tool never told it. Rectangles are now painted where their geometry says.
+
+A rectangle's `origin`, `width` and `height` are its box before rotation, and `rotation` turns that box about its centre, so the centre is always `origin + (width / 2, height / 2)`. Those releases read `origin` back from the shape as the centre it was painted at, so that is what a rectangle saved by them holds. On a rectangle never edited, that point is also the top-left corner of the drag; after a move, resize or rotation it is only the centre.
+
+A rectangle saved by an earlier release still paints where users saw it, because its saved Fabric data is what is drawn. Its geometry is loaded as saved, though, so its measurements, labels and exports sit half its size from the shape on screen. The geometry is corrected the first time the rectangle is edited, because it is read back from the shape's centre.
+
+`deserialize` does not change it. To correct such rectangles when you load them, pass each annotation through `migrateLegacyRectangle`, which recomputes the geometry of an earlier release's rectangle from where it is painted and returns any other annotation unchanged:
+
+```ts
+
+const { byImage } = deserialize(JSON.parse(jsonString));
+for (const annotations of Object.values(byImage)) {
+  for (const annotation of Object.values(annotations)) {
+    annotations[annotation.id] = migrateLegacyRectangle(annotation);
+  }
+}
+actions.loadAnnotations(byImage);
+```
+
+It is a separate module that nothing else imports, so a bundle that does not use it does not include it. It is also importable on its own as `@osdlabel/fabric-annotations/legacy-rectangle`. It recognises an earlier release's rectangle by Fabric data with a centre origin whose `left` / `top` match the geometry's `origin`, to within the rounding Fabric applies when it saves.
+
 ## Exporting masks in another format
 
 `serialize` takes an optional codec that re-encodes mask payloads on the way
@@ -2442,7 +2465,7 @@ Image-space coordinates are stable regardless of zoom level. A point at `(500, 3
 ```ts
 const geometry = {
   type: 'rectangle' as const,
-  origin: { x: 100, y: 200 }, // image pixels
+  origin: { x: 100, y: 200 }, // image pixels; top-left of the box before rotation
   width: 300, // image pixels
   height: 150, // image pixels
   rotation: 0,

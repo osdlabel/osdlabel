@@ -1,5 +1,13 @@
 # @osdlabel/annotation-context
 
+## 0.22.0
+
+### Patch Changes
+
+- Updated dependencies [83ad4d4]
+  - @osdlabel/annotation@0.22.0
+  - @osdlabel/viewer-api@0.22.0
+
 ## 0.21.0
 
 ### Patch Changes

@@ -1,5 +1,20 @@
 # @osdlabel/react
 
+## 0.22.0
+
+### Patch Changes
+
+- Updated dependencies [83ad4d4]
+  - @osdlabel/annotation@0.22.0
+  - @osdlabel/decoration@0.22.0
+  - @osdlabel/fabric-annotations@0.22.0
+  - osdlabel@0.22.0
+  - @osdlabel/annotation-context@0.22.0
+  - @osdlabel/fabric-osd@0.22.0
+  - @osdlabel/osd-helper@0.22.0
+  - @osdlabel/validation@0.22.0
+  - @osdlabel/viewer-api@0.22.0
+
 ## 0.21.0
 
 ### Minor Changes
