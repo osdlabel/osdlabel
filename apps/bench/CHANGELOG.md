@@ -1,5 +1,11 @@
 # @osdlabel/bench
 
+## 0.0.29
+
+### Patch Changes
+
+- @osdlabel/fabric-osd@0.22.0
+
 ## 0.0.28
 
 ### Patch Changes
