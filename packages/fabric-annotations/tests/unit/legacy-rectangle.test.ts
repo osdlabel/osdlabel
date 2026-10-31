@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { Rect } from 'fabric';
 import {
   DEFAULT_ANNOTATION_STYLE,
+  MASK_RAW_FORMAT,
   createAnnotationId,
   type Annotation,
   type Geometry,
 } from '@osdlabel/annotation';
+import { BoundedDenseMaskBuffer, encodeCanonical, stampCircle } from '@osdlabel/mask';
 import { buildFabricObjectFromGeometry } from '../../src/build-fabric-object.js';
 import {
   createFabricObjectFromRawData,
@@ -243,5 +245,28 @@ describe('migrateLegacyRectangle', () => {
     const geometry: Geometry = { type: 'point', position: { x: 10, y: 20 } };
     const ann = annotation(geometry, new Rect({ ...options, left: 10, top: 20 }));
     expect(migrateLegacyRectangle(ann)).toBe(ann);
+  });
+
+  it('leaves a mask alone, so the documented loop can run over every loaded annotation', () => {
+    // A mask carries a pixel payload, not Fabric data, and the loop in the
+    // docs passes it in along with the rectangles.
+    const buffer = new BoundedDenseMaskBuffer({ imageWidth: 200, imageHeight: 200 });
+    stampCircle(buffer, 60.5, 70.5, 6, 1);
+    const snapshot = buffer.snapshot();
+    const mask: Annotation<FabricFields> = {
+      id: createAnnotationId('mask-1'),
+      toolType: 'segmentationBrush',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      geometry: {
+        type: 'mask',
+        origin: { x: snapshot.cells.x, y: snapshot.cells.y },
+        width: snapshot.cells.width,
+        height: snapshot.cells.height,
+        pixelCount: snapshot.data.reduce((a, v) => a + v, 0),
+      },
+      rawAnnotationData: { format: MASK_RAW_FORMAT, data: { ...encodeCanonical(snapshot) } },
+    };
+    expect(migrateLegacyRectangle(mask)).toBe(mask);
   });
 });
