@@ -30,6 +30,7 @@ export {
   centroid,
   midpoint,
   boundingBox,
+  rectangleCorners,
   circleToBoundingRectangle,
 } from '@osdlabel/geometry';
 export {

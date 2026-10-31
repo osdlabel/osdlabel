@@ -4,11 +4,25 @@ export interface Point {
   readonly y: number;
 }
 
+/**
+ * A rectangle in image-space pixels, possibly rotated.
+ *
+ * `origin`, `width` and `height` give the box before rotation: it covers
+ * `origin` to `origin + (width, height)`. `rotation` then turns that box
+ * about its own centre, `origin + (width / 2, height / 2)`, so rotating a
+ * rectangle changes only `rotation`. Once rotated, `origin` is no longer a
+ * corner of the shape; `rectangleCorners` in `@osdlabel/geometry` gives the
+ * corners.
+ */
 export interface RectangleGeometry {
   readonly type: 'rectangle';
+  /** Top-left corner of the box before rotation. */
   readonly origin: Point;
+  /** Width of the box before rotation. */
   readonly width: number;
+  /** Height of the box before rotation. */
   readonly height: number;
+  /** Clockwise rotation about the box's centre, in degrees (image y points down). */
   readonly rotation: number;
 }
 

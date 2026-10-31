@@ -1,6 +1,6 @@
 {
   "name": "@osdlabel/mask",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "Raster mask storage, stroke rasterization, and pluggable mask codecs (COCO RLE built in) for osdlabel.",
   "type": "module",
   "main": "./dist/index.js",
