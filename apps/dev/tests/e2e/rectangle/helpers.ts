@@ -206,9 +206,10 @@ export const GENERAL: DevContext = { index: 2, label: 'General' };
  *
  * The context is chosen before the view is read or zoomed, and the view is
  * left to settle in between: the contexts show different tools, the toolbar
- * can wrap onto another line for one and not for another, and the viewer then
- * moves and resizes, which OSD answers a frame later by changing the zoom. A
- * view read, or a zoom set, before that is stale.
+ * can wrap onto another line for one and not for another (General's does at
+ * 1280 px wide, now that the displayed-contexts panel lists five contexts),
+ * and the viewer then moves and resizes, which OSD answers a frame later by
+ * changing the zoom. A view read, or a zoom set, before that is stale.
  */
 export async function openAnnotator(
   page: Page,
