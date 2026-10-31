@@ -152,7 +152,7 @@ describe('buildFabricObjectFromGeometry', () => {
 });
 
 describe('rectangle placement', () => {
-  const rectangle = (rotation: number): Geometry => ({
+  const rectangle = (rotation: number): VectorGeometry => ({
     type: 'rectangle',
     origin: { x: 10, y: 20 },
     width: 100,
