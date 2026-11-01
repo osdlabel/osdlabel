@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FabricOverlay, type OverlayMode } from '../../../src/overlay/fabric-overlay.js';
+import {
+  FabricOverlay,
+  type OverlayMode,
+  type PointerCancelCallback,
+} from '../../../src/overlay/fabric-overlay.js';
 import {
   POINTER_CANCEL,
   POINTER_DOWN,
@@ -12,7 +16,8 @@ import {
  * and never for a `pointercancel`, so a lift while a second finger rests, a
  * second finger landing mid-stroke, and a cancel all left a Fabric gesture —
  * and a brush stroke — open with no release. `preProcessEventHandler` now
- * forwards the release itself in those cases.
+ * forwards the release itself in those cases (`second-pointer.test.ts` and
+ * `pointer-cancel.test.ts` cover the lift and the cancel in annotation mode).
  *
  * Exercises the real `_createMouseTracker` handlers: the overlay is built
  * from its prototype with only the fields those handlers read, and
@@ -117,15 +122,22 @@ function overlayInMode(mode: OverlayMode) {
   fields['_mode'] = mode;
   fields['_forwarding'] = false;
   fields['_pendingPress'] = null;
-  fields['_palmPointers'] = new Set();
+  fields['_heldPointers'] = new Set();
+  fields['_handledReleases'] = new WeakSet();
+  fields['_pointerCancelSubscribers'] = new Set();
+  fields['_transformPoints'] = null;
   fields['_lastClick'] = null;
-  fields['_panGestureActive'] = false;
+  fields['_panPointer'] = null;
   fields['_pressSeq'] = 0;
   fields['_pressSeqByEvent'] = new Map();
-  fields['_cancelledReleases'] = new WeakSet();
   fields['_doubleClickSubscribers'] = new Set();
   fields['_fabricContainer'] = container;
-  fields['_fabricCanvas'] = { upperCanvasEl: upperCanvas };
+  // A cancel ends Fabric's gesture with `selection` off, then repaints.
+  fields['_fabricCanvas'] = {
+    upperCanvasEl: upperCanvas,
+    selection: false,
+    requestRenderAll: () => {},
+  };
   fields['_viewer'] = { setMouseNavEnabled: vi.fn(), canvas: parent };
   const tracker = (o as unknown as { _createMouseTracker(): unknown })._createMouseTracker();
   fields['_overlayTracker'] = tracker;
@@ -172,11 +184,11 @@ describe('releases OSD never reports', () => {
   it('does not double the ordinary last-contact release', () => {
     const { dispatched, tracker } = overlayInMode('paint');
     press(tracker, event(POINTER_DOWN, 1));
-    // The only contact lifts: OSD's releaseHandler will fire, so pre-process
-    // must leave it alone.
+    // The only contact lifts. Pre-process ends the gesture for the pointer
+    // that pressed, whatever OSD counts, and marks the event handled, so
+    // OSD's own report of it to releaseHandler forwards nothing more.
     const up = event(POINTER_UP, 1);
     tracker.preProcessEventHandler(info(POINTER_UP, up));
-    expect(dispatched.map((e) => e.type)).toEqual([POINTER_DOWN]);
     tracker.releaseHandler({ originalEvent: up });
     expect(dispatched.map((e) => e.type)).toEqual([POINTER_DOWN, POINTER_UP]);
   });
@@ -334,77 +346,112 @@ describe('releases OSD never reports', () => {
     expect(pending()).toBeNull();
   });
 
-  it('marks the release it forwards for a cancel, and only that one', () => {
-    // Fabric has no `pointercancel`, so a cancel reaches a tool as a release.
-    // The mark is how the brush discards a palm the platform rejected rather
-    // than commit the dot it left; every other lost release is a real lift.
+  it('tells cancel subscribers of the release it forwards for a cancel, and of no other', () => {
+    // Fabric has no `pointercancel`, so a cancel reaches Fabric, and a tool's
+    // `onPointerUp`, as an ordinary release. The cancel subscribers (the
+    // hooks route them to the tool's `onPointerCancel`) are how the brush
+    // discards a palm the platform rejected rather than commit the dot it
+    // left, so they must hear of it before that release. Every other lost
+    // release the overlay forwards is a real lift, of which they hear nothing.
     const cancel = overlayInMode('paint');
+    /** What the overlay had dispatched when each cancel was reported. */
+    const dispatchedAtCancel: string[][] = [];
+    const onCancel = vi.fn<PointerCancelCallback>(() => {
+      dispatchedAtCancel.push(cancel.dispatched.map((e) => e.type));
+    });
+    cancel.o.onPointerCancel(onCancel);
     press(cancel.tracker, event(POINTER_DOWN, 1));
     cancel.tracker.preProcessEventHandler(info(POINTER_CANCEL, event(POINTER_CANCEL, 1)));
-    expect(cancel.dispatched[1]!.type).toBe(POINTER_UP);
-    expect(cancel.o.isCancelledRelease(cancel.dispatched[1]!)).toBe(true);
+    expect(cancel.dispatched.map((e) => e.type)).toEqual([POINTER_DOWN, POINTER_UP]);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCancel.mock.calls[0]![1]).toBe(cancel.o.pressSeqOf(cancel.dispatched[0]!));
+    expect(dispatchedAtCancel).toEqual([[POINTER_DOWN]]);
 
     const secondFinger = overlayInMode('paint');
+    const notCancelledBySecondFinger = vi.fn<PointerCancelCallback>();
+    secondFinger.o.onPointerCancel(notCancelledBySecondFinger);
     press(secondFinger.tracker, event(POINTER_DOWN, 1));
     secondFinger.tracker.preProcessEventHandler(
       info(POINTER_DOWN, event(POINTER_DOWN, 2, { isPrimary: false })),
     );
-    expect(secondFinger.o.isCancelledRelease(secondFinger.dispatched[1]!)).toBe(false);
+    expect(secondFinger.dispatched.map((e) => e.type)).toEqual([POINTER_DOWN, POINTER_UP]);
+    expect(notCancelledBySecondFinger).not.toHaveBeenCalled();
 
     const ordinary = overlayInMode('paint');
+    const notCancelledByLift = vi.fn<PointerCancelCallback>();
+    ordinary.o.onPointerCancel(notCancelledByLift);
     const up = event(POINTER_UP, 1);
     press(ordinary.tracker, event(POINTER_DOWN, 1));
     ordinary.tracker.preProcessEventHandler(info(POINTER_UP, up));
     ordinary.tracker.releaseHandler({ originalEvent: up });
-    expect(ordinary.o.isCancelledRelease(ordinary.dispatched[1]!)).toBe(false);
+    expect(ordinary.dispatched.map((e) => e.type)).toEqual([POINTER_DOWN, POINTER_UP]);
+    expect(notCancelledByLift).not.toHaveBeenCalled();
   });
 
-  it('lets a pen through while a touch press is held, discarding the touch as the palm', () => {
-    // On an iPad the hand often lands before the pencil and is cancelled a
-    // moment later. When the pencil wins that race, treating it as the palm
-    // swallowed its whole stroke; the touch is the palm.
-    const { o, dispatched, tracker, pending } = overlayInMode('paint');
-    const palm = (type: string) =>
-      event(type, 7, {
-        pointerType: 'touch',
-        isPrimary: true,
-        buttons: type === POINTER_DOWN || type === POINTER_MOVE ? 1 : 0,
+  // A touch never wins over a pen or a mouse. On an iPad the hand often lands
+  // before the pencil and is cancelled a moment later; a finger left on a
+  // touchscreen beside the mouse is not cancelled at all. Holding the pen or
+  // mouse swallowed its whole stroke; the touch is the hand at rest.
+  it.each(['pen', 'mouse'] as const)(
+    'lets a %s through while a touch press is in progress, discarding the touch',
+    (pointerType) => {
+      const { o, dispatched, tracker, pending } = overlayInMode('paint');
+      /** What the overlay had dispatched when each cancel was reported. */
+      const dispatchedAtCancel: number[] = [];
+      const onCancel = vi.fn<PointerCancelCallback>(() => {
+        dispatchedAtCancel.push(dispatched.length);
       });
-    const pen = (type: string) =>
-      event(type, 5, { pointerType: 'pen', isPrimary: true, buttons: type === POINTER_UP ? 0 : 1 });
-    press(tracker, palm(POINTER_DOWN));
+      o.onPointerCancel(onCancel);
+      const palm = (type: string) =>
+        event(type, 7, {
+          pointerType: 'touch',
+          isPrimary: true,
+          buttons: type === POINTER_DOWN || type === POINTER_MOVE ? 1 : 0,
+        });
+      const other = (type: string) =>
+        event(type, 5, { pointerType, isPrimary: true, buttons: type === POINTER_UP ? 0 : 1 });
+      press(tracker, palm(POINTER_DOWN));
 
-    const penDown = info(POINTER_DOWN, pen(POINTER_DOWN));
-    tracker.preProcessEventHandler(penDown);
-    expect(penDown.preventGesture).toBe(false);
-    tracker.pressHandler({ originalEvent: pen(POINTER_DOWN) });
-    expect(dispatched.map((e) => [e.type, e.pointerId, e.pointerType])).toEqual([
-      [POINTER_DOWN, 7, 'touch'],
-      [POINTER_UP, 7, 'touch'],
-      [POINTER_DOWN, 5, 'pen'],
-    ]);
-    expect(o.isCancelledRelease(dispatched[1]!)).toBe(true);
-    expect(pending()?.pointerId).toBe(5);
+      const otherDown = info(POINTER_DOWN, other(POINTER_DOWN));
+      tracker.preProcessEventHandler(otherDown);
+      expect(otherDown.preventGesture).toBe(false);
+      tracker.pressHandler({ originalEvent: other(POINTER_DOWN) });
+      expect(dispatched.map((e) => [e.type, e.pointerId, e.pointerType])).toEqual([
+        [POINTER_DOWN, 7, 'touch'],
+        [POINTER_UP, 7, 'touch'],
+        [POINTER_DOWN, 5, pointerType],
+      ]);
+      // The touch's press is cancelled, before the release that ends it, with
+      // the event that revealed it: the new pointer's press, so the press it
+      // took away is named by its sequence.
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      const [revealedBy, pressSeq] = onCancel.mock.calls[0]!;
+      expect(revealedBy).toBe(otherDown.originalEvent);
+      expect(pressSeq).toBe(o.pressSeqOf(dispatched[0]!));
+      expect(dispatchedAtCancel).toEqual([1]);
+      expect(pending()?.pointerId).toBe(5);
 
-    // The rest of the palm is swallowed; its cancel forwards nothing.
-    const palmMove = info(POINTER_MOVE, palm(POINTER_MOVE));
-    tracker.preProcessEventHandler(palmMove);
-    expect(palmMove.preventGesture).toBe(true);
-    const palmCancel = info(POINTER_CANCEL, palm(POINTER_CANCEL));
-    tracker.preProcessEventHandler(palmCancel);
-    expect(palmCancel.preventGesture).toBe(true);
-    expect(dispatched).toHaveLength(3);
+      // The rest of the touch is swallowed; its cancel forwards nothing.
+      const palmMove = info(POINTER_MOVE, palm(POINTER_MOVE));
+      tracker.preProcessEventHandler(palmMove);
+      expect(palmMove.preventGesture).toBe(true);
+      const palmCancel = info(POINTER_CANCEL, palm(POINTER_CANCEL));
+      tracker.preProcessEventHandler(palmCancel);
+      expect(palmCancel.preventGesture).toBe(true);
+      expect(dispatched).toHaveLength(3);
 
-    // The pencil's own release is an ordinary lift.
-    const penUp = pen(POINTER_UP);
-    tracker.preProcessEventHandler(info(POINTER_UP, penUp));
-    tracker.releaseHandler({ originalEvent: penUp });
-    expect(dispatched.map((e) => [e.type, e.pointerId])).toEqual([
-      [POINTER_DOWN, 7],
-      [POINTER_UP, 7],
-      [POINTER_DOWN, 5],
-      [POINTER_UP, 5],
-    ]);
-    expect(o.isCancelledRelease(dispatched[3]!)).toBe(false);
-  });
+      // Its own release is an ordinary lift.
+      const otherUp = other(POINTER_UP);
+      tracker.preProcessEventHandler(info(POINTER_UP, otherUp));
+      tracker.releaseHandler({ originalEvent: otherUp });
+      expect(dispatched.map((e) => [e.type, e.pointerId])).toEqual([
+        [POINTER_DOWN, 7],
+        [POINTER_UP, 7],
+        [POINTER_DOWN, 5],
+        [POINTER_UP, 5],
+      ]);
+      // Neither the touch's own cancel nor the new press's lift is another.
+      expect(onCancel).toHaveBeenCalledTimes(1);
+    },
+  );
 });

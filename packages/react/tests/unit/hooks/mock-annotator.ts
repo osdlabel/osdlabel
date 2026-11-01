@@ -37,6 +37,7 @@ export function createMockActions(): MockActions {
   return {
     addAnnotation: vi.fn(),
     updateAnnotation: vi.fn(),
+    updateAnnotations: vi.fn(),
     convertAnnotation: vi.fn(),
     deleteAnnotation: vi.fn(),
     setActiveTool: vi.fn(),

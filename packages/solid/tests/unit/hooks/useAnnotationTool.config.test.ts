@@ -85,6 +85,7 @@ function makeOverlay(): FabricOverlay {
     setMode: vi.fn(),
     screenToImage: vi.fn(),
     onDoubleClick: vi.fn(() => () => {}),
+    onPointerCancel: vi.fn(() => () => {}),
   } as unknown as FabricOverlay;
 }
 

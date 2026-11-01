@@ -44,13 +44,17 @@ export interface PolyVertexEditorOptions {
  * already moves vertices and fires `object:modified`). On top of that this adds:
  *
  * - a configurable **long-press** to enter a sticky edit mode (tablet-friendly),
- * - **edge-insertion** handles at edge midpoints that splice a new vertex and
- *   continue the same drag, and
- * - **vertex deletion** (Delete/Backspace) honoring per-shape minimums.
+ * - **edge-insertion** handles at edge midpoints that splice a new vertex: a
+ *   click commits it at the midpoint, a drag moves it and commits it on
+ *   release, and
+ * - **vertex deletion** (Delete/Backspace) honoring per-shape minimums, which
+ *   leaves every other vertex where it is and waits for the pointer to be
+ *   released.
  *
- * Vertex moves commit through the host's existing `object:modified` →
- * `getGeometryFromFabricObject` path. The editor is Fabric-only (SolidJS / OSD
- * agnostic) and is owned by the Select / Polyline / Free-draw tools.
+ * Every edit (vertex move, insertion, deletion) commits through the host's
+ * existing `object:modified` → `getGeometryFromFabricObject` path. The editor
+ * is Fabric-only (SolidJS / OSD agnostic) and is owned by the Select /
+ * Polyline / Free-draw tools.
  */
 export class PolyVertexEditor {
   private canvas: Canvas | null = null;
@@ -64,6 +68,12 @@ export class PolyVertexEditor {
    * the time a key is pressed the hovered-corner state is already gone.
    */
   private activeVertexKey: string | null = null;
+  /**
+   * `activeVertexKey` as it was before the press in progress on the edited
+   * shape changed it, or `undefined` while there is no such press. A
+   * cancelled press puts it back (see {@link onPointerCancel}).
+   */
+  private keyBeforePress: string | null | undefined = undefined;
 
   /** Long-press bookkeeping. */
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -76,7 +86,7 @@ export class PolyVertexEditor {
 
   private readonly onMouseDown = (e: TPointerEventInfo<TPointerEvent>) => this.handleMouseDown(e);
   private readonly onMouseMove = (e: TPointerEventInfo<TPointerEvent>) => this.handleMouseMove(e);
-  private readonly onMouseUp = () => this.clearPress();
+  private readonly onMouseUp = () => this.handleMouseUp();
   private readonly onObjectAdded = (e: { target: FabricObject }) =>
     this.handleObjectAdded(e.target);
 
@@ -114,6 +124,15 @@ export class PolyVertexEditor {
   /**
    * Handle a key while editing. Returns true when consumed.
    * Escape exits edit mode; Delete/Backspace removes the hovered/active vertex.
+   *
+   * Delete/Backspace are ignored while the pointer is held (Fabric has a
+   * transform in progress, such as a vertex drag) and work again once it is
+   * released. Fabric's transform stays bound to the vertex index and the
+   * placement its press found, so a vertex removed under it would leave the
+   * drag moving whichever vertex took that index, and the release committing
+   * it there. Ignored or not, they are consumed. Escape stays live mid-drag:
+   * it changes only the handles, and the drag goes on moving the vertex it
+   * began on, which the release commits as painted.
    */
   onKeyDown(event: KeyboardEvent): boolean {
     if (!this.editingObject) return false;
@@ -122,25 +141,60 @@ export class PolyVertexEditor {
       return true;
     }
     if (event.key === 'Delete' || event.key === 'Backspace') {
-      // Consume while editing so a vertex delete never falls through to
+      // Consumed even when ignored, so a vertex delete never falls through to
       // deleting the whole annotation (the host tool's default Delete action).
-      this.deleteActiveVertex();
+      if (!this.canvas?._currentTransform) this.deleteActiveVertex();
       return true;
     }
     return false;
+  }
+
+  /**
+   * The press in progress was cancelled (`pointercancel`, or a touch press a
+   * pen or a mouse took over; see `AnnotationTool.onPointerCancel`). Called by
+   * the tool that owns the editor, after `FabricOverlay` has put the shape
+   * back, points included.
+   *
+   * A long press it interrupted must not enter edit mode when its timer
+   * fires. In edit mode the Delete target goes back to the one before the
+   * press: a press on the shape chooses the target, and an insert handle's
+   * press chooses the vertex it inserted, which the overlay has just taken
+   * back. Left in place, that key names the vertex that slid back into its
+   * index, which the next Delete would remove. The earlier key indexes the
+   * points the overlay restored, so it still names the vertex it did. And the
+   * handles are rebuilt for the points the shape now has: the insert handle
+   * rebuilds them for its new vertex, and once that vertex is gone the extra
+   * handles would point past the end of `points`.
+   */
+  onPointerCancel(): void {
+    this.clearPress();
+    const keyBeforePress = this.keyBeforePress;
+    this.keyBeforePress = undefined;
+    const poly = this.editingObject;
+    if (!poly) return;
+    if (keyBeforePress !== undefined) this.activeVertexKey = keyBeforePress;
+    poly.controls = buildEditControls(poly);
+    poly.setCoords();
+    poly.set('dirty', true);
+    this.canvas?.requestRenderAll();
   }
 
   // ── Long-press detection ───────────────────────────────────────────────────
 
   private handleMouseDown(e: TPointerEventInfo<TPointerEvent>): void {
     this.clearPress();
+    this.keyBeforePress = undefined;
     const target = e.target;
 
     if (this.editingObject) {
       if (target === this.editingObject) {
-        // Pressing a vertex control records it as the deletion target; pressing
-        // the body or an insert handle clears it. Fabric has already set
-        // `__corner` for this mouse:down (cleared again on the matching mouse:up).
+        // Pressing a vertex control records it as the deletion target, and
+        // pressing an insert handle records the vertex it inserted (its
+        // mouseDownHandler has already pointed `__corner` at it); pressing the
+        // body clears it. Fabric has already set `__corner` for this mouse:down
+        // (cleared again on the matching mouse:up). The previous target is
+        // kept until the release, for a cancel to put back.
+        this.keyBeforePress = this.activeVertexKey;
         const corner = this.editingObject.__corner;
         this.activeVertexKey = corner && corner.startsWith('p') ? corner : null;
         return; // let Fabric's control pipeline handle the interaction
@@ -170,6 +224,11 @@ export class PolyVertexEditor {
     }
   }
 
+  private handleMouseUp(): void {
+    this.clearPress();
+    this.keyBeforePress = undefined;
+  }
+
   private clearPress(): void {
     if (this.pressTimer) {
       clearTimeout(this.pressTimer);
@@ -194,6 +253,7 @@ export class PolyVertexEditor {
     this.editingObject = null;
     this.editingId = null;
     this.activeVertexKey = null;
+    this.keyBeforePress = undefined;
     if (!poly) return;
     poly.controls = controlsUtils.createObjectDefaultControls();
     // Refresh oCoords so hit-testing matches the restored default control keys.
@@ -250,8 +310,7 @@ export class PolyVertexEditor {
     const min = poly instanceof Polygon ? MIN_POLYGON_POINTS : MIN_POLYLINE_POINTS;
     if (poly.points.length <= min) return false;
 
-    poly.points.splice(index, 1);
-    poly.setDimensions();
+    removeVertexInPlace(poly, index);
     poly.controls = buildEditControls(poly);
     poly.setCoords();
     this.activeVertexKey = null;
@@ -267,6 +326,30 @@ export class PolyVertexEditor {
     if (!target || !target.id || target._readOnly) return null;
     return target instanceof Polyline ? target : null;
   }
+}
+
+/**
+ * Removes vertex `index` from `poly` and leaves every other vertex where it
+ * was, in `poly`'s parent plane (image space on an annotation canvas).
+ *
+ * Fabric draws the points about `pathOffset`, the centre of their bounding
+ * box, which `setDimensions()` recomputes, while `left` / `top` stay put. So
+ * removing a vertex that alone holds a side of the box moves the box's centre
+ * and, through the object's transform, every remaining vertex with it.
+ * Fabric's own vertex move (`factoryPolyActionHandler`) compensates by
+ * keeping one vertex fixed, and so does this: a vertex that stays is the
+ * anchor, measured through `calcOwnMatrix()` before and after, and `left` /
+ * `top` take the difference back. Only the translation changes (angle,
+ * scale, skew and flip do not), so fixing one vertex fixes them all, under
+ * any origin.
+ */
+function removeVertexInPlace(poly: Polyline, index: number): void {
+  const anchor = new Point(poly.points[index === 0 ? 1 : 0]!);
+  const before = anchor.subtract(poly.pathOffset).transform(poly.calcOwnMatrix());
+  poly.points.splice(index, 1);
+  poly.setDimensions();
+  const after = anchor.subtract(poly.pathOffset).transform(poly.calcOwnMatrix());
+  poly.set({ left: poly.left - (after.x - before.x), top: poly.top - (after.y - before.y) });
 }
 
 // ── Control construction ───────────────────────────────────────────────────
@@ -318,15 +401,20 @@ function makeInsertPositionHandler(edge: number) {
 /**
  * On press of an edge-insert handle: splice a new vertex at the edge midpoint,
  * rebuild controls, then redirect the in-flight transform to the new vertex's
- * move handler so the same drag rubber-bands the freshly inserted point.
+ * move handler, so a drag moves the new vertex with the pointer.
+ *
+ * The insertion is an edit even if the pointer never moves, so the press marks
+ * the transform as performed. Fabric fires `object:modified` on release only
+ * for a performed transform, and sets the flag itself only when a pointer move
+ * runs the action handler; without this, a click (press and release without
+ * moving) left a vertex on the canvas that state never received, and the next
+ * rebuild dropped it. The vertex stays at the midpoint until the pointer
+ * moves, wherever on the handle the press landed: a click commits it there,
+ * a drag where it is released.
  */
 function makeInsertMouseDownHandler(edge: number) {
-  return function mouseDownHandler(
-    eventData: TPointerEvent,
-    transform: Transform,
-    x: number,
-    y: number,
-  ): boolean {
+  // The press position is deliberately unused: see above.
+  return function mouseDownHandler(_eventData: TPointerEvent, transform: Transform): boolean {
     const poly = transform.target as Polyline;
     const n = poly.points.length;
     const a = poly.points[edge]!;
@@ -337,6 +425,8 @@ function makeInsertMouseDownHandler(edge: number) {
     poly.setDimensions();
     poly.controls = buildEditControls(poly);
     poly.setCoords();
+    // Commit on release even if the pointer never moves.
+    transform.actionPerformed = true;
 
     const key = `p${insertIndex}`;
     const vertexControl = poly.controls[key];
@@ -349,7 +439,6 @@ function makeInsertMouseDownHandler(edge: number) {
     transform.actionHandler = vertexControl.actionHandler;
     poly.__corner = key;
 
-    vertexControl.actionHandler(eventData, transform, x, y);
     poly.set('dirty', true);
     poly.canvas?.requestRenderAll();
     return true;

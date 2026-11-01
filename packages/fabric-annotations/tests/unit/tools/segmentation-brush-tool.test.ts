@@ -60,8 +60,6 @@ interface Harness {
   readonly commits: BrushStrokeCommit[];
   readonly capacityErrors: BrushCapacityError[];
   readonly radiusAdjustments: (1 | -1)[];
-  /** Releases the stand-in overlay reports as ending a cancelled press. */
-  readonly cancelledReleases: WeakSet<PointerEvent>;
   readonly canvas: {
     on: ReturnType<typeof vi.fn>;
     off: ReturnType<typeof vi.fn>;
@@ -169,11 +167,7 @@ function harness(
     getAnnotation: vi.fn().mockReturnValue(undefined),
   };
 
-  const cancelledReleases = new WeakSet<PointerEvent>();
-  const overlay = {
-    canvas,
-    isCancelledRelease: (event: PointerEvent) => cancelledReleases.has(event),
-  };
+  const overlay = { canvas };
   const tool = new SegmentationBrushTool(config);
   tool.activate(overlay as unknown as ToolOverlay, imageId, callbacks, shortcuts);
 
@@ -184,7 +178,6 @@ function harness(
     commits,
     capacityErrors,
     radiusAdjustments,
-    cancelledReleases,
     canvas,
     setZoom: (next) => {
       zoom = next;
@@ -1474,10 +1467,14 @@ describe('a preview the engine refuses to allocate', () => {
 });
 
 describe('a stroke whose press the platform cancelled', () => {
+  // Palm rejection on an iPad cancels the palm a moment after it lands, and
+  // `FabricOverlay` cancels a touch press itself when a pen or a mouse presses
+  // beside it. Either way it tells the tool first, through `onPointerCancel`
+  // (the brush inherits `BaseTool`'s, which calls `cancel()`), and then ends
+  // Fabric's gesture with a release of its own: an ordinary `pointerup`,
+  // indistinguishable from a lift. Committing on that release left a dot in
+  // the mask, so the cancel alone must discard the stroke.
   it('is discarded, not committed, and the mask it was refining comes back', () => {
-    // Palm rejection on an iPad cancels the palm a moment after it lands, and
-    // the overlay forwards the cancel as a release. Committing it left a dot
-    // in the mask.
     const committed = committedObject('m1');
     const h = harness({
       target: { annotationId: createAnnotationId('m1'), snapshot: paintedSnapshot() },
@@ -1487,14 +1484,50 @@ describe('a stroke whose press the platform cancelled', () => {
     move(h.tool, 120, 80);
     expect(committed.visible).toBe(false);
 
-    const release = { pointerType: 'touch' } as PointerEvent;
-    h.cancelledReleases.add(release);
-    h.tool.onPointerUp(release, { x: 120, y: 80 });
+    h.tool.onPointerCancel({ pointerType: 'touch' } as PointerEvent, 1);
 
     expect(h.commits).toHaveLength(0);
     expect(committed.visible).toBe(true);
     // The preview is gone, as for any other ending.
     expect(h.objects.filter((o) => o.type === 'image')).toHaveLength(0);
+  });
+
+  it('commits nothing on the release that follows the cancel', () => {
+    const committed = committedObject('m1');
+    const h = harness({
+      target: { annotationId: createAnnotationId('m1'), snapshot: paintedSnapshot() },
+      existingObjects: [committed],
+    });
+    down(h.tool, 100, 80);
+    move(h.tool, 120, 80);
+    h.tool.onPointerCancel({ pointerType: 'touch' } as PointerEvent, 1);
+
+    // The overlay's release, built from the cancelled press.
+    h.tool.onPointerUp({ pointerType: 'touch', buttons: 0 } as PointerEvent, { x: 100, y: 80 });
+
+    expect(h.commits).toHaveLength(0);
+    expect(committed.visible).toBe(true);
+    expect(h.objects.filter((o) => o.type === 'image')).toHaveLength(0);
+  });
+
+  // A pen or a mouse pressing beside a resting finger: the cancel's event is
+  // the new pointer's `pointerdown`, the release that follows is the finger's,
+  // and then the new pointer's own stroke begins.
+  it('leaves the next stroke to paint, and commit, alone', () => {
+    const h = harness();
+    down(h.tool, 100, 80);
+    move(h.tool, 120, 80);
+    h.tool.onPointerCancel({ pointerType: 'pen' } as PointerEvent, 1);
+    h.tool.onPointerUp({ pointerType: 'touch', buttons: 0 } as PointerEvent, { x: 100, y: 80 });
+
+    down(h.tool, 200, 150);
+    move(h.tool, 220, 150);
+    up(h.tool, 220, 150);
+
+    expect(h.commits).toHaveLength(1);
+    // The finger's stroke is not in it: nothing was painted left of x = 200
+    // minus the brush radius.
+    expect(snapshotImageBox(h.commits[0]!.snapshot).x).toBeGreaterThanOrEqual(190);
   });
 
   it('still commits an ordinary release', () => {

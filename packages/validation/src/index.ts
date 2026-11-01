@@ -1,6 +1,7 @@
 export { GeometrySchema, PointSchema, MaskGeometrySchema } from './schemas/geometry.js';
 export {
   BaseAnnotationSchema,
+  OsdAnnotationCrossFieldSchema,
   OsdAnnotationSchema,
   OsdFieldsSchema,
 } from './schemas/annotation.js';

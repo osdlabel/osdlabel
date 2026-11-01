@@ -359,6 +359,22 @@ describe('FabricOverlay double-click detection', () => {
     expect(onDoubleClick).toHaveBeenCalledTimes(1);
   });
 
+  it('delivers to every subscriber when one before them throws, then rethrows', () => {
+    const failure = new Error('a host subscriber failed');
+    overlay.onDoubleClick(() => {
+      throw failure;
+    });
+    const after = vi.fn<DoubleClickCallback>();
+    overlay.onDoubleClick(after);
+
+    click(ORIGIN, 0);
+    expect(() => click(ORIGIN, 100)).toThrow(failure);
+
+    expect(onDoubleClick).toHaveBeenCalledTimes(1);
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(after.mock.calls[0]![2]).toEqual(onDoubleClick.mock.calls[0]![2]);
+  });
+
   it('stops delivering after unsubscribe, leaving other subscribers intact', () => {
     const second = vi.fn<DoubleClickCallback>();
     const unsubscribe = overlay.onDoubleClick(second);

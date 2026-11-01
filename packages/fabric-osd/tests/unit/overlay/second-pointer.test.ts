@@ -1,0 +1,643 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Rect } from 'fabric';
+import type { FabricObject, TPointerEventInfo } from 'fabric';
+import { FabricOverlay } from '../../../src/overlay/fabric-overlay.js';
+import type { DoubleClickCallback } from '../../../src/overlay/fabric-overlay.js';
+import { createTestViewer, installPointerEventPolyfill, type TestViewer } from './test-viewer.js';
+
+/**
+ * A second pointer on the overlay while a press is in progress: a second
+ * finger, a finger next to a pen or mouse, or a pen and a mouse next to each
+ * other. A Ctrl/Cmd pan is its pointer's press here too. (A pen or mouse
+ * pressing next to a finger is not held: a touch never wins over either, so
+ * it takes the gesture over. That is a cancel, in `pointer-cancel.test.ts`.)
+ *
+ * OSD's MouseTracker counts contacts per pointer type and calls
+ * `releaseHandler` only when the last contact of a type lifts. So when the
+ * finger that pressed lifts while another stays down, OSD runs
+ * `preProcessEventHandler` for that `pointerup` and nothing else, and the
+ * overlay used to forward no release: Fabric's transform stayed open, the
+ * canvas showed the edit while the host's state kept the old shape, and the
+ * next movement of any pointer carried the shape on. The other finger's own
+ * release, which OSD does report, reached Fabric as a non-primary event,
+ * which Fabric ignores.
+ *
+ * The lift of the pointer that pressed is a release: the gesture ends there
+ * and commits as a mouse release would. Every other pointer that goes down
+ * meanwhile is held, a pen or mouse beside a finger excepted: nothing it does
+ * reaches Fabric until it lifts. The gesture end to end, through real
+ * two-finger touch input, is in `apps/dev/tests/e2e/touch-second-finger.spec.ts`;
+ * this pins the overlay's half against a real Fabric canvas.
+ *
+ * The tracker's handlers are driven directly, as `pointer-cancel.test.ts`
+ * does (under jsdom OSD binds mouse events, not pointer events). Each step
+ * makes exactly the calls OSD makes for that DOM event: `preProcessEventHandler`
+ * always, then `pressHandler` / `releaseHandler` only for the first contact
+ * of its type to go down / the last to lift, and `moveHandler` for every move.
+ */
+interface TrackerEvent {
+  readonly originalEvent: PointerEvent;
+}
+interface EventProcessInfo {
+  readonly eventType: string;
+  readonly originalEvent: PointerEvent;
+  stopPropagation?: boolean;
+  preventDefault?: boolean;
+  preventGesture?: boolean;
+}
+interface OverlayInternals {
+  _overlayTracker: {
+    pressHandler(event: TrackerEvent): void;
+    moveHandler(event: TrackerEvent): void;
+    releaseHandler(event: TrackerEvent): void;
+    preProcessEventHandler(event: EventProcessInfo): void;
+  };
+}
+
+const tracker = (overlay: FabricOverlay): OverlayInternals['_overlayTracker'] =>
+  (overlay as unknown as OverlayInternals)._overlayTracker;
+
+type At = { readonly x: number; readonly y: number };
+
+interface PointerSpec {
+  readonly pointerId: number;
+  readonly pointerType: 'touch' | 'mouse' | 'pen';
+  readonly isPrimary: boolean;
+}
+
+/** The finger that presses first: Chrome makes it the primary touch. */
+const FINGER_A: PointerSpec = { pointerId: 7, pointerType: 'touch', isPrimary: true };
+/** A finger put down while A is down: never primary, even after A lifts. */
+const FINGER_B: PointerSpec = { pointerId: 8, pointerType: 'touch', isPrimary: false };
+/** A third finger, put down while B is still down. */
+const FINGER_C: PointerSpec = { pointerId: 9, pointerType: 'touch', isPrimary: false };
+/** A mouse: OSD counts its contacts apart from touch, and it is always primary. */
+const MOUSE: PointerSpec = { pointerId: 1, pointerType: 'mouse', isPrimary: true };
+/** A pen: counted apart from both, and primary too. */
+const PEN: PointerSpec = { pointerId: 2, pointerType: 'pen', isPrimary: true };
+
+/** A pointer event of `pointer`, as the browser delivers it. */
+function event(type: string, pointer: PointerSpec, at: At, timeStamp = 0): PointerEvent {
+  const e = new PointerEvent(type, {
+    clientX: at.x,
+    clientY: at.y,
+    button: 0,
+    buttons: type === 'pointerup' ? 0 : 1,
+    bubbles: true,
+    cancelable: true,
+    ...pointer,
+  });
+  // The polyfill's timeStamp is the creation time; the click qualifier reads it.
+  Object.defineProperty(e, 'timeStamp', { value: timeStamp });
+  return e;
+}
+
+describe('FabricOverlay: a second pointer while a press is in progress', () => {
+  let tv: TestViewer;
+  let overlay: FabricOverlay;
+  let rect: Rect;
+  let restorePointerEvent: () => void;
+  let modified: ReturnType<typeof vi.fn<(e: { target: FabricObject }) => void>>;
+  /** Every event Fabric fired, by name, with the pointer it came from. */
+  let fired: { name: string; pointerId: number }[];
+
+  beforeEach(() => {
+    restorePointerEvent = installPointerEventPolyfill();
+    tv = createTestViewer();
+    overlay = new FabricOverlay(tv.viewer);
+    rect = new Rect({
+      left: 100,
+      top: 100,
+      width: 40,
+      height: 30,
+      originX: 'center',
+      originY: 'center',
+    });
+    rect.id = 'ann-1';
+    overlay.canvas.add(rect);
+    overlay.setMode('annotation');
+    modified = vi.fn<(e: { target: FabricObject }) => void>();
+    overlay.canvas.on('object:modified', modified);
+    // Each canvas writes to its own array: Fabric's `dispose()` can defer
+    // removing a canvas's document listeners to its next frame, so an earlier
+    // test's canvas may still hear this test's events.
+    const log: { name: string; pointerId: number }[] = [];
+    fired = log;
+    for (const name of [
+      'mouse:down:before',
+      'mouse:down',
+      'mouse:move:before',
+      'mouse:up:before',
+      'mouse:up',
+    ] as const) {
+      overlay.canvas.on(name, (opt: TPointerEventInfo) => {
+        log.push({ name, pointerId: (opt.e as PointerEvent).pointerId });
+      });
+    }
+  });
+
+  afterEach(() => {
+    overlay.destroy();
+    tv.cleanup();
+    restorePointerEvent();
+  });
+
+  // ── What OSD calls, per DOM event ──────────────────────────────────────
+
+  const pre = (eventType: string, originalEvent: PointerEvent): EventProcessInfo => {
+    const info: EventProcessInfo = { eventType, originalEvent };
+    tracker(overlay).preProcessEventHandler(info);
+    return info;
+  };
+  /** A `pointerdown` OSD reports as a press: the first contact of its type. */
+  const press = (pointer: PointerSpec, at: At, time = 0): void => {
+    const e = event('pointerdown', pointer, at, time);
+    pre('pointerdown', e);
+    tracker(overlay).pressHandler({ originalEvent: e });
+  };
+  /** A `pointerdown` OSD does not report: another contact of its type is down. */
+  const downUnreported = (pointer: PointerSpec, at: At): EventProcessInfo =>
+    pre('pointerdown', event('pointerdown', pointer, at));
+  /** A `pointermove`: OSD reports every one. */
+  const move = (pointer: PointerSpec, at: At, buttons = 1): void => {
+    const e = event('pointermove', pointer, at);
+    Object.defineProperty(e, 'buttons', { value: buttons });
+    pre('pointermove', e);
+    tracker(overlay).moveHandler({ originalEvent: e });
+  };
+  /** A `pointerup` OSD reports as a release: the last contact of its type. */
+  const release = (pointer: PointerSpec, at: At, time = 0): void => {
+    const e = event('pointerup', pointer, at, time);
+    pre('pointerup', e);
+    tracker(overlay).releaseHandler({ originalEvent: e });
+  };
+  /** A `pointerup` OSD does not report: another contact of its type is still down. */
+  const upUnreported = (pointer: PointerSpec, at: At, time = 0): EventProcessInfo =>
+    pre('pointerup', event('pointerup', pointer, at, time));
+  /** A Ctrl press, the pan pass-through, which OSD reports as a press. */
+  const panPress = (pointer: PointerSpec, at: At): EventProcessInfo => {
+    const e = event('pointerdown', pointer, at);
+    Object.defineProperty(e, 'ctrlKey', { value: true });
+    const info = pre('pointerdown', e);
+    tracker(overlay).pressHandler({ originalEvent: e });
+    return info;
+  };
+
+  const transformOpen = (): boolean => overlay.canvas._currentTransform !== null;
+  const firedBy = (name: string, pointer: PointerSpec): number =>
+    fired.filter((f) => f.name === name && f.pointerId === pointer.pointerId).length;
+  const firedAny = (name: string): number => fired.filter((f) => f.name === name).length;
+
+  it("ends a drag at the pressing finger's lift, though another finger stays down", () => {
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 130, y: 120 });
+    move(FINGER_A, { x: 160, y: 140 });
+    downUnreported(FINGER_B, { x: 400, y: 300 });
+    move(FINGER_A, { x: 170, y: 150 });
+    expect(rect.left).toBe(170);
+
+    // OSD reports no release here: B is still down.
+    upUnreported(FINGER_A, { x: 170, y: 150 });
+
+    expect(transformOpen(), "Fabric's transform is still open").toBe(false);
+    expect(modified).toHaveBeenCalledTimes(1);
+    expect(modified.mock.calls[0]![0].target).toBe(rect);
+    expect(firedBy('mouse:up', FINGER_A)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 170, top: 150 });
+  });
+
+  it('lets the finger left down move and lift without touching the shape', () => {
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 140, y: 130 });
+    downUnreported(FINGER_B, { x: 400, y: 300 });
+    move(FINGER_B, { x: 420, y: 310 });
+    upUnreported(FINGER_A, { x: 140, y: 130 });
+    const afterLift = fired.length;
+
+    // B on its own: OSD reports its moves, and its lift as the release, since
+    // it is the last contact.
+    move(FINGER_B, { x: 450, y: 330 });
+    move(FINGER_B, { x: 480, y: 350 });
+    release(FINGER_B, { x: 480, y: 350 });
+
+    // None of it reached Fabric.
+    expect(fired.slice(afterLift)).toEqual([]);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 140, top: 130 });
+    expect(modified).toHaveBeenCalledTimes(1);
+
+    // And the next press, of any finger, is a gesture of its own.
+    press(FINGER_A, { x: 300, y: 300 });
+    move(FINGER_A, { x: 340, y: 320 });
+    release(FINGER_A, { x: 340, y: 320 });
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 140, top: 130 });
+    expect(modified).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards nothing of the second finger's while the first is down", () => {
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 120, y: 110 });
+    const beforeB = fired.length;
+
+    const down = downUnreported(FINGER_B, { x: 400, y: 300 });
+    move(FINGER_B, { x: 420, y: 310 });
+    move(FINGER_B, { x: 440, y: 320 });
+
+    expect(fired.slice(beforeB)).toEqual([]);
+    // OSD and the page must not see it either: OSD would treat it as the
+    // start of a pinch or a pan.
+    expect(down.stopPropagation).toBe(true);
+    expect(down.preventDefault).toBe(true);
+    expect(rect.left).toBe(120);
+  });
+
+  /**
+   * A pointer of another type. OSD counts each type's contacts apart, so it
+   * reports the second pointer's press while the first is down, and Chrome
+   * marks both primary, so Fabric does not tell them apart: the press started
+   * a second gesture on top of the first, and its moves carried the shape the
+   * first was dragging. A pen or mouse beside a finger is the one mix not held
+   * (see the file's comment); every other is.
+   */
+  it.each<[string, PointerSpec, PointerSpec]>([
+    ['a finger beside a mouse press', MOUSE, FINGER_A],
+    ['a finger beside a pen press', PEN, FINGER_A],
+    ['a mouse beside a pen press', PEN, MOUSE],
+    ['a pen beside a mouse press', MOUSE, PEN],
+  ])('holds %s, which starts nothing', (_name, first, second) => {
+    press(first, { x: 100, y: 100 });
+    move(first, { x: 120, y: 110 });
+    const beforeSecond = fired.length;
+
+    press(second, { x: 500, y: 400 });
+    move(second, { x: 520, y: 420 });
+    release(second, { x: 520, y: 420 });
+
+    expect(fired.slice(beforeSecond)).toEqual([]);
+    expect(rect.left).toBe(120);
+    expect(transformOpen()).toBe(true);
+
+    // The first pointer's gesture is still the one in progress, and its lift
+    // ends it.
+    move(first, { x: 150, y: 130 });
+    release(first, { x: 150, y: 130 });
+    expect(modified).toHaveBeenCalledTimes(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+  });
+
+  /**
+   * A hover is no press, so it takes nothing over, whatever the pointer: a
+   * mouse hovering beside a finger's drag carried the shape after the mouse.
+   */
+  it("forwards no other pointer's hover while a press is in progress", () => {
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 120, y: 110 });
+    const beforeHover = fired.length;
+
+    move(MOUSE, { x: 500, y: 400 }, 0);
+    move(MOUSE, { x: 520, y: 420 }, 0);
+
+    expect(fired.slice(beforeHover)).toEqual([]);
+    expect(rect.left).toBe(120);
+    move(FINGER_A, { x: 150, y: 130 });
+    release(FINGER_A, { x: 150, y: 130 });
+    expect(modified).toHaveBeenCalledTimes(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+  });
+
+  /**
+   * A mouse pressed outside the viewer and released over it: OSD reports the
+   * release ("pressed in another element") though the overlay never saw the
+   * press, so the pointer was never held. It ended the finger's gesture with
+   * the mouse's position.
+   */
+  it('does not let a release it never saw press end the press in progress', () => {
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 120, y: 110 });
+    const beforeMouse = fired.length;
+
+    release(MOUSE, { x: 500, y: 400 });
+
+    expect(fired.slice(beforeMouse)).toEqual([]);
+    expect(transformOpen()).toBe(true);
+    move(FINGER_A, { x: 150, y: 130 });
+    release(FINGER_A, { x: 150, y: 130 });
+    expect(modified).toHaveBeenCalledTimes(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+  });
+
+  it('starts nothing for a finger that joins one left down after the press ended', () => {
+    press(FINGER_A, { x: 100, y: 100 });
+    downUnreported(FINGER_B, { x: 400, y: 300 });
+    upUnreported(FINGER_A, { x: 100, y: 100 });
+    const beforeC = fired.length;
+
+    // OSD may report C's press (its count of B's contact can be off by the
+    // release the overlay forwarded for A); C is not primary either way.
+    press(FINGER_C, { x: 300, y: 300 });
+    move(FINGER_C, { x: 330, y: 320 });
+    upUnreported(FINGER_C, { x: 330, y: 320 });
+    release(FINGER_B, { x: 400, y: 300 });
+
+    expect(fired.slice(beforeC)).toEqual([]);
+  });
+
+  /**
+   * The usual case: A is the last contact, so OSD reports the release too,
+   * after `preProcessEventHandler` has ended the gesture. A second forward
+   * would be lost on Fabric, which unbinds its release listener after the
+   * first, but qualifying the release twice is not: the second finds no press
+   * and clears the click the first recorded, so no two taps would pair.
+   */
+  it('handles the lift of a lone finger once, as before', () => {
+    const forwardedReleases: Event[] = [];
+    // Where every forwarded release is dispatched: the viewer canvas, above
+    // the tracker's element, so OSD's contact count never sees it.
+    overlay.overlayElement.addEventListener('pointerup', (e) => forwardedReleases.push(e));
+    const onDoubleClick = vi.fn<DoubleClickCallback>();
+    overlay.onDoubleClick(onDoubleClick);
+
+    press(FINGER_A, { x: 100, y: 100 }, 0);
+    move(FINGER_A, { x: 130, y: 120 });
+    release(FINGER_A, { x: 130, y: 120 }, 40);
+
+    expect(forwardedReleases).toHaveLength(1);
+    expect(firedAny('mouse:up')).toBe(1);
+    expect(modified).toHaveBeenCalledTimes(1);
+    expect(transformOpen()).toBe(false);
+
+    // Two taps, each reported by OSD as well, pair.
+    const tap = (pointerId: number, time: number): void => {
+      press({ ...FINGER_A, pointerId }, { x: 300, y: 300 }, time);
+      release({ ...FINGER_A, pointerId }, { x: 300, y: 300 }, time + 30);
+    };
+    tap(11, 1000);
+    tap(12, 1100);
+    expect(onDoubleClick).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The lift is a release in every respect, so it also qualifies as a click.
+   * And the held finger's own lift is nothing at all: it must not break the
+   * pairing (it used to clear it, as a release with no matching press).
+   */
+  it("pairs the pressing finger's taps into a double tap around a held finger", () => {
+    const onDoubleClick = vi.fn<DoubleClickCallback>();
+    overlay.onDoubleClick(onDoubleClick);
+    const at = { x: 300, y: 300 };
+
+    press(FINGER_A, at, 0);
+    downUnreported(FINGER_B, { x: 500, y: 400 });
+    upUnreported(FINGER_A, at, 40);
+    release(FINGER_B, { x: 500, y: 400 }, 60);
+    const second: PointerSpec = { ...FINGER_A, pointerId: 10 };
+    press(second, at, 120);
+    release(second, at, 160);
+
+    expect(onDoubleClick).toHaveBeenCalledTimes(1);
+    const [, , pressSeqs] = onDoubleClick.mock.calls[0]!;
+    expect(pressSeqs).toBeDefined();
+    expect(pressSeqs![1]).toBe(pressSeqs![0] + 1);
+  });
+
+  /**
+   * A Ctrl/Cmd pan is its pointer's press. A pointer of another type landing
+   * while one pans took Fabric's gesture over instead: a finger painted, or
+   * moved the shape it landed on, the pan stopped, and OSD's navigation was
+   * left on in annotation mode, since only the pan's lift turned it off.
+   */
+  it.each<[string, PointerSpec, PointerSpec]>([
+    ['a finger during a mouse pan', MOUSE, FINGER_A],
+    ['a pen during a mouse pan', MOUSE, PEN],
+    ['a finger during a pen pan', PEN, FINGER_A],
+    ['a mouse during a pen pan', PEN, MOUSE],
+  ])('holds %s, and the pan goes on to its own lift', (_name, panning, second) => {
+    const pan = panPress(panning, { x: 300, y: 300 });
+    expect(pan.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // Lands on the shape: had it reached Fabric, its move would drag it.
+    const e = event('pointerdown', second, { x: 100, y: 100 });
+    const info = pre('pointerdown', e);
+    tracker(overlay).pressHandler({ originalEvent: e });
+    expect(info.preventGesture).toBe(true);
+    expect(info.stopPropagation).toBe(true);
+    move(second, { x: 130, y: 120 });
+    release(second, { x: 130, y: 120 });
+
+    expect(firedAny('mouse:down')).toBe(0);
+    expect(rect.left).toBe(100);
+    // The pan's moves still go to OSD, and its navigation stays on until the
+    // pan's own lift turns it off.
+    const panMove = pre('pointermove', event('pointermove', panning, { x: 340, y: 320 }));
+    expect(panMove.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+    pre('pointerup', event('pointerup', panning, { x: 340, y: 320 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(modified).not.toHaveBeenCalled();
+  });
+
+  it("ends a pan whose lift went unseen at its pointer's next press, navigation included", () => {
+    panPress(MOUSE, { x: 300, y: 300 });
+    // The mouse's release never reached the overlay. Its next press is a
+    // gesture of its own, as after a lost release of any press.
+    press(MOUSE, { x: 100, y: 100 });
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    move(MOUSE, { x: 160, y: 130 });
+    release(MOUSE, { x: 160, y: 130 });
+
+    expect(firedBy('mouse:down', MOUSE)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 160, top: 130 });
+  });
+
+  /**
+   * A pan whose lift the OS swallowed (a context menu, a window switch
+   * mid-drag) ends on its pointer's first move with no button down, as a held
+   * pointer's hold does. It used to go on holding pointers of other types
+   * until its own type pressed again: after a Ctrl+mouse pan whose release
+   * was lost, finger taps did nothing until the mouse clicked.
+   */
+  it.each<[string, PointerSpec]>([
+    ['mouse', MOUSE],
+    ['pen', PEN],
+  ])('ends a %s pan whose lift went unseen when it moves with no button down', (_name, pointer) => {
+    panPress(pointer, { x: 300, y: 300 });
+    // A pan move, its button down: the pan's, and OSD's.
+    const panMove = pre('pointermove', event('pointermove', pointer, { x: 320, y: 310 }));
+    expect(panMove.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // Its release never reached the overlay; it moves with no button down.
+    const before = fired.length;
+    const hover = event('pointermove', pointer, { x: 330, y: 320 });
+    Object.defineProperty(hover, 'buttons', { value: 0 });
+    const hoverInfo = pre('pointermove', hover);
+    tracker(overlay).moveHandler({ originalEvent: hover });
+
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    // The move is the overlay's, and Fabric's, as any hover is.
+    expect(hoverInfo.stopPropagation).toBe(true);
+    expect(fired.slice(before).map((f) => f.name)).toEqual(['mouse:move:before']);
+
+    // A finger is no second pointer now: it drags the shape.
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 150, y: 130 });
+    release(FINGER_A, { x: 150, y: 130 });
+    expect(firedBy('mouse:down', FINGER_A)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+  });
+
+  /**
+   * Only `buttons` 0 shows a lift. A move with another button still down is
+   * the pan's: a chord (the left button released while the right is held)
+   * pans on until the last button lifts, and so does a pen whose eraser
+   * button is down.
+   */
+  it.each<[string, PointerSpec, number]>([
+    ['a mouse, its right button still down', MOUSE, 2],
+    ['a pen, its eraser button down', PEN, 32],
+  ])('keeps a pan going through a move of %s', (_name, pointer, buttons) => {
+    panPress(pointer, { x: 300, y: 300 });
+    const chord = event('pointermove', pointer, { x: 320, y: 310 });
+    Object.defineProperty(chord, 'buttons', { value: buttons });
+    const info = pre('pointermove', chord);
+    expect(info.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // Still the pan: a finger is held, and the pan ends at its own lift.
+    const finger = downUnreported(FINGER_A, { x: 100, y: 100 });
+    expect(finger.preventGesture).toBe(true);
+    upUnreported(FINGER_A, { x: 100, y: 100 });
+    pre('pointerup', event('pointerup', pointer, { x: 320, y: 310 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(firedAny('mouse:down')).toBe(0);
+  });
+
+  /**
+   * The first move after a swallowed release often lands off the image (on
+   * the toolbar, past the window's edge), where the overlay never sees it, so
+   * a buttonless move cannot be relied on. Chrome takes the pointer's capture
+   * back from the overlay's element on that move, wherever it lands, and
+   * that ends the pan too: otherwise fingers stayed held until the mouse came
+   * back over the image.
+   */
+  it.each<[string, PointerSpec]>([
+    ['mouse', MOUSE],
+    ['pen', PEN],
+  ])(
+    'ends a %s pan whose lift went unseen when the overlay loses its capture',
+    (_name, pointer) => {
+      panPress(pointer, { x: 300, y: 300 });
+      pre('pointermove', event('pointermove', pointer, { x: 320, y: 310 }));
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+      const lost = pre('lostpointercapture', event('lostpointercapture', pointer, { x: 0, y: 0 }));
+      expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+      expect(lost.stopPropagation).not.toBe(true);
+
+      // A finger is no second pointer now: it drags the shape.
+      press(FINGER_A, { x: 100, y: 100 });
+      move(FINGER_A, { x: 150, y: 130 });
+      release(FINGER_A, { x: 150, y: 130 });
+      expect(firedBy('mouse:down', FINGER_A)).toBe(1);
+      expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+    },
+  );
+
+  it("keeps a pan going when another pointer loses capture, and ignores the pan's own after its lift", () => {
+    panPress(MOUSE, { x: 300, y: 300 });
+    pre('lostpointercapture', event('lostpointercapture', PEN, { x: 0, y: 0 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+    expect(downUnreported(FINGER_A, { x: 100, y: 100 }).preventGesture).toBe(true);
+    upUnreported(FINGER_A, { x: 100, y: 100 });
+
+    // An ordinary lift: the browser releases capture after the `pointerup`,
+    // which has ended the pan already.
+    pre('pointerup', event('pointerup', MOUSE, { x: 340, y: 320 }));
+    const calls = tv.setMouseNavEnabled.mock.calls.length;
+    pre('lostpointercapture', event('lostpointercapture', MOUSE, { x: 340, y: 320 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenCalledTimes(calls);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+  });
+
+  it("keeps a pan going through another pointer's hover", () => {
+    panPress(MOUSE, { x: 300, y: 300 });
+    // A pen hovering beside the pan, no button down: not the pan's pointer.
+    move(PEN, { x: 120, y: 110 }, 0);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+
+    // So a finger is still held, and the pan goes on to its own lift.
+    const info = downUnreported(FINGER_A, { x: 100, y: 100 });
+    expect(info.preventGesture).toBe(true);
+    pre('pointerup', event('pointerup', MOUSE, { x: 340, y: 320 }));
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
+    expect(firedAny('mouse:down')).toBe(0);
+  });
+
+  /**
+   * A touch contact reports `buttons` 1 for its whole life and never
+   * hovers, so a touch move with no button down is no evidence of a lift.
+   */
+  it("never ends a touch's pan on a move", () => {
+    panPress(FINGER_A, { x: 300, y: 300 });
+    const touchMove = event('pointermove', FINGER_A, { x: 320, y: 310 });
+    Object.defineProperty(touchMove, 'buttons', { value: 0 });
+    const info = pre('pointermove', touchMove);
+    expect(info.stopPropagation).not.toBe(true);
+    expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
+  });
+
+  it('forgets a press whose lift went unseen once its pointer pans', () => {
+    press(MOUSE, { x: 500, y: 400 });
+    // The mouse's release never reached the overlay. It presses again, with
+    // Ctrl, so it has lifted: the pan is the gesture now, and once it ends
+    // none is in progress, so a finger's press is its own.
+    panPress(MOUSE, { x: 300, y: 300 });
+    pre('pointerup', event('pointerup', MOUSE, { x: 340, y: 320 }));
+
+    press(FINGER_A, { x: 100, y: 100 });
+    move(FINGER_A, { x: 150, y: 130 });
+    release(FINGER_A, { x: 150, y: 130 });
+    expect(firedBy('mouse:down', FINGER_A)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 150, top: 130 });
+  });
+
+  it('lets a held pointer go when it presses again, should its lift have gone unseen', () => {
+    press(PEN, { x: 100, y: 100 });
+    press(MOUSE, { x: 500, y: 400 });
+    release(PEN, { x: 100, y: 100 });
+    // The mouse's release never reached the overlay. Its next press is a
+    // gesture: a pointer cannot press without having lifted.
+    press(MOUSE, { x: 100, y: 100 });
+    move(MOUSE, { x: 160, y: 130 });
+    release(MOUSE, { x: 160, y: 130 });
+
+    expect(firedBy('mouse:down', MOUSE)).toBe(1);
+    expect({ left: rect.left, top: rect.top }).toEqual({ left: 160, top: 130 });
+  });
+
+  it('lets a held mouse go when it hovers, should its lift have gone unseen', () => {
+    press(PEN, { x: 100, y: 100 });
+    press(MOUSE, { x: 500, y: 400 });
+    release(PEN, { x: 100, y: 100 });
+    const beforeHover = fired.length;
+
+    // No button down: the mouse has lifted, whatever the overlay saw.
+    move(MOUSE, { x: 300, y: 300 }, 0);
+
+    expect(fired.slice(beforeHover).map((f) => f.name)).toEqual(['mouse:move:before']);
+  });
+
+  it('forgets held pointers when the mode changes', () => {
+    press(PEN, { x: 100, y: 100 });
+    press(MOUSE, { x: 500, y: 400 });
+    overlay.setMode('navigation');
+    overlay.setMode('annotation');
+    const before = fired.length;
+
+    // A button down: had the hold outlived the mode change, this move would
+    // be swallowed.
+    move(MOUSE, { x: 300, y: 300 });
+
+    expect(fired.slice(before).map((f) => f.name)).toEqual(['mouse:move:before']);
+  });
+});

@@ -78,6 +78,33 @@ export interface AnnotationTool {
     pressSeqs?: readonly [number, number],
   ): void;
 
+  /**
+   * The platform cancelled the press in progress (`pointercancel`: an OS
+   * gesture, palm rejection, a system dialog), so undo what that press began.
+   * `FabricOverlay` also cancels a touch press itself when a pen or a mouse
+   * presses during it (a touch never wins over either: the touch was a hand
+   * at rest), and `event` is then that pointer's `pointerdown`: its type,
+   * `pointerId` and `pointerType` are not the cancelled press's, so identify
+   * the press by `pressSeq`, never by the event's pointer.
+   * Optional — {@link BaseTool} supplies a default that calls {@link cancel},
+   * which is right for a tool whose drawing lasts from press to release.
+   *
+   * Either way the input was not meant for the page, so a tool that commits
+   * on release discards instead: on an iPad a palm is an ordinary touch until
+   * the platform rejects it, and committing it left a dot in a mask.
+   *
+   * `FabricOverlay` has already put back any object Fabric was moving,
+   * scaling or rotating. It then ends Fabric's gesture with a release that
+   * commits nothing, and that release arrives at {@link onPointerUp} *after*
+   * this call. This call is the tool's only notice of the cancel: the release
+   * is an ordinary `pointerup`, built from the cancelled press, so a tool that
+   * commits on the release must have dropped its preview here. A tool whose
+   * drawing spans several presses undoes only the cancelled press's part,
+   * which `pressSeq` identifies: it is the sequence
+   * {@link ToolOverlay.pressSeqOf} gave that press.
+   */
+  onPointerCancel?(event: PointerEvent, pressSeq: number): void;
+
   /** Handle key down - returns true if the key was consumed */
   onKeyDown(event: KeyboardEvent): boolean;
 
@@ -141,8 +168,51 @@ export abstract class BaseTool implements AnnotationTool {
     this.shortcuts = null;
   }
 
+  /**
+   * The distance on screen, in CSS pixels, between two image-space points.
+   *
+   * Taken through the overlay's `imageToScreen`, so it is exact under any
+   * zoom, rotation or flip the view applies, and a tool needs nothing from
+   * OpenSeaDragon to measure. `Infinity` while the tool is inactive, so a
+   * size check made then never discards anything.
+   */
+  protected screenDistance(a: Point, b: Point): number {
+    if (!this.overlay) return Infinity;
+    const p = this.overlay.imageToScreen(a);
+    const q = this.overlay.imageToScreen(b);
+    return Math.hypot(q.x - p.x, q.y - p.y);
+  }
+
+  /**
+   * Whether the path through `points` is smaller on screen than `minimum` CSS
+   * pixels: every two of its points lie less than `minimum` apart, measured
+   * with {@link BaseTool.screenDistance}, in the view as it is now. Such a
+   * path paints no larger than a dot of that size, however many points it
+   * has or whichever of them it starts from.
+   *
+   * It stops at the first two points that are far enough apart, so a path of
+   * any real size is judged from its first few points.
+   */
+  protected isSmallerOnScreenThan(points: readonly Point[], minimum: number): boolean {
+    for (let i = 1; i < points.length; i++) {
+      for (let j = 0; j < i; j++) {
+        if (this.screenDistance(points[j]!, points[i]!) >= minimum) return false;
+      }
+    }
+    return true;
+  }
+
   /** No-op by default; tools with a double-click gesture override this. */
   onDoubleClick(_event: PointerEvent, _imagePoint: Point): void {}
+
+  /**
+   * Drops the drawing in progress by default: right for a tool whose drawing
+   * is one press, drag and release. Tools that span presses, or that do not
+   * draw, override it.
+   */
+  onPointerCancel(_event: PointerEvent, _pressSeq: number): void {
+    this.cancel();
+  }
 
   abstract onPointerDown(event: PointerEvent, imagePoint: Point): void;
   abstract onPointerMove(event: PointerEvent, imagePoint: Point): void;

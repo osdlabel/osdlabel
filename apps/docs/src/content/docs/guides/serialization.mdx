@@ -178,7 +178,13 @@ const { byImage } = deserialize(parsed);
 actions.loadAnnotations(byImage);
 ```
 
-`deserialize()` validates the basic structure of the array and throws `SerializationError` on invalid input. For deep validation, the library integrates with Valibot in `@osdlabel/validation`.
+`deserialize()` checks a document in three steps, the cheap one first:
+
+1. Before it decodes any mask, it checks what each annotation declares against itself, with `OsdAnnotationCrossFieldSchema` from `@osdlabel/validation`: that its `geometry.type` and the kind of its `rawAnnotationData` agree ([below](#geometry-and-the-saved-fabric-object)), and that its `toolType` draws that geometry ([Choosing a `toolType`](#choosing-a-tooltype)).
+2. It converts mask payloads written in another format and decodes every mask (see [Importing](/osdlabel/guides/segmentation-brush/#importing) in the Segmentation Brush guide).
+3. It checks every annotation whole with `OsdAnnotationSchema` (see [Validation](#validation)).
+
+If any annotation fails step 1 or step 3 it throws `SerializationError`, whose message names the first problem that step found, and returns nothing, so a bad document is never half loaded. A mask whose pixels cannot be decoded is the one exception: it is dropped alone and listed in the result's `skipped`. Because step 1 comes first, an annotation whose declared geometry disagrees with its payload or its `toolType` refuses the document even when its own pixels could not be decoded either, a document that is refused there costs no decode at all, and the refusal names that disagreement even when an earlier annotation is missing a field, which step 3 would have reported. Step 2 recomputes a mask's geometry from its pixels, so step 1 is the only point at which the geometry a mask declared is checked: under a mask payload it must be a mask geometry, or be omitted ([below](#geometry-and-the-saved-fabric-object)). Omitted, it counts as a mask geometry, so the annotation still needs `toolType: 'segmentationBrush'`, and under another tool it refuses the document whatever its pixels. The decode bounds `maxMaskPixels` and `maxTotalMaskPixels` (see [Importing](/osdlabel/guides/segmentation-brush/#importing)) are checked before step 1: an invalid one, `NaN` say, throws whatever the document holds.
 
 ### Flat out, keyed in
 
@@ -188,6 +194,55 @@ The two directions are intentionally **asymmetric**, and it trips people up:
 - **`deserialize(doc)` returns a keyed `{ byImage }` map** — `Record<ImageId, Record<AnnotationId, Annotation>>` — which is the exact shape `loadAnnotations` expects for the store.
 
 So: persist the **flat** array, load it back through `deserialize` to get the **keyed** map. If you keep your own annotation list (e.g. a flat `Annotation[]` from `onAnnotationsChange`), you still pass it through `deserialize` to seed the store.
+
+### Geometry and the saved Fabric object
+
+Every vector annotation stores its shape twice, and each copy is authoritative for something different:
+
+| Field               | Authoritative for                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `rawAnnotationData` | What is painted on the canvas, and what the user selects, drags, resizes and rotates                           |
+| `geometry`          | What is measured and labelled, what `boundingBox` and `centroid` read, and the shape hosts read from an export |
+
+When the user draws or edits a shape, both fields are written together from the same Fabric object: an edit recomputes `geometry` from the edited object. So the two agree in everything the annotator saves, except in data saved by earlier releases: rectangles saved up to 0.21.0 ([below](#rectangles-saved-by-earlier-releases)), and rectangles and circles that releases up to 0.22.0 let the user skew or stretch ([below](#rectangles-and-circles-saved-skewed-or-stretched)).
+
+A document edited by hand or written by another tool can pair them wrongly. `deserialize` rejects an annotation whose saved Fabric object is not the class that paints its geometry's type:
+
+| `geometry.type`   | Fabric class in `rawAnnotationData.data.type` |
+| ----------------- | --------------------------------------------- |
+| `rectangle`       | `Rect`                                        |
+| `circle`, `point` | `Circle`                                      |
+| `line`            | `Line`                                        |
+| `polyline`        | `Polyline`                                    |
+| `polygon`         | `Polygon`                                     |
+
+A mask is the exception. Its `rawAnnotationData` is an `osdlabel-mask` pixel payload, not a Fabric object ([Mask annotations](#mask-annotations)), and the pixels are authoritative for both: `deserialize` recomputes a mask's `geometry` from them. A mask geometry with a Fabric payload, or a vector geometry with a mask payload, is rejected:
+
+```text
+Validation failed: Annotation "m1" has mask geometry, but its rawAnnotationData is a "fabric" payload, not "osdlabel-mask"
+```
+
+This is checked on the fields as the document writes them, before the mask is decoded and its geometry recomputed, and every payload that is not Fabric counts as a mask payload: a mask exported through a codec ([below](#exporting-masks-in-another-format)) may not declare a vector geometry either. Under a vector geometry the message names the payload's format and the one the geometry needs, since a format that is not `"fabric"` may as well be a misspelling of it (`"Fabric"`) as a mask's:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData's format is "coco-rle", not "fabric"
+```
+
+A mask payload may omit its `geometry`, since decoding supplies one, but a geometry it declares must be a geometry. One that is not, such as `null`, a string, `{ "type": "Rectangle" }`, or `{ "downsample": 4 }` (a mask geometry needs its `"type": "mask"`, whatever else it records), is refused with a message saying what it is, which quotes nothing of it but a string `type`, cut short, and how to fix it. The message calls the payload a mask payload, since that is how the rule counts it, and quotes its format, so a misspelled `"fabric"` shows there:
+
+```text
+Validation failed: Annotation "m1" has a mask payload (format "coco-rle"), but its geometry is an object whose type is "Rectangle", not a mask geometry; give it type "mask", or leave geometry out
+```
+
+Fabric saves the class name capitalised, as above; the lowercase name, which Fabric also loads, is accepted too. The error names the annotation and both types:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its rawAnnotationData is a Fabric Circle, not a Rect
+```
+
+`deserialize` cannot tell whether the saved object sits where the geometry says: that needs Fabric to rebuild the object, and `deserialize` is synchronous. An annotation whose two fields describe the same kind of shape in different places loads as saved. It is painted from `rawAnnotationData`, measured from `geometry`, and its geometry moves to the painted shape the first time the user edits it.
+
+So don't pair the two fields by hand. Build annotations with [`createAnnotationFromGeometry`](#seeding-from-external-geometry), which writes both from one geometry. If you change an annotation's geometry outside the annotator, rebuild it the same way, with its `id`, `toolType`, `label` and style, rather than editing `geometry` alone. `loadAnnotations` and `initialAnnotations` check neither field, so pass data from outside your app through `deserialize` first.
 
 ### Rectangles saved by earlier releases
 
@@ -212,6 +267,16 @@ actions.loadAnnotations(byImage);
 ```
 
 It is a separate module that nothing else imports, so a bundle that does not use it does not include it. It is also importable on its own as `@osdlabel/fabric-annotations/legacy-rectangle`. It recognises an earlier release's rectangle by Fabric data with a centre origin whose `left` / `top` match the geometry's `origin`, to within the rounding Fabric applies when it saves.
+
+### Rectangles and circles saved skewed or stretched
+
+Up to 0.22.0, the select tool's handles could make a shape its geometry cannot describe. **Shift** with a side handle sheared a rectangle into a parallelogram, or a circle into a slanted ellipse, and a circle's side handles, or **Shift** with a corner, stretched it into an ellipse. The geometry kept the rectangle about the same centre, unsheared, or a circle of the larger radius, while the saved Fabric data kept the shape on screen. The handles no longer do either.
+
+Such an annotation loads as saved: it still paints the sheared or stretched shape, and its geometry is what it was. The first time it is edited (moved, resized or rotated), its Fabric data is replaced with data that paints its geometry, in the same style, and the shape on screen snaps to what its measurements, labels and exports already described. Nothing changes it on load, and there is no migration helper for it.
+
+### Points saved with a scaled or slanted dot
+
+A point's dot is always drawn at its style's radius, the `radius` its Fabric `Circle` was saved with. A point saved with a scale or a skew on that `Circle` loads as saved, like the shapes above: it still paints the dot it saved, larger, smaller or slanted, until its next edit redraws it at that radius. Its geometry is only its position, which the saved `Circle` agrees with, so its measurements, labels and exports are unaffected.
 
 ## Exporting masks in another format
 
@@ -252,22 +317,37 @@ const annotation = createAnnotationFromGeometry(
 actions.addAnnotation(annotation);
 ```
 
-It accepts any `VectorGeometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
+It accepts any `VectorGeometry` (`rectangle`, `circle`, `line`, `point`, `polyline`, `polygon`), defaults the style to `DEFAULT_ANNOTATION_STYLE`, generates an `id` when you don't supply one, and guarantees the `id` survives serialization — so, given a `toolType` that draws the geometry ([below](#choosing-a-tooltype)), the result round-trips through `serialize` / `deserialize` like a hand-drawn annotation. To seed many at once, map over your source data and call `loadAnnotations` (or `addAnnotation` per item).
 
 ### Choosing a `toolType`
 
-`toolType` is recorded independently of `geometry.type`. For most shapes they match (`'rectangle'` ↔ `rectangle`, `'circle'` ↔ `circle`, …). The exception is freehand:
+`toolType` records which tool drew the annotation, and constraints count annotations by it: a context's limit on rectangles counts the annotations whose `toolType` is `'rectangle'`. Pass a tool that draws your geometry's type. For most shapes that is the tool of the same name. A path has two, because the polyline and freehand tools each draw an open path or close one:
 
-| `toolType`     | Resulting `geometry.type`                         |
-| -------------- | ------------------------------------------------- |
-| `rectangle`    | `rectangle`                                       |
-| `circle`       | `circle`                                          |
-| `line`         | `line`                                            |
-| `point`        | `point`                                           |
-| `polyline`     | `polyline`                                        |
-| `freeHandPath` | `polygon` (closed path) or `polyline` (open path) |
+| `toolType`          | Resulting `geometry.type`                         |
+| ------------------- | ------------------------------------------------- |
+| `rectangle`         | `rectangle`                                       |
+| `circle`            | `circle`                                          |
+| `line`              | `line`                                            |
+| `point`             | `point`                                           |
+| `polyline`          | `polyline` (open path) or `polygon` (closed path) |
+| `freeHandPath`      | `polygon` (closed path) or `polyline` (open path) |
+| `segmentationBrush` | `mask` ([Seeding a mask](#seeding-a-mask))        |
 
-The static `toolTypeToGeometryType('freeHandPath')` helper returns `polyline`, but the freehand **tool** produces a closed `polygon` by default at runtime (open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
+`deserialize` rejects any other pairing. Loaded, an annotation recorded under another tool would count against that tool's limit and free a place in its own: a rectangle recorded as `'line'` would use up one of the context's lines. The error names the annotation, its geometry type, its `toolType` and the tool types that draw it:
+
+```text
+Validation failed: Annotation "a1" has rectangle geometry, but its toolType is "line", not "rectangle"
+```
+
+A mask payload that omits its `geometry` is checked as mask geometry, since decoding gives it one, so it too needs `'segmentationBrush'`. Its message says what the annotation declares, the payload with its format and no geometry, so a misspelled `"fabric"` shows there too:
+
+```text
+Validation failed: Annotation "m1" has a mask payload (format "coco-rle") and no geometry, but its toolType is "rectangle", not "segmentationBrush"
+```
+
+`createAnnotationFromGeometry` does not check the pairing, so an annotation built with another one is stored and counted as given, and its document is then refused when it is loaded.
+
+The static `toolTypeToGeometryType` helper returns one type per tool, `polyline` for both `'polyline'` and `'freeHandPath'`, but at runtime the polyline tool draws a closed `polygon` when the path is closed, and the freehand **tool** draws a closed `polygon` by default (an open `polyline` only when Shift is held). When importing a freehand contour, set `geometry.type` to whichever matches your data and pass `toolType: 'freeHandPath'`.
 
 Multi-point shapes import the same way: pass `{ type: 'polyline', points }` (open) or `{ type: 'polygon', points }` (closed), where `points` is an array of image-space `{ x, y }` coordinates. Annotations drawn with the built-in freehand tool are already plain `polygon` / `polyline` geometry, so there is nothing special to handle when importing them either.
 
@@ -328,7 +408,7 @@ const geometry = getGeometryFromFabricObject(obj, 'polygon'); // image-space geo
 const fabricObject = buildFabricObjectFromGeometry(geometry, getFabricOptions(style, id));
 ```
 
-These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
+These read/produce the same five Fabric classes (`Rect` / `Circle` / `Line` / `Polyline` / `Polygon`). `buildFabricObjectFromGeometry` and `createFabricObjectFromRawData` also give a rectangle or circle the handles the library gives them (side handles that only scale on a rectangle, uniform corners only on a circle), which Fabric does not save; if you revive an annotation's object some other way, such as `deserializeFabricObject`, and put it on a canvas, call `applyShapeControls(obj, geometry.type)` first. The annotation `id` is registered automatically when an `Annotator` mounts; if you build and serialize Fabric objects entirely outside any viewer, call `initFabricModule()` once first so the `id` survives `toObject()`. (`createAnnotationFromGeometry` guarantees this for you regardless.)
 
 ## Validation
 
@@ -349,6 +429,11 @@ Validation checks include:
 - Geometry type and shape validation
 - Numeric bounds checking (coordinates, dimensions)
 - Extension fields (when composed into a custom schema)
+- That a mask geometry has a mask payload, and a vector geometry a Fabric one (`OsdAnnotationSchema`, which is what `deserialize` uses)
+- That the saved Fabric object is the class that paints the geometry's type (also `OsdAnnotationSchema`; see [above](#geometry-and-the-saved-fabric-object))
+- That the `toolType` is a tool that draws the geometry's type (also `OsdAnnotationSchema`; see [Choosing a `toolType`](#choosing-a-tooltype))
+
+`OsdAnnotationCrossFieldSchema` runs the last three checks alone, on an entry as written: it is what `deserialize` runs before it decodes any mask ([Importing annotations](#importing-annotations)). It counts every payload that is not Fabric as a mask payload, and holds that payload's geometry, which decoding replaces, to a mask geometry or none. Any other field that is missing or of the wrong type it leaves to `OsdAnnotationSchema`. Every entry it refuses, `OsdAnnotationSchema` would refuse as written too, so it never refuses an entry `OsdAnnotationSchema` accepts as written. It does not replace it: it lets a mask payload omit its geometry and does not check a mask geometry's numbers, which decoding supplies.
 
 ## Listening to changes
 
@@ -368,7 +453,7 @@ The `onAnnotationsChange` callback fires whenever annotations are added, updated
 
 ## Annotations that cannot be rendered
 
-`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type and that type's key fields, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
+`deserialize` validates the Fabric payload in each annotation's `rawAnnotationData`, including its object type, that type's key fields and that the type matches the geometry's, so a document that passes it will almost always render. Annotations passed to `loadAnnotations` or `initialAnnotations` aren't validated, though, so they can hold a payload Fabric can't rebuild: one that is malformed, or names a class your build doesn't register.
 
 Such an annotation is skipped on the canvas and stays in state, and every other annotation on the image still renders. Its decorations, such as labels and measurements, are derived from its geometry rather than from the canvas object, so they still appear where the shape would be. By default it is reported with a `console.warn` naming the annotation and its image. Pass `onAnnotationRenderError` to handle it yourself:
 

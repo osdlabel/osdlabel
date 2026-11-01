@@ -3,7 +3,7 @@ import { MASK_RAW_FORMAT } from '@osdlabel/annotation';
 import type { ImageId } from '@osdlabel/viewer-api';
 import type { AnnotationState } from '@osdlabel/viewer-api';
 import { getAllAnnotationsFlat } from '@osdlabel/viewer-api';
-import { OsdAnnotationSchema } from '@osdlabel/validation';
+import { OsdAnnotationCrossFieldSchema, OsdAnnotationSchema } from '@osdlabel/validation';
 import {
   DEFAULT_MAX_MASK_PIXELS,
   asMaskRaster,
@@ -53,9 +53,21 @@ export interface DeserializeResult<E extends object = Record<never, never>> {
    * clean, and refuse the document yourself if partial data is not acceptable
    * for your use.
    *
-   * Empty on a clean load. Everything else — a schema violation, a blown
-   * budget — still throws, because those are properties of the document rather
-   * than of one annotation in it.
+   * Empty on a clean load. Everything else — a schema violation in an
+   * annotation that loads, a blown budget — still throws, because those are
+   * properties of the document rather than of one annotation in it. That
+   * includes an annotation whose declared geometry disagrees with its payload
+   * or its `toolType` (a mask payload under vector geometry, or mask geometry
+   * under a `toolType` other than `segmentationBrush`, say), and a mask
+   * payload whose geometry is present but is no geometry (`null`,
+   * `{ type: 'Rectangle' }`): those are checked before any mask is decoded,
+   * so such an annotation refuses the document even when its pixels could not
+   * have been decoded either. A mask that declares no geometry is checked as
+   * mask geometry, so under another tool it refuses the document too, whatever
+   * its pixels. Only a mask whose declared fields pass those checks can be
+   * skipped here. A skipped mask is never checked whole, so a fault in a
+   * field those checks do not read (a missing `imageId`, a `toolType` that
+   * names no tool) goes with it unreported.
    */
   readonly skipped: readonly DeserializeSkip[];
 }
@@ -89,7 +101,8 @@ export type ExportedAnnotation = Omit<Annotation<OsdFields>, 'rawAnnotationData'
 export interface DeserializeOptions {
   /**
    * Codecs used to recognise mask payloads written in a downstream format and
-   * convert them back to the canonical encoding before validation.
+   * convert them back to the canonical encoding before the full schema checks
+   * them (step 2 of {@link deserialize}).
    */
   readonly maskCodecs?: MaskCodecRegistry | undefined;
   /**
@@ -202,25 +215,125 @@ export function serialize(
   });
 }
 
-/** Deserialize with OSD field validation (contextId + rawAnnotationData) */
+/**
+ * Validate a document (a flat annotation array, as {@link serialize} returns
+ * it) and group it by image, the shape `loadAnnotations` takes.
+ *
+ * It is checked in three steps, the cheap one first:
+ *
+ * 1. **What each annotation declares is checked against itself**, with
+ *    `OsdAnnotationCrossFieldSchema` from `@osdlabel/validation`, before any
+ *    mask is decoded. A mask geometry needs a mask payload and a vector
+ *    geometry a Fabric one; here every payload whose `format` is not
+ *    `'fabric'` counts as a mask payload, canonical (`osdlabel-mask`) or one
+ *    a codec converts in step 2. A saved Fabric object must be the Fabric
+ *    class that paints its geometry's type (`Rect` for a rectangle, `Circle`
+ *    for a circle or a point, `Line`, `Polyline`, `Polygon`), and the
+ *    `toolType` must be a tool that draws that type (the tool of the same
+ *    name for a rectangle, circle, line or point, `polyline` or
+ *    `freeHandPath` for a polyline or a polygon, `segmentationBrush` for a
+ *    mask). Constraints count annotations by `toolType`, so an annotation
+ *    recorded under another tool would count against that tool's limit.
+ *    Fields missing or of the wrong type are left to step 3, but for the
+ *    geometry under a mask payload: step 2 replaces it when it decodes the
+ *    mask, so what the entry declared is checked here, before that. It must
+ *    be a mask geometry, or be omitted, and then counts as one, so the
+ *    `toolType` must still be a tool that draws a mask. One that is present
+ *    but is no geometry (`null`, a string, `{ type: 'Rectangle' }`, or
+ *    `{ downsample: 4 }`, which has no `type`) is refused. An entry whose
+ *    `id` is not a string is checked all the same, and named as having none.
+ * 2. **Mask payloads are converted.** One written in a downstream format is
+ *    converted back to the canonical encoding by `options.maskCodecs`, and
+ *    every mask is decoded, within the budgets in {@link DeserializeOptions},
+ *    and its `geometry` recomputed from its pixels. A mask whose pixels
+ *    cannot be decoded is dropped and listed in
+ *    {@link DeserializeResult.skipped}.
+ * 3. **Each annotation is checked whole**, with `OsdAnnotationSchema` from
+ *    `@osdlabel/validation`: its base fields, `imageId`, `contextId`, its
+ *    `rawAnnotationData` — a saved Fabric object, or a canonical mask
+ *    payload — and the checks of step 1 again, on what step 2 produced. This
+ *    is the final word on what loads.
+ *
+ * If any annotation fails step 1 or step 3, nothing is returned: it throws a
+ * {@link SerializationError} whose message, `Validation failed: ` and the
+ * first problem that step found, is worded the same in both. For a payload of
+ * the wrong kind, that is the annotation's id, its geometry type and the
+ * payload's `format`; for a mask payload whose geometry is no geometry, its
+ * id, the payload's `format`, what the geometry is (only a string `type` is
+ * quoted, cut short) and the fix (give it type `"mask"`, or leave geometry
+ * out); for a Fabric payload of the wrong class, its id, its geometry type,
+ * the class it holds and the class it needs; for a `toolType` that does not
+ * draw its geometry, its id, its geometry type, its `toolType` and the tool
+ * types that draw it. When a mask payload omits its geometry, that issue
+ * names the payload's `format` and says there is no geometry, in place of a
+ * geometry type. Since step 1 comes first, its refusal wins over everything
+ * step 2 would have done: an annotation it refuses refuses the document even
+ * when its own mask would have been skipped, a document over the decode
+ * budget is refused for what step 1 found rather than for the budget, and no
+ * mask is decoded at all. It also wins over step 3, over the whole document:
+ * a disagreement in a later annotation is reported ahead of a missing field
+ * in an earlier one.
+ *
+ * Before any of that, `options`' decode bounds are checked, since an invalid
+ * one is a fault in the call rather than in the document: `maxMaskPixels` or
+ * `maxTotalMaskPixels` that is not a non-negative number (`NaN`, say) throws
+ * whatever the document holds.
+ *
+ * A vector annotation stores its shape twice, and each field is authoritative
+ * for something different:
+ *
+ * - `rawAnnotationData` is what is painted, and what the user drags.
+ * - `geometry` is what is measured, labelled and exported.
+ * - Editing the shape recomputes `geometry` from the edited Fabric object.
+ *
+ * Only their kind is compared here. Whether the payload sits where the
+ * geometry says needs Fabric to answer, so it is not checked, and an
+ * annotation whose two fields disagree in place loads as saved: it is painted
+ * from its payload and measured from its geometry until its first edit.
+ * Build annotations with `createAnnotationFromGeometry`, which writes both
+ * from one geometry, rather than pairing them by hand. A mask's pixels are
+ * authoritative for both, which is why its geometry is recomputed on load.
+ *
+ * @throws {SerializationError} when `doc` is not a valid document, a mask
+ * budget is exceeded, or a decode bound in `options` is invalid.
+ */
 export function deserialize(
   doc: unknown,
   options?: DeserializeOptions,
 ): DeserializeResult<OsdFields> {
-  // Runs on payloads that have not been validated yet — the schema accepts only
-  // the formats the annotator itself reads, so a foreign mask has to be
-  // converted first, and a canonical one has to be proved decodable before it
-  // is admitted. Failures here are malformed input, not crashes.
   const skipped: DeserializeSkip[] = [];
-  let normalized: unknown;
-  try {
-    normalized = normalizeMasks(doc, options?.maskCodecs, options ?? {}, skipped);
-  } catch (err) {
-    throw new SerializationError(
-      `Failed to decode mask payload: ${err instanceof Error ? err.message : String(err)}`,
+  // Not an array is left to step 3, which says so in the same words.
+  let normalized: unknown = doc;
+  if (Array.isArray(doc)) {
+    // The call's own bounds first: an invalid one is the caller's fault, and a
+    // refusal of the document below must not hide it.
+    let bounds: DecodeBounds;
+    try {
+      bounds = decodeBounds(options ?? {});
+    } catch (err) {
+      throw decodeFailed(err);
+    }
 
-      { cause: err },
-    );
+    // Step 1. Decoding replaces a mask entry's geometry with one read off its
+    // pixels, so what the entry declared has to be checked before that, or the
+    // checks below see only the replacement: rectangle geometry over a mask
+    // payload, recorded under the brush, would load as a mask. It is also
+    // cheap, and a document it refuses then costs no decode at all.
+    try {
+      v.parse(v.array(OsdAnnotationCrossFieldSchema), doc);
+    } catch (err) {
+      throw validationFailed(err);
+    }
+
+    // Step 2 runs on payloads the full schema has not seen yet: it accepts
+    // only the formats the annotator itself reads, so a foreign mask has to
+    // be converted first, and a canonical one has to be proved decodable
+    // before it is admitted. Failures here are malformed input, not crashes.
+    try {
+      normalized = normalizeMasks(doc, options?.maskCodecs, bounds, skipped);
+    } catch (err) {
+      throw decodeFailed(err);
+    }
   }
 
   let annotations: Annotation<OsdFields>[];
@@ -230,11 +343,7 @@ export function deserialize(
       normalized,
     ) as unknown as Annotation<OsdFields>[];
   } catch (err) {
-    throw new SerializationError(
-      `Validation failed: ${err instanceof Error ? err.message : String(err)}`,
-
-      { cause: err },
-    );
+    throw validationFailed(err);
   }
 
   // Null-prototype maps: `imageId` and `id` are arbitrary strings from an
@@ -259,53 +368,52 @@ export function deserialize(
   return { byImage, skipped };
 }
 
-/**
- * Decodes every mask in the document and rebuilds it from its own pixels.
- *
- * Three things happen here, and they are the same operation:
- *
- * 1. **Foreign formats become canonical.** Validation deliberately accepts only
- *    the two envelopes the annotator reads, so a COCO payload has to be
- *    converted before it gets there — which is why this runs *before* Valibot
- *    rather than after.
- * 2. **Canonical payloads are proved decodable.** The schema bounds a payload's
- *    dimensions and its `counts` length, but cannot tell whether those counts
- *    actually fill that box. Admitting one that does not only defers the throw
- *    to render time, where `ViewerCell` has already cleared its canvas — so a
- *    single malformed mask takes every annotation in the cell down with it.
- *    Failing here instead makes it one rejected import.
- * 3. **Geometry is recomputed from the pixels.** The pixels are the mask; a
- *    bounding box or pixel count that disagrees with them — stale, hand-written,
- *    or from a tool that never had them — would otherwise reach state and show
- *    up as a wrong area or a selection box in the wrong place.
- *
- * A tint recorded at paint time survives on the canonical path and is lost on
- * the foreign one: export formats carry pixels, not styling.
- */
-function normalizeMasks(
-  doc: unknown,
-  registry: MaskCodecRegistry | undefined,
-  options: DeserializeOptions,
-  skipped: DeserializeSkip[],
-): unknown {
-  if (!Array.isArray(doc)) return doc;
+/** A failure to convert or decode the document's masks, or a bad decode bound. */
+function decodeFailed(err: unknown): SerializationError {
+  return new SerializationError(
+    `Failed to decode mask payload: ${err instanceof Error ? err.message : String(err)}`,
+    { cause: err },
+  );
+}
 
-  // Per-mask caps bound one allocation; they say nothing about a thousand of
-  // them. A few kilobytes of COCO can name a thousand at-cap masks, each
-  // individually legal, and decoding them in sequence blocks the main thread
-  // for minutes. The document-wide budget is what makes import cost
-  // proportional to the document rather than to what it claims.
+/** A schema failure in either validation step, worded the same for both. */
+function validationFailed(err: unknown): SerializationError {
+  return new SerializationError(
+    `Validation failed: ${err instanceof Error ? err.message : String(err)}`,
+    { cause: err },
+  );
+}
+
+/** The decode bounds `normalizeMasks` applies, validated and defaulted. */
+interface DecodeBounds {
+  /** The cells any one mask's box may span. */
+  readonly perMask: number;
+  /** The cells and runs all masks together may cost. */
+  readonly budget: number;
+}
+
+/**
+ * The decode bounds `options` asks for, with their defaults. Throws a
+ * `RangeError` for one that is not a non-negative number.
+ *
+ * Per-mask caps bound one allocation; they say nothing about a thousand of
+ * them. A few kilobytes of COCO can name a thousand at-cap masks, each
+ * individually legal, and decoding them in sequence blocks the main thread
+ * for minutes. The document-wide budget is what makes import cost
+ * proportional to the document rather than to what it claims.
+ */
+function decodeBounds(options: DeserializeOptions): DecodeBounds {
   // `perMask` is clamped down to the shared ceiling: `MAX_MASK_PIXELS` in the
   // validation schema is a module constant, so a mask above it would be
   // rejected a moment later no matter what was asked for here, and rejected
   // as a schema failure that costs the whole document. Clamping keeps the
-  // refusal here, where it skips that one mask.
+  // refusal in `normalizeMasks`, where it skips that one mask.
   //
   // `budget` is not clamped — it bounds a whole document, and its own default
   // is several times the per-mask ceiling.
   //
   // Validated, not just defaulted: `NaN` propagates through every comparison
-  // below as `false`, so an unvalidated bound does not merely misbehave — it
+  // as `false`, so an unvalidated bound does not merely misbehave — it
   // removes the bound entirely, on the one path that exists to have one.
   const bound = (value: number | undefined, fallback: number, name: string): number => {
     if (value === undefined) return fallback;
@@ -323,15 +431,56 @@ function normalizeMasks(
     }
     return value;
   };
-  const perMask = Math.min(
-    bound(options.maxMaskPixels, DEFAULT_MAX_MASK_PIXELS, 'maxMaskPixels'),
-    DEFAULT_MAX_MASK_PIXELS,
-  );
-  const budget = bound(
-    options.maxTotalMaskPixels,
-    DEFAULT_MAX_TOTAL_MASK_PIXELS,
-    'maxTotalMaskPixels',
-  );
+  return {
+    perMask: Math.min(
+      bound(options.maxMaskPixels, DEFAULT_MAX_MASK_PIXELS, 'maxMaskPixels'),
+      DEFAULT_MAX_MASK_PIXELS,
+    ),
+    budget: bound(options.maxTotalMaskPixels, DEFAULT_MAX_TOTAL_MASK_PIXELS, 'maxTotalMaskPixels'),
+  };
+}
+
+/**
+ * Decodes every mask in the document and rebuilds it from its own pixels.
+ *
+ * It runs after the cross-field checks on what each entry declares (step 1 of
+ * {@link deserialize}) and before the full schema (step 3). Every format but
+ * `'fabric'` counted as a mask payload in step 1, which held such an entry's
+ * geometry to a mask geometry or none, and a `toolType` that is a tool type
+ * to one that draws a mask. So a mask entry reaching here declared mask
+ * geometry or none, and replacing it below hides nothing step 1 has not
+ * checked. What it does not decode — a format with no codec to read it — is
+ * left for step 3 to refuse.
+ *
+ * Three things happen here, and they are the same operation:
+ *
+ * 1. **Foreign formats become canonical.** Validation deliberately accepts only
+ *    the two envelopes the annotator reads, so a COCO payload has to be
+ *    converted before it gets there — which is why this runs *before* the
+ *    full schema rather than after.
+ * 2. **Canonical payloads are proved decodable.** The schema bounds a payload's
+ *    dimensions and its `counts` length, but cannot tell whether those counts
+ *    actually fill that box. Admitting one that does not only defers the throw
+ *    to render time, where `ViewerCell` has already cleared its canvas — so a
+ *    single malformed mask takes every annotation in the cell down with it.
+ *    Failing here instead makes it one rejected import.
+ * 3. **Geometry is recomputed from the pixels.** The pixels are the mask; a
+ *    bounding box or pixel count that disagrees with them — stale, hand-written,
+ *    or from a tool that never had them — would otherwise reach state and show
+ *    up as a wrong area or a selection box in the wrong place. Where the
+ *    entry declared mask geometry only the numbers change, since that it
+ *    declared a mask was settled in step 1; where it declared none, the
+ *    geometry is supplied whole.
+ *
+ * A tint recorded at paint time survives on the canonical path and is lost on
+ * the foreign one: export formats carry pixels, not styling.
+ */
+function normalizeMasks(
+  doc: readonly unknown[],
+  registry: MaskCodecRegistry | undefined,
+  { perMask, budget }: DecodeBounds,
+  skipped: DeserializeSkip[],
+): unknown[] {
   let spent = 0;
 
   // The cap handed to each decode is whatever is left of the budget, so a

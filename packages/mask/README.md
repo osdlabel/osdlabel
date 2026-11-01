@@ -103,7 +103,8 @@ is `MAX_COCO_ARRAY_RUNS`: 112,813,858, the array limit of Node 21–22's V8
 export through the compressed codec. Decoding takes `{ downsample }` in its
 options and writes the runs straight into cells at it, refusing a payload that
 is not constant within each cell; osdlabel's `deserialize` passes the
-annotation's `geometry.downsample`.
+annotation's `geometry.downsample`, which must sit in a mask geometry
+(`{ "type": "mask", "downsample": 4 }` at the least).
 
 Register your own `MaskCodec` for any other format; `decode` is optional for
 export-only formats. A codec reads its input through `MaskRaster` and returns

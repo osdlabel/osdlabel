@@ -1,5 +1,11 @@
-import type { AnnotationId, Point, RectangleGeometry, ToolType } from '@osdlabel/annotation';
-import { toolTypeToGeometryType } from '@osdlabel/annotation';
+import type {
+  AnnotationId,
+  Point,
+  RectangleGeometry,
+  ToolType,
+  VectorGeometry,
+} from '@osdlabel/annotation';
+import { DEFAULT_POINT_RADIUS, toolTypeToGeometryType } from '@osdlabel/annotation';
 import { circleToBoundingRectangle } from '@osdlabel/geometry';
 import type { ImageId, AnnotationState } from '@osdlabel/viewer-api';
 import type { AnnotationContextId } from '@osdlabel/annotation-context';
@@ -113,6 +119,17 @@ export function getScenePointFromEvent(
 /**
  * Processes a Fabric object:modified event, returning the updated fields.
  * Returns null if the annotation or geometry cannot be resolved.
+ *
+ * The geometry is read back from the object with
+ * {@link getGeometryFromFabricObject}. When the object paints a shape that
+ * geometry cannot describe (a skewed rectangle or circle, or a circle scaled
+ * differently along its two axes, as data saved before their handles were
+ * constrained can be), or a point's dot at any size but its style's radius
+ * (any scale other than 1, which a scaled multi-selection bakes into it, or
+ * any skew), the returned `rawAnnotationData` is not the object's own: it is
+ * rebuilt from that geometry in the object's style, so it paints exactly what
+ * is stored, and the viewer, which rebuilds the canvas from it, shows the
+ * shape snap to it. Any other edit is serialized as is.
  */
 export function processObjectModified(
   fabricObject: FabricObject,
@@ -131,8 +148,59 @@ export function processObjectModified(
   const geometry = getGeometryFromFabricObject(fabricObject, currentAnnotation.geometry.type);
   if (!geometry) return null;
 
-  const rawAnnotationData = serializeFabricObject(fabricObject);
+  const serialized = serializeFabricObject(fabricObject);
+  const rawAnnotationData = paintsBeyondGeometry(fabricObject, geometry)
+    ? rawDataPaintingGeometry(geometry, serialized, annotationId)
+    : serialized;
   return { id: annotationId, geometry, rawAnnotationData };
+}
+
+/**
+ * Whether `object` paints a shape its `geometry` cannot describe. A rectangle
+ * or circle is placed by its centre, size and (a rectangle) rotation, which a
+ * skew bends into a parallelogram or a sheared ellipse, and a circle has one
+ * radius, which a scale that differs between the axes stretches into an
+ * ellipse. A point has no size at all: its dot is always drawn at its style's
+ * radius, so any scale other than 1, or any skew, paints a dot its geometry
+ * does not describe. Lines, polylines and polygons are read through the
+ * object's whole transform, so their stored points are exact whatever it is.
+ */
+function paintsBeyondGeometry(object: FabricObject, geometry: VectorGeometry): boolean {
+  if (geometry.type !== 'rectangle' && geometry.type !== 'circle' && geometry.type !== 'point') {
+    return false;
+  }
+  // Truthy, not `!== 0`: Fabric defaults both to 0, and an object that lacks them is unskewed.
+  if (object.skewX || object.skewY) return true;
+  if (geometry.type === 'point') return object.scaleX !== 1 || object.scaleY !== 1;
+  return geometry.type === 'circle' && Math.abs(object.scaleX) !== Math.abs(object.scaleY);
+}
+
+/**
+ * Fabric data that paints exactly `geometry`, in the style `serialized` was
+ * painted with: the object {@link buildFabricObjectFromGeometry} builds for it,
+ * as {@link processConvertCircleToRectangle} does. Fields the rebuilt object
+ * does not write, such as a host's own `FabricObject.customProperties`, are
+ * kept from `serialized`.
+ *
+ * A point's dot is rebuilt at its style's radius: the `radius` its `Circle`
+ * was saved with, which is where `AnnotationStyle.pointRadius` lives once the
+ * point is drawn ({@link DEFAULT_POINT_RADIUS} if the data has none). The
+ * object's scale and skew are dropped, not folded into it.
+ */
+function rawDataPaintingGeometry(
+  geometry: VectorGeometry,
+  serialized: FabricRawAnnotationData,
+  id: AnnotationId,
+): FabricRawAnnotationData {
+  const savedRadius = serialized.data['radius'];
+  const pointRadius =
+    geometry.type === 'point' && typeof savedRadius === 'number'
+      ? savedRadius
+      : DEFAULT_POINT_RADIUS;
+  const rebuilt = serializeFabricObject(
+    buildFabricObjectFromGeometry(geometry, styleOptionsFromRawData(serialized, id), pointRadius),
+  );
+  return { ...rebuilt, data: { ...serialized.data, ...rebuilt.data } };
 }
 
 /**

@@ -36,7 +36,19 @@ Three behaviour changes: two on the import path, and one for older readers:
   dropped and reported in the new `DeserializeResult.skipped`, so one corrupt
   annotation does not cost you the rest of the document. Check `skipped` if
   partial data is not acceptable for your use — it is empty on a clean load.
-  Schema violations and a blown decode budget still throw.
+  Schema violations in an annotation that loads and a blown decode budget
+  still throw, and so does an annotation whose declared geometry disagrees
+  with its payload or its tool (a mask payload under vector geometry, say, or
+  mask geometry recorded under another tool) even when its own pixels could
+  not be decoded either: those are checked before any mask is decoded. A mask
+  payload must declare a mask geometry or none, and one that declares none is
+  checked as mask geometry, so it too is refused under another tool, and one
+  whose geometry is present but is no geometry (`null`,
+  `{ type: 'Rectangle' }`, or `{ downsample: 4 }` with no `type`) is refused
+  whatever its tool, rather than skipped when its pixels are corrupt. An
+  annotation rebuilt from a COCO segmentation keeps its downsample as
+  `geometry: { type: 'mask', downsample: 4 }`, or omits `geometry` to load at
+  full resolution.
 - **Earlier releases cannot read a document that holds a mask.** Their schema
   rejects `geometry.type: 'mask'` and `toolType: 'segmentationBrush'`, and a
   schema failure costs the whole document, vector annotations included. Export
@@ -147,9 +159,9 @@ it back correctly — it truncates runs past 32 bits, misreads deltas below
 where its box and area are summed in 32 bits (on a large mask the area is
 wrong too) — and `COCO_MAX_INTEROP_IMAGE_PIXELS` is 2^29, the image size within
 which every mask is safe. It was 2^32 - 1, which pycocotools does not honour. On import `MaskDecodeOptions.downsample` decodes COCO straight
-into cells, and `deserialize` passes the annotation's `geometry.downsample`, so
-a coarse mask comes back coarse; a payload that is not constant within each
-cell is skipped with that reason.
+into cells, and `deserialize` passes the `downsample` of the annotation's mask
+geometry, so a coarse mask comes back coarse; a payload that is not constant
+within each cell is skipped with that reason.
 
 The mask cap is counted in cells: 64 Mi cells (`DEFAULT_MAX_MASK_PIXELS`,
 `MAX_MASK_PIXELS`), enforced by the validation schema and the decoders, and on
@@ -233,8 +245,11 @@ host's `maxCanvasPixels`.
   an object's interaction flags and needed by any host with a custom cell
   renderer; and `FabricOverlay.getImageSize()`.
 - **`@osdlabel/validation`**: `MaskGeometrySchema`,
-  `MaskRawAnnotationDataSchema`, and the bounds `MAX_MASK_PIXELS`,
-  `MAX_MASK_COUNTS_LENGTH`, `MAX_IMAGE_DIMENSION`, `MAX_MASK_DOWNSAMPLE`.
+  `MaskRawAnnotationDataSchema`, the bounds `MAX_MASK_PIXELS`,
+  `MAX_MASK_COUNTS_LENGTH`, `MAX_IMAGE_DIMENSION`, `MAX_MASK_DOWNSAMPLE`, and
+  `OsdAnnotationCrossFieldSchema`, the cross-field checks of
+  `OsdAnnotationSchema` run alone on an entry as written, which `deserialize`
+  runs before it decodes any mask.
 - **`@osdlabel/geometry` and `@osdlabel/decoration`** learn masks: `area` is the
   exact `pixelCount`, `perimeter` and `length` are `0`, `centroid` and
   `boundingBox` come from the bounding box, and `createMeasurementProvider`
@@ -362,6 +377,31 @@ behaviour that predates this change.
 Rendering also isolates each annotation, so a mask that cannot be rebuilt
 degrades alone instead of blanking its whole grid cell.
 
+- **What each annotation declares is checked before any mask is decoded.**
+  Decoding replaces a mask's geometry with one read off its pixels, so
+  `deserialize` first runs the cross-field checks (a mask geometry has a mask
+  payload and a vector geometry a Fabric one, a Fabric payload is the class
+  that paints its geometry, the `toolType` draws the geometry) on the fields
+  as the document writes them, with `OsdAnnotationCrossFieldSchema`, counting
+  every payload that is not Fabric as a mask payload. A rectangle declared
+  over a mask payload, canonical or a codec's, is refused with a message
+  naming its geometry and the payload's format against `"fabric"`, rather
+  than loaded as a mask; a document refused for a Fabric class, or a
+  `toolType`, that does not match the declared geometry costs no decode; and
+  such a refusal wins over a skipped mask, over a blown budget, and over a
+  missing field in an earlier annotation. An entry without a string `id` is
+  checked too, and named as having none. A mask payload's geometry, which
+  decoding replaces, must be a mask geometry or be omitted: omitted, it
+  counts as mask geometry, so its `toolType` must still draw a mask (the
+  message then names the payload's format and says there is no geometry),
+  and one that is present but is no geometry (`null`, a string,
+  `{ type: 'Rectangle' }`) is refused with a message naming the payload's
+  format, what the geometry is and the fix (give it type `"mask"`, or leave
+  geometry out), rather than loaded as a mask under the brush. Any other
+  field that is missing or of the wrong type is left to `OsdAnnotationSchema`,
+  which checks every annotation whole once the masks are decoded. Invalid
+  `maxMaskPixels` or `maxTotalMaskPixels` options are reported before any of
+  this.
 - **The run lengths are bounded by the box before they are decoded.** A
   payload for a one-pixel mask could carry tens of megabytes of varints and
   buy seconds of work under a cap of 1; it is now refused in constant time.
@@ -397,8 +437,10 @@ degrades alone instead of blanking its whole grid cell.
   rather than committed: iPadOS delivers a resting hand as a touch and cancels
   it a moment later, which left a dot in the mask. When the pencil lands
   before that cancel, the touch is taken as the palm and the pencil's stroke
-  paints alone. `FabricOverlay.isCancelledRelease(event)` (optional on
-  `ToolOverlay`) is how a tool tells a cancelled press from a lift. A chord —
+  paints alone; so does the mouse's, beside a finger left on a touchscreen.
+  A tool hears of a cancelled press through `AnnotationTool.onPointerCancel`,
+  before the release that ends it; the brush discards the stroke there, so
+  that release commits nothing. A chord —
   the primary button released while another is held — ends the press, since
   no release would otherwise be reported for it. And a release the overlay
   forwards on OpenSeadragon's behalf no longer passes through the tracker's

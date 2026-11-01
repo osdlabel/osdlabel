@@ -19,7 +19,8 @@ npm install @osdlabel/fabric-annotations fabric
 
 - Drawing tools: `RectangleTool`, `CircleTool`, `LineTool`, `PointTool`,
   `PolylineTool`, `FreeHandPathTool`, `SelectTool` (plus `BaseTool` / `ShapeTool`
-  base classes) and the `ToolOverlay` interface
+  base classes) and the `ToolOverlay` interface, plus `MIN_SHAPE_SCREEN_PX`, the
+  on-screen size under which a drawn shape or path is discarded
 - `PolyVertexEditor` — interactive vertex editing for polygon / polyline
   annotations, plus `DEFAULT_VERTEX_EDIT_LONG_PRESS_MS` and
   `DEFAULT_VERTEX_EDIT_MOVE_TOLERANCE_PX`
@@ -30,6 +31,11 @@ npm install @osdlabel/fabric-annotations fabric
 - `buildFabricObjectFromGeometry` — rebuilds a Fabric object from annotation
   geometry (used when an annotation's geometry changes type, e.g. circle →
   rectangle)
+- `applyShapeControls` — the handles a rectangle or circle gets, so that editing
+  it cannot make a shape its geometry does not describe
+- Multi-selections: `isGroupSelection`, `configureGroupSelection`,
+  `dissolveGroupSelection` and `reselectWhenAdded` — the Fabric half of saving
+  an edit of several annotations at once
 - `FabricRawAnnotationData` and the `FabricFields` extension interface
 
 ## Vertex editing
@@ -37,13 +43,14 @@ npm install @osdlabel/fabric-annotations fabric
 `PolyVertexEditor` builds on Fabric v7's native poly controls
 (`controlsUtils.createPolyControls`) and adds three things on top: a configurable
 **long-press** to enter a sticky edit mode (tablet-friendly), **edge-insertion**
-handles at edge midpoints that splice in a new vertex and continue the same
-drag, and **vertex deletion** via `Delete`/`Backspace`, honoring per-shape
-minimums (3 points for a polygon, 2 for a polyline).
+handles at edge midpoints that splice in a new vertex (a click inserts it at the
+midpoint; a drag moves it with the pointer until release), and **vertex
+deletion** via `Delete`/`Backspace`, honoring per-shape minimums (3 points for a
+polygon, 2 for a polyline).
 
 It is owned by the Select, Polyline, and free-draw tools, so it is active
-automatically — vertex moves commit through the same `object:modified` →
-`getGeometryFromFabricObject` path as any other edit. Tune the gesture through
+automatically — every vertex move, insertion and deletion commits through the
+same `object:modified` → `getGeometryFromFabricObject` path as any other edit. Tune the gesture through
 `SelectTool`'s constructor, or through the `vertexEditLongPressMs` /
 `vertexEditMoveTolerancePx` props on the framework `Annotator`.
 

@@ -24,4 +24,9 @@ export class LineTool extends ShapeTool<Line> {
       y2: imagePoint.y,
     });
   }
+
+  /** The length on screen. */
+  protected override previewScreenSize(preview: Line): number {
+    return this.screenDistance({ x: preview.x1, y: preview.y1 }, { x: preview.x2, y: preview.y2 });
+  }
 }

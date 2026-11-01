@@ -62,7 +62,7 @@ describe('FabricOverlay mode switching', () => {
     expect(overlay.getMode()).toBe('navigation');
   });
 
-  it.each<OverlayMode>(['navigation', 'annotation', 'customControl'])(
+  it.each<OverlayMode>(['navigation', 'annotation', 'paint', 'customControl'])(
     'getMode reports %s after setMode',
     (mode) => {
       // A different mode first, so setting `navigation` is not a no-op.
@@ -73,9 +73,12 @@ describe('FabricOverlay mode switching', () => {
   );
 
   describe('annotation mode', () => {
-    it('enables canvas selection and hands input to Fabric', () => {
+    // Drag-box (and Shift+click) group selection belongs to the select tool,
+    // which turns it on while it is active. Left on for every tool, a drawing
+    // drag across shapes also selected them as a group.
+    it('hands input to Fabric, with drag-box selection left off', () => {
       overlay.setMode('annotation');
-      expect(overlay.canvas.selection).toBe(true);
+      expect(overlay.canvas.selection).toBe(false);
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(false);
       expect(isTracking(overlay)).toBe(true);
     });
@@ -110,6 +113,8 @@ describe('FabricOverlay mode switching', () => {
   describe('navigation mode', () => {
     it('disables selection and returns input to OSD', () => {
       overlay.setMode('annotation');
+      // As the select tool leaves it while active.
+      overlay.canvas.selection = true;
       overlay.setMode('navigation');
       expect(overlay.canvas.selection).toBe(false);
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(true);
@@ -179,10 +184,12 @@ describe('FabricOverlay mode switching', () => {
       // Ctrl/Cmd+drag panning sets this mid-gesture; switching mode must not
       // leave the overlay believing a drag is still in progress.
       overlay.setMode('annotation');
-      const priv = overlay as unknown as { _panGestureActive: boolean };
-      priv._panGestureActive = true;
+      const priv = overlay as unknown as {
+        _panPointer: { pointerId: number; pointerType: string } | null;
+      };
+      priv._panPointer = { pointerId: 1, pointerType: 'mouse' };
       overlay.setMode('navigation');
-      expect(priv._panGestureActive).toBe(false);
+      expect(priv._panPointer).toBeNull();
     });
 
     it('renders after a real mode change', () => {
@@ -198,13 +205,18 @@ describe('FabricOverlay mode switching', () => {
       ['navigation', 'customControl'],
       ['customControl', 'annotation'],
       ['annotation', 'navigation'],
+      ['annotation', 'paint'],
+      ['paint', 'annotation'],
+      ['navigation', 'paint'],
+      ['paint', 'navigation'],
     ])('applies %s -> %s', (from, to) => {
       overlay.setMode(from);
       const obj = addObject();
       overlay.setMode(to);
 
       expect(overlay.getMode()).toBe(to);
-      expect(overlay.canvas.selection).toBe(to === 'annotation');
+      // No mode turns drag-box selection on: the select tool does.
+      expect(overlay.canvas.selection).toBe(false);
       expect(obj.selectable).toBe(to === 'annotation');
       expect(tv.setMouseNavEnabled).toHaveBeenLastCalledWith(to === 'navigation');
       expect(isTracking(overlay)).toBe(to !== 'navigation');

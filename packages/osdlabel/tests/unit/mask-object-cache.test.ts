@@ -55,6 +55,40 @@ describe('MaskObjectCache', () => {
     expect(cache.get(m1, undefined)).toBeUndefined();
   });
 
+  // A transform of a multi-selection holding the mask moved its object while
+  // its payload, the cache's key, stayed the same: the displaced raster was
+  // handed back on every rebuild until the pixels changed.
+  it.each([
+    ['moved', { left: 47 }],
+    ['scaled', { scaleX: 2, scaleY: 2 }],
+    ['rotated', { angle: 30 }],
+    ['skewed', { skewX: 10 }],
+    ['flipped', { flipX: true }],
+  ] as const)('misses, and forgets the entry, when its object was %s', (_name, change) => {
+    const cache = new MaskObjectCache();
+    const m1 = mask('m1');
+    const placed = {
+      left: 46,
+      top: 46,
+      scaleX: 1,
+      scaleY: 1,
+      angle: 0,
+      skewX: 0,
+      skewY: 0,
+      flipX: false,
+      flipY: false,
+    };
+    const a = { ...placed } as unknown as FabricObject;
+    cache.set(m1, undefined, a);
+    expect(cache.get(m1, undefined)).toBe(a);
+    Object.assign(a, change);
+    expect(cache.get(m1, undefined)).toBeUndefined();
+    expect(cache.size).toBe(0);
+    // Put back exactly, it would not come back: the entry is gone.
+    Object.assign(a, placed);
+    expect(cache.get(m1, undefined)).toBeUndefined();
+  });
+
   it('retain drops masks no longer on the image, and clear drops everything', () => {
     const cache = new MaskObjectCache();
     cache.set(mask('m1'), undefined, obj('a'));

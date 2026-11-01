@@ -582,6 +582,31 @@ test.describe('Segmentation brush', () => {
     }, point);
   }
 
+  /**
+   * The one mask there must be, as a test of whether a page point lies on it:
+   * within its bounding box, widened by far more than a brush radius and far
+   * less than the distance to the resting hand.
+   */
+  async function onlyMask(
+    page: Page,
+  ): Promise<(point: { x: number; y: number }) => Promise<boolean>> {
+    const masks = await readAnnotations(page);
+    expect(masks).toHaveLength(1);
+    const g = masks[0]!.geometry;
+    expect(g.origin).toBeDefined();
+    const box = { x: g.origin!.x, y: g.origin!.y, w: g.width ?? 0, h: g.height ?? 0 };
+    const margin = 30;
+    return async (point) => {
+      const p = await clientToImage(page, point);
+      return (
+        p.x >= box.x - margin &&
+        p.x <= box.x + box.w + margin &&
+        p.y >= box.y - margin &&
+        p.y <= box.y + box.h + margin
+      );
+    };
+  }
+
   test('a palm the platform rejects paints nothing', async ({ page }) => {
     // On an iPad the hand often rests before the pencil arrives, and iPadOS
     // cancels it a moment later. Committing on that cancel left a dot.
@@ -617,27 +642,106 @@ test.describe('Segmentation brush', () => {
     await pen('mouseReleased', end.x, end.y);
     await page.waitForTimeout(200);
 
-    const masks = await readAnnotations(page);
-    expect(masks).toHaveLength(1);
-    const g = masks[0]!.geometry as {
-      origin?: { x: number; y: number };
-      width?: number;
-      height?: number;
-    };
-    expect(g.origin).toBeDefined();
-    const box2 = { x: g.origin!.x, y: g.origin!.y, w: g.width ?? 0, h: g.height ?? 0 };
-    // Generous: far more than a brush radius, far less than the palm's distance.
-    const margin = 30;
-    const inside = (p: { x: number; y: number }) =>
-      p.x >= box2.x - margin &&
-      p.x <= box2.x + box2.w + margin &&
-      p.y >= box2.y - margin &&
-      p.y <= box2.y + box2.h + margin;
+    const onMask = await onlyMask(page);
     // The pencil's stroke is all there...
-    expect(inside(await clientToImage(page, start))).toBe(true);
-    expect(inside(await clientToImage(page, end))).toBe(true);
+    expect(await onMask(start)).toBe(true);
+    expect(await onMask(end)).toBe(true);
     // ...and the palm, well to the right and below it, is not.
-    expect(inside(await clientToImage(page, palm))).toBe(false);
+    expect(await onMask(palm)).toBe(false);
+  });
+
+  test('a finger resting on the image while the mouse paints leaves no dot', async ({ page }) => {
+    // A touch never wins over a mouse either. A finger left on a touchscreen
+    // while the other hand paints with the mouse is not cancelled by the
+    // platform: it lifts, after the stroke. The mouse's press takes the
+    // stroke over from it. Before, the mouse was held instead: its whole
+    // stroke was swallowed, and the finger's lift committed a dot.
+    const box = await page.locator('canvas.upper-canvas').boundingBox();
+    if (!box) throw new Error('canvas not found');
+    const { touch } = await tabletInput(page);
+    await page.getByTestId('tool-segmentationBrush').click();
+
+    const finger = { x: box.x + 380, y: box.y + 280, id: 7 };
+    const start = { x: box.x + 150, y: box.y + 200 };
+    const end = { x: box.x + 220, y: box.y + 200 };
+    await touch('touchStart', [finger]);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 8 });
+    await page.mouse.up();
+    await touch('touchEnd', []);
+    await page.waitForTimeout(200);
+
+    const onMask = await onlyMask(page);
+    // The mouse's stroke is all there...
+    expect(await onMask(start)).toBe(true);
+    expect(await onMask(end)).toBe(true);
+    // ...and the finger, well to the right and below it, is not.
+    expect(await onMask(finger)).toBe(false);
+  });
+
+  test('a finger landing while the mouse pans paints nothing, and the pan goes on', async ({
+    page,
+  }) => {
+    // A Ctrl/Cmd pan is the mouse's press, so a finger landing during it is
+    // held, as beside any mouse press. It used to take the brush over: it
+    // painted, the pan stopped, and OpenSeadragon's mouse navigation stayed
+    // on after the mouse's lift.
+    const box = await page.locator('canvas.upper-canvas').boundingBox();
+    if (!box) throw new Error('canvas not found');
+    const { touch } = await tabletInput(page);
+    await page.getByTestId('tool-segmentationBrush').click();
+    const viewer = () =>
+      page.evaluate(() => {
+        const el = document.querySelector('.openseadragon-canvas') as
+          | (Element & {
+              __osdViewer?: {
+                viewport: { getCenter(current?: boolean): { x: number; y: number } };
+                isMouseNavEnabled(): boolean;
+              };
+            })
+          | null;
+        const v = el?.__osdViewer;
+        if (!v) throw new Error('test hooks not installed');
+        const c = v.viewport.getCenter(false);
+        return { x: c.x, y: c.y, nav: v.isMouseNavEnabled() };
+      });
+    const finger = { x: box.x + 380, y: box.y + 280, id: 7 };
+    const fingerStroke = async () => {
+      await touch('touchStart', [finger]);
+      for (let k = 1; k <= 4; k++) await touch('touchMove', [{ ...finger, x: finger.x + 15 * k }]);
+      await touch('touchEnd', []);
+    };
+    const from = { x: box.x + 150, y: box.y + 200 };
+
+    // Ctrl matters only at the press: released before the finger lands, so
+    // the finger's own press cannot be a pan trigger.
+    await page.keyboard.down('Control');
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.keyboard.up('Control');
+    await page.mouse.move(from.x + 30, from.y + 10, { steps: 3 });
+    await touch('touchStart', [finger]);
+    for (let k = 1; k <= 4; k++) await touch('touchMove', [{ ...finger, x: finger.x + 15 * k }]);
+    const landed = await viewer();
+    expect(landed.nav).toBe(true);
+    await page.mouse.move(from.x + 90, from.y + 40, { steps: 6 });
+    const panned = await viewer();
+    await page.mouse.up();
+    await touch('touchEnd', []);
+    await page.waitForTimeout(200);
+
+    // The pan went on after the finger landed...
+    expect(Math.hypot(panned.x - landed.x, panned.y - landed.y)).toBeGreaterThan(1e-3);
+    // ...the finger painted nothing...
+    expect(await readAnnotations(page)).toHaveLength(0);
+    // ...and navigation is off again, as after any pan.
+    expect((await viewer()).nav).toBe(false);
+
+    // The same finger stroke, alone, does paint: touch reaches the brush.
+    await fingerStroke();
+    await page.waitForTimeout(200);
+    expect(await readAnnotations(page)).toHaveLength(1);
   });
 
   test.describe('a mask at downsample 4', () => {
