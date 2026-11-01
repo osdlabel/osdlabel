@@ -120,20 +120,64 @@ interface OverlayHandleShape {
   };
 }
 
-export async function readView(page: Page): Promise<View> {
+interface OsdViewerShape {
+  readonly container: HTMLElement;
+  readonly viewport: {
+    getContainerSize(): { readonly x: number; readonly y: number };
+    getZoom(current: boolean): number;
+    getCenter(current: boolean): { readonly x: number; readonly y: number };
+    viewportToImageZoom(viewportZoom: number): number;
+  };
+}
+
+/**
+ * The view, and whether it is current: whether OSD has caught up with the
+ * page and the overlay with OSD. Both are read in one go, so `current`
+ * speaks for the view returned beside it. It is current when
+ *
+ * - the size OSD last laid the image out for is its container's size now.
+ *   Reading that size lays the page out, so this sees a change the page made
+ *   a moment ago (selecting a circle adds the toolbar's Convert button, which
+ *   re-flows the wrapped header and resizes the viewer) that OSD has not yet:
+ *   OSD's ResizeObserver only flags the change, and OSD's next update
+ *   answers the new size by changing the zoom and the pan;
+ * - no spring of OSD's viewport is still moving;
+ * - and the overlay's scale is the one OSD's zoom gives, so a zoom set but
+ *   not yet painted does not count either.
+ */
+async function readViewState(
+  page: Page,
+): Promise<{ readonly view: View; readonly current: boolean }> {
   const raw = await page.evaluate(() => {
     const host = document.querySelector('.openseadragon-canvas') as
-      | (Element & { __osdOverlay?: OverlayHandleShape })
+      | (Element & { __osdOverlay?: OverlayHandleShape; __osdViewer?: OsdViewerShape })
       | null;
     const overlay = host?.__osdOverlay;
-    if (!overlay) throw new Error('overlay test hook not installed');
+    const viewer = host?.__osdViewer;
+    if (!overlay || !viewer) throw new Error('overlay test hook not installed');
     const rect = overlay.canvas.getElement().getBoundingClientRect();
+    const vpt = [...overlay.canvas.viewportTransform];
+    const viewport = viewer.viewport;
+    const laidOutFor = viewport.getContainerSize();
+    const centre = viewport.getCenter(true);
+    const centreTarget = viewport.getCenter(false);
+    const zoom = viewport.getZoom(true);
+    const osdScale = viewport.viewportToImageZoom(zoom);
+    const overlayScale = Math.hypot(vpt[0] ?? NaN, vpt[1] ?? NaN);
+    const current =
+      viewer.container.clientWidth === laidOutFor.x &&
+      viewer.container.clientHeight === laidOutFor.y &&
+      zoom === viewport.getZoom(false) &&
+      centre.x === centreTarget.x &&
+      centre.y === centreTarget.y &&
+      Math.abs(overlayScale - osdScale) <= 1e-9 * osdScale;
     return {
-      vpt: [...overlay.canvas.viewportTransform],
+      vpt,
       x: rect.left,
       y: rect.top,
       width: rect.width,
       height: rect.height,
+      current,
     };
   });
   const [a, b, c, d, e, f] = raw.vpt;
@@ -148,10 +192,18 @@ export async function readView(page: Page): Promise<View> {
     throw new Error(`viewportTransform has ${raw.vpt.length} entries`);
   }
   return {
-    vpt: [a, b, c, d, e, f],
-    canvasOrigin: { x: raw.x, y: raw.y },
-    canvasSize: { width: raw.width, height: raw.height },
+    view: {
+      vpt: [a, b, c, d, e, f],
+      canvasOrigin: { x: raw.x, y: raw.y },
+      canvasSize: { width: raw.width, height: raw.height },
+    },
+    current: raw.current,
   };
+}
+
+/** The overlay's transform and where its canvas sits, as they are now; see `waitForStableView`. */
+export async function readView(page: Page): Promise<View> {
+  return (await readViewState(page)).view;
 }
 
 /** Screen px per image px. */
@@ -256,18 +308,30 @@ export async function openAnnotator(
   return view;
 }
 
-/** Wait until the overlay's transform stops changing, and return it. */
+/**
+ * Wait until the overlay's transform stops changing, and return it.
+ *
+ * Two reads 100 ms apart that agree are not enough on their own. A change to
+ * the page reaches the view only in OSD's next update, and a loaded
+ * machine can run that frame after both reads, and after the press of the
+ * gesture that follows: Fabric then carries the dragged object with the view
+ * that changed under it (`shape-controls.spec.ts` saw a circle move 0.068
+ * image px sideways on a vertical drag). So the view must also be current at
+ * both reads (see `readViewState`), which does not depend on timing.
+ */
 export async function waitForStableView(page: Page): Promise<View> {
-  let previous = await readView(page);
+  let previous = await readViewState(page);
   for (let i = 0; i < 60; i++) {
     await page.waitForTimeout(100);
-    const next = await readView(page);
+    const next = await readViewState(page);
     if (
-      next.vpt.every((v, k) => Math.abs(v - previous.vpt[k]!) < 1e-9) &&
-      next.canvasOrigin.x === previous.canvasOrigin.x &&
-      next.canvasOrigin.y === previous.canvasOrigin.y
+      previous.current &&
+      next.current &&
+      next.view.vpt.every((v, k) => Math.abs(v - previous.view.vpt[k]!) < 1e-9) &&
+      next.view.canvasOrigin.x === previous.view.canvasOrigin.x &&
+      next.view.canvasOrigin.y === previous.view.canvasOrigin.y
     ) {
-      return next;
+      return next.view;
     }
     previous = next;
   }
@@ -542,18 +606,34 @@ export async function settle(page: Page, changedFrom?: string): Promise<void> {
 
 // ── Selection and handles ────────────────────────────────────────────────
 
-/** Leave annotation mode so nothing is selected, and wait for the repaint. */
+/**
+ * Leave annotation mode so nothing is selected, and wait for the repaint and
+ * for the view: a pixel judge reads the view first, and the toolbar this
+ * changes can move the viewer (see `selectAt`).
+ */
 export async function deselect(page: Page): Promise<void> {
   await page.getByTestId('tool-navigate').click();
   await expect.poll(() => selectedAnnotationId(page), { timeout: 5000 }).toBeNull();
   await settle(page);
+  await waitForStableView(page);
 }
 
-/** Pick the select tool and click `pagePoint`; it must select the annotation `id`. */
-export async function selectAt(page: Page, pagePoint: Point, id: string): Promise<void> {
+/**
+ * Pick the select tool and click `pagePoint`; it must select the annotation
+ * `id`. Returns the view once it has settled, which is the one the next
+ * gesture runs in, and may not be the one `pagePoint` was aimed with.
+ *
+ * Selecting changes the toolbar: a selected circle adds a Convert button,
+ * which at 1280 px wide re-flows the wrapped header, 141 px tall to 138, so
+ * the viewer grows 3 px and OSD changes the zoom (1.37 to 1.3714) and the pan
+ * in its next frame. A press made before that frame, with the drag after it,
+ * moves the object by however far the view moved under the pointer.
+ */
+export async function selectAt(page: Page, pagePoint: Point, id: string): Promise<View> {
   await page.getByTestId('tool-select').click();
   await page.mouse.click(pagePoint.x, pagePoint.y);
   await expect.poll(() => selectedAnnotationId(page), { timeout: 5000 }).toBe(id);
+  return waitForStableView(page);
 }
 
 /** Fabric's control names: corners, edge midpoints, and the rotation handle. */

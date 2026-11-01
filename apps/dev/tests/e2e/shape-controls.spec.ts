@@ -448,12 +448,14 @@ test.describe('Shape controls: circles', () => {
   }) => {
     const view = await openAnnotator(page, { imageScale: SCALE });
     const { id, geometry: g0 } = await drawCircle(page, view);
-    await selectAt(page, circleBody(view, g0), id);
+    // Selecting the circle re-flows the header, and the view with it: aim the
+    // press, and read the drag's length in image px, in the view it runs in.
+    const selected = await selectAt(page, circleBody(view, g0), id);
 
     // 4 screen px inside the rightmost point, where Fabric's mr handle was:
     // with Shift, dragging it down would have sheared the circle.
-    const s = scaleOf(view);
-    const edge = imageToPage(view, { x: g0.center.x + g0.radius, y: g0.center.y });
+    const s = scaleOf(selected);
+    const edge = imageToPage(selected, { x: g0.center.x + g0.radius, y: g0.center.y });
     const from = onPixel({ x: edge.x - 4, y: edge.y });
     const before = await annotationsText(page);
     await withShift(page, () => drag(page, from, { x: from.x, y: from.y + 40 }, 8));
