@@ -76,41 +76,82 @@ async function openFromFilmstrip(
 }
 
 /**
- * Mean colour the viewer drew around an image point, read from OSD's own
- * drawing canvas (2D for both drawers; WebGL copies into it). Null while the
- * point is off the canvas.
+ * Mean colour the viewer drew around an image point, over the device pixels
+ * within `half` of it, read from OSD's own drawing canvas (2D for both
+ * drawers; WebGL copies into it). Null while the point is off the canvas.
  */
 function drawnColourAt(
   page: Page,
   point: { x: number; y: number },
+  half = 4,
 ): Promise<{ r: number; g: number; b: number; a: number } | null> {
-  return page.evaluate((pt) => {
+  return page.evaluate(
+    ([pt, half]) => {
+      const el = document.querySelector('.openseadragon-canvas') as (Element & OsdTestHooks) | null;
+      const canvas = el?.__osdViewer?.drawer.canvas;
+      const overlay = el?.__osdOverlay;
+      if (!el || !canvas || !overlay) return null;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      const screen = overlay.imageToScreen(pt);
+      const rect = el.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      const scale = canvas.width / canvasRect.width;
+      const cx = Math.round((rect.left + screen.x - canvasRect.left) * scale);
+      const cy = Math.round((rect.top + screen.y - canvasRect.top) * scale);
+      if (cx < half || cy < half || cx + half >= canvas.width || cy + half >= canvas.height) {
+        return null;
+      }
+      const { data } = ctx.getImageData(cx - half, cy - half, 2 * half + 1, 2 * half + 1);
+      const sum = { r: 0, g: 0, b: 0, a: 0 };
+      for (let i = 0; i < data.length; i += 4) {
+        sum.r += data[i]!;
+        sum.g += data[i + 1]!;
+        sum.b += data[i + 2]!;
+        sum.a += data[i + 3]!;
+      }
+      const n = data.length / 4;
+      return { r: sum.r / n, g: sum.g / n, b: sum.b / n, a: sum.a / n };
+    },
+    [point, half] as const,
+  );
+}
+
+/** How many of OSD's drawing-canvas pixels one image pixel spans, along x. */
+function drawnPixelsPerImagePixel(page: Page): Promise<number> {
+  return page.evaluate(() => {
     const el = document.querySelector('.openseadragon-canvas') as (Element & OsdTestHooks) | null;
     const canvas = el?.__osdViewer?.drawer.canvas;
     const overlay = el?.__osdOverlay;
-    if (!el || !canvas || !overlay) return null;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    const screen = overlay.imageToScreen(pt);
-    const rect = el.getBoundingClientRect();
-    const canvasRect = canvas.getBoundingClientRect();
-    const scale = canvas.width / canvasRect.width;
-    const cx = Math.round((rect.left + screen.x - canvasRect.left) * scale);
-    const cy = Math.round((rect.top + screen.y - canvasRect.top) * scale);
-    const half = 4;
-    if (cx < half || cy < half || cx + half >= canvas.width || cy + half >= canvas.height) {
-      return null;
-    }
-    const { data } = ctx.getImageData(cx - half, cy - half, 2 * half + 1, 2 * half + 1);
-    const sum = { r: 0, g: 0, b: 0, a: 0 };
-    for (let i = 0; i < data.length; i += 4) {
-      sum.r += data[i]!;
-      sum.g += data[i + 1]!;
-      sum.b += data[i + 2]!;
-      sum.a += data[i + 3]!;
-    }
-    const n = data.length / 4;
-    return { r: sum.r / n, g: sum.g / n, b: sum.b / n, a: sum.a / n };
+    if (!canvas || !overlay) throw new Error('test hooks not installed');
+    const a = overlay.imageToScreen({ x: 0, y: 0 });
+    const b = overlay.imageToScreen({ x: 1, y: 0 });
+    return (Math.hypot(b.x - a.x, b.y - a.y) * canvas.width) / canvas.getBoundingClientRect().width;
+  });
+}
+
+/** Zooms the viewer as far in as it goes, at once, centred on an image point. */
+async function zoomToMaxAt(page: Page, point: { x: number; y: number }): Promise<void> {
+  await page.evaluate((pt) => {
+    const el = document.querySelector('.openseadragon-canvas') as
+      | (Element & {
+          __osdViewer?: {
+            viewport: {
+              imageToViewportCoordinates(x: number, y: number): unknown;
+              getMaxZoom(): number;
+              zoomTo(zoom: number, ref: unknown, immediately: boolean): void;
+              panTo(center: unknown, immediately: boolean): void;
+              applyConstraints(immediately: boolean): void;
+            };
+          };
+        })
+      | null;
+    const viewport = el?.__osdViewer?.viewport;
+    if (!viewport) throw new Error('test hooks not installed');
+    const center = viewport.imageToViewportCoordinates(pt.x, pt.y);
+    viewport.zoomTo(viewport.getMaxZoom(), center, true);
+    viewport.panTo(center, true);
+    viewport.applyConstraints(true);
   }, point);
 }
 
@@ -161,7 +202,9 @@ test.describe('Large-image query parameters', () => {
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10_000 });
 
     expect(await filmstripIds(page)).toEqual([...DEFAULT_IDS, 'large']);
-    await expect(page.getByTestId('filmstrip-item-large')).toContainText('Large (synthetic)');
+    await expect(page.getByTestId('filmstrip-thumb-large')).toHaveText(
+      'Large (synthetic) 100,000 × 80,000',
+    );
 
     await openFromFilmstrip(page, 'large', { width: 100_000, height: 80_000 });
 
@@ -191,21 +234,130 @@ test.describe('Large-image query parameters', () => {
   test('?largeImage=WxH sets the size, each side clamped', async ({ page }) => {
     await page.goto('/?largeImage=4096x2048');
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10_000 });
+    await expect(page.getByTestId('filmstrip-thumb-large')).toHaveText(
+      'Large (synthetic) 4,096 × 2,048',
+    );
     await openFromFilmstrip(page, 'large', { width: 4096, height: 2048 });
 
     await page.goto('/?largeImage=99999999x10');
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10_000 });
+    // The label shows the clamped size, so a tester sees what they got.
+    await expect(page.getByTestId('filmstrip-thumb-large')).toHaveText(
+      'Large (synthetic) 1,048,576 × 1,024',
+    );
     await openFromFilmstrip(page, 'large', { width: 1_048_576, height: 1_024 });
+  });
+
+  test('the label names the size a ?largeImage value gave; the last wins; 0 leaves it out', async ({
+    page,
+  }) => {
+    // What each query gives: the label it shows, or null for no entry at all.
+    const cases: readonly (readonly [string, string | null])[] = [
+      // Not WxH, so the default size, which the label says.
+      ['?largeImage=8192x8192px', 'Large (synthetic) 100,000 × 80,000'],
+      ['?largeImage=0', null],
+      ['?largeImage=false', null],
+      ['?largeImage=Off', null],
+      ['?largeImage=0&largeImage=8192x8192', 'Large (synthetic) 8,192 × 8,192'],
+      ['?largeImage=8192x8192&largeImage=off', null],
+    ];
+    for (const [query, label] of cases) {
+      await page.goto(`/${query}`);
+      await page.waitForSelector('[data-testid="filmstrip"]', { timeout: 10_000 });
+      if (label === null) {
+        expect(await filmstripIds(page), query).toEqual(DEFAULT_IDS);
+      } else {
+        expect(await filmstripIds(page), query).toEqual([...DEFAULT_IDS, 'large']);
+        await expect(page.getByTestId('filmstrip-thumb-large'), query).toHaveText(label);
+      }
+    }
+  });
+
+  test('at full resolution the line labelled x 1,000 is pixel column 1000', async ({ page }) => {
+    // Narrow enough for the viewer's deepest zoom (an absolute 40) to show it
+    // at several device pixels an image pixel; the default 100,000 px is not.
+    await page.goto('/?largeImage=4096x4096');
+    await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10_000 });
+    await openFromFilmstrip(page, 'large', { width: 4096, height: 4096 });
+    await zoomToMaxAt(page, { x: 1005, y: 1075 });
+    const perImagePixel = await drawnPixelsPerImagePixel(page);
+    // Wide enough that a sample one device pixel either side of a column's
+    // centre stays inside that column.
+    expect(perImagePixel).toBeGreaterThanOrEqual(4);
+
+    // Row 1075 lies between the 10 px tier's lines at 1070 and 1080, and below
+    // the label box of every intersection at any device pixel ratio (a box is
+    // wider than tall, and no wider than the 100 px spacing). Column 1000 is
+    // where the 10, 100 and 1,000 px tiers stack, so it is drawn far darker
+    // than 1010, which only the 10 px tier marks; 1005 is plain background.
+    // Until the full-resolution level is in, a coarser one is magnified,
+    // which has no 10 px tier at all, so 1010 does not darken: hence the poll.
+    const brightness = async (column: number): Promise<number | null> => {
+      const c = await drawnColourAt(page, { x: column + 0.5, y: 1075.5 }, 1);
+      return c === null ? null : (c.r + c.g + c.b) / 3;
+    };
+    await expect
+      .poll(
+        async () => {
+          const [b999, b1000, b1001, b1005, b1010] = await Promise.all(
+            [999, 1000, 1001, 1005, 1010].map(brightness),
+          );
+          if ([b999, b1000, b1001, b1005, b1010].some((b) => b === null)) return 'off the canvas';
+          const background = b1005!;
+          return {
+            column999Clear: b999! > 0.92 * background,
+            column1000Dark: b1000! < 0.5 * background,
+            column1001Clear: b1001! > 0.92 * background,
+            column1010Dark: b1010! < 0.85 * background,
+          };
+        },
+        { timeout: 20_000, message: 'pixel columns 999-1010 at full resolution' },
+      )
+      .toEqual({
+        column999Clear: true,
+        column1000Dark: true,
+        column1001Clear: true,
+        column1010Dark: true,
+      });
   });
 
   test('?image= adds a URL as is, before the synthetic image', async ({ page, baseURL }) => {
     const requests = watchRequests(page, baseURL!);
-    // Local, so the suite stays offline (#144).
-    await page.goto('/?image=./sample-data/tiled.dzi&largeImage=2048x2048');
+    // Local, so the suite stays offline (#144). Only url-1 is opened; the
+    // others exist for their labels. Empty values are skipped and take no
+    // number.
+    const urls = [
+      '',
+      '%20',
+      './sample-data/tiled.dzi',
+      './iiif/slide-0042/info.json',
+      './sample-data/a-very-long-file-name-for-the-label.dzi',
+      // `%25` reaches the page as `%`, so the name is not valid
+      // percent-encoding and is shown as written.
+      './sample-data/x%25ZZ.png',
+    ];
+    await page.goto(`/?${urls.map((url) => `image=${url}`).join('&')}&largeImage=2048x2048`);
     await page.waitForSelector('[data-testid="tool-navigate"]', { timeout: 10_000 });
 
-    expect(await filmstripIds(page)).toEqual([...DEFAULT_IDS, 'url-1', 'large']);
-    await expect(page.getByTestId('filmstrip-item-url-1')).toContainText('tiled.dzi');
+    expect(await filmstripIds(page)).toEqual([
+      ...DEFAULT_IDS,
+      'url-1',
+      'url-2',
+      'url-3',
+      'url-4',
+      'large',
+    ]);
+    const labels: Record<string, string> = {
+      'url-1': 'tiled.dzi',
+      // An IIIF image is named by its identifier.
+      'url-2': 'slide-0042/info.json',
+      // Shortened in the middle to 24 characters.
+      'url-3': 'a-very-long-…e-label.dzi',
+      'url-4': 'x%ZZ.png',
+    };
+    for (const [id, label] of Object.entries(labels)) {
+      await expect(page.getByTestId(`filmstrip-thumb-${id}`)).toHaveText(label);
+    }
 
     await openFromFilmstrip(page, 'url-1', { width: 800, height: 600 });
     await page.waitForLoadState('networkidle');

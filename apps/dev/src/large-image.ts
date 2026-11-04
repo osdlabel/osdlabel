@@ -10,10 +10,26 @@ import { createImageId, type ImageSource } from 'osdlabel';
  *   filmstrip: a deep-zoom image of {@link DEFAULT_LARGE_IMAGE_SIZE} that is
  *   drawn tile by tile in the page, so it needs no file and makes no request.
  *   `?largeImage=WxH` sets its size, each side clamped to
- *   {@link MIN_LARGE_IMAGE_SIDE}..{@link MAX_LARGE_IMAGE_SIDE}.
+ *   {@link MIN_LARGE_IMAGE_SIDE}..{@link MAX_LARGE_IMAGE_SIDE}. The label ends
+ *   with the size it opens at, so a value that was clamped or not understood
+ *   shows on the page (iOS has no console to warn in). Given more than once,
+ *   the last value wins; `0`, `false`, `off` or `no` leaves the image out.
  * - `?image=<url>`, repeatable, adds one entry per URL (ids `url-1`, `url-2`,
- *   …, before the synthetic one), handed to the library as is: a DZI, an IIIF
- *   `info.json` or a plain image. URL-encode a value holding `&`, `+` or `#`.
+ *   …, before the synthetic one; empty values are skipped and take no
+ *   number), handed to the library as is: a DZI, an IIIF `info.json` or a
+ *   plain image. A plain image is decoded and drawn whole into one canvas, so
+ *   past 16,777,216 px (4,096²) it fails on iOS Safari: anything larger must
+ *   be a DZI or IIIF. URL-encode a value holding `&`, `+` or `#`.
+ *
+ * The viewer's deepest zoom is absolute (`maxZoomLevel: 40` in
+ * `DEFAULT_VIEWER_OPTIONS`): a cell then shows a fortieth of the image's width,
+ * so one image pixel spans 40 × cell CSS width ÷ image width CSS pixels. At the
+ * default 100,000 px that is 0.4 CSS px in a 1,000 px cell: too little to see
+ * one image pixel, and OSD usually stops a level short of full resolution.
+ * Checks at the scale of one image pixel need the image width at most about
+ * 40 × cell CSS width × device pixel ratio (e.g. `?largeImage=32768x24576`, or
+ * `16384x16384` on a phone). The same limit applies to a real slide opened
+ * through `?image=`.
  */
 
 export const DEFAULT_LARGE_IMAGE_SIZE = { width: 100_000, height: 80_000 } as const;
@@ -31,23 +47,28 @@ export function queryImages(search: string): ImageSource[] {
       tileSource: url,
       label: labelFromUrl(url),
     }));
-  const large = params.get('largeImage');
-  if (large !== null) {
+  // The last value wins, so a value appended to a URL that has one already
+  // takes effect.
+  const large = params.getAll('largeImage').at(-1);
+  if (large !== undefined && !LARGE_IMAGE_OFF.test(large.trim())) {
     const { width, height } = parseLargeImageSize(large);
     images.push({
       id: createImageId('large'),
       tileSource: createSyntheticTileSource(width, height),
-      label: 'Large (synthetic)',
+      label: `Large (synthetic) ${formatNumber(width)} × ${formatNumber(height)}`,
     });
   }
   return images;
 }
 
+/** `?largeImage=` values that leave the synthetic image out. */
+const LARGE_IMAGE_OFF = /^(0|false|off|no)$/i;
+
 /** `WxH` (`x`, `X`, `×` or `*`), each side clamped; anything else is the default. */
 export function parseLargeImageSize(value: string): { width: number; height: number } {
   const match = /^\s*(\d+)\s*[xX×*]\s*(\d+)\s*$/.exec(value);
   if (!match) {
-    if (value.trim() !== '' && !/^(1|true)$/i.test(value.trim())) {
+    if (value.trim() !== '' && !/^(1|true|on|yes)$/i.test(value.trim())) {
       console.warn(`?largeImage=${value} is not WxH; using the default size.`);
     }
     return { ...DEFAULT_LARGE_IMAGE_SIZE };
@@ -264,8 +285,10 @@ function gridTiers(image: SyntheticImage): number[] {
  * zooming in spreads it {@link MIN_LINE_SPACING} level pixels apart and
  * darkening as it spreads further. The line for image x = X covers pixel
  * column X, [X, X + 1): at full resolution every line is exactly one image
- * pixel wide, so a brush cell can be checked against it. Coarser levels draw
- * the wider tiers thicker.
+ * pixel wide, so a brush cell can be checked against it, on an image narrow
+ * enough for the viewer to reach full resolution (see the module comment: at
+ * the default 100,000 px it does not, and the 10 px tier never shows). Coarser
+ * levels draw the wider tiers thicker.
  */
 function paintGrid(
   ctx: CanvasRenderingContext2D,
