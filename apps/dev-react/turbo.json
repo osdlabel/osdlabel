@@ -6,14 +6,16 @@
       "inputs": [
         "$TURBO_EXTENDS$",
         "$TURBO_ROOT$/apps/dev/src/viewer-cell-harness.ts",
-        "$TURBO_ROOT$/apps/dev/src/brush-query.ts"
+        "$TURBO_ROOT$/apps/dev/src/brush-query.ts",
+        "$TURBO_ROOT$/apps/dev/src/large-image.ts"
       ]
     },
     "typecheck": {
       "inputs": [
         "$TURBO_EXTENDS$",
         "$TURBO_ROOT$/apps/dev/src/viewer-cell-harness.ts",
-        "$TURBO_ROOT$/apps/dev/src/brush-query.ts"
+        "$TURBO_ROOT$/apps/dev/src/brush-query.ts",
+        "$TURBO_ROOT$/apps/dev/src/large-image.ts"
       ]
     }
   }

@@ -44,5 +44,27 @@ Playwright specs fail wherever that host was unreachable.
 `apps/docs` keeps its remote DZIs on purpose — that site is deployed and read
 online, and a live deep-zoom demo is the library's headline capability.
 
+## Large images for manual testing
+
+The largest asset here is 2000 px wide, so nothing in it reaches whole-slide
+scale. Two opt-in query parameters on either dev app's main page (`index.html`)
+add filmstrip entries for that; without them the filmstrip is exactly the four
+images above. Both live in `apps/dev/src/large-image.ts`.
+
+- `?largeImage` adds **Large (synthetic)**, a deep-zoom image of 100,000 ×
+  80,000 px whose tiles are drawn in the page: no file, no request, so it is
+  usable offline. `?largeImage=WxH` sets its size (each side clamped to
+  1,024–1,048,576), e.g. `?largeImage=8192x8192`. Its colour follows position
+  (hue across, lightness down), grid lines every 10 / 100 / 1,000 / 10,000 px
+  appear as you zoom in, and grid intersections are labelled with their image
+  coordinates. At full resolution each grid line is exactly one image pixel
+  wide (the line labelled `x 1,000` is pixel column 1000).
+- `?image=<url>` (repeatable) adds the URL as is: a DZI, an IIIF `info.json`
+  or a plain image. Remote URLs work but break the offline rule for that page
+  load, so no spec passes one; URL-encode a value holding `&`, `+` or `#`.
+
+`tests/e2e/large-image.spec.ts` covers both, and checks the synthetic image
+makes no request.
+
 `apps/dev-react/sample-data/` carries byte-identical copies of these assets;
 each app's Vite root serves its own.

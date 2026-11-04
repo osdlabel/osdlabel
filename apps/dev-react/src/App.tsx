@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect, useLayoutEffect } from 'react';
 import { BRUSH_MAX_PIXELS, coarsenNotice } from '../../dev/src/brush-query.js';
+import { QUERY_IMAGES } from '../../dev/src/large-image.js';
 import {
   Toolbar,
   StatusBar,
@@ -137,7 +138,13 @@ const DECORATION_PROVIDERS: readonly DecorationProvider<OsdFields>[] = [
   lineRatioHudProvider,
 ];
 
-/** Local images only, matching `apps/dev` — see the note there and issue #144. */
+/**
+ * Local images only, matching `apps/dev` — see the note there and issue #144.
+ * The same two opt-in query parameters append entries for testing by hand at
+ * whole-slide scale, from the same module: `?largeImage[=WxH]` (a synthetic
+ * image drawn in the page, so no request) and `?image=<url>` (never passed by
+ * default or by any spec except with a local URL).
+ */
 const IMAGES: ImageSource[] = [
   {
     id: createImageId('landscape'),
@@ -161,6 +168,7 @@ const IMAGES: ImageSource[] = [
     tileSource: './sample-data/tiled.dzi',
     label: 'Tiled (DZI)',
   },
+  ...QUERY_IMAGES,
 ];
 
 const CONTEXTS: AnnotationContext[] = [

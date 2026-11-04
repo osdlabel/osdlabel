@@ -1,5 +1,6 @@
 import { createSignal, createEffect, Show } from 'solid-js';
 import { BRUSH_MAX_PIXELS, coarsenNotice } from './brush-query.js';
+import { QUERY_IMAGES } from './large-image.js';
 import { render } from 'solid-js/web';
 import {
   Toolbar,
@@ -54,6 +55,13 @@ import { FabricObject } from 'fabric';
  * filmstrip offers to be local. The docs demos keep their remote DZIs
  * deliberately; that site is deployed and read online, and a live deep-zoom
  * demo is the library's headline capability.
+ *
+ * Two opt-in query parameters append entries for testing by hand at
+ * whole-slide scale (see `large-image.ts`): `?largeImage[=WxH]` adds a
+ * synthetic deep-zoom image, 100,000 x 80,000 px by default, and `?image=<url>`
+ * (repeatable) adds any URL. Neither breaks the local-only rule: the synthetic
+ * image's tiles are drawn in the page, so it makes no request at all, and
+ * `?image=` is never passed by default or by any spec except with a local URL.
  */
 const IMAGES: ImageSource[] = [
   {
@@ -78,6 +86,7 @@ const IMAGES: ImageSource[] = [
     tileSource: './sample-data/tiled.dzi',
     label: 'Tiled (DZI)',
   },
+  ...QUERY_IMAGES,
 ];
 
 const CONTEXTS: AnnotationContext[] = [
