@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" data-framework="solid">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>osdlabel × Ratzilla</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #101418;
+        color: #d0d0d0;
+      }
+      #tui {
+        position: fixed;
+        inset: 0;
+      }
+      #tui pre {
+        margin: 0;
+        font-family: 'DejaVu Sans Mono', Menlo, Consolas, monospace;
+        font-size: 14px;
+      }
+      #tui_ratzilla_grid:focus {
+        outline: none;
+      }
+      #viewer {
+        position: fixed;
+        display: none;
+        z-index: 10;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="tui"></div>
+    <div id="viewer"></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "@osdlabel/ratzilla-poc",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Proof of concept: an osdlabel annotator whose shell is a Ratzilla (Ratatui on WASM) TUI",
+  "type": "module",
+  "scripts": {
+    "poc:wasm": "sh scripts/build-wasm.sh",
+    "poc:dev": "sh scripts/build-wasm.sh && vite",
+    "poc:build": "sh scripts/build-wasm.sh && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@osdlabel/solid": "workspace:*",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  }
+}
