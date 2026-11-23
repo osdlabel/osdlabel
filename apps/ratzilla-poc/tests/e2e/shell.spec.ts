@@ -47,10 +47,15 @@ const status = (page: Page): Promise<string> =>
     return rows[rows.length - 1]?.textContent?.trim() ?? '';
   });
 
-/** The terminal's text, one string per row. */
-const screenText = (page: Page): Promise<string[]> =>
+/**
+ * The terminal's text. The shell redraws on the animation frame after a
+ * snapshot arrives, so assert on it with `expect.poll`, not once.
+ */
+const screen = (page: Page): Promise<string> =>
   page.evaluate(() =>
-    [...document.querySelectorAll('#tui_ratzilla_grid pre')].map((r) => r.textContent ?? ''),
+    [...document.querySelectorAll('#tui_ratzilla_grid pre')]
+      .map((r) => r.textContent ?? '')
+      .join('\n'),
   );
 
 /** The centre of the first terminal cell where `text` starts. */
@@ -154,7 +159,7 @@ test('tool keys draw, and a context limit disables the tool', async ({ page }) =
 
   const s = await snapshot(page);
   expect(s.constraints['rectangle']).toEqual({ enabled: false, current: 2, max: 2 });
-  expect((await screenText(page)).join('\n')).toContain('2/2');
+  await expect.poll(() => screen(page)).toContain('2/2');
 
   await page.keyboard.press('1');
   await expect.poll(() => status(page)).toBe('Rectangle is not available in this context');
@@ -283,7 +288,7 @@ test('g cycles grid layouts and the arrows move between cells', async ({ page })
   await page.keyboard.press('ArrowRight');
   await expect.poll(async () => (await snapshot(page)).activeCell).toBe(1);
   expect((await snapshot(page)).activeImageId).toBe('portrait');
-  expect((await screenText(page)).join('\n')).toContain('Portrait · cell 2/2 (2×1)');
+  await expect.poll(() => screen(page)).toContain('Portrait · cell 2/2 (2×1)');
 
   await page.keyboard.press('g');
   await expect.poll(async () => (await snapshot(page)).grid).toEqual({ columns: 2, rows: 2 });
@@ -295,7 +300,7 @@ test('g cycles grid layouts and the arrows move between cells', async ({ page })
 test('the help screen hides the viewer until a key closes it', async ({ page }) => {
   await page.keyboard.press('?');
   await expect(page.locator('#viewer')).toBeHidden();
-  expect((await screenText(page)).join('\n')).toContain('any key closes');
+  await expect.poll(() => screen(page)).toContain('any key closes');
   await page.keyboard.press('Escape');
   await expect(page.locator('#viewer')).toBeVisible();
 });
