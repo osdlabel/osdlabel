@@ -31,7 +31,8 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned for Playwright, as ci.yml's e2e-tests job is.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/ratzilla-poc
