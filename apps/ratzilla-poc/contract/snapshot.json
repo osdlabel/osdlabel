@@ -1,0 +1,40 @@
+{
+  "activeTool": "rectangle",
+  "activeContextId": "ctx-1",
+  "contexts": [
+    { "id": "ctx-1", "label": "Fracture" },
+    { "id": "ctx-2", "label": "Pneumothorax" },
+    { "id": "ctx-3", "label": "General" }
+  ],
+  "images": [
+    { "id": "landscape", "label": "Landscape", "count": 2 },
+    { "id": "portrait", "label": "Portrait", "count": 0 }
+  ],
+  "activeImageId": "landscape",
+  "selectedAnnotationId": "a2",
+  "constraints": {
+    "rectangle": { "enabled": false, "current": 2, "max": 2 },
+    "line": { "enabled": true, "current": 0, "max": 3 },
+    "circle": { "enabled": false, "current": 0, "max": null },
+    "point": { "enabled": false, "current": 0, "max": null },
+    "polyline": { "enabled": false, "current": 0, "max": null },
+    "freeHandPath": { "enabled": false, "current": 0, "max": null }
+  },
+  "annotations": [
+    { "id": "a1", "tool": "rectangle", "context": "Fracture", "visible": true },
+    { "id": "a2", "tool": "polyline", "context": "General", "visible": false }
+  ],
+  "transform": {
+    "rotation": 90,
+    "flippedH": false,
+    "flippedV": false,
+    "inverted": true,
+    "exposure": 0,
+    "contrast": 0
+  },
+  "grid": { "columns": 2, "rows": 1 },
+  "activeCell": 0,
+  "canUndo": true,
+  "canRedo": false,
+  "notice": { "seq": 1, "text": "Imported 2 annotation(s)" }
+}

@@ -14,6 +14,7 @@
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true
   },
   "include": ["src/**/*", "tests/**/*"],
