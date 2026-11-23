@@ -5,7 +5,7 @@ import {
   type AnnotationContextId,
   type ImageSource,
 } from '@osdlabel/solid';
-import { mountBridge } from './bridge.js';
+import { mountBridge, type Bridge } from './bridge.js';
 
 // The same local sample images the dev apps use (served from apps/dev/sample-data).
 const IMAGES: ImageSource[] = [
@@ -58,8 +58,19 @@ const bridge = mountBridge({
   contexts: CONTEXTS,
 });
 
-// Test hook: the bridge handle, so a spec can drive and inspect it.
-(window as unknown as { __bridge: typeof bridge }).__bridge = bridge;
+// Test hooks for tests/e2e: the bridge itself, and the cells the shell last
+// asked the viewer to cover (so a spec can check the overlay against them).
+const hooks: { bridge: Bridge; viewerCells: readonly number[] | null } = {
+  bridge,
+  viewerCells: null,
+};
+(window as unknown as { __poc: typeof hooks }).__poc = hooks;
 
 await init();
-start(bridge);
+start({
+  ...bridge,
+  setViewerRect(col, row, cols, rows) {
+    hooks.viewerCells = [col, row, cols, rows];
+    bridge.setViewerRect(col, row, cols, rows);
+  },
+});

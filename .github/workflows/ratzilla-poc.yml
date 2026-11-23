@@ -1,0 +1,72 @@
+name: Ratzilla PoC
+
+# apps/ratzilla-poc needs a Rust toolchain, which the main CI does not set up.
+# Its TypeScript typecheck, lint and Vitest suites already run in ci.yml; this
+# adds the crate's tests and the E2E suite, only when something they exercise
+# changes.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'apps/ratzilla-poc/**'
+      - 'apps/dev/sample-data/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.node-version'
+      - '.github/workflows/ratzilla-poc.yml'
+  pull_request:
+    branches: [main, master]
+    # Keep identical to the push list.
+    paths:
+      - 'apps/ratzilla-poc/**'
+      - 'apps/dev/sample-data/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.node-version'
+      - '.github/workflows/ratzilla-poc.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/ratzilla-poc
+    steps:
+      - uses: actions/checkout@v4
+      # v6.1.0 is the first release with pnpm 12 support; the floating v6 tag predates it.
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/ratzilla-poc/crate
+      # Must match the `wasm-bindgen` version pinned in crate/Cargo.toml.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.130
+
+      - name: Install dependencies
+        run: pnpm install
+      - name: Crate tests
+        run: pnpm poc:test:rust
+      - name: Build the library packages
+        run: pnpm exec turbo run build --filter=@osdlabel/ratzilla-poc^...
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E tests
+        run: pnpm poc:test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: ratzilla-poc-playwright-report
+          path: apps/ratzilla-poc/playwright-report/
+          retention-days: 30
