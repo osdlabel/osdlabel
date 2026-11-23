@@ -5,6 +5,8 @@ delete, export) is a [Ratatui](https://ratatui.rs) TUI compiled to WebAssembly a
 browser by [Ratzilla](https://github.com/ratatui/ratzilla). osdlabel only paints the image and its
 annotation canvas.
 
+![Demo: drawing, context limits, key routing, selection, view controls, export](docs/demo.gif)
+
 ```
 ┌ osdlabel × Ratzilla ───────────────────────────────────────────┐
 │ Fracture │ Pneumothorax │ General                    [ ] context│
