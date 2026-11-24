@@ -241,6 +241,9 @@ export function mountBridge(options: MountOptions): Bridge {
         const imageId = a.activeImageId();
         if (!id || !imageId) return 'Nothing selected';
         actions.deleteAnnotation(id, imageId);
+        // As osdlabel's own Delete shortcut does (keyboard.ts): the selection
+        // would otherwise name an annotation that no longer exists.
+        actions.setSelectedAnnotation(null);
         return `Deleted ${id.slice(0, 8)}`;
       }
       case 'view':

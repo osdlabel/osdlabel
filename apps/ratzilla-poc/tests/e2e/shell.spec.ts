@@ -215,6 +215,8 @@ test('the annotation list selects, and x deletes the selection', async ({ page }
   await expect
     .poll(async () => (await snapshot(page)).annotations.map((a) => a.id))
     .toEqual([first!.id]);
+  // The deleted annotation is no longer the selection.
+  expect((await snapshot(page)).selectedAnnotationId).toBeNull();
 });
 
 test('u and U undo and redo committed changes', async ({ page }) => {
