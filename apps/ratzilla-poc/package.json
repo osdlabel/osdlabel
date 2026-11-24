@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@osdlabel/shell-bridge": "workspace:*",
-    "@osdlabel/solid": "workspace:*",
     "solid-js": "catalog:"
   },
   "devDependencies": {

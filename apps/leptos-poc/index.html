@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en" data-framework="solid">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>osdlabel × Leptos</title>
+    <style>
+      :root {
+        --bg: #0f1216;
+        --panel: #161b21;
+        --panel-2: #1d232b;
+        --line: #2a323c;
+        --text: #dde3ea;
+        --dim: #8b96a3;
+        --accent: #4cc3d9;
+        --accent-ink: #062028;
+        --active: #3fb67a;
+        --select: #f2c14e;
+        --danger: #e5676a;
+        --radius: 6px;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.4 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      #app {
+        height: 100%;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 4px 10px;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) {
+        border-color: var(--accent);
+      }
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      kbd {
+        font:
+          12px ui-monospace,
+          'DejaVu Sans Mono',
+          monospace;
+        color: var(--dim);
+      }
+      .dim {
+        color: var(--dim);
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas: 'top top' 'side main' 'status status';
+        height: 100%;
+      }
+      .top {
+        grid-area: top;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+      .top h1 {
+        font-size: 16px;
+        margin: 0;
+        white-space: nowrap;
+      }
+      .contexts {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+        overflow-x: auto;
+      }
+      .context.active {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .help-button {
+        width: 30px;
+        padding: 4px 0;
+      }
+
+      .sidebar {
+        grid-area: side;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+        overflow: auto;
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+      }
+      .panel h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--dim);
+        margin: 0 0 6px;
+      }
+      .panel.grow {
+        flex: 1;
+        min-height: 120px;
+      }
+      .list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .list button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-align: left;
+        background: transparent;
+        border-color: transparent;
+      }
+      .list .label {
+        flex: 1;
+      }
+      .list .count {
+        font-variant-numeric: tabular-nums;
+        color: var(--accent);
+        font-style: italic;
+      }
+      .tool.active {
+        background: var(--active);
+        color: #06140c;
+        font-weight: 600;
+      }
+      .tool.active kbd,
+      .tool.active .count {
+        color: inherit;
+      }
+      .image.active {
+        background: var(--panel-2);
+        border-color: var(--line);
+        font-weight: 600;
+      }
+      .annotation.hidden {
+        color: var(--dim);
+      }
+      .annotation.selected {
+        background: var(--select);
+        color: #241a00;
+      }
+      .annotation.selected .dim {
+        color: inherit;
+      }
+      .empty {
+        color: var(--dim);
+        margin: 4px 0;
+      }
+
+      .viewer-pane {
+        grid-area: main;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        padding: 8px 12px 12px;
+        gap: 8px;
+      }
+      .viewer-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .viewer-head h2 {
+        font-size: 15px;
+        margin: 0;
+      }
+      .flags {
+        color: var(--dim);
+        font-size: 13px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .toolbar .group {
+        display: flex;
+        gap: 4px;
+      }
+      .toolbar button.active {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .viewer {
+        flex: 1;
+        min-height: 0;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: #000;
+      }
+
+      .status {
+        grid-area: status;
+        padding: 6px 16px;
+        border-top: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--active);
+        min-height: 32px;
+      }
+
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgb(0 0 0 / 0.55);
+        display: grid;
+        place-items: center;
+        padding: 16px;
+      }
+      .dialog {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 20px 24px;
+        max-width: 520px;
+        width: 100%;
+        max-height: 100%;
+        overflow: auto;
+      }
+      .dialog h2 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      .dialog dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 6px 16px;
+        margin: 0 0 16px;
+      }
+      .dialog dt {
+        text-align: right;
+      }
+      .dialog dt kbd {
+        color: var(--select);
+      }
+      .dialog dd {
+        margin: 0;
+      }
+      .primary {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+
+      @media (max-width: 720px) {
+        .app {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto auto 1fr auto;
+          grid-template-areas: 'top' 'side' 'main' 'status';
+        }
+        .sidebar {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          max-height: 40vh;
+        }
+        .viewer {
+          min-height: 50vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
