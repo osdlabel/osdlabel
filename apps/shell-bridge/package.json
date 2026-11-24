@@ -1,0 +1,34 @@
+{
+  "name": "@osdlabel/shell-bridge",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The JS side of the Rust shell PoCs: mounts osdlabel and speaks the JSON protocol their WASM shells use",
+  "type": "module",
+  "exports": {
+    "./bridge": "./src/bridge.tsx",
+    "./commands": "./src/commands.ts",
+    "./snapshot": "./src/snapshot.ts",
+    "./history": "./src/history.ts",
+    "./sample": "./src/sample.ts"
+  },
+  "scripts": {
+    "poc:test:rust": "cargo test --manifest-path rust/Cargo.toml",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@osdlabel/annotation": "workspace:*",
+    "@osdlabel/annotation-context": "workspace:*",
+    "@osdlabel/solid": "workspace:*",
+    "@osdlabel/viewer-api": "workspace:*",
+    "osdlabel": "workspace:*",
+    "solid-js": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "jsdom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

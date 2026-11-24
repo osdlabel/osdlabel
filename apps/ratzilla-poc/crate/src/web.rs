@@ -1,5 +1,6 @@
 //! The browser side: Ratzilla's DOM backend, the draw loop, and the bridge to
-//! osdlabel (`src/bridge.tsx`). All logic lives in [`crate::shell`].
+//! osdlabel (`apps/shell-bridge/src/bridge.tsx`). All logic lives in
+//! [`crate::shell`].
 
 use std::{cell::RefCell, rc::Rc};
 

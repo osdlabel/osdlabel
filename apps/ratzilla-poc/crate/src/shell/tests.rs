@@ -1,14 +1,10 @@
 use super::*;
+use osdlabel_shell_protocol::{fixtures::snapshot, ViewOp};
 use ratatui::{backend::TestBackend, buffer::Buffer, Terminal};
 
-/// The shared fixtures in `apps/ratzilla-poc/contract/`; the bridge's Vitest
-/// suite checks the same files from the JS side.
-const COMMANDS: &str = include_str!("../../../contract/commands.json");
-const SNAPSHOT: &str = include_str!("../../../contract/snapshot.json");
-
-fn snapshot() -> Snapshot {
-    serde_json::from_str(SNAPSHOT).expect("contract/snapshot.json parses")
-}
+// The protocol and the shared keymap are tested in osdlabel-shell-protocol;
+// these tests cover what the TUI adds: panes, cursors, clicks, help, layout,
+// and that the shared shortcuts reach the bridge through it.
 
 /// An app that has received the fixture snapshot.
 fn app() -> App {
@@ -45,102 +41,6 @@ fn find(buf: &Buffer, needle: &str) -> (u16, u16) {
     panic!("{needle:?} not rendered");
 }
 
-// ── Wire format ─────────────────────────────────────────────────────────────
-
-#[test]
-fn commands_encode_as_the_contract_says() {
-    let contract: serde_json::Map<String, serde_json::Value> =
-        serde_json::from_str(COMMANDS).unwrap();
-    let ops = [
-        ("rotateCw", ViewOp::RotateCw),
-        ("rotateCcw", ViewOp::RotateCcw),
-        ("flipH", ViewOp::FlipH),
-        ("flipV", ViewOp::FlipV),
-        ("invert", ViewOp::Invert),
-        ("exposureUp", ViewOp::ExposureUp),
-        ("exposureDown", ViewOp::ExposureDown),
-        ("contrastUp", ViewOp::ContrastUp),
-        ("contrastDown", ViewOp::ContrastDown),
-        ("reset", ViewOp::Reset),
-    ];
-    let mut cases: Vec<(String, Command)> = vec![
-        ("tool".into(), tool("rectangle")),
-        ("navigate".into(), Command::Tool { tool: None }),
-        ("context".into(), Command::Context { id: "ctx-2".into() }),
-        (
-            "image".into(),
-            Command::Image {
-                id: "portrait".into(),
-            },
-        ),
-        (
-            "select".into(),
-            Command::Select {
-                id: Some("a1".into()),
-            },
-        ),
-        ("deselect".into(), Command::Select { id: None }),
-        ("delete".into(), Command::Delete),
-        ("export".into(), Command::Export),
-        ("import".into(), Command::Import),
-        ("undo".into(), Command::Undo),
-        ("redo".into(), Command::Redo),
-        (
-            "grid".into(),
-            Command::Grid {
-                columns: 2,
-                rows: 1,
-            },
-        ),
-        ("cell".into(), Command::Cell { index: 1 }),
-    ];
-    cases.extend(ops.map(|(name, op)| (format!("view:{name}"), Command::View { op })));
-
-    for (name, command) in &cases {
-        let expected = contract
-            .get(name)
-            .unwrap_or_else(|| panic!("{name} not in contract"));
-        assert_eq!(&serde_json::to_value(command).unwrap(), expected, "{name}");
-    }
-    // Every contract entry is produced by some command, so neither side can
-    // grow a command the other does not know.
-    assert_eq!(cases.len(), contract.len());
-}
-
-#[test]
-fn snapshot_contract_decodes() {
-    let s = snapshot();
-    assert_eq!(s.active_tool.as_deref(), Some("rectangle"));
-    assert_eq!(s.contexts.len(), 3);
-    assert_eq!(s.constraints["rectangle"].max, Some(2));
-    assert_eq!(s.constraints["circle"].max, None);
-    assert!(!s.annotations[1].visible);
-    assert_eq!(s.transform.rotation, 90);
-    assert_eq!(
-        s.grid,
-        Grid {
-            columns: 2,
-            rows: 1
-        }
-    );
-    assert!(s.can_undo && !s.can_redo);
-    assert_eq!(s.notice.unwrap().seq, 1);
-}
-
-#[test]
-fn a_snapshot_without_optional_fields_decodes() {
-    // What the shell sees before the bridge's first real snapshot.
-    let s: Snapshot = serde_json::from_str(
-        r#"{"activeTool":null,"activeContextId":null,"contexts":[],"images":[],
-            "activeImageId":null,"selectedAnnotationId":null,"constraints":{},
-            "annotations":[],"transform":{"rotation":0,"flippedH":false,"flippedV":false,
-            "inverted":false,"exposure":0,"contrast":0},"grid":{"columns":1,"rows":1},
-            "activeCell":0,"canUndo":false,"canRedo":false,"notice":null}"#,
-    )
-    .unwrap();
-    assert!(s.notice.is_none());
-}
-
 // ── Keys ────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -166,31 +66,32 @@ fn unknown_keys_are_left_to_the_browser() {
 }
 
 #[test]
-fn brackets_cycle_contexts_and_wrap() {
-    let mut app = app();
+fn shared_shortcuts_pass_through() {
+    let mut app = app(); // fixture: ctx-1 active, 2×1 grid, a2 selected
     assert_eq!(
         app.on_key(Key::Char(']')),
         Some(vec![Command::Context { id: "ctx-2".into() }])
     );
     assert_eq!(
-        app.on_key(Key::Char('[')),
-        Some(vec![Command::Context { id: "ctx-3".into() }])
+        app.on_key(Key::Char('g')),
+        Some(vec![Command::Grid {
+            columns: 2,
+            rows: 2
+        }])
     );
-}
-
-#[test]
-fn escape_clears_the_selection_before_leaving_the_tool() {
-    let mut app = app();
+    assert_eq!(
+        app.on_key(Key::Right),
+        Some(vec![Command::Cell { index: 1 }])
+    );
+    assert_eq!(
+        app.on_key(Key::Char('r')),
+        Some(vec![Command::View {
+            op: ViewOp::RotateCw
+        }])
+    );
     assert_eq!(
         app.on_key(Key::Esc),
         Some(vec![Command::Select { id: None }])
-    );
-    let mut s = snapshot();
-    s.selected_annotation_id = None;
-    app.on_snapshot(s);
-    assert_eq!(
-        app.on_key(Key::Esc),
-        Some(vec![Command::Tool { tool: None }])
     );
 }
 
@@ -231,81 +132,6 @@ fn enter_activates_the_image_under_the_cursor() {
             id: "portrait".into()
         }])
     );
-}
-
-#[test]
-fn g_cycles_grid_layouts_and_arrows_move_between_cells() {
-    let mut app = app(); // fixture grid: 2×1, cell 0
-    assert_eq!(
-        app.on_key(Key::Char('g')),
-        Some(vec![Command::Grid {
-            columns: 2,
-            rows: 2
-        }])
-    );
-    assert_eq!(
-        app.on_key(Key::Right),
-        Some(vec![Command::Cell { index: 1 }])
-    );
-    assert_eq!(
-        app.on_key(Key::Left),
-        Some(vec![Command::Cell { index: 1 }])
-    );
-
-    let mut s = snapshot();
-    s.grid = Grid {
-        columns: 2,
-        rows: 2,
-    };
-    app.on_snapshot(s);
-    assert_eq!(
-        app.on_key(Key::Char('g')),
-        Some(vec![Command::Grid {
-            columns: 1,
-            rows: 1
-        }])
-    );
-
-    let mut s = snapshot();
-    s.grid = Grid::default();
-    app.on_snapshot(s);
-    assert_eq!(
-        app.on_key(Key::Right),
-        Some(vec![]),
-        "one cell: nowhere to go"
-    );
-}
-
-#[test]
-fn single_key_commands() {
-    let mut app = app();
-    let cases = [
-        ('x', Command::Delete),
-        ('u', Command::Undo),
-        ('U', Command::Redo),
-        ('e', Command::Export),
-        ('o', Command::Import),
-        (
-            'r',
-            Command::View {
-                op: ViewOp::RotateCw,
-            },
-        ),
-        (
-            'R',
-            Command::View {
-                op: ViewOp::RotateCcw,
-            },
-        ),
-        ('h', Command::View { op: ViewOp::FlipH }),
-        ('H', Command::View { op: ViewOp::FlipV }),
-        ('i', Command::View { op: ViewOp::Invert }),
-        ('0', Command::View { op: ViewOp::Reset }),
-    ];
-    for (key, command) in cases {
-        assert_eq!(app.on_key(Key::Char(key)), Some(vec![command]), "{key}");
-    }
-    assert_eq!(app.on_key(Key::Delete), Some(vec![Command::Delete]));
 }
 
 #[test]

@@ -1,19 +1,21 @@
 /**
- * The bridge between the Ratzilla shell (Rust/WASM) and the osdlabel viewer.
+ * The bridge between a Rust/WASM shell (the Ratzilla TUI, the Leptos app) and
+ * the osdlabel viewer.
  *
- * osdlabel renders only the image grid and its annotation canvas, into a
- * `<div>` laid over the terminal area the shell reserves for it. Every control
- * lives in the TUI, which drives the annotator through the {@link Bridge}:
+ * osdlabel renders only the image grid and its annotation canvas, into the
+ * `host` element it is given. Where that element sits is the shell's business:
+ * Ratzilla lays it over terminal cells, Leptos renders it as part of its own
+ * DOM. Every control lives in the shell, which drives the annotator through the
+ * {@link Bridge}:
  *
  * - Rust → JS: `dispatch(json)` with a {@link Command}, validated on arrival.
  * - JS → Rust: `subscribe(cb)` delivers a {@link Snapshot} (JSON) whenever the
  *   annotator's state changes, coalesced to one per microtask.
  * - Keys: `onKey(cb)`. The bridge owns the single `keydown` listener. A key the
  *   active tool consumes (Escape / Enter / Backspace mid-polyline, vertex edit)
- *   stops there; every other key goes to the TUI. osdlabel's own shortcut map
- *   is switched off, so a key never does two things.
- * - Layout: `setViewerRect(col, row, cols, rows)` places the viewer over those
- *   terminal cells.
+ *   stops there; every other key goes to the shell. osdlabel's own shortcut
+ *   map is switched off, so a key never does two things (#248 would let
+ *   osdlabel do this routing itself).
  */
 import { createEffect, createSignal, on, untrack } from 'solid-js';
 import { render } from 'solid-js/web';
@@ -40,20 +42,20 @@ export type { Command, Snapshot };
 
 /** The handle passed to the WASM `start()` function. */
 export interface Bridge {
-  /** Applies a JSON-encoded {@link Command}. Returns a status line for the TUI. */
+  /** Applies a JSON-encoded {@link Command}. Returns a status line for the shell. */
   dispatch(json: string): string;
   /** Adds a listener; it is called at once with the latest snapshot, if any. */
   subscribe(cb: (snapshotJson: string) => void): void;
   /** The latest snapshot (JSON), or `''` before the first. */
   getSnapshot(): string;
   onKey(cb: (event: KeyboardEvent) => void): void;
-  setViewerRect(col: number, row: number, cols: number, rows: number): void;
+  /** Unmounts the annotator and removes the key listener. */
+  destroy(): void;
 }
 
 export interface MountOptions {
+  /** Where osdlabel renders; it fills this element. */
   readonly host: HTMLElement;
-  /** The Ratzilla grid element, used to turn terminal cells into pixels. */
-  readonly gridElement: () => HTMLElement | null;
   readonly images: readonly ImageSource[];
   readonly contexts: readonly AnnotationContext[];
 }
@@ -146,7 +148,7 @@ export function mountBridge(options: MountOptions): Bridge {
     );
   };
 
-  render(
+  const dispose = render(
     () => (
       <AnnotatorProvider shouldSkipKeyboardShortcutPredicate={() => true}>
         <Wiring />
@@ -156,14 +158,15 @@ export function mountBridge(options: MountOptions): Bridge {
     options.host,
   );
 
-  window.addEventListener('keydown', (e) => {
+  const onKeyDown = (e: KeyboardEvent) => {
     if (shouldSuppressEscapeKey(e.key)) return;
     if (e.target instanceof HTMLElement && shouldSkipKeyboardShortcut(e.target, e.key)) return;
     // A tool mid-gesture gets first refusal: Escape cancels a polyline, Enter
     // finishes it, Backspace drops its last vertex.
     if (annotator?.activeToolKeyHandlerRef.handler?.(e)) return;
     keyListener?.(e);
-  });
+  };
+  window.addEventListener('keydown', onKeyDown);
 
   const restore = (a: Annotator, state: ByImage | undefined, verb: string) => {
     if (!state) return `Nothing to ${verb}`;
@@ -307,23 +310,12 @@ export function mountBridge(options: MountOptions): Bridge {
     onKey(cb) {
       keyListener = cb;
     },
-    setViewerRect(col, row, cols, rows) {
-      const grid = options.gridElement();
-      const first = grid?.children[row]?.children[col];
-      const last = grid?.children[row + rows - 1]?.children[col + cols - 1];
-      if (!first || !last || cols <= 0 || rows <= 0) {
-        options.host.style.display = 'none';
-        return;
-      }
-      const a = first.getBoundingClientRect();
-      const b = last.getBoundingClientRect();
-      Object.assign(options.host.style, {
-        display: 'block',
-        left: `${a.left}px`,
-        top: `${a.top}px`,
-        width: `${b.right - a.left}px`,
-        height: `${b.bottom - a.top}px`,
-      });
+    destroy() {
+      window.removeEventListener('keydown', onKeyDown);
+      dispose();
+      snapshotListeners.clear();
+      keyListener = null;
+      annotator = null;
     },
   };
 }
