@@ -52,14 +52,13 @@ The TUI is clickable too: tool rows, images, annotations and context tabs.
 
 ## How it fits together
 
-| Piece        | Where                                                  | Role                                                                                                                          |
-| ------------ | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Shell logic  | `crate/src/shell.rs`                                   | Layout, keys and clicks → typed `Command`s, drawn from the latest `Snapshot`. No browser APIs: `cargo test` runs it natively. |
-| Browser glue | `crate/src/web.rs`                                     | Ratzilla's DOM backend, the draw loop, resize/font refits, and the `Bridge` bindings.                                         |
-| Bridge       | `src/bridge.tsx`                                       | Mounts `<AnnotatorProvider>` + `<GridView>`, applies commands, publishes snapshots, routes keys, places the overlay.          |
-| Pure parts   | `src/commands.ts`, `src/snapshot.ts`, `src/history.ts` | The Valibot command schema, the snapshot builder, and the undo history; each has a Vitest suite.                              |
-| Contract     | `contract/*.json`                                      | The wire format, as fixtures both the crate's tests and the Vitest suites check, so the two sides cannot drift.               |
-| Entry        | `src/main.ts`                                          | Images and contexts (`apps/dev`'s local sample data), mounts the bridge, then calls the WASM `start(bridge)`.                 |
+| Piece        | Where                                  | Role                                                                                                                                                                   |
+| ------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell logic  | `crate/src/shell.rs`                   | Layout, panes, cursors, clicks and help → typed `Command`s, drawn from the latest `Snapshot`. Unit-tested natively.                                                    |
+| Browser glue | `crate/src/web.rs`                     | Ratzilla's DOM backend, the draw loop, resize/font refits, and the `Bridge` bindings.                                                                                  |
+| Overlay      | `src/overlay.ts`, `src/tui-bridge.ts`  | Lays the viewer over the reserved terminal cells: the one bridge call (`setViewerRect`) only the TUI needs.                                                            |
+| Entry        | `src/main.ts`                          | Mounts the shared bridge with the shared sample images and contexts, then calls the WASM `start(bridge)`.                                                              |
+| Shared       | [`apps/shell-bridge`](../shell-bridge) | The JS bridge, the Valibot command schema, snapshots, undo history, the `contract/` fixtures, and the Rust protocol crate (wire types + the keymap both shells share). |
 
 The shell never keeps its own copy of annotation state. It sends commands and redraws from whatever
 the next snapshot says. The `Bridge` handle:
@@ -87,11 +86,13 @@ recorded as new steps.
 
 ## Tests
 
-| Suite                       | Command                                              | In CI                       |
-| --------------------------- | ---------------------------------------------------- | --------------------------- |
-| Shell logic, 17 tests       | `pnpm --filter @osdlabel/ratzilla-poc poc:test:rust` | `ratzilla-poc.yml`          |
-| Commands, snapshot, history | `pnpm --filter @osdlabel/ratzilla-poc test`          | `ci.yml` (via `turbo test`) |
-| E2E, 11 tests               | `pnpm --filter @osdlabel/ratzilla-poc poc:test:e2e`  | `ratzilla-poc.yml`          |
+| Suite               | Command                                              | In CI             |
+| ------------------- | ---------------------------------------------------- | ----------------- |
+| TUI logic, 11 tests | `pnpm --filter @osdlabel/ratzilla-poc poc:test:rust` | `rust-shells.yml` |
+| E2E, 11 tests       | `pnpm --filter @osdlabel/ratzilla-poc poc:test:e2e`  | `rust-shells.yml` |
+
+The protocol, the shared keymap and the bridge's pure parts are tested in
+[`apps/shell-bridge`](../shell-bridge).
 
 The E2E suite drives the app only through the TUI and the canvas. It checks:
 
@@ -109,10 +110,9 @@ Each test was mutation-checked against the bug it guards. To run against a Chrom
 one Playwright downloads, set `POC_CHROMIUM` to its path.
 
 The Rust-dependent scripts are named `poc:*` on purpose: the main CI has no Rust toolchain, so
-`turbo build` / `dev` / `test:e2e` must not reach this app. `typecheck`, `lint` and `test` do run
-there. They pass without the WASM build because `src/wasm.d.ts` declares the generated module by
-hand. `.github/workflows/ratzilla-poc.yml` sets up Rust and runs the rest, path-filtered to this
-app, the library packages and the sample data.
+`turbo build` / `dev` / `test:e2e` must not reach this app. `typecheck` and `lint` do run there. They pass without the WASM build because `src/wasm.d.ts` declares the generated module by
+hand. `.github/workflows/rust-shells.yml` sets up Rust and runs the rest for both Rust shells,
+path-filtered to them, the shared bridge, the library packages and the sample data.
 
 ## Ratzilla 0.3 quirks worked around
 
@@ -143,5 +143,6 @@ app, the library packages and the sample data.
 - **Undo history is whole-state snapshots**, capped at 100 steps. That is fine at PoC scale, but a
   real app with thousands of annotations would want per-action diffs.
 - **The polyline's in-progress keys depend on a workaround.** osdlabel cannot turn off its shortcut
-  map while keeping the active tool's key handler, so the bridge reimplements that dispatch. A
-  library option for exactly that would remove the workaround.
+  map while keeping the active tool's key handler, so the bridge reimplements that dispatch.
+  [#248](https://github.com/osdlabel/osdlabel/issues/248) proposes the library option that would
+  remove it.
