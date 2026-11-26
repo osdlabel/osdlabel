@@ -1,0 +1,30 @@
+[package]
+name = "osdlabel-tui"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Proof of concept: an osdlabel annotator shell built with Ratzilla"
+
+[lib]
+# rlib so `cargo test` runs the shell's tests natively.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# The same ratatui Ratzilla re-exports; the shell uses it directly so it builds
+# (and tests) without a browser.
+ratatui = { version = "0.30.1", default-features = false, features = ["all-widgets"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ratzilla = "0.3.1"
+wasm-bindgen = "=0.2.130"
+web-sys = { version = "0.3", features = ["console", "KeyboardEvent", "Window", "Document", "FontFaceSet"] }
+js-sys = "0.3"
+console_error_panic_hook = "0.1.7"
+# ratatui (via portable-atomic) needs a critical-section implementation on wasm32.
+critical-section = { version = "1.2", features = ["std"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
