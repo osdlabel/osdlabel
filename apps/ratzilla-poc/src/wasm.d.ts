@@ -5,5 +5,5 @@
  */
 declare module 'osdlabel-tui-wasm' {
   export default function init(): Promise<unknown>;
-  export function start(bridge: import('./bridge.js').Bridge): void;
+  export function start(bridge: import('./tui-bridge.js').TuiBridge): void;
 }

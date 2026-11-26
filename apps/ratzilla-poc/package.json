@@ -11,24 +11,16 @@
     "poc:test:rust": "cargo test --manifest-path crate/Cargo.toml",
     "poc:test:e2e": "sh scripts/build-wasm.sh && playwright test",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "test": "vitest run"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@osdlabel/annotation": "workspace:*",
-    "@osdlabel/annotation-context": "workspace:*",
-    "@osdlabel/solid": "workspace:*",
-    "@osdlabel/viewer-api": "workspace:*",
-    "osdlabel": "workspace:*",
-    "solid-js": "catalog:",
-    "valibot": "catalog:"
+    "@osdlabel/shell-bridge": "workspace:*",
+    "solid-js": "catalog:"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
-    "jsdom": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "catalog:",
-    "vitest": "catalog:"
+    "vite-plugin-solid": "catalog:"
   }
 }

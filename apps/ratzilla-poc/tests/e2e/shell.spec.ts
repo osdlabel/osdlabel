@@ -6,7 +6,7 @@
  * and the TUI's own text, found in Ratzilla's DOM grid.
  */
 import { expect, test, type Page } from '@playwright/test';
-import type { Snapshot } from '../../src/snapshot.js';
+import type { Snapshot } from '@osdlabel/shell-bridge/snapshot';
 
 interface PocWindow {
   __poc: {

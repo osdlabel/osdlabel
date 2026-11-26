@@ -2,11 +2,8 @@
   "$schema": "https://turbo.build/schema.json",
   "extends": ["//"],
   "tasks": {
-    "test": {
-      "inputs": ["$TURBO_EXTENDS$", "contract/**"]
-    },
     "typecheck": {
-      "inputs": ["$TURBO_EXTENDS$", "contract/**"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/shell-bridge/src/**"]
     }
   }
 }

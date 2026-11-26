@@ -1,0 +1,26 @@
+{
+  "name": "@osdlabel/leptos-poc",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Proof of concept: an osdlabel annotator whose UI is a Leptos (Rust/WASM) app",
+  "type": "module",
+  "scripts": {
+    "poc:wasm": "sh scripts/build-wasm.sh",
+    "poc:dev": "sh scripts/build-wasm.sh && vite",
+    "poc:build": "sh scripts/build-wasm.sh && vite build",
+    "poc:test:rust": "cargo test --manifest-path crate/Cargo.toml",
+    "poc:test:e2e": "sh scripts/build-wasm.sh && playwright test",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@osdlabel/shell-bridge": "workspace:*",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  }
+}

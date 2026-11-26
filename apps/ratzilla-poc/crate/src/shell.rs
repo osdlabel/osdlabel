@@ -1,13 +1,15 @@
 //! The shell's logic and layout, with no browser APIs.
 //!
 //! [`App`] turns keys and clicks into [`Command`]s for the annotator, and draws
-//! itself from the latest [`Snapshot`]. It never mutates annotation state on its
+//! itself from the latest [`Snapshot`]. The protocol and the shortcuts every
+//! shell shares are `osdlabel-shell-protocol`'s; this module adds the TUI's
+//! panes, cursors, clicks and help screen. It never mutates annotation state on its
 //! own guess: whatever a command does, the next snapshot says so. Everything
 //! here compiles natively, so `cargo test` covers it without a browser; the
 //! wasm glue that feeds it lives in `web.rs`.
 
-use std::collections::HashMap;
-
+use osdlabel_shell_protocol::{shortcut, tool_command, KeyOutcome, TOOLS};
+pub use osdlabel_shell_protocol::{Command, Key, Snapshot};
 use ratatui::{
     layout::{Constraint, Flex, Layout, Position, Rect},
     style::{Color, Modifier, Style, Stylize},
@@ -15,196 +17,6 @@ use ratatui::{
     widgets::{Block, BorderType, Clear, List, ListItem, ListState, Paragraph, Tabs},
     Frame,
 };
-use serde::{Deserialize, Serialize};
-
-// ── Wire format ─────────────────────────────────────────────────────────────
-//
-// Both directions are JSON. `src/bridge.tsx` validates every command against a
-// Valibot schema, and `contract/commands.json` pins the encoding on both sides.
-
-/// What the shell asks the annotator to do (Rust → JS).
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(tag = "t", rename_all = "camelCase")]
-pub enum Command {
-    /// `None` is navigation mode.
-    Tool {
-        tool: Option<String>,
-    },
-    Context {
-        id: String,
-    },
-    /// Shows an image in the active cell.
-    Image {
-        id: String,
-    },
-    Select {
-        id: Option<String>,
-    },
-    /// Deletes the selected annotation.
-    Delete,
-    View {
-        op: ViewOp,
-    },
-    Export,
-    /// Opens a file picker; the outcome arrives as a snapshot `notice`.
-    Import,
-    Undo,
-    Redo,
-    Grid {
-        columns: u8,
-        rows: u8,
-    },
-    Cell {
-        index: usize,
-    },
-}
-
-#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum ViewOp {
-    RotateCw,
-    RotateCcw,
-    FlipH,
-    FlipV,
-    Invert,
-    ExposureUp,
-    ExposureDown,
-    ContrastUp,
-    ContrastDown,
-    Reset,
-}
-
-/// The annotator's state as the shell needs it (JS → Rust).
-#[derive(Deserialize, Default, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Snapshot {
-    pub active_tool: Option<String>,
-    pub active_context_id: Option<String>,
-    pub contexts: Vec<Named>,
-    pub images: Vec<ImageEntry>,
-    pub active_image_id: Option<String>,
-    pub selected_annotation_id: Option<String>,
-    pub constraints: HashMap<String, ToolStatus>,
-    /// The active image's annotations, oldest first.
-    pub annotations: Vec<AnnotationEntry>,
-    pub transform: Transform,
-    pub grid: Grid,
-    pub active_cell: usize,
-    pub can_undo: bool,
-    pub can_redo: bool,
-    /// The outcome of something that finished later than its command (an
-    /// import). Shown once per `seq`.
-    pub notice: Option<Notice>,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct Named {
-    pub id: String,
-    pub label: String,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct ImageEntry {
-    pub id: String,
-    pub label: String,
-    pub count: usize,
-}
-
-#[derive(Deserialize, Clone, Copy, Debug)]
-pub struct ToolStatus {
-    pub enabled: bool,
-    pub current: u32,
-    pub max: Option<u32>,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct AnnotationEntry {
-    pub id: String,
-    pub tool: String,
-    pub context: String,
-    /// Painted on the canvas (its context is the active or a displayed one).
-    pub visible: bool,
-}
-
-#[derive(Deserialize, Default, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Transform {
-    pub rotation: i32,
-    pub flipped_h: bool,
-    pub flipped_v: bool,
-    pub inverted: bool,
-    pub exposure: f64,
-    pub contrast: f64,
-}
-
-#[derive(Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Grid {
-    pub columns: u8,
-    pub rows: u8,
-}
-
-impl Default for Grid {
-    fn default() -> Self {
-        Grid {
-            columns: 1,
-            rows: 1,
-        }
-    }
-}
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct Notice {
-    pub seq: u32,
-    pub text: String,
-}
-
-// ── Input ───────────────────────────────────────────────────────────────────
-
-/// A key, as the shell sees it. The wasm glue maps browser keys onto this.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Key {
-    Char(char),
-    Tab,
-    BackTab,
-    Up,
-    Down,
-    Left,
-    Right,
-    Enter,
-    Esc,
-    Delete,
-    Backspace,
-}
-
-// ── Shell state ─────────────────────────────────────────────────────────────
-
-/// (key, tool id or `None` for navigation, label)
-pub const TOOLS: [(char, Option<&str>, &str); 8] = [
-    ('n', None, "Navigate"),
-    ('v', Some("select"), "Select"),
-    ('1', Some("rectangle"), "Rectangle"),
-    ('2', Some("circle"), "Circle"),
-    ('3', Some("line"), "Line"),
-    ('4', Some("point"), "Point"),
-    ('5', Some("polyline"), "Polyline"),
-    ('6', Some("freeHandPath"), "Freehand"),
-];
-
-/// The layouts `g` cycles through.
-pub const GRIDS: [Grid; 3] = [
-    Grid {
-        columns: 1,
-        rows: 1,
-    },
-    Grid {
-        columns: 2,
-        rows: 1,
-    },
-    Grid {
-        columns: 2,
-        rows: 2,
-    },
-];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Pane {
@@ -293,22 +105,27 @@ impl App {
     }
 
     fn tool_enabled(&self, tool: Option<&str>) -> bool {
-        match tool {
-            None | Some("select") => true,
-            Some(t) => self.snap.constraints.get(t).is_some_and(|s| s.enabled),
+        osdlabel_shell_protocol::tool_enabled(&self.snap, tool)
+    }
+
+    /// Commands from the shared keymap; a refusal becomes the status line.
+    fn outcome(&mut self, outcome: KeyOutcome) -> Option<Vec<Command>> {
+        match outcome {
+            KeyOutcome::Commands(commands) => Some(commands),
+            KeyOutcome::Refused(reason) => {
+                self.status = reason;
+                Some(vec![])
+            }
+            KeyOutcome::Unhandled => None,
         }
     }
 
     fn tool(&mut self, index: usize) -> Vec<Command> {
-        let (_, tool, label) = TOOLS[index];
-        if !self.tool_enabled(tool) {
-            self.status = format!("{label} is not available in this context");
-            return vec![];
+        let outcome = tool_command(&self.snap, index);
+        if matches!(outcome, KeyOutcome::Commands(_)) {
+            self.cursor[Pane::Tools.index()] = index;
         }
-        self.cursor[Pane::Tools.index()] = index;
-        vec![Command::Tool {
-            tool: tool.map(str::to_owned),
-        }]
+        self.outcome(outcome).unwrap_or_default()
     }
 
     fn image(&mut self, index: usize) -> Vec<Command> {
@@ -335,38 +152,6 @@ impl App {
             .get(index)
             .map(|c| vec![Command::Context { id: c.id.clone() }])
             .unwrap_or_default()
-    }
-
-    fn cycle_context(&self, delta: isize) -> Vec<Command> {
-        let n = self.snap.contexts.len() as isize;
-        if n == 0 {
-            return vec![];
-        }
-        let current = self
-            .snap
-            .contexts
-            .iter()
-            .position(|c| Some(&c.id) == self.snap.active_context_id.as_ref())
-            .unwrap_or(0) as isize;
-        self.context((current + delta).rem_euclid(n) as usize)
-    }
-
-    fn cycle_grid(&self) -> Vec<Command> {
-        let i = GRIDS.iter().position(|g| *g == self.snap.grid).unwrap_or(0);
-        let next = GRIDS[(i + 1) % GRIDS.len()];
-        vec![Command::Grid {
-            columns: next.columns,
-            rows: next.rows,
-        }]
-    }
-
-    fn cycle_cell(&self, delta: isize) -> Vec<Command> {
-        let n = (self.snap.grid.columns as isize) * (self.snap.grid.rows as isize);
-        if n <= 1 {
-            return vec![];
-        }
-        let index = (self.snap.active_cell as isize + delta).rem_euclid(n) as usize;
-        vec![Command::Cell { index }]
     }
 
     fn pane_len(&self, pane: Pane) -> usize {
@@ -412,7 +197,6 @@ impl App {
                 return Some(vec![]);
             }
         }
-        let view = |op| Some(vec![Command::View { op }]);
         match key {
             Key::Char('?') => {
                 self.help = true;
@@ -428,36 +212,11 @@ impl App {
             }
             Key::Up | Key::Char('k') => Some(self.move_cursor(-1)),
             Key::Down | Key::Char('j') => Some(self.move_cursor(1)),
-            Key::Left => Some(self.cycle_cell(-1)),
-            Key::Right => Some(self.cycle_cell(1)),
             Key::Enter => Some(self.activate_focused()),
-            Key::Esc => Some(if self.snap.selected_annotation_id.is_some() {
-                vec![Command::Select { id: None }]
-            } else {
-                self.tool(0)
-            }),
-            Key::Delete | Key::Backspace | Key::Char('x') => Some(vec![Command::Delete]),
-            Key::Char('[') => Some(self.cycle_context(-1)),
-            Key::Char(']') => Some(self.cycle_context(1)),
-            Key::Char('u') => Some(vec![Command::Undo]),
-            Key::Char('U') => Some(vec![Command::Redo]),
-            Key::Char('g') => Some(self.cycle_grid()),
-            Key::Char('e') => Some(vec![Command::Export]),
-            Key::Char('o') => Some(vec![Command::Import]),
-            Key::Char('r') => view(ViewOp::RotateCw),
-            Key::Char('R') => view(ViewOp::RotateCcw),
-            Key::Char('h') => view(ViewOp::FlipH),
-            Key::Char('H') => view(ViewOp::FlipV),
-            Key::Char('i') => view(ViewOp::Invert),
-            Key::Char('+') => view(ViewOp::ExposureUp),
-            Key::Char('-') => view(ViewOp::ExposureDown),
-            Key::Char('>') => view(ViewOp::ContrastUp),
-            Key::Char('<') => view(ViewOp::ContrastDown),
-            Key::Char('0') => view(ViewOp::Reset),
-            Key::Char(c) => TOOLS
-                .iter()
-                .position(|(k, _, _)| *k == c)
-                .map(|i| self.tool(i)),
+            _ => {
+                let outcome = shortcut(key, &self.snap);
+                self.outcome(outcome)
+            }
         }
     }
 
